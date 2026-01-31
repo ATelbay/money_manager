@@ -185,7 +185,7 @@ jobs:
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: com.example.spendee
+          packageName: com.atelbay.money_manager
           releaseFiles: app/build/outputs/bundle/release/*.aab
           track: internal
           status: completed

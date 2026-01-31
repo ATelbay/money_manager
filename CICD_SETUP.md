@@ -41,9 +41,9 @@
 ## Создание Keystore
 
 ```bash
-keytool -genkey -v -keystore spendee-release.jks \
+keytool -genkey -v -keystore money_manager-release.jks \
   -keyalg RSA -keysize 2048 -validity 10000 \
-  -alias spendee
+  -alias money_manager
 ```
 
 **Важно:** сохрани keystore и пароли в надёжном месте! Без них не сможешь обновлять приложение в Play Store.
@@ -95,12 +95,12 @@ act push --job check
 
 ```bash
 # Конвертировать keystore в base64
-base64 -i spendee-release.jks | pbcopy  # macOS
-base64 -w 0 spendee-release.jks         # Linux
+base64 -i money_manager-release.jks | pbcopy  # macOS
+base64 -w 0 money_manager         # Linux
 
 # Проверить keystore
-keytool -list -v -keystore spendee-release.jks
+keytool -list -v -keystore money_manager-release.jks
 
 # Получить SHA-1 для Firebase
-keytool -list -v -keystore spendee-release.jks | grep SHA1
+keytool -list -v -keystore money_manager-release.jks | grep SHA1
 ```

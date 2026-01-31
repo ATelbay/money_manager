@@ -1,8 +1,8 @@
-# Spendee — Personal Finance Tracker
+# Money Manager — Personal Finance Tracker
 
 ## Обзор проекта
 
-Spendee — Android-приложение для учёта личных финансов. Разрабатывается как часть магистерской диссертации, посвящённой UI-автоматизации тестирования.
+Money Manager — Android-приложение для учёта личных финансов. Разрабатывается как часть магистерской диссертации, посвящённой UI-автоматизации тестирования.
 
 **Цель:** создать приложение с разнообразными UI-паттернами для последующего покрытия автоматизированными тестами.
 
@@ -26,11 +26,11 @@ Spendee — Android-приложение для учёта личных фина
 
 ```
 app/
-├── src/main/java/com/example/spendee/
+├── src/main/java/com/example/MoneyManager/
 │   ├── MainActivity.kt
-│   ├── SpendeeApp.kt
+│   ├── MoneyManagerApp.kt
 │   └── navigation/
-│       └── SpendeeNavHost.kt
+│       └── MoneyManagerNavHost.kt
 │
 ├── core/
 │   ├── database/          # Room DB, entities, DAOs
@@ -118,18 +118,24 @@ fun TransactionListScreen(
 
 ```kotlin
 // Destinations
-@Serializable data object Home
-@Serializable data object Onboarding
-@Serializable data class TransactionEdit(val id: Long? = null)
-@Serializable data class CategoryEdit(val id: Long? = null)
-@Serializable data object Statistics
-@Serializable data object Accounts
+@Serializable
+data object Home
+@Serializable
+data object Onboarding
+@Serializable
+data class TransactionEdit(val id: Long? = null)
+@Serializable
+data class CategoryEdit(val id: Long? = null)
+@Serializable
+data object Statistics
+@Serializable
+data object Accounts
 
 // NavHost
 @Composable
-fun SpendeeNavHost(navController: NavHostController) {
+fun MoneyManagerNavHost(navController: NavHostController) {
     NavHost(navController, startDestination = Home) {
-        composable<Home> { 
+        composable<Home> {
             HomeRoute(
                 onTransactionClick = { navController.navigate(TransactionEdit(it)) },
                 onAddClick = { navController.navigate(TransactionEdit()) }
