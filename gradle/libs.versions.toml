@@ -113,6 +113,13 @@ mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 # Detekt
 detekt-compose = { group = "io.nlopez.compose.rules", name = "detekt", version.ref = "detektCompose" }
 
+# Gradle Plugins (for build-logic)
+android-gradlePlugin = { group = "com.android.tools.build", name = "gradle", version.ref = "agp" }
+kotlin-gradlePlugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
+compose-gradlePlugin = { group = "org.jetbrains.kotlin", name = "compose-compiler-gradle-plugin", version.ref = "kotlin" }
+ksp-gradlePlugin = { group = "com.google.devtools.ksp", name = "com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }
+hilt-gradlePlugin = { group = "com.google.dagger", name = "hilt-android-gradle-plugin", version.ref = "hilt" }
+
 [bundles]
 compose = [
     "androidx-compose-ui",
@@ -157,6 +164,14 @@ android-testing = [
 ]
 
 [plugins]
+# Convention plugins
+moneymanager-android-application = { id = "moneymanager.android.application", version = "unspecified" }
+moneymanager-android-library = { id = "moneymanager.android.library", version = "unspecified" }
+moneymanager-android-compose = { id = "moneymanager.android.compose", version = "unspecified" }
+moneymanager-android-hilt = { id = "moneymanager.android.hilt", version = "unspecified" }
+moneymanager-android-feature = { id = "moneymanager.android.feature", version = "unspecified" }
+
+# External plugins
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

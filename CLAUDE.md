@@ -6,202 +6,172 @@ Money Manager — Android-приложение для учёта личных ф
 
 **Цель:** создать приложение с разнообразными UI-паттернами для последующего покрытия автоматизированными тестами.
 
+**Package:** `com.atelbay.money_manager`
+
 ## Технический стек
 
-| Компонент | Технология |
-|-----------|------------|
-| UI | Jetpack Compose + Material 3 |
-| DI | Hilt |
-| Database | Room |
-| Navigation | Navigation Compose 2.8+ (type-safe) |
-| Architecture | MVVM + Clean Architecture (единый UI State) |
-| Async | Coroutines + Flow |
-| Charts | Vico |
-| Build | Version Catalogs + Convention Plugins |
-| CI/CD | GitHub Actions → Firebase App Distribution → Play Store |
+| Компонент | Технология | Версия |
+|-----------|------------|--------|
+| UI | Jetpack Compose + Material 3 | BOM 2026.01.01 |
+| DI | Hilt | 2.58 |
+| Database | Room | 2.8.4 |
+| Navigation | Navigation Compose (type-safe) | 2.9.7 |
+| Architecture | MVVM + Clean Architecture | — |
+| Async | Coroutines + Flow | 1.10.2 |
+| DataStore | Preferences DataStore | 1.1.7 |
+| Build | Version Catalogs + Convention Plugins | AGP 8.13.2, Kotlin 2.3.0, KSP 2.3.1 |
+| Charts | Vico | 2.4.3 |
+| CI/CD | GitHub Actions → Firebase App Distribution → Play Store | — |
 
 ## Архитектура
 
-### Модульная структура
+### Gradle-модули
 
 ```
-app/
-├── src/main/java/com/example/MoneyManager/
-│   ├── MainActivity.kt
-│   ├── MoneyManagerApp.kt
-│   └── navigation/
-│       └── MoneyManagerNavHost.kt
+MoneyManager/
+├── build-logic/                    # Convention plugins
+│   └── convention/
+│       └── src/main/kotlin/
+│           ├── AndroidApplicationConventionPlugin.kt
+│           ├── AndroidLibraryConventionPlugin.kt
+│           ├── AndroidComposeConventionPlugin.kt
+│           ├── AndroidHiltConventionPlugin.kt
+│           ├── AndroidFeatureConventionPlugin.kt
+│           └── com/atelbay/money_manager/KotlinAndroid.kt
+│
+├── app/                            # :app — application module
+│   └── src/main/java/com/atelbay/money_manager/
+│       ├── MainActivity.kt
+│       ├── MoneyManagerApp.kt      # @HiltAndroidApp
+│       └── navigation/
+│           ├── Destinations.kt     # @Serializable destinations
+│           └── MoneyManagerNavHost.kt
 │
 ├── core/
-│   ├── database/          # Room DB, entities, DAOs
-│   ├── di/                # Hilt modules
-│   ├── ui/                # Общие Compose-компоненты
-│   │   ├── components/    # Button, Card, TextField и т.д.
-│   │   └── theme/         # Colors, Typography, Theme
-│   └── util/              # Extensions, helpers
+│   ├── database/                   # :core:database — Room DB
+│   │   └── src/main/java/com/atelbay/money_manager/core/database/
+│   │       ├── MoneyManagerDatabase.kt
+│   │       ├── DefaultCategories.kt
+│   │       ├── entity/
+│   │       │   ├── AccountEntity.kt
+│   │       │   ├── CategoryEntity.kt
+│   │       │   └── TransactionEntity.kt
+│   │       ├── dao/
+│   │       │   ├── AccountDao.kt
+│   │       │   ├── CategoryDao.kt
+│   │       │   └── TransactionDao.kt
+│   │       └── di/
+│   │           └── DatabaseModule.kt
+│   │
+│   ├── datastore/                  # :core:datastore — Preferences
+│   │   └── src/main/java/com/atelbay/money_manager/core/datastore/
+│   │       ├── UserPreferences.kt
+│   │       └── di/
+│   │           └── DataStoreModule.kt
+│   │
+│   ├── ui/                         # :core:ui — Theme & Components
+│   │   └── src/main/java/com/atelbay/money_manager/core/ui/
+│   │       ├── theme/
+│   │       │   ├── Color.kt
+│   │       │   ├── Type.kt
+│   │       │   └── Theme.kt
+│   │       └── components/
+│   │           ├── MoneyManagerButton.kt
+│   │           ├── MoneyManagerTextField.kt
+│   │           └── MoneyManagerCard.kt
+│   │
+│   └── common/                     # :core:common — Utils, extensions
 │
 ├── feature/
-│   ├── onboarding/
-│   │   ├── data/
-│   │   ├── domain/
-│   │   └── ui/
+│   ├── onboarding/                 # :feature:onboarding
+│   │   └── src/main/java/com/atelbay/money_manager/feature/onboarding/ui/
+│   │       ├── OnboardingScreen.kt
+│   │       ├── OnboardingRoute.kt
+│   │       ├── OnboardingViewModel.kt
+│   │       ├── OnboardingState.kt
+│   │       ├── CreateAccountScreen.kt
+│   │       ├── CreateAccountRoute.kt
+│   │       ├── CreateAccountViewModel.kt
+│   │       └── CreateAccountState.kt
 │   │
-│   ├── transactions/
-│   │   ├── data/
-│   │   │   ├── repository/
-│   │   │   └── mapper/
-│   │   ├── domain/
-│   │   │   ├── model/
-│   │   │   ├── repository/
-│   │   │   └── usecase/
-│   │   └── ui/
-│   │       ├── list/
-│   │       │   ├── TransactionListScreen.kt
-│   │       │   └── TransactionListViewModel.kt
-│   │       └── edit/
-│   │           ├── TransactionEditScreen.kt
-│   │           └── TransactionEditViewModel.kt
-│   │
-│   ├── categories/
-│   │   ├── data/
-│   │   ├── domain/
-│   │   └── ui/
-│   │
-│   ├── statistics/
-│   │   ├── data/
-│   │   ├── domain/
-│   │   └── ui/
-│   │
-│   └── accounts/
-│       ├── data/
-│       ├── domain/
-│       └── ui/
+│   └── transactions/               # :feature:transactions
+│       └── src/main/java/com/atelbay/money_manager/feature/transactions/
+│           ├── domain/
+│           │   ├── model/
+│           │   │   ├── Transaction.kt
+│           │   │   └── Category.kt
+│           │   ├── repository/
+│           │   │   └── TransactionRepository.kt
+│           │   └── usecase/
+│           │       ├── GetTransactionsUseCase.kt
+│           │       ├── GetTransactionByIdUseCase.kt
+│           │       ├── GetCategoriesUseCase.kt
+│           │       ├── SaveTransactionUseCase.kt
+│           │       └── DeleteTransactionUseCase.kt
+│           ├── data/
+│           │   ├── mapper/TransactionMapper.kt
+│           │   └── repository/TransactionRepositoryImpl.kt
+│           ├── di/
+│           │   └── TransactionModule.kt
+│           └── ui/
+│               ├── list/
+│               │   ├── TransactionListScreen.kt
+│               │   ├── TransactionListRoute.kt
+│               │   ├── TransactionListViewModel.kt
+│               │   └── TransactionListState.kt
+│               └── edit/
+│                   ├── TransactionEditScreen.kt
+│                   ├── TransactionEditRoute.kt
+│                   ├── TransactionEditViewModel.kt
+│                   └── TransactionEditState.kt
+│
+├── gradle/libs.versions.toml      # Version catalog
+└── settings.gradle.kts
 ```
 
-### Паттерн UI State
+### Convention Plugins
 
-```kotlin
-// Единый state для экрана
-data class TransactionListState(
-    val transactions: List<TransactionUi> = emptyList(),
-    val isLoading: Boolean = false,
-    val error: String? = null,
-    val selectedPeriod: Period = Period.MONTH
-)
-
-// ViewModel с прямыми методами (не Intent)
-@HiltViewModel
-class TransactionListViewModel @Inject constructor(
-    private val getTransactionsUseCase: GetTransactionsUseCase
-) : ViewModel() {
-    
-    private val _state = MutableStateFlow(TransactionListState())
-    val state: StateFlow<TransactionListState> = _state.asStateFlow()
-    
-    fun loadTransactions() { /* ... */ }
-    fun selectPeriod(period: Period) { /* ... */ }
-    fun deleteTransaction(id: Long) { /* ... */ }
-}
-
-// Screen получает state и callbacks
-@Composable
-fun TransactionListScreen(
-    state: TransactionListState,
-    onTransactionClick: (Long) -> Unit,
-    onAddClick: () -> Unit,
-    onPeriodChange: (Period) -> Unit,
-    modifier: Modifier = Modifier
-)
-```
+| Plugin ID | Назначение |
+|-----------|------------|
+| `moneymanager.android.application` | AGP application + Kotlin, compileSdk=36, targetSdk=36, minSdk=29 |
+| `moneymanager.android.library` | AGP library + Kotlin |
+| `moneymanager.android.compose` | Kotlin Compose compiler + Compose BOM + bundles |
+| `moneymanager.android.hilt` | Hilt + KSP |
+| `moneymanager.android.feature` | library + compose + hilt + lifecycle + navigation |
 
 ### Навигация (Type-Safe)
 
+4 destinations в `app/.../navigation/Destinations.kt`:
 ```kotlin
-// Destinations
-@Serializable
-data object Home
-@Serializable
-data object Onboarding
-@Serializable
-data class TransactionEdit(val id: Long? = null)
-@Serializable
-data class CategoryEdit(val id: Long? = null)
-@Serializable
-data object Statistics
-@Serializable
-data object Accounts
-
-// NavHost
-@Composable
-fun MoneyManagerNavHost(navController: NavHostController) {
-    NavHost(navController, startDestination = Home) {
-        composable<Home> {
-            HomeRoute(
-                onTransactionClick = { navController.navigate(TransactionEdit(it)) },
-                onAddClick = { navController.navigate(TransactionEdit()) }
-            )
-        }
-        composable<TransactionEdit> { backStackEntry ->
-            val args: TransactionEdit = backStackEntry.toRoute()
-            TransactionEditRoute(
-                transactionId = args.id,
-                onBack = { navController.popBackStack() }
-            )
-        }
-        // ...
-    }
-}
+@Serializable data object Onboarding
+@Serializable data object CreateAccount
+@Serializable data object Home
+@Serializable data class TransactionEdit(val id: Long? = null)
 ```
+
+Flow: `Onboarding → CreateAccount → Home ↔ TransactionEdit`
+
+При запуске `MainActivity` проверяет `UserPreferences.isOnboardingCompleted` и выбирает `startDestination`.
+
+### Паттерн UI State
+
+- Единый `data class *State` для каждого экрана
+- ViewModel с прямыми методами (не Intent/Event)
+- Screen — stateless composable (принимает state + callbacks)
+- Route — stateful wrapper, собирает state из ViewModel
 
 ## База данных (Room)
 
-### Entities
-
-```kotlin
-@Entity(tableName = "accounts")
-data class AccountEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val name: String,
-    val currency: String,
-    val balance: Double,
-    val createdAt: Long
-)
-
-@Entity(tableName = "categories")
-data class CategoryEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val name: String,
-    val icon: String,        // имя иконки из Material Icons
-    val color: Long,         // ARGB цвет
-    val type: String,        // "income" | "expense"
-    val isDefault: Boolean   // предустановленная категория
-)
-
-@Entity(
-    tableName = "transactions",
-    foreignKeys = [
-        ForeignKey(entity = AccountEntity::class, parentColumns = ["id"], childColumns = ["accountId"]),
-        ForeignKey(entity = CategoryEntity::class, parentColumns = ["id"], childColumns = ["categoryId"])
-    ]
-)
-data class TransactionEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val amount: Double,
-    val type: String,        // "income" | "expense"
-    val categoryId: Long,
-    val accountId: Long,
-    val note: String?,
-    val date: Long,          // timestamp
-    val createdAt: Long
-)
-```
+3 entities: `AccountEntity`, `CategoryEntity`, `TransactionEntity` (с ForeignKeys).
+15 предустановленных категорий (10 расход + 5 доход) в `DefaultCategories.kt`.
+Prepopulation через `RoomDatabase.Callback.onCreate`.
 
 ## Приоритеты реализации
 
-### P0 — Критический путь
-1. **Core**: DI setup, Room database, Theme
-2. **Onboarding**: Welcome screens, Create account, Currency selection
-3. **Transactions**: List (главный экран), Add/Edit form
+### P0 — Критический путь ✅
+1. ~~**Core**: DI setup, Room database, Theme~~
+2. ~~**Onboarding**: Welcome screens, Create account, Currency selection~~
+3. ~~**Transactions**: List (главный экран), Add/Edit form~~
 
 ### P1 — Основной функционал
 4. **Categories**: List, Add/Edit with icon & color picker
@@ -212,18 +182,17 @@ data class TransactionEntity(
 
 ## UI-сценарии для тестирования
 
-Приложение специально проектируется для покрытия разнообразных UI-паттернов:
-
 | Сценарий | Экран | Элементы |
 |----------|-------|----------|
 | Multi-step flow | Onboarding | HorizontalPager, кнопки навигации |
-| Form validation | Transaction Edit | TextField, валидация, error states |
-| List operations | Transaction List | LazyColumn, swipe-to-delete, pull-refresh |
-| Modal selection | Category picker | BottomSheet / Dialog с списком |
+| Form validation | Transaction Edit, Create Account | TextField, валидация, error states |
+| List operations | Transaction List | LazyColumn, swipe-to-delete |
+| Modal selection | Category picker | ModalBottomSheet с LazyVerticalGrid |
 | Date picking | Transaction Edit | DatePickerDialog |
+| Dropdown | Create Account | ExposedDropdownMenuBox для валюты |
 | Chart interaction | Statistics | Vico charts, touch feedback |
 | CRUD | Categories | Create, Read, Update, Delete flow |
-| Navigation | Все | Deep links, back stack |
+| Navigation | Все | Type-safe routes, back stack |
 
 ## Code Style
 
@@ -231,36 +200,24 @@ data class TransactionEntity(
 - Screens: `{Feature}Screen.kt` — stateless composable
 - Routes: `{Feature}Route.kt` — stateful wrapper с ViewModel
 - ViewModels: `{Feature}ViewModel.kt`
+- States: `{Feature}State.kt`
 - UseCases: `{Action}{Entity}UseCase.kt` (e.g., `GetTransactionsUseCase`)
 - Repositories: `{Entity}Repository.kt` (interface), `{Entity}RepositoryImpl.kt`
 
 ### Compose
-- Preview для каждого значимого компонента
 - Modifier как первый необязательный параметр
 - State hoisting: Screen не знает о ViewModel
-- Использовать `ImmutableList` для стабильных коллекций
-
-### Тестирование
-- Каждый ViewModel покрыт unit-тестами
-- UI-тесты с использованием `testTag` для ключевых элементов
+- `ImmutableList` для стабильных коллекций
 - `testTag` naming: `"screen:element"` (e.g., `"transactionList:fab"`, `"transactionEdit:amountField"`)
 
 ## Полезные команды
 
 ```bash
-# Сборка
 ./gradlew assembleDebug
-
-# Тесты
-./gradlew test                    # unit-тесты
-./gradlew connectedAndroidTest    # UI-тесты
-
-# Lint & Analysis
+./gradlew test
+./gradlew connectedAndroidTest
 ./gradlew lint
 ./gradlew detekt
-
-# Dependency updates
-./gradlew dependencyUpdates
 ```
 
 ## TODO / Не в MVP

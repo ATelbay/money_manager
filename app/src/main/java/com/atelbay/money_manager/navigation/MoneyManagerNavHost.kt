@@ -1,15 +1,19 @@
 package com.atelbay.money_manager.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.atelbay.money_manager.feature.onboarding.ui.CreateAccountRoute
 import com.atelbay.money_manager.feature.onboarding.ui.OnboardingRoute
+import com.atelbay.money_manager.feature.categories.ui.edit.CategoryEditRoute
+import com.atelbay.money_manager.feature.categories.ui.list.CategoryListRoute
+import com.atelbay.money_manager.feature.accounts.ui.edit.AccountEditRoute
+import com.atelbay.money_manager.feature.accounts.ui.list.AccountListRoute
+import com.atelbay.money_manager.feature.statistics.ui.StatisticsRoute
+import com.atelbay.money_manager.feature.transactions.ui.edit.TransactionEditRoute
+import com.atelbay.money_manager.feature.transactions.ui.list.TransactionListRoute
 
 @Composable
 fun MoneyManagerNavHost(
@@ -24,22 +28,90 @@ fun MoneyManagerNavHost(
     ) {
         composable<Onboarding> {
             OnboardingRoute(
-                onOnboardingComplete = {
-                    navController.navigate(Home) {
+                onFinished = {
+                    navController.navigate(CreateAccount) {
                         popUpTo<Onboarding> { inclusive = true }
                     }
                 },
             )
         }
 
+        composable<CreateAccount> {
+            CreateAccountRoute(
+                onAccountCreated = {
+                    navController.navigate(Home) {
+                        popUpTo<CreateAccount> { inclusive = true }
+                    }
+                },
+            )
+        }
+
         composable<Home> {
-            // Placeholder — будет заменён на TransactionListScreen
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("Home")
-            }
+            TransactionListRoute(
+                onTransactionClick = { id ->
+                    navController.navigate(TransactionEdit(id = id))
+                },
+                onAddClick = {
+                    navController.navigate(TransactionEdit())
+                },
+                onCategoriesClick = {
+                    navController.navigate(CategoryList)
+                },
+                onStatisticsClick = {
+                    navController.navigate(Statistics)
+                },
+                onAccountsClick = {
+                    navController.navigate(AccountList)
+                },
+            )
+        }
+
+        composable<TransactionEdit> {
+            TransactionEditRoute(
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable<CategoryList> {
+            CategoryListRoute(
+                onCategoryClick = { id ->
+                    navController.navigate(CategoryEdit(id = id))
+                },
+                onAddClick = {
+                    navController.navigate(CategoryEdit())
+                },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable<CategoryEdit> {
+            CategoryEditRoute(
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable<Statistics> {
+            StatisticsRoute(
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable<AccountList> {
+            AccountListRoute(
+                onAccountClick = { id ->
+                    navController.navigate(AccountEdit(id = id))
+                },
+                onAddClick = {
+                    navController.navigate(AccountEdit())
+                },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable<AccountEdit> {
+            AccountEditRoute(
+                onBack = { navController.popBackStack() },
+            )
         }
     }
 }
