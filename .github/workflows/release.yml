@@ -1,0 +1,136 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  JAVA_VERSION: '17'
+  JAVA_DISTRIBUTION: 'temurin'
+
+jobs:
+  # ==================== BUILD RELEASE ====================
+  build-release:
+    name: Build Release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run Tests
+        run: ./gradlew test
+
+      - name: Decode Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > app/keystore.jks
+
+      - name: Build Release APK
+        run: ./gradlew assembleRelease
+        env:
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+
+      - name: Build Release AAB
+        run: ./gradlew bundleRelease
+        env:
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: app/build/outputs/apk/release/*.apk
+
+      - name: Upload Release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-bundle
+          path: app/build/outputs/bundle/release/*.aab
+
+  # ==================== FIREBASE DISTRIBUTION ====================
+  firebase:
+    name: Firebase Distribution
+    needs: build-release
+    runs-on: ubuntu-latest
+    if: ${{ vars.ENABLE_FIREBASE == 'true' }}
+    
+    steps:
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: app-release
+
+      - name: Upload to Firebase
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_CREDENTIALS }}
+          groups: testers
+          file: app-release.apk
+          releaseNotes: "Release ${{ github.ref_name }}"
+
+  # ==================== PLAY STORE ====================
+  play-store:
+    name: Play Store (Internal)
+    needs: build-release
+    runs-on: ubuntu-latest
+    if: ${{ vars.ENABLE_PLAY_STORE == 'true' }}
+    
+    steps:
+      - name: Download AAB
+        uses: actions/download-artifact@v4
+        with:
+          name: app-bundle
+
+      - name: Upload to Play Store
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.atelbay.money_manager
+          releaseFiles: '*.aab'
+          track: internal
+          status: completed
+          releaseName: ${{ github.ref_name }}
+
+  # ==================== GITHUB RELEASE ====================
+  github-release:
+    name: GitHub Release
+    needs: build-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: app-release
+
+      - name: Download AAB
+        uses: actions/download-artifact@v4
+        with:
+          name: app-bundle
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            *.apk
+            *.aab
+          generate_release_notes: true
