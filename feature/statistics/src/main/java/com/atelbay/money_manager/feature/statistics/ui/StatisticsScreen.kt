@@ -19,12 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -54,21 +50,21 @@ import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.feature.statistics.domain.model.CategorySummary
 import com.atelbay.money_manager.feature.statistics.domain.model.DailyTotal
 import com.atelbay.money_manager.feature.statistics.domain.model.StatsPeriod
-import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
-import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
-import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
+import androidx.compose.ui.geometry.CornerRadius
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import java.text.DecimalFormat
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatisticsScreen(
     state: StatisticsState,
     onPeriodChange: (StatsPeriod) -> Unit,
-    onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -76,11 +72,6 @@ fun StatisticsScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Статистика") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
-                    }
-                },
             )
         },
     ) { padding ->
@@ -354,25 +345,82 @@ private fun ExpenseBarChart(
     dailyExpenses: ImmutableList<DailyTotal>,
     modifier: Modifier = Modifier,
 ) {
-    val modelProducer = remember { CartesianChartModelProducer() }
+    val barColor = ExpenseColor
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(color = labelColor)
 
-    LaunchedEffect(dailyExpenses) {
-        if (dailyExpenses.isNotEmpty()) {
-            modelProducer.runTransaction {
-                columnSeries {
-                    series(dailyExpenses.map { it.amount })
-                }
-            }
+    val dateFormat = remember { SimpleDateFormat("dd.MM", Locale.getDefault()) }
+    val dayOfWeekFormat = remember { SimpleDateFormat("EE", Locale.getDefault()) }
+
+    val labels = remember(dailyExpenses) {
+        dailyExpenses.map { daily ->
+            val date = Date(daily.date)
+            val datePart = dateFormat.format(date)
+            val dayPart = dayOfWeekFormat.format(date)
+                .replaceFirstChar { it.uppercase() }
+                .removeSuffix(".")
+            "$datePart\n$dayPart"
         }
     }
 
-    CartesianChartHost(
-        chart = rememberCartesianChart(
-            rememberColumnCartesianLayer(),
-        ),
-        modelProducer = modelProducer,
-        modifier = modifier,
-    )
+    val animProgress = remember { Animatable(0f) }
+    LaunchedEffect(dailyExpenses) {
+        animProgress.snapTo(0f)
+        animProgress.animateTo(1f, animationSpec = tween(durationMillis = 600))
+    }
+
+    Canvas(modifier = modifier) {
+        if (dailyExpenses.isEmpty()) return@Canvas
+
+        val maxAmount = dailyExpenses.maxOf { it.amount }
+        if (maxAmount <= 0.0) return@Canvas
+
+        val topPadding = 8.dp.toPx()
+        val bottomPadding = 40.dp.toPx()
+        val chartHeight = size.height - bottomPadding - topPadding
+        val barSpacing = 8.dp.toPx()
+        val maxBarWidth = 48.dp.toPx()
+        val naturalBarWidth = (size.width - barSpacing * (dailyExpenses.size - 1)) / dailyExpenses.size
+        val barWidth = naturalBarWidth.coerceAtMost(maxBarWidth)
+        val cornerRadius = 4.dp.toPx()
+
+        val totalBarsWidth = barWidth * dailyExpenses.size + barSpacing * (dailyExpenses.size - 1)
+        val leftOffset = (size.width - totalBarsWidth) / 2f
+
+        // Grid lines
+        for (i in 1..3) {
+            val y = topPadding + chartHeight * (1f - i / 4f)
+            drawLine(
+                color = gridColor,
+                start = Offset(0f, y),
+                end = Offset(size.width, y),
+                strokeWidth = 1.dp.toPx(),
+            )
+        }
+
+        // Bars + labels
+        dailyExpenses.forEachIndexed { index, daily ->
+            val barHeight = (daily.amount / maxAmount).toFloat() * chartHeight * animProgress.value
+            val x = leftOffset + index * (barWidth + barSpacing)
+            val y = topPadding + chartHeight - barHeight
+
+            drawRoundRect(
+                color = barColor,
+                topLeft = Offset(x, y),
+                size = Size(barWidth, barHeight),
+                cornerRadius = CornerRadius(cornerRadius, cornerRadius),
+            )
+
+            // Label below bar
+            val label = labels[index]
+            val measuredText = textMeasurer.measure(label, labelStyle)
+            val labelX = x + (barWidth - measuredText.size.width) / 2f
+            val labelY = topPadding + chartHeight + 4.dp.toPx()
+            drawText(measuredText, topLeft = Offset(labelX, labelY))
+        }
+    }
 }
 
 @Composable
@@ -446,7 +494,6 @@ private fun StatisticsScreenPreview() {
                 ),
             ),
             onPeriodChange = {},
-            onBack = {},
         )
     }
 }

@@ -8,7 +8,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun StatisticsRoute(
-    onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: StatisticsViewModel = hiltViewModel(),
 ) {
@@ -17,7 +16,6 @@ fun StatisticsRoute(
     StatisticsScreen(
         state = state,
         onPeriodChange = viewModel::setPeriod,
-        onBack = onBack,
         modifier = modifier,
     )
 }

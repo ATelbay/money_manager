@@ -10,7 +10,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 fun AccountListRoute(
     onAccountClick: (Long) -> Unit,
     onAddClick: () -> Unit,
-    onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AccountListViewModel = hiltViewModel(),
 ) {
@@ -22,7 +21,6 @@ fun AccountListRoute(
         onAddClick = onAddClick,
         onSelectAccount = viewModel::selectAccount,
         onDeleteAccount = viewModel::deleteAccount,
-        onBack = onBack,
         modifier = modifier,
     )
 }

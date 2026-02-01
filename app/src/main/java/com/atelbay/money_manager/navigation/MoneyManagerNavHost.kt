@@ -12,6 +12,7 @@ import com.atelbay.money_manager.feature.categories.ui.list.CategoryListRoute
 import com.atelbay.money_manager.feature.accounts.ui.edit.AccountEditRoute
 import com.atelbay.money_manager.feature.accounts.ui.list.AccountListRoute
 import com.atelbay.money_manager.feature.statistics.ui.StatisticsRoute
+import com.atelbay.money_manager.feature.settings.ui.SettingsRoute
 import com.atelbay.money_manager.feature.transactions.ui.edit.TransactionEditRoute
 import com.atelbay.money_manager.feature.transactions.ui.list.TransactionListRoute
 
@@ -54,15 +55,6 @@ fun MoneyManagerNavHost(
                 onAddClick = {
                     navController.navigate(TransactionEdit())
                 },
-                onCategoriesClick = {
-                    navController.navigate(CategoryList)
-                },
-                onStatisticsClick = {
-                    navController.navigate(Statistics)
-                },
-                onAccountsClick = {
-                    navController.navigate(AccountList)
-                },
             )
         }
 
@@ -91,9 +83,7 @@ fun MoneyManagerNavHost(
         }
 
         composable<Statistics> {
-            StatisticsRoute(
-                onBack = { navController.popBackStack() },
-            )
+            StatisticsRoute()
         }
 
         composable<AccountList> {
@@ -104,13 +94,20 @@ fun MoneyManagerNavHost(
                 onAddClick = {
                     navController.navigate(AccountEdit())
                 },
-                onBack = { navController.popBackStack() },
             )
         }
 
         composable<AccountEdit> {
             AccountEditRoute(
                 onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable<Settings> {
+            SettingsRoute(
+                onCategoriesClick = {
+                    navController.navigate(CategoryList)
+                },
             )
         }
     }

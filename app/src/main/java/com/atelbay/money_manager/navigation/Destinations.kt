@@ -28,3 +28,6 @@ data object AccountList
 
 @Serializable
 data class AccountEdit(val id: Long? = null)
+
+@Serializable
+data object Settings

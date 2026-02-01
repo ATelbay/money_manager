@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atelbay.money_manager.core.database.dao.AccountDao
+import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.core.model.TransactionType
@@ -29,6 +30,7 @@ class TransactionEditViewModel @Inject constructor(
     private val getCategoriesUseCase: GetCategoriesUseCase,
     private val saveTransactionUseCase: SaveTransactionUseCase,
     private val accountDao: AccountDao,
+    private val userPreferences: UserPreferences,
 ) : ViewModel() {
 
     private val transactionId: Long? = savedStateHandle.get<Long>("id")
@@ -38,8 +40,14 @@ class TransactionEditViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            // Load default account
-            val account = accountDao.observeAll().first().firstOrNull()
+            // Load selected account (or fallback to first)
+            val selectedId = userPreferences.selectedAccountId.first()
+            val accounts = accountDao.observeAll().first()
+            val account = if (selectedId != null) {
+                accounts.find { it.id == selectedId }
+            } else {
+                accounts.firstOrNull()
+            }
             if (account != null) {
                 _state.update { it.copy(accountId = account.id) }
             }

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -43,8 +44,20 @@ class UserPreferences @Inject constructor(
         }
     }
 
+    val themeMode: Flow<String> =
+        context.dataStore.data.map { prefs ->
+            prefs[KEY_THEME_MODE] ?: "system"
+        }
+
+    suspend fun setThemeMode(mode: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_THEME_MODE] = mode
+        }
+    }
+
     private companion object {
         val KEY_ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         val KEY_SELECTED_ACCOUNT_ID = longPreferencesKey("selected_account_id")
+        val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
     }
 }

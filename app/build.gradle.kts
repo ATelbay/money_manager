@@ -43,6 +43,7 @@ dependencies {
     implementation(projects.feature.categories)
     implementation(projects.feature.statistics)
     implementation(projects.feature.accounts)
+    implementation(projects.feature.settings)
 
     // Core Android
     implementation(libs.androidx.core.ktx)

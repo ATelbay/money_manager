@@ -10,5 +10,4 @@ dependencies {
     implementation(projects.core.database)
     implementation(projects.core.model)
     implementation(projects.core.ui)
-    implementation(libs.vico.compose.m3)
 }

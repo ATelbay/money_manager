@@ -34,6 +34,7 @@
             <option value="$PROJECT_DIR$/feature/accounts" />
             <option value="$PROJECT_DIR$/feature/categories" />
             <option value="$PROJECT_DIR$/feature/onboarding" />
+            <option value="$PROJECT_DIR$/feature/settings" />
             <option value="$PROJECT_DIR$/feature/statistics" />
             <option value="$PROJECT_DIR$/feature/transactions" />
           </set>

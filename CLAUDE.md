@@ -44,7 +44,9 @@ MoneyManager/
 │       ├── MainActivity.kt
 │       ├── MoneyManagerApp.kt      # @HiltAndroidApp
 │       └── navigation/
-│           ├── Destinations.kt     # @Serializable destinations
+│           ├── Destinations.kt          # @Serializable destinations
+│           ├── TopLevelDestination.kt   # Bottom nav enum
+│           ├── MoneyManagerBottomBar.kt
 │           └── MoneyManagerNavHost.kt
 │
 ├── core/
@@ -68,6 +70,13 @@ MoneyManager/
 │   │       ├── UserPreferences.kt
 │   │       └── di/
 │   │           └── DataStoreModule.kt
+│   │
+│   ├── model/                      # :core:model — Domain models
+│   │   └── src/main/java/com/atelbay/money_manager/core/model/
+│   │       ├── Account.kt
+│   │       ├── Category.kt
+│   │       ├── Transaction.kt
+│   │       └── TransactionType.kt
 │   │
 │   ├── ui/                         # :core:ui — Theme & Components
 │   │   └── src/main/java/com/atelbay/money_manager/core/ui/
@@ -94,36 +103,107 @@ MoneyManager/
 │   │       ├── CreateAccountViewModel.kt
 │   │       └── CreateAccountState.kt
 │   │
-│   └── transactions/               # :feature:transactions
-│       └── src/main/java/com/atelbay/money_manager/feature/transactions/
-│           ├── domain/
-│           │   ├── model/
-│           │   │   ├── Transaction.kt
-│           │   │   └── Category.kt
-│           │   ├── repository/
-│           │   │   └── TransactionRepository.kt
-│           │   └── usecase/
-│           │       ├── GetTransactionsUseCase.kt
-│           │       ├── GetTransactionByIdUseCase.kt
-│           │       ├── GetCategoriesUseCase.kt
-│           │       ├── SaveTransactionUseCase.kt
-│           │       └── DeleteTransactionUseCase.kt
-│           ├── data/
-│           │   ├── mapper/TransactionMapper.kt
-│           │   └── repository/TransactionRepositoryImpl.kt
-│           ├── di/
-│           │   └── TransactionModule.kt
-│           └── ui/
-│               ├── list/
-│               │   ├── TransactionListScreen.kt
-│               │   ├── TransactionListRoute.kt
-│               │   ├── TransactionListViewModel.kt
-│               │   └── TransactionListState.kt
-│               └── edit/
-│                   ├── TransactionEditScreen.kt
-│                   ├── TransactionEditRoute.kt
-│                   ├── TransactionEditViewModel.kt
-│                   └── TransactionEditState.kt
+│   ├── transactions/               # :feature:transactions
+│   │   └── src/main/java/com/atelbay/money_manager/feature/transactions/
+│   │       ├── domain/
+│   │       │   ├── repository/
+│   │       │   │   └── TransactionRepository.kt
+│   │       │   └── usecase/
+│   │       │       ├── GetTransactionsUseCase.kt
+│   │       │       ├── GetTransactionByIdUseCase.kt
+│   │       │       ├── GetCategoriesUseCase.kt
+│   │       │       ├── SaveTransactionUseCase.kt
+│   │       │       └── DeleteTransactionUseCase.kt
+│   │       ├── data/
+│   │       │   ├── mapper/TransactionMapper.kt
+│   │       │   └── repository/TransactionRepositoryImpl.kt
+│   │       ├── di/
+│   │       │   └── TransactionModule.kt
+│   │       └── ui/
+│   │           ├── list/
+│   │           │   ├── TransactionListScreen.kt
+│   │           │   ├── TransactionListRoute.kt
+│   │           │   ├── TransactionListViewModel.kt
+│   │           │   └── TransactionListState.kt
+│   │           └── edit/
+│   │               ├── TransactionEditScreen.kt
+│   │               ├── TransactionEditRoute.kt
+│   │               ├── TransactionEditViewModel.kt
+│   │               └── TransactionEditState.kt
+│   │
+│   ├── categories/                 # :feature:categories
+│   │   └── src/main/java/com/atelbay/money_manager/feature/categories/
+│   │       ├── domain/
+│   │       │   ├── repository/
+│   │       │   │   └── CategoryRepository.kt
+│   │       │   └── usecase/
+│   │       │       ├── GetCategoriesUseCase.kt
+│   │       │       ├── GetCategoryByIdUseCase.kt
+│   │       │       ├── SaveCategoryUseCase.kt
+│   │       │       └── DeleteCategoryUseCase.kt
+│   │       ├── data/
+│   │       │   ├── mapper/CategoryMapper.kt
+│   │       │   └── repository/CategoryRepositoryImpl.kt
+│   │       ├── di/
+│   │       │   └── CategoryModule.kt
+│   │       └── ui/
+│   │           ├── list/
+│   │           │   ├── CategoryListScreen.kt
+│   │           │   ├── CategoryListRoute.kt
+│   │           │   ├── CategoryListViewModel.kt
+│   │           │   └── CategoryListState.kt
+│   │           └── edit/
+│   │               ├── CategoryEditScreen.kt
+│   │               ├── CategoryEditRoute.kt
+│   │               ├── CategoryEditViewModel.kt
+│   │               └── CategoryEditState.kt
+│   │
+│   ├── accounts/                   # :feature:accounts
+│   │   └── src/main/java/com/atelbay/money_manager/feature/accounts/
+│   │       ├── domain/
+│   │       │   ├── repository/
+│   │       │   │   └── AccountRepository.kt
+│   │       │   └── usecase/
+│   │       │       ├── GetAccountsUseCase.kt
+│   │       │       ├── GetAccountByIdUseCase.kt
+│   │       │       ├── SaveAccountUseCase.kt
+│   │       │       └── DeleteAccountUseCase.kt
+│   │       ├── data/
+│   │       │   ├── mapper/AccountMapper.kt
+│   │       │   └── repository/AccountRepositoryImpl.kt
+│   │       ├── di/
+│   │       │   └── AccountModule.kt
+│   │       └── ui/
+│   │           ├── list/
+│   │           │   ├── AccountListScreen.kt
+│   │           │   ├── AccountListRoute.kt
+│   │           │   ├── AccountListViewModel.kt
+│   │           │   └── AccountListState.kt
+│   │           └── edit/
+│   │               ├── AccountEditScreen.kt
+│   │               ├── AccountEditRoute.kt
+│   │               ├── AccountEditViewModel.kt
+│   │               └── AccountEditState.kt
+│   │
+│   ├── statistics/                 # :feature:statistics
+│   │   └── src/main/java/com/atelbay/money_manager/feature/statistics/
+│   │       ├── domain/
+│   │       │   ├── model/
+│   │       │   │   └── StatisticsModels.kt
+│   │       │   └── usecase/
+│   │       │       └── GetPeriodSummaryUseCase.kt
+│   │       └── ui/
+│   │           ├── StatisticsRoute.kt
+│   │           ├── StatisticsScreen.kt
+│   │           ├── StatisticsState.kt
+│   │           └── StatisticsViewModel.kt
+│   │
+│   └── settings/                   # :feature:settings
+│       └── src/main/java/com/atelbay/money_manager/feature/settings/ui/
+│           ├── SettingsScreen.kt
+│           ├── SettingsRoute.kt
+│           ├── SettingsViewModel.kt
+│           └── SettingsState.kt
 │
 ├── gradle/libs.versions.toml      # Version catalog
 └── settings.gradle.kts
@@ -141,17 +221,50 @@ MoneyManager/
 
 ### Навигация (Type-Safe)
 
-4 destinations в `app/.../navigation/Destinations.kt`:
+11 destinations в `app/.../navigation/Destinations.kt`:
 ```kotlin
 @Serializable data object Onboarding
 @Serializable data object CreateAccount
 @Serializable data object Home
 @Serializable data class TransactionEdit(val id: Long? = null)
+@Serializable data object CategoryList
+@Serializable data class CategoryEdit(val id: Long? = null)
+@Serializable data object Statistics
+@Serializable data object AccountList
+@Serializable data class AccountEdit(val id: Long? = null)
+@Serializable data object Settings
 ```
 
-Flow: `Onboarding → CreateAccount → Home ↔ TransactionEdit`
+4 top-level destinations (Bottom Nav) в `TopLevelDestination.kt`:
+```kotlin
+enum class TopLevelDestination {
+    HOME,        // → Home (Главная)
+    STATISTICS,  // → Statistics (Статистика)
+    ACCOUNTS,    // → AccountList (Счета)
+    SETTINGS,    // → Settings (Настройки)
+}
+```
 
-При запуске `MainActivity` проверяет `UserPreferences.isOnboardingCompleted` и выбирает `startDestination`.
+Flow:
+```
+App Launch → проверка isOnboardingCompleted
+  ├─ false → Onboarding → CreateAccount → Home
+  └─ true  → Home
+
+Home (TransactionList)
+  ├─ Tap → TransactionEdit(id)
+  ├─ FAB → TransactionEdit()
+  └─ Bottom Nav → Statistics | AccountList | Settings
+
+Settings
+  └─ Категории → CategoryList → CategoryEdit
+
+AccountList
+  ├─ Tap → AccountEdit(id)
+  └─ FAB → AccountEdit()
+```
+
+При запуске `MainActivity` проверяет `UserPreferences.isOnboardingCompleted` и выбирает `startDestination`. Также читает `UserPreferences.themeMode` и передаёт в `MoneyManagerTheme`.
 
 ### Паттерн UI State
 
@@ -166,19 +279,13 @@ Flow: `Onboarding → CreateAccount → Home ↔ TransactionEdit`
 15 предустановленных категорий (10 расход + 5 доход) в `DefaultCategories.kt`.
 Prepopulation через `RoomDatabase.Callback.onCreate`.
 
-## Приоритеты реализации
+## DataStore (UserPreferences)
 
-### P0 — Критический путь ✅
-1. ~~**Core**: DI setup, Room database, Theme~~
-2. ~~**Onboarding**: Welcome screens, Create account, Currency selection~~
-3. ~~**Transactions**: List (главный экран), Add/Edit form~~
-
-### P1 — Основной функционал
-4. **Categories**: List, Add/Edit with icon & color picker
-5. **Statistics**: Pie chart по категориям, Line chart динамики
-
-### P2 — Расширение
-6. **Accounts**: Manage multiple accounts, Switch between them
+| Ключ | Тип | Описание |
+|------|-----|----------|
+| `onboarding_completed` | Boolean | Пройден ли онбординг |
+| `selected_account_id` | Long? | Текущий выбранный счёт |
+| `theme_mode` | String | Тема: `"system"`, `"light"`, `"dark"` |
 
 ## UI-сценарии для тестирования
 
@@ -192,7 +299,8 @@ Prepopulation через `RoomDatabase.Callback.onCreate`.
 | Dropdown | Create Account | ExposedDropdownMenuBox для валюты |
 | Chart interaction | Statistics | Vico charts, touch feedback |
 | CRUD | Categories | Create, Read, Update, Delete flow |
-| Navigation | Все | Type-safe routes, back stack |
+| Segmented control | Settings | SingleChoiceSegmentedButtonRow для темы |
+| Navigation | Все | Type-safe routes, back stack, bottom nav |
 
 ## Code Style
 
