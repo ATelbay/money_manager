@@ -41,4 +41,13 @@ interface TransactionDao {
 
     @Query("DELETE FROM transactions WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertOrIgnore(transactions: List<TransactionEntity>)
+
+    @Query("SELECT EXISTS(SELECT 1 FROM transactions WHERE uniqueHash = :hash)")
+    suspend fun existsByHash(hash: String): Boolean
+
+    @Query("SELECT uniqueHash FROM transactions WHERE uniqueHash IN (:hashes)")
+    suspend fun getExistingHashes(hashes: List<String>): List<String>
 }

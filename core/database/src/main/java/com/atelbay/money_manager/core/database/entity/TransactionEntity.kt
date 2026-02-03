@@ -25,6 +25,7 @@ import androidx.room.PrimaryKey
         Index("accountId"),
         Index("categoryId"),
         Index("date"),
+        Index("uniqueHash", unique = true),
     ],
 )
 data class TransactionEntity(
@@ -36,4 +37,5 @@ data class TransactionEntity(
     val note: String?,
     val date: Long,
     val createdAt: Long,
+    val uniqueHash: String? = null,
 )

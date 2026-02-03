@@ -115,7 +115,7 @@ private fun MoneyManagerApp(
         MoneyManagerNavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.padding(padding),
+            modifier = Modifier.padding(bottom = padding.calculateBottomPadding()),
         )
     }
 }

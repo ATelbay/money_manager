@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DateRangePicker
@@ -81,6 +82,7 @@ fun TransactionListScreen(
     state: TransactionListState,
     onTransactionClick: (Long) -> Unit,
     onAddClick: () -> Unit,
+    onImportClick: () -> Unit,
     onDeleteTransaction: (Long) -> Unit,
     onTabSelected: (TransactionType?) -> Unit,
     onPeriodSelected: (Period) -> Unit,
@@ -93,7 +95,20 @@ fun TransactionListScreen(
     Scaffold(
         modifier = modifier.testTag("transactionList:screen"),
         topBar = {
-            TopAppBar(title = { Text("Money Manager") })
+            TopAppBar(
+                title = { Text("Money Manager") },
+                actions = {
+                    IconButton(
+                        onClick = onImportClick,
+                        modifier = Modifier.testTag("transactionList:importButton"),
+                    ) {
+                        Icon(
+                            Icons.Default.UploadFile,
+                            contentDescription = "Импорт выписки",
+                        )
+                    }
+                },
+            )
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -624,6 +639,7 @@ private fun TransactionListScreenPreview() {
             ),
             onTransactionClick = {},
             onAddClick = {},
+            onImportClick = {},
             onDeleteTransaction = {},
             onTabSelected = {},
             onPeriodSelected = {},

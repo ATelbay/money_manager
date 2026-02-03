@@ -15,6 +15,7 @@ import com.atelbay.money_manager.feature.statistics.ui.StatisticsRoute
 import com.atelbay.money_manager.feature.settings.ui.SettingsRoute
 import com.atelbay.money_manager.feature.transactions.ui.edit.TransactionEditRoute
 import com.atelbay.money_manager.feature.transactions.ui.list.TransactionListRoute
+import com.atelbay.money_manager.feature.importstatement.ui.ImportRoute
 
 @Composable
 fun MoneyManagerNavHost(
@@ -55,6 +56,15 @@ fun MoneyManagerNavHost(
                 onAddClick = {
                     navController.navigate(TransactionEdit())
                 },
+                onImportClick = {
+                    navController.navigate(Import)
+                },
+            )
+        }
+
+        composable<Import> {
+            ImportRoute(
+                onBack = { navController.popBackStack() },
             )
         }
 

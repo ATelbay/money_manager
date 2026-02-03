@@ -31,3 +31,6 @@ data class AccountEdit(val id: Long? = null)
 
 @Serializable
 data object Settings
+
+@Serializable
+data object Import

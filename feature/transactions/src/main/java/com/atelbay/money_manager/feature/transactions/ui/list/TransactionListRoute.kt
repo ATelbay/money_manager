@@ -10,6 +10,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 fun TransactionListRoute(
     onTransactionClick: (Long) -> Unit,
     onAddClick: () -> Unit,
+    onImportClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TransactionListViewModel = hiltViewModel(),
 ) {
@@ -19,6 +20,7 @@ fun TransactionListRoute(
         state = state,
         onTransactionClick = onTransactionClick,
         onAddClick = onAddClick,
+        onImportClick = onImportClick,
         onDeleteTransaction = viewModel::deleteTransaction,
         onTabSelected = viewModel::selectTab,
         onPeriodSelected = viewModel::selectPeriod,

@@ -31,6 +31,9 @@ kotlinxSerialization = "1.10.0"
 kotlinxDatetime = "0.7.1"
 kotlinxImmutable = "0.4.0"
 
+# Firebase
+firebaseBom = "34.8.0"
+
 # Charts
 vico = "2.4.3"
 
@@ -110,6 +113,10 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 
+# Firebase
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-ai = { group = "com.google.firebase", name = "firebase-ai" }
+
 # Detekt
 detekt-compose = { group = "io.nlopez.compose.rules", name = "detekt", version.ref = "detektCompose" }
 
@@ -170,6 +177,9 @@ moneymanager-android-library = { id = "moneymanager.android.library", version = 
 moneymanager-android-compose = { id = "moneymanager.android.compose", version = "unspecified" }
 moneymanager-android-hilt = { id = "moneymanager.android.hilt", version = "unspecified" }
 moneymanager-android-feature = { id = "moneymanager.android.feature", version = "unspecified" }
+
+# Firebase
+google-services = { id = "com.google.gms.google-services", version = "4.4.2" }
 
 # External plugins
 android-application = { id = "com.android.application", version.ref = "agp" }

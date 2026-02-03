@@ -5,3 +5,7 @@ plugins {
 android {
     namespace = "com.atelbay.money_manager.core.model"
 }
+
+dependencies {
+    implementation(libs.kotlinx.datetime)
+}

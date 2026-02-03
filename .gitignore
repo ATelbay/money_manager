@@ -81,3 +81,5 @@ Thumbs.db
 # Secrets (never commit!)
 secrets.properties
 keystore.properties
+
+app/google-services.json

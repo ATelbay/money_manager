@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.moneymanager.android.hilt)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.detekt)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -43,7 +44,9 @@ dependencies {
     implementation(projects.feature.categories)
     implementation(projects.feature.statistics)
     implementation(projects.feature.accounts)
+    implementation(projects.core.ai)
     implementation(projects.feature.settings)
+    implementation(projects.feature.`import`)
 
     // Core Android
     implementation(libs.androidx.core.ktx)
