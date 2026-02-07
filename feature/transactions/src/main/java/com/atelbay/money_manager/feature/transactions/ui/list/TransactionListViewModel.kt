@@ -12,7 +12,6 @@ import com.atelbay.money_manager.feature.transactions.domain.usecase.GetTransact
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -85,8 +84,10 @@ class TransactionListViewModel @Inject constructor(
             }
 
             val (rangeStart, rangeEnd) = periodToRange(filters.period, filters.customRange)
-            val startMillis = rangeStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            val endMillis = rangeEnd.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val startMillis =
+                rangeStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val endMillis =
+                rangeEnd.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
             val periodFiltered = accountFiltered.filter { it.date in startMillis until endMillis }
 
@@ -102,12 +103,14 @@ class TransactionListViewModel @Inject constructor(
                 val q = filters.searchQuery.lowercase()
                 tabFiltered.filter { t ->
                     t.categoryName.lowercase().contains(q) ||
-                        t.note?.lowercase()?.contains(q) == true
+                            t.note?.lowercase()?.contains(q) == true
                 }
             }
 
-            val periodIncome = periodFiltered.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-            val periodExpense = periodFiltered.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+            val periodIncome =
+                periodFiltered.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+            val periodExpense =
+                periodFiltered.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
 
             val balance = if (selectedAccount != null) {
                 selectedAccount.balance
