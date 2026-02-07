@@ -118,6 +118,7 @@ jobs:
     name: GitHub Release
     needs: build-release
     runs-on: ubuntu-latest
+    if: ${{ vars.ENABLE_GITHUB_RELEASE == 'true' }}
     permissions:
       contents: write
     
