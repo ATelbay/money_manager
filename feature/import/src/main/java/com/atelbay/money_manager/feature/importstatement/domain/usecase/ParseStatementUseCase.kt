@@ -8,25 +8,25 @@ import com.atelbay.money_manager.core.model.ImportResult
 import com.atelbay.money_manager.core.model.ParsedTransaction
 import com.atelbay.money_manager.core.model.TransactionType
 import kotlinx.datetime.LocalDate
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
 @Serializable
 private data class GeminiResponse(
-    val transactions: List<GeminiTransaction>,
+    @SerialName("tx") val transactions: List<GeminiTransaction>,
 )
 
 @Serializable
 private data class GeminiTransaction(
-    val date: String,
-    val amount: Double,
-    val type: String,
-    val operationType: String,
-    val details: String,
-    val categoryId: Long? = null,
-    val suggestedCategoryName: String? = null,
-    val confidence: Float,
+    @SerialName("d") val date: String,
+    @SerialName("a") val amount: Double,
+    @SerialName("t") val type: String,
+    @SerialName("det") val details: String,
+    @SerialName("cid") val categoryId: Long? = null,
+    @SerialName("cn") val suggestedCategoryName: String? = null,
+    @SerialName("conf") val confidence: Float,
 )
 
 class ParseStatementUseCase @Inject constructor(
@@ -37,12 +37,12 @@ class ParseStatementUseCase @Inject constructor(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend operator fun invoke(pages: List<ByteArray>): ImportResult {
+    suspend operator fun invoke(blobs: List<Pair<ByteArray, String>>): ImportResult {
         val expenseCategories = categoryDao.getByType("expense")
         val incomeCategories = categoryDao.getByType("income")
 
         val prompt = buildPrompt(expenseCategories, incomeCategories)
-        val responseText = geminiService.parseContent(pages, prompt)
+        val responseText = geminiService.parseContent(blobs, prompt)
 
         val jsonString = extractJson(responseText)
         val parsed = try {
@@ -61,16 +61,14 @@ class ParseStatementUseCase @Inject constructor(
             try {
                 val date = LocalDate.parse(tx.date)
                 val type = when (tx.type) {
-                    "income" -> TransactionType.INCOME
-                    "expense" -> TransactionType.EXPENSE
+                    "i" -> TransactionType.INCOME
                     else -> TransactionType.EXPENSE
                 }
-                val hash = generateTransactionHash(date, tx.amount, tx.type, tx.details)
+                val hash = generateTransactionHash(date, tx.amount, type.value, tx.details)
                 ParsedTransaction(
                     date = date,
                     amount = tx.amount,
                     type = type,
-                    operationType = tx.operationType,
                     details = tx.details,
                     categoryId = tx.categoryId,
                     suggestedCategoryName = tx.suggestedCategoryName,
@@ -106,38 +104,13 @@ class ParseStatementUseCase @Inject constructor(
         expenseCategories: List<com.atelbay.money_manager.core.database.entity.CategoryEntity>,
         incomeCategories: List<com.atelbay.money_manager.core.database.entity.CategoryEntity>,
     ): String = buildString {
-        appendLine("Распарси банковскую выписку и верни JSON.")
-        appendLine()
-        appendLine("Доступные категории расходов:")
-        expenseCategories.forEach { appendLine("- id: ${it.id}, name: \"${it.name}\"") }
-        appendLine()
-        appendLine("Доступные категории доходов:")
-        incomeCategories.forEach { appendLine("- id: ${it.id}, name: \"${it.name}\"") }
-        appendLine()
-        appendLine(
+        appendLine("Распарси банковскую выписку. Верни JSON.")
+        appendLine("Расход: ${expenseCategories.joinToString(", ") { "${it.id}:${it.name}" }}")
+        appendLine("Доход: ${incomeCategories.joinToString(", ") { "${it.id}:${it.name}" }}")
+        append(
             """
-            Формат ответа (только JSON, без markdown):
-            {
-              "transactions": [
-                {
-                  "date": "2026-01-28",
-                  "amount": 24990.00,
-                  "type": "expense",
-                  "operationType": "Покупка",
-                  "details": "Xiaomi Official Store",
-                  "categoryId": 4,
-                  "suggestedCategoryName": null,
-                  "confidence": 0.95
-                }
-              ]
-            }
-
-            Правила:
-            - amount всегда положительное число
-            - type: "income" для пополнений, "expense" для покупок/переводов/снятий
-            - Если уверен в категории — ставь categoryId и confidence > 0.8
-            - Если не уверен — categoryId: null, suggestedCategoryName: "предложение", confidence < 0.7
-            - Переводы физлицам (имена) — категория "Переводы"
+            Формат: {"tx":[{"d":"YYYY-MM-DD","a":сумма,"t":"e"|"i","det":"описание","cid":id|null,"cn":"подсказка"|null,"conf":0.0-1.0}]}
+            a>0. t: e=расход, i=доход. cid из списка или null+cn. conf>0.8 если уверен. Переводы физлицам→"Переводы".
             """.trimIndent(),
         )
     }

@@ -4,6 +4,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.ai.ai
 import com.google.firebase.ai.type.GenerativeBackend
 import com.google.firebase.ai.type.content
+import com.google.firebase.ai.type.generationConfig
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -13,19 +14,24 @@ class GeminiServiceImpl @Inject constructor() : GeminiService {
 
     private val generativeModel by lazy {
         Firebase.ai(backend = GenerativeBackend.googleAI())
-            .generativeModel("gemini-2.5-flash")
+            .generativeModel(
+                modelName = "gemini-2.5-flash",
+                generationConfig = generationConfig {
+                    responseMimeType = "application/json"
+                },
+            )
     }
 
     override suspend fun parseContent(
-        imageBytes: List<ByteArray>,
+        blobs: List<Pair<ByteArray, String>>,
         prompt: String,
     ): String {
-        Timber.d(">>> Gemini request: %d image(s), prompt length=%d", imageBytes.size, prompt.length)
+        Timber.d(">>> Gemini request: %d blob(s), prompt length=%d", blobs.size, prompt.length)
         Timber.d(">>> Gemini prompt:\n%s", prompt)
 
         val inputContent = content {
-            imageBytes.forEach { bytes ->
-                inlineData(bytes, "image/png")
+            blobs.forEach { (bytes, mimeType) ->
+                inlineData(bytes, mimeType)
             }
             text(prompt)
         }

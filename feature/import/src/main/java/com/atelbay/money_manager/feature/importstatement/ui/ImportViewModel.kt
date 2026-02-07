@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.atelbay.money_manager.core.common.renderPdfToImages
 import com.atelbay.money_manager.core.database.dao.AccountDao
 import com.atelbay.money_manager.core.database.dao.CategoryDao
 import com.atelbay.money_manager.core.database.entity.AccountEntity
@@ -17,10 +16,12 @@ import com.atelbay.money_manager.feature.importstatement.domain.usecase.ImportTr
 import com.atelbay.money_manager.feature.importstatement.domain.usecase.ParseStatementUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDate
 import javax.inject.Inject
 
@@ -67,12 +68,14 @@ class ImportViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = ImportState.Parsing
             try {
-                val pages = renderPdfToImages(uri, context)
-                if (pages.isEmpty()) {
+                val bytes = withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                }
+                if (bytes == null || bytes.isEmpty()) {
                     _state.value = ImportState.Error("Не удалось прочитать PDF")
                     return@launch
                 }
-                parseAndPreview(pages)
+                parseAndPreview(listOf(bytes to "application/pdf"))
             } catch (e: Exception) {
                 _state.value = ImportState.Error(e.message ?: "Ошибка чтения PDF")
             }
@@ -83,15 +86,15 @@ class ImportViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = ImportState.Parsing
             try {
-                parseAndPreview(listOf(imageBytes))
+                parseAndPreview(listOf(imageBytes to "image/jpeg"))
             } catch (e: Exception) {
                 _state.value = ImportState.Error(e.message ?: "Неизвестная ошибка")
             }
         }
     }
 
-    private suspend fun parseAndPreview(pages: List<ByteArray>) {
-        val result = parseStatementUseCase(pages)
+    private suspend fun parseAndPreview(blobs: List<Pair<ByteArray, String>>) {
+        val result = parseStatementUseCase(blobs)
         if (result.newTransactions.isEmpty() && result.errors.isNotEmpty()) {
             _state.value = ImportState.Error(result.errors.first())
         } else {

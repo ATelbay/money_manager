@@ -21,6 +21,7 @@ Money Manager — Android-приложение для учёта личных ф
 | DataStore | Preferences DataStore | 1.1.7 |
 | Build | Version Catalogs + Convention Plugins | AGP 8.13.2, Kotlin 2.3.0, KSP 2.3.1 |
 | Charts | Vico | 2.4.3 |
+| AI | Firebase AI (Gemini 2.5 Flash) | — |
 | CI/CD | GitHub Actions → Firebase App Distribution → Play Store | — |
 
 ## Архитектура
@@ -76,7 +77,11 @@ MoneyManager/
 │   │       ├── Account.kt
 │   │       ├── Category.kt
 │   │       ├── Transaction.kt
-│   │       └── TransactionType.kt
+│   │       ├── TransactionType.kt
+│   │       ├── ParsedTransaction.kt
+│   │       ├── ImportResult.kt
+│   │       ├── ImportState.kt
+│   │       └── TransactionOverride.kt
 │   │
 │   ├── ui/                         # :core:ui — Theme & Components
 │   │   └── src/main/java/com/atelbay/money_manager/core/ui/
@@ -89,7 +94,16 @@ MoneyManager/
 │   │           ├── MoneyManagerTextField.kt
 │   │           └── MoneyManagerCard.kt
 │   │
-│   └── common/                     # :core:common — Utils, extensions
+│   ├── common/                     # :core:common — Utils, extensions
+│   │   └── src/main/java/com/atelbay/money_manager/core/common/
+│   │       └── TransactionHashGenerator.kt
+│   │
+│   └── ai/                         # :core:ai — Gemini AI integration
+│       └── src/main/java/com/atelbay/money_manager/core/ai/
+│           ├── GeminiService.kt
+│           ├── GeminiServiceImpl.kt
+│           └── di/
+│               └── AiModule.kt
 │
 ├── feature/
 │   ├── onboarding/                 # :feature:onboarding
@@ -198,12 +212,26 @@ MoneyManager/
 │   │           ├── StatisticsState.kt
 │   │           └── StatisticsViewModel.kt
 │   │
-│   └── settings/                   # :feature:settings
-│       └── src/main/java/com/atelbay/money_manager/feature/settings/ui/
-│           ├── SettingsScreen.kt
-│           ├── SettingsRoute.kt
-│           ├── SettingsViewModel.kt
-│           └── SettingsState.kt
+│   ├── settings/                   # :feature:settings
+│   │   └── src/main/java/com/atelbay/money_manager/feature/settings/ui/
+│   │       ├── SettingsScreen.kt
+│   │       ├── SettingsRoute.kt
+│   │       ├── SettingsViewModel.kt
+│   │       └── SettingsState.kt
+│   │
+│   └── import/                     # :feature:import — AI-powered statement import
+│       └── src/main/java/com/atelbay/money_manager/feature/importstatement/
+│           ├── domain/
+│           │   └── usecase/
+│           │       ├── ParseStatementUseCase.kt
+│           │       └── ImportTransactionsUseCase.kt
+│           └── ui/
+│               ├── ImportRoute.kt
+│               ├── ImportScreen.kt
+│               ├── ImportViewModel.kt
+│               └── components/
+│                   ├── ImportPreview.kt
+│                   └── ParsedTransactionItem.kt
 │
 ├── gradle/libs.versions.toml      # Version catalog
 └── settings.gradle.kts
@@ -221,7 +249,7 @@ MoneyManager/
 
 ### Навигация (Type-Safe)
 
-11 destinations в `app/.../navigation/Destinations.kt`:
+12 destinations в `app/.../navigation/Destinations.kt`:
 ```kotlin
 @Serializable data object Onboarding
 @Serializable data object CreateAccount
@@ -233,6 +261,7 @@ MoneyManager/
 @Serializable data object AccountList
 @Serializable data class AccountEdit(val id: Long? = null)
 @Serializable data object Settings
+@Serializable data object Import
 ```
 
 4 top-level destinations (Bottom Nav) в `TopLevelDestination.kt`:
@@ -254,6 +283,7 @@ App Launch → проверка isOnboardingCompleted
 Home (TransactionList)
   ├─ Tap → TransactionEdit(id)
   ├─ FAB → TransactionEdit()
+  ├─ Import icon → Import
   └─ Bottom Nav → Statistics | AccountList | Settings
 
 Settings
@@ -301,6 +331,9 @@ Prepopulation через `RoomDatabase.Callback.onCreate`.
 | CRUD | Categories | Create, Read, Update, Delete flow |
 | Segmented control | Settings | SingleChoiceSegmentedButtonRow для темы |
 | Navigation | Все | Type-safe routes, back stack, bottom nav |
+| AI import | Import | PDF picker, camera, Gemini parsing, editable preview |
+| File picker | Import | ActivityResultContracts.OpenDocument для PDF |
+| Inline editing | Import Preview | Editable fields (amount, date, type, category) |
 
 ## Code Style
 
@@ -327,6 +360,57 @@ Prepopulation через `RoomDatabase.Callback.onCreate`.
 ./gradlew lint
 ./gradlew detekt
 ```
+
+## Импорт банковской выписки (AI)
+
+Фича для автоматического импорта транзакций из PDF-выписки банка с помощью Gemini AI.
+
+### Flow
+```
+Home → Import icon → Import screen
+  ├─ Выбрать PDF (ActivityResultContracts.OpenDocument)
+  └─ Сделать фото (TakePicturePreview)
+      ↓
+  PDF → raw bytes (application/pdf) → Gemini AI
+  Фото → JPEG bytes (image/jpeg) → Gemini AI
+      ↓
+  Gemini AI парсит → ImportResult (transactions + duplicates + errors)
+      ↓
+  Preview screen:
+    ├─ Выбор счёта (dropdown)
+    ├─ Редактирование каждой транзакции:
+    │   ├─ Описание (TextField)
+    │   ├─ Сумма (TextField, decimal keyboard)
+    │   ├─ Дата (TextField, YYYY-MM-DD)
+    │   ├─ Тип (FilterChip: Расход/Доход)
+    │   └─ Категория (ExposedDropdownMenu)
+    └─ Кнопка "Импорт (N)"
+      ↓
+  ImportTransactionsUseCase → Room DB + balance update
+      ↓
+  Success screen → Готово
+```
+
+### Ключевые компоненты
+
+| Компонент | Файл | Назначение |
+|-----------|------|------------|
+| `GeminiService` | `:core:ai` | Отправка blobs (PDF/image) в Gemini, responseMimeType=JSON |
+| `ParseStatementUseCase` | `:feature:import` | Парсинг JSON от AI (сокращённые ключи), дедупликация по hash |
+| `ImportTransactionsUseCase` | `:feature:import` | Сохранение в Room, fallback на категорию "Другое" |
+| `TransactionOverride` | `:core:model` | Хранение пользовательских правок per-transaction |
+
+### Модели
+
+- `ParsedTransaction` — распознанная транзакция (date, amount, type, details, categoryId, confidence, needsReview, uniqueHash)
+- `ImportResult` — результат парсинга (total, newTransactions, duplicates, errors)
+- `ImportState` — sealed interface (Idle, Parsing, Preview, Importing, Success, Error)
+- `TransactionOverride` — пользовательские правки (amount?, type?, details?, date?, categoryId?)
+
+### testTag naming
+- `import:screen`, `import:selectPdf`, `import:takePhoto`
+- `import:preview`, `import:accountSelector`, `import:importButton`
+- `import:loading`, `import:successCount`, `import:errorMessage`
 
 ## TODO / Не в MVP
 

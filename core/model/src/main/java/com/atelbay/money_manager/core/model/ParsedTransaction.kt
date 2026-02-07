@@ -6,7 +6,7 @@ data class ParsedTransaction(
     val date: LocalDate,
     val amount: Double,
     val type: TransactionType,
-    val operationType: String,
+    val operationType: String = "",
     val details: String,
     val categoryId: Long?,
     val suggestedCategoryName: String?,
