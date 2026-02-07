@@ -1,7 +1,5 @@
 package com.atelbay.money_manager.feature.importstatement.ui
 
-import android.content.Context
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atelbay.money_manager.core.database.dao.AccountDao
@@ -15,13 +13,10 @@ import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.feature.importstatement.domain.usecase.ImportTransactionsUseCase
 import com.atelbay.money_manager.feature.importstatement.domain.usecase.ParseStatementUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDate
 import javax.inject.Inject
 
@@ -32,7 +27,6 @@ class ImportViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
     private val categoryDao: CategoryDao,
     private val accountDao: AccountDao,
-    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ImportState>(ImportState.Idle)
@@ -64,17 +58,10 @@ class ImportViewModel @Inject constructor(
         _selectedAccountId.value = accountId
     }
 
-    fun onPdfSelected(uri: Uri) {
+    fun onPdfSelected(bytes: ByteArray) {
         viewModelScope.launch {
             _state.value = ImportState.Parsing
             try {
-                val bytes = withContext(Dispatchers.IO) {
-                    context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                }
-                if (bytes == null || bytes.isEmpty()) {
-                    _state.value = ImportState.Error("Не удалось прочитать PDF")
-                    return@launch
-                }
                 parseAndPreview(listOf(bytes to "application/pdf"))
             } catch (e: Exception) {
                 _state.value = ImportState.Error(e.message ?: "Ошибка чтения PDF")
