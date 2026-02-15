@@ -13,7 +13,7 @@ data class TransactionListState(
     val isLoading: Boolean = true,
     val selectedAccountName: String? = null,
     val selectedTab: TransactionType? = null,
-    val selectedPeriod: Period = Period.MONTH,
+    val selectedPeriod: Period = Period.ALL,
     val customDateRange: Pair<LocalDate, LocalDate>? = null,
     val periodIncome: Double = 0.0,
     val periodExpense: Double = 0.0,
@@ -21,6 +21,7 @@ data class TransactionListState(
 )
 
 enum class Period {
+    ALL,
     TODAY,
     WEEK,
     MONTH,

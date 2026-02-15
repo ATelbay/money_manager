@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -17,45 +19,51 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.atelbay.money_manager.core.ui.theme.ExpenseColor
-import com.atelbay.money_manager.core.ui.theme.IncomeColor
+import com.atelbay.money_manager.core.ui.components.ChipType
+import com.atelbay.money_manager.core.ui.components.GlassCard
+import com.atelbay.money_manager.core.ui.components.MoneyManagerChip
+import com.atelbay.money_manager.core.ui.components.StatType
+import com.atelbay.money_manager.core.ui.components.SummaryStatCard
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
+import com.atelbay.money_manager.core.ui.theme.Teal
 import com.atelbay.money_manager.feature.statistics.domain.model.CategorySummary
 import com.atelbay.money_manager.feature.statistics.domain.model.DailyTotal
 import com.atelbay.money_manager.feature.statistics.domain.model.StatsPeriod
-import androidx.compose.ui.geometry.CornerRadius
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
-import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.rememberTextMeasurer
 import java.text.DecimalFormat
+import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -67,11 +75,24 @@ fun StatisticsScreen(
     onPeriodChange: (StatsPeriod) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val colors = MoneyManagerTheme.colors
+    val typography = MoneyManagerTheme.typography
+
     Scaffold(
         modifier = modifier.testTag("statistics:screen"),
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text("Статистика") },
+                title = {
+                    Text(
+                        text = "Статистика",
+                        style = typography.sectionHeader,
+                        color = colors.textPrimary,
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                ),
             )
         },
     ) { padding ->
@@ -82,7 +103,32 @@ fun StatisticsScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = Teal)
+            }
+            return@Scaffold
+        }
+
+        // Empty state
+        if (state.expensesByCategory.isEmpty() && state.totalIncome == 0.0) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+            ) {
+                // Period selector even in empty state
+                PeriodSelector(
+                    selected = state.period,
+                    onSelect = onPeriodChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+
+                EmptyState(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                )
             }
             return@Scaffold
         }
@@ -92,7 +138,7 @@ fun StatisticsScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .testTag("statistics:content"),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // Period selector
             item(key = "period") {
@@ -101,188 +147,192 @@ fun StatisticsScreen(
                     onSelect = onPeriodChange,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp),
                 )
             }
 
-            // Totals
+            // Summary Cards — Bento Grid
             item(key = "totals") {
-                TotalsRow(
-                    totalExpenses = state.totalExpenses,
-                    totalIncome = state.totalIncome,
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                )
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    SummaryStatCard(
+                        title = "РАСХОДЫ",
+                        value = state.totalExpenses,
+                        icon = Icons.AutoMirrored.Filled.TrendingDown,
+                        type = StatType.EXPENSE,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("statistics:totalExpenses"),
+                    )
+                    SummaryStatCard(
+                        title = "ДОХОДЫ",
+                        value = state.totalIncome,
+                        icon = Icons.AutoMirrored.Filled.TrendingUp,
+                        type = StatType.INCOME,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("statistics:totalIncome"),
+                    )
+                }
             }
 
-            // Donut chart
+            // Donut Chart
             if (state.expensesByCategory.isNotEmpty()) {
                 item(key = "donut") {
-                    DonutChart(
+                    DonutChartCard(
                         categories = state.expensesByCategory,
                         totalExpenses = state.totalExpenses,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 48.dp, vertical = 8.dp)
+                            .padding(horizontal = 16.dp)
                             .testTag("statistics:pieChart"),
                     )
                 }
             }
 
-            // Bar chart
+            // Bar Chart
             if (state.dailyExpenses.isNotEmpty()) {
-                item(key = "bar_title") {
-                    Text(
-                        text = "Расходы по дням",
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
-                }
                 item(key = "bar") {
-                    ExpenseBarChart(
-                        dailyExpenses = state.dailyExpenses,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                            .padding(horizontal = 16.dp)
-                            .testTag("statistics:barChart"),
-                    )
-                }
-            }
-
-            // Category breakdown list
-            if (state.expensesByCategory.isNotEmpty()) {
-                item(key = "breakdown_title") {
-                    Text(
-                        text = "По категориям",
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
-                }
-
-                items(
-                    items = state.expensesByCategory,
-                    key = { it.categoryId },
-                ) { summary ->
-                    CategoryRow(
-                        summary = summary,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                            .testTag("statistics:category_${summary.categoryId}"),
-                    )
-                }
-            }
-
-            // Empty state
-            if (state.expensesByCategory.isEmpty() && state.totalIncome == 0.0) {
-                item(key = "empty") {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                         Text(
-                            text = "Нет данных за выбранный период",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = "РАСХОДЫ ПО ДНЯМ",
+                            style = typography.caption,
+                            color = colors.textSecondary,
+                            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+                        )
+                        GlassCard(modifier = Modifier.fillMaxWidth()) {
+                            ExpenseBarChart(
+                                dailyExpenses = state.dailyExpenses,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp)
+                                    .padding(16.dp)
+                                    .testTag("statistics:barChart"),
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Category Breakdown
+            if (state.expensesByCategory.isNotEmpty()) {
+                item(key = "breakdown") {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        Text(
+                            text = "ПО КАТЕГОРИЯМ",
+                            style = typography.caption,
+                            color = colors.textSecondary,
+                            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+                        )
+                        CategoryBreakdownCard(
+                            categories = state.expensesByCategory,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
             }
 
             item(key = "bottom_spacer") {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(80.dp))
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+// ── Period Selector ──
+
 @Composable
 private fun PeriodSelector(
     selected: StatsPeriod,
     onSelect: (StatsPeriod) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    SingleChoiceSegmentedButtonRow(
+    Row(
         modifier = modifier.testTag("statistics:periodSelector"),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         StatsPeriod.entries.forEachIndexed { index, period ->
-            SegmentedButton(
+            if (index > 0) Spacer(modifier = Modifier.width(8.dp))
+            MoneyManagerChip(
+                label = when (period) {
+                    StatsPeriod.WEEK -> "Неделя"
+                    StatsPeriod.MONTH -> "Месяц"
+                    StatsPeriod.YEAR -> "Год"
+                },
                 selected = selected == period,
                 onClick = { onSelect(period) },
-                shape = SegmentedButtonDefaults.itemShape(index = index, count = StatsPeriod.entries.size),
                 modifier = Modifier.testTag("statistics:period_${period.name}"),
-            ) {
-                Text(
-                    text = when (period) {
-                        StatsPeriod.WEEK -> "Неделя"
-                        StatsPeriod.MONTH -> "Месяц"
-                        StatsPeriod.YEAR -> "Год"
-                    },
-                )
-            }
+            )
         }
     }
 }
 
-@Composable
-private fun TotalsRow(
-    totalExpenses: Double,
-    totalIncome: Double,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        TotalCard(
-            label = "Расходы",
-            amount = totalExpenses,
-            color = ExpenseColor,
-            modifier = Modifier
-                .weight(1f)
-                .testTag("statistics:totalExpenses"),
-        )
-        TotalCard(
-            label = "Доходы",
-            amount = totalIncome,
-            color = IncomeColor,
-            modifier = Modifier
-                .weight(1f)
-                .testTag("statistics:totalIncome"),
-        )
-    }
-}
+// ── Donut Chart Card ──
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TotalCard(
-    label: String,
-    amount: Double,
-    color: Color,
+private fun DonutChartCard(
+    categories: ImmutableList<CategorySummary>,
+    totalExpenses: Double,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(16.dp),
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = formatAmount(amount),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = color,
-        )
+    val colors = MoneyManagerTheme.colors
+    val typography = MoneyManagerTheme.typography
+    val formatter = remember {
+        NumberFormat.getNumberInstance(Locale.US).apply {
+            minimumFractionDigits = 0
+            maximumFractionDigits = 0
+        }
+    }
+
+    GlassCard(modifier = modifier) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            // Donut chart
+            DonutChart(
+                categories = categories,
+                totalExpenses = totalExpenses,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp),
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Legend
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                categories.forEach { category ->
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(Color(category.categoryColor)),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = category.categoryName,
+                            style = typography.caption,
+                            color = colors.textSecondary,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -292,6 +342,15 @@ private fun DonutChart(
     totalExpenses: Double,
     modifier: Modifier = Modifier,
 ) {
+    val colors = MoneyManagerTheme.colors
+    val typography = MoneyManagerTheme.typography
+    val formatter = remember {
+        NumberFormat.getNumberInstance(Locale.US).apply {
+            minimumFractionDigits = 0
+            maximumFractionDigits = 0
+        }
+    }
+
     val animProgress = remember { Animatable(0f) }
     LaunchedEffect(categories) {
         animProgress.snapTo(0f)
@@ -307,14 +366,15 @@ private fun DonutChart(
                 (size.height - radius * 2) / 2f,
             )
             val arcSize = Size(radius * 2, radius * 2)
+            val gap = 2f
 
             var startAngle = -90f
             categories.forEach { cat ->
                 val sweep = (cat.percentage / 100f) * 360f * animProgress.value
                 drawArc(
                     color = Color(cat.categoryColor),
-                    startAngle = startAngle,
-                    sweepAngle = sweep,
+                    startAngle = startAngle + gap / 2f,
+                    sweepAngle = (sweep - gap).coerceAtLeast(0f),
                     useCenter = false,
                     topLeft = topLeft,
                     size = arcSize,
@@ -328,40 +388,37 @@ private fun DonutChart(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Расходы",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = typography.caption,
+                color = colors.textSecondary,
             )
             Text(
-                text = formatAmount(totalExpenses),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                text = "\u20B8 ${formatter.format(totalExpenses)}",
+                style = typography.sectionHeader,
+                color = colors.textPrimary,
             )
         }
     }
 }
+
+// ── Bar Chart ──
 
 @Composable
 private fun ExpenseBarChart(
     dailyExpenses: ImmutableList<DailyTotal>,
     modifier: Modifier = Modifier,
 ) {
-    val barColor = ExpenseColor
-    val gridColor = MaterialTheme.colorScheme.outlineVariant
-    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val colors = MoneyManagerTheme.colors
+    val barColor = colors.expense.copy(alpha = 0.8f)
+    val gridColor = colors.borderSubtle
+    val labelColor = colors.textTertiary
     val textMeasurer = rememberTextMeasurer()
-    val labelStyle = MaterialTheme.typography.labelSmall.copy(color = labelColor)
+    val labelStyle = MoneyManagerTheme.typography.caption.copy(color = labelColor)
 
     val dateFormat = remember { SimpleDateFormat("dd.MM", Locale.getDefault()) }
-    val dayOfWeekFormat = remember { SimpleDateFormat("EE", Locale.getDefault()) }
 
     val labels = remember(dailyExpenses) {
         dailyExpenses.map { daily ->
-            val date = Date(daily.date)
-            val datePart = dateFormat.format(date)
-            val dayPart = dayOfWeekFormat.format(date)
-                .replaceFirstChar { it.uppercase() }
-                .removeSuffix(".")
-            "$datePart\n$dayPart"
+            dateFormat.format(Date(daily.date))
         }
     }
 
@@ -378,15 +435,17 @@ private fun ExpenseBarChart(
         if (maxAmount <= 0.0) return@Canvas
 
         val topPadding = 8.dp.toPx()
-        val bottomPadding = 40.dp.toPx()
+        val bottomPadding = 28.dp.toPx()
         val chartHeight = size.height - bottomPadding - topPadding
-        val barSpacing = 8.dp.toPx()
-        val maxBarWidth = 48.dp.toPx()
-        val naturalBarWidth = (size.width - barSpacing * (dailyExpenses.size - 1)) / dailyExpenses.size
+        val barSpacing = 6.dp.toPx()
+        val maxBarWidth = 40.dp.toPx()
+        val naturalBarWidth =
+            (size.width - barSpacing * (dailyExpenses.size - 1)) / dailyExpenses.size
         val barWidth = naturalBarWidth.coerceAtMost(maxBarWidth)
         val cornerRadius = 4.dp.toPx()
 
-        val totalBarsWidth = barWidth * dailyExpenses.size + barSpacing * (dailyExpenses.size - 1)
+        val totalBarsWidth =
+            barWidth * dailyExpenses.size + barSpacing * (dailyExpenses.size - 1)
         val leftOffset = (size.width - totalBarsWidth) / 2f
 
         // Grid lines
@@ -402,7 +461,8 @@ private fun ExpenseBarChart(
 
         // Bars + labels
         dailyExpenses.forEachIndexed { index, daily ->
-            val barHeight = (daily.amount / maxAmount).toFloat() * chartHeight * animProgress.value
+            val barHeight =
+                (daily.amount / maxAmount).toFloat() * chartHeight * animProgress.value
             val x = leftOffset + index * (barWidth + barSpacing)
             val y = topPadding + chartHeight - barHeight
 
@@ -423,76 +483,177 @@ private fun ExpenseBarChart(
     }
 }
 
+// ── Category Breakdown ──
+
 @Composable
-private fun CategoryRow(
-    summary: CategorySummary,
+private fun CategoryBreakdownCard(
+    categories: ImmutableList<CategorySummary>,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(12.dp)
-                .clip(CircleShape)
-                .background(Color(summary.categoryColor)),
-        )
+    val colors = MoneyManagerTheme.colors
+    val typography = MoneyManagerTheme.typography
+    val amountFormatter = remember { DecimalFormat("#,##0") }
 
-        Spacer(modifier = Modifier.width(12.dp))
+    GlassCard(modifier = modifier) {
+        Column {
+            categories.forEachIndexed { index, summary ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .testTag("statistics:category_${summary.categoryId}"),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // Color dot
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .clip(CircleShape)
+                            .background(Color(summary.categoryColor)),
+                    )
 
-        Text(
-            text = summary.categoryName,
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
+                    Spacer(modifier = Modifier.width(12.dp))
 
-        Spacer(modifier = Modifier.width(8.dp))
+                    // Category name
+                    Text(
+                        text = summary.categoryName,
+                        style = typography.cardTitle,
+                        color = colors.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
 
-        Text(
-            text = formatAmount(summary.totalAmount),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
+                    Spacer(modifier = Modifier.width(8.dp))
 
-        Spacer(modifier = Modifier.width(8.dp))
+                    // Percentage badge
+                    Text(
+                        text = "${summary.percentage.toInt()}%",
+                        style = typography.caption,
+                        color = Color(summary.categoryColor),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(summary.categoryColor).copy(alpha = 0.12f))
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                    )
 
-        Text(
-            text = "${summary.percentage.toInt()}%",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Amount
+                    Text(
+                        text = "\u20B8 ${amountFormatter.format(summary.totalAmount)}",
+                        style = typography.amount,
+                        color = colors.textPrimary,
+                    )
+                }
+
+                // Divider
+                if (index < categories.size - 1) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 0.5.dp,
+                        color = colors.borderSubtle,
+                    )
+                }
+            }
+        }
     }
 }
 
-private val amountFormat = DecimalFormat("#,##0.##")
-private fun formatAmount(amount: Double): String = amountFormat.format(amount)
+// ── Empty State ──
 
-@Preview(showBackground = true)
+@Composable
+private fun EmptyState(modifier: Modifier = Modifier) {
+    val colors = MoneyManagerTheme.colors
+
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // Simple bar chart icon
+            Canvas(
+                modifier = Modifier
+                    .size(80.dp)
+                    .padding(bottom = 16.dp),
+            ) {
+                val barWidth = 8.dp.toPx()
+                val spacing = 13.dp.toPx()
+                val startX = 15.dp.toPx()
+                val baseY = 60.dp.toPx()
+                val heights = listOf(15f, 25f, 35f, 20f)
+                val alphas = listOf(1f, 0.7f, 0.5f, 0.3f)
+
+                heights.forEachIndexed { index, height ->
+                    val x = startX + index * spacing
+                    val h = height.dp.toPx()
+                    drawRoundRect(
+                        color = Teal.copy(alpha = alphas[index]),
+                        topLeft = Offset(x, baseY - h),
+                        size = Size(barWidth, h),
+                        cornerRadius = CornerRadius(2.dp.toPx()),
+                    )
+                }
+
+                // Base line
+                drawLine(
+                    color = Teal.copy(alpha = 0.3f),
+                    start = Offset(10.dp.toPx(), baseY),
+                    end = Offset(70.dp.toPx(), baseY),
+                    strokeWidth = 1.dp.toPx(),
+                )
+            }
+
+            Text(
+                text = "Нет данных за выбранный период",
+                style = MoneyManagerTheme.typography.cardTitle,
+                color = colors.textSecondary,
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0D0D0D)
 @Composable
 private fun StatisticsScreenPreview() {
-    MoneyManagerTheme(dynamicColor = false) {
+    MoneyManagerTheme(themeMode = "dark", dynamicColor = false) {
         StatisticsScreen(
             state = StatisticsState(
                 isLoading = false,
                 totalExpenses = 85_000.0,
                 totalIncome = 200_000.0,
                 expensesByCategory = persistentListOf(
-                    CategorySummary(1, "Еда", "restaurant", 0xFFE57373, 35_000.0, 41.2f),
-                    CategorySummary(2, "Транспорт", "directions_car", 0xFF64B5F6, 20_000.0, 23.5f),
-                    CategorySummary(3, "Развлечения", "sports_esports", 0xFFBA68C8, 15_000.0, 17.6f),
-                    CategorySummary(4, "Покупки", "shopping_bag", 0xFFFFB74D, 15_000.0, 17.6f),
+                    CategorySummary(1, "Еда", "restaurant", 0xFFFF6B6B, 35_000.0, 41.2f),
+                    CategorySummary(2, "Транспорт", "directions_car", 0xFF4ECDC4, 20_000.0, 23.5f),
+                    CategorySummary(
+                        3,
+                        "Развлечения",
+                        "sports_esports",
+                        0xFF45B7D1,
+                        15_000.0,
+                        17.6f,
+                    ),
+                    CategorySummary(4, "Покупки", "shopping_bag", 0xFFF7B801, 15_000.0, 17.6f),
                 ),
                 dailyExpenses = persistentListOf(
-                    DailyTotal(1L, 5000.0),
-                    DailyTotal(2L, 3000.0),
-                    DailyTotal(3L, 8000.0),
-                    DailyTotal(4L, 2000.0),
-                    DailyTotal(5L, 12000.0),
+                    DailyTotal(1738800000000, 5000.0),
+                    DailyTotal(1738886400000, 3000.0),
+                    DailyTotal(1738972800000, 8000.0),
+                    DailyTotal(1739059200000, 2000.0),
+                    DailyTotal(1739145600000, 12000.0),
                 ),
             ),
+            onPeriodChange = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0D0D0D)
+@Composable
+private fun StatisticsScreenEmptyPreview() {
+    MoneyManagerTheme(themeMode = "dark", dynamicColor = false) {
+        StatisticsScreen(
+            state = StatisticsState(isLoading = false),
             onPeriodChange = {},
         )
     }
