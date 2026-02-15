@@ -1,8 +1,9 @@
 package com.atelbay.money_manager.feature.transactions.ui.list
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,59 +14,50 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDateRangePickerState
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.core.model.TransactionType
-import com.atelbay.money_manager.core.ui.components.MoneyManagerCard
-import com.atelbay.money_manager.core.ui.theme.ExpenseColor
-import com.atelbay.money_manager.core.ui.theme.IncomeColor
+import com.atelbay.money_manager.core.ui.components.BalanceCard
+import com.atelbay.money_manager.core.ui.components.ChipType
+import com.atelbay.money_manager.core.ui.components.IncomeExpenseCard
+import com.atelbay.money_manager.core.ui.components.MoneyManagerChip
+import com.atelbay.money_manager.core.ui.components.MoneyManagerFAB
+import com.atelbay.money_manager.core.ui.components.MoneyManagerTextField
+import com.atelbay.money_manager.core.ui.components.TransactionListItem
+import com.atelbay.money_manager.core.ui.components.categoryIconFromName
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import kotlinx.collections.immutable.persistentListOf
 import java.text.DecimalFormat
@@ -90,13 +82,20 @@ fun TransactionListScreen(
     onSearchQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val colors = MoneyManagerTheme.colors
     var showDateRangePicker by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.testTag("transactionList:screen"),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Money Manager") },
+                title = {
+                    Text(
+                        text = "Money Manager",
+                        style = MoneyManagerTheme.typography.sectionHeader,
+                    )
+                },
                 actions = {
                     IconButton(
                         onClick = onImportClick,
@@ -105,18 +104,20 @@ fun TransactionListScreen(
                         Icon(
                             Icons.Default.UploadFile,
                             contentDescription = "Импорт выписки",
+                            tint = colors.textSecondary,
                         )
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                ),
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            MoneyManagerFAB(
                 onClick = onAddClick,
                 modifier = Modifier.testTag("transactionList:fab"),
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Добавить транзакцию")
-            }
+            )
         },
     ) { padding ->
         if (state.isLoading) {
@@ -126,15 +127,9 @@ fun TransactionListScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = colors.chart1)
             }
             return@Scaffold
-        }
-
-        val tabIndex = when (state.selectedTab) {
-            null -> 0
-            TransactionType.EXPENSE -> 1
-            TransactionType.INCOME -> 2
         }
 
         LazyColumn(
@@ -146,26 +141,40 @@ fun TransactionListScreen(
             // Balance card
             item(key = "balance") {
                 BalanceCard(
+                    accountName = state.selectedAccountName ?: "Все счета",
                     balance = state.balance,
                     currency = state.currency,
-                    accountName = state.selectedAccountName,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .testTag("transactionList:balance"),
+                )
+            }
+
+            // Income/Expense summary
+            item(key = "summary") {
+                IncomeExpenseCard(
+                    income = state.periodIncome,
+                    expense = state.periodExpense,
+                    currency = state.currency,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 8.dp),
                 )
             }
 
             // Search bar
             item(key = "search") {
-                OutlinedTextField(
+                MoneyManagerTextField(
                     value = state.searchQuery,
                     onValueChange = onSearchQueryChange,
-                    placeholder = { Text("Поиск по заметке или категории") },
+                    placeholder = "Поиск по заметке или категории",
                     leadingIcon = {
                         Icon(
                             Icons.Default.Search,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = colors.textSecondary,
                         )
                     },
                     trailingIcon = {
@@ -174,40 +183,46 @@ fun TransactionListScreen(
                                 Icon(
                                     Icons.Default.Clear,
                                     contentDescription = "Очистить",
+                                    tint = colors.textSecondary,
                                 )
                             }
                         }
                     },
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                         .padding(bottom = 8.dp)
                         .testTag("transactionList:searchBar"),
+                    tag = "transactionList:searchField",
                 )
             }
 
-            // Tab row
-            stickyHeader(key = "tabs") {
-                PrimaryTabRow(
-                    selectedTabIndex = tabIndex,
-                    modifier = Modifier.testTag("transactionList:tabRow"),
+            // Type filter chips
+            item(key = "typeFilter") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 4.dp)
+                        .testTag("transactionList:tabRow"),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Tab(
-                        selected = tabIndex == 0,
+                    MoneyManagerChip(
+                        label = "Все",
+                        selected = state.selectedTab == null,
                         onClick = { onTabSelected(null) },
-                        text = { Text("Все") },
                     )
-                    Tab(
-                        selected = tabIndex == 1,
+                    MoneyManagerChip(
+                        label = "Расходы",
+                        selected = state.selectedTab == TransactionType.EXPENSE,
                         onClick = { onTabSelected(TransactionType.EXPENSE) },
-                        text = { Text("Расходы") },
+                        type = ChipType.EXPENSE,
                     )
-                    Tab(
-                        selected = tabIndex == 2,
+                    MoneyManagerChip(
+                        label = "Доходы",
+                        selected = state.selectedTab == TransactionType.INCOME,
                         onClick = { onTabSelected(TransactionType.INCOME) },
-                        text = { Text("Доходы") },
+                        type = ChipType.INCOME,
                     )
                 }
             }
@@ -223,103 +238,80 @@ fun TransactionListScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     val periods = listOf(
+                        Period.ALL to "Все",
                         Period.TODAY to "Сегодня",
                         Period.WEEK to "Неделя",
                         Period.MONTH to "Месяц",
                         Period.YEAR to "Год",
                     )
                     periods.forEach { (period, label) ->
-                        FilterChip(
+                        MoneyManagerChip(
+                            label = label,
                             selected = state.selectedPeriod == period,
                             onClick = { onPeriodSelected(period) },
-                            label = { Text(label) },
                         )
                     }
-                    FilterChip(
+                    MoneyManagerChip(
+                        label = "Период",
                         selected = state.selectedPeriod == Period.CUSTOM,
                         onClick = { showDateRangePicker = true },
-                        label = { Text("Период") },
-                        trailingIcon = {
-                            Icon(
-                                Icons.Default.CalendarMonth,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                            )
-                        },
                     )
                 }
-            }
-
-            // Summary card
-            item(key = "summary") {
-                SummaryCard(
-                    income = state.periodIncome,
-                    expense = state.periodExpense,
-                    currency = state.currency,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 8.dp),
-                )
             }
 
             // Transaction list or empty state
             if (state.transactions.isEmpty()) {
                 item(key = "empty") {
-                    Box(
+                    EmptyState(
+                        isSearchActive = state.searchQuery.isNotBlank(),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 48.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (state.searchQuery.isNotBlank()) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    Icons.Default.Search,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(48.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Ничего не найдено",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Попробуйте изменить запрос",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        } else {
-                            Text(
-                                text = "Нет транзакций за период",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
+                    )
                 }
             } else {
-                items(
-                    items = state.transactions,
-                    key = { it.id },
-                ) { transaction ->
-                    SwipeToDeleteItem(
-                        onDelete = { onDeleteTransaction(transaction.id) },
-                    ) {
-                        TransactionItem(
-                            transaction = transaction,
-                            onClick = { onTransactionClick(transaction.id) },
+                // Group transactions by date
+                val grouped = state.transactions.groupBy { formatDateHeader(it.date) }
+
+                grouped.forEach { (dateHeader, transactions) ->
+                    // Date section header
+                    item(key = "header_$dateHeader") {
+                        Text(
+                            text = dateHeader,
+                            style = MoneyManagerTheme.typography.caption,
+                            color = colors.textSecondary,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp)
-                                .testTag("transactionList:item_${transaction.id}"),
+                                .padding(horizontal = 16.dp)
+                                .padding(top = 16.dp, bottom = 8.dp),
+                        )
+                    }
+
+                    items(
+                        items = transactions,
+                        key = { it.id },
+                    ) { transaction ->
+                        val isExpense = transaction.type == TransactionType.EXPENSE
+
+                        TransactionListItem(
+                            description = transaction.note?.ifBlank { transaction.categoryName }
+                                ?: transaction.categoryName,
+                            category = transaction.categoryName,
+                            categoryIcon = categoryIconFromName(transaction.categoryIcon),
+                            categoryColor = Color(transaction.categoryColor),
+                            amount = transaction.amount,
+                            date = formatTime(transaction.date),
+                            isIncome = !isExpense,
+                            currency = state.currency,
+                            onClick = { onTransactionClick(transaction.id) },
+                            modifier = Modifier.testTag("transactionList:item_${transaction.id}"),
                         )
                     }
                 }
+            }
+
+            // Bottom spacing for FAB
+            item(key = "spacer") {
+                Spacer(modifier = Modifier.height(80.dp))
             }
         }
     }
@@ -336,93 +328,56 @@ fun TransactionListScreen(
 }
 
 @Composable
-private fun BalanceCard(
-    balance: Double,
-    currency: String,
-    accountName: String?,
+private fun EmptyState(
+    isSearchActive: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    MoneyManagerCard(modifier = modifier) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = accountName ?: "Все счета",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "${formatAmount(balance)} $currency",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.testTag("transactionList:balance"),
-            )
-        }
-    }
-}
+    val colors = MoneyManagerTheme.colors
 
-@Composable
-private fun SummaryCard(
-    income: Double,
-    expense: Double,
-    currency: String,
-    modifier: Modifier = Modifier,
-) {
-    MoneyManagerCard(modifier = modifier) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (isSearchActive) {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = colors.textTertiary,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Доходы",
+                    text = "Ничего не найдено",
+                    style = MoneyManagerTheme.typography.cardTitle,
+                    color = colors.textPrimary,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Попробуйте изменить запрос",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = colors.textSecondary,
                 )
+            } else {
+                Icon(
+                    Icons.Default.UploadFile,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = colors.textTertiary,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "+${formatAmount(income)} $currency",
+                    text = "Нет транзакций",
+                    style = MoneyManagerTheme.typography.cardTitle,
+                    color = colors.textPrimary,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Добавьте первую транзакцию",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = IncomeColor,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = "Расходы",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = "-${formatAmount(expense)} $currency",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = ExpenseColor,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            val total = income - expense
-            val totalColor = when {
-                total > 0 -> IncomeColor
-                total < 0 -> ExpenseColor
-                else -> MaterialTheme.colorScheme.onSurface
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = "Итого",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = "${if (total >= 0) "+" else ""}${formatAmount(total)} $currency",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = totalColor,
-                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textSecondary,
                 )
             }
         }
@@ -472,130 +427,25 @@ private fun DateRangePickerDialog(
     }
 }
 
-@Composable
-private fun TransactionItem(
-    transaction: Transaction,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val isExpense = transaction.type == TransactionType.EXPENSE
-    val amountColor = if (isExpense) ExpenseColor else IncomeColor
-    val sign = if (isExpense) "-" else "+"
-
-    MoneyManagerCard(
-        onClick = onClick,
-        modifier = modifier,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(Color(transaction.categoryColor).copy(alpha = 0.2f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = transaction.categoryName.take(1),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color(transaction.categoryColor),
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = transaction.categoryName,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                val note = transaction.note
-                if (!note.isNullOrBlank()) {
-                    Text(
-                        text = note,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = "$sign${formatAmount(transaction.amount)}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = amountColor,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = formatDate(transaction.date),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SwipeToDeleteItem(
-    onDelete: () -> Unit,
-    content: @Composable () -> Unit,
-) {
-    val dismissState = rememberSwipeToDismissBoxState()
-
-    LaunchedEffect(dismissState.currentValue) {
-        if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
-            onDelete()
-        }
-    }
-
-    SwipeToDismissBox(
-        state = dismissState,
-        backgroundContent = {
-            val color by animateColorAsState(
-                targetValue = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    Color.Transparent
-                },
-                label = "swipe_bg",
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(color)
-                    .padding(horizontal = 20.dp),
-                contentAlignment = Alignment.CenterEnd,
-            ) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "Удалить",
-                    tint = MaterialTheme.colorScheme.onError,
-                )
-            }
-        },
-        enableDismissFromStartToEnd = false,
-    ) {
-        content()
-    }
-}
-
 private val amountFormat = DecimalFormat("#,##0.##")
-private val dateFormat = SimpleDateFormat("dd MMM", Locale("ru"))
+private val dateHeaderFormat = SimpleDateFormat("dd MMMM", Locale("ru"))
+private val timeFormat = SimpleDateFormat("HH:mm", Locale("ru"))
 
 private fun formatAmount(amount: Double): String = amountFormat.format(amount)
-private fun formatDate(timestamp: Long): String = dateFormat.format(Date(timestamp))
+
+private fun formatDateHeader(timestamp: Long): String {
+    val txDate = Instant.ofEpochMilli(timestamp)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDate()
+    val today = LocalDate.now()
+    return when (txDate) {
+        today -> "Сегодня"
+        today.minusDays(1) -> "Вчера"
+        else -> dateHeaderFormat.format(Date(timestamp))
+    }
+}
+
+private fun formatTime(timestamp: Long): String = timeFormat.format(Date(timestamp))
 
 @Preview(showBackground = true)
 @Composable
@@ -603,39 +453,76 @@ private fun TransactionListScreenPreview() {
     MoneyManagerTheme(dynamicColor = false) {
         TransactionListScreen(
             state = TransactionListState(
-                balance = 150_000.0,
+                balance = 1_250_000.50,
                 currency = "KZT",
                 isLoading = false,
-                periodIncome = 50_000.0,
-                periodExpense = 30_000.0,
+                selectedAccountName = "Kaspi Gold",
+                periodIncome = 450_000.0,
+                periodExpense = 358_400.0,
                 transactions = persistentListOf(
                     Transaction(
                         id = 1,
-                        amount = 5000.0,
+                        amount = 15_480.0,
                         type = TransactionType.EXPENSE,
                         categoryId = 1,
                         categoryName = "Еда",
                         categoryIcon = "restaurant",
-                        categoryColor = 0xFFE57373,
+                        categoryColor = 0xFF4ECDC4,
                         accountId = 1,
-                        note = "Обед в кафе",
+                        note = "Магнум супермаркет",
                         date = System.currentTimeMillis(),
                         createdAt = System.currentTimeMillis(),
                     ),
                     Transaction(
                         id = 2,
-                        amount = 200_000.0,
-                        type = TransactionType.INCOME,
+                        amount = 2_450.0,
+                        type = TransactionType.EXPENSE,
                         categoryId = 2,
-                        categoryName = "Зарплата",
-                        categoryIcon = "payments",
-                        categoryColor = 0xFF81C784,
+                        categoryName = "Транспорт",
+                        categoryIcon = "directions_car",
+                        categoryColor = 0xFF45B7D1,
                         accountId = 1,
-                        note = null,
+                        note = "Bolt",
                         date = System.currentTimeMillis(),
                         createdAt = System.currentTimeMillis(),
                     ),
+                    Transaction(
+                        id = 3,
+                        amount = 450_000.0,
+                        type = TransactionType.INCOME,
+                        categoryId = 11,
+                        categoryName = "Зарплата",
+                        categoryIcon = "payments",
+                        categoryColor = 0xFF00C9A7,
+                        accountId = 1,
+                        note = null,
+                        date = System.currentTimeMillis() - 86_400_000,
+                        createdAt = System.currentTimeMillis(),
+                    ),
                 ),
+            ),
+            onTransactionClick = {},
+            onAddClick = {},
+            onImportClick = {},
+            onDeleteTransaction = {},
+            onTabSelected = {},
+            onPeriodSelected = {},
+            onCustomDateRange = { _, _ -> },
+            onSearchQueryChange = {},
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun TransactionListScreenEmptyPreview() {
+    MoneyManagerTheme(themeMode = "dark", dynamicColor = false) {
+        TransactionListScreen(
+            state = TransactionListState(
+                balance = 0.0,
+                currency = "KZT",
+                isLoading = false,
+                selectedAccountName = "Kaspi Gold",
             ),
             onTransactionClick = {},
             onAddClick = {},

@@ -8,6 +8,8 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.platform.LocalContext
 
 private val LightColorScheme = lightColorScheme(
@@ -81,10 +83,37 @@ fun MoneyManagerTheme(
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
+    val extendedColors = if (darkTheme) DarkMoneyManagerColors else LightMoneyManagerColors
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = MoneyManagerTypography,
-        content = content,
-    )
+    CompositionLocalProvider(
+        LocalMoneyManagerColors provides extendedColors,
+        LocalMoneyManagerTypography provides MoneyManagerExtendedTypography(),
+    ) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = MoneyManagerTypography,
+            content = content,
+        )
+    }
+}
+
+/**
+ * Accessor for extended design tokens.
+ *
+ * Usage:
+ * ```
+ * val incomeColor = MoneyManagerTheme.colors.income
+ * val balanceStyle = MoneyManagerTheme.typography.balanceDisplay
+ * ```
+ */
+object MoneyManagerTheme {
+    val colors: MoneyManagerColors
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalMoneyManagerColors.current
+
+    val typography: MoneyManagerExtendedTypography
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalMoneyManagerTypography.current
 }

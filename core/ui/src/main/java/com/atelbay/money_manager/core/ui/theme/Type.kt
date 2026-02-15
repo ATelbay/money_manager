@@ -1,6 +1,8 @@
 package com.atelbay.money_manager.core.ui.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -9,10 +11,10 @@ import androidx.compose.ui.unit.sp
 val MoneyManagerTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 57.sp,
-        lineHeight = 64.sp,
-        letterSpacing = (-0.25).sp,
+        fontWeight = FontWeight.Bold,
+        fontSize = 34.sp,
+        lineHeight = 37.sp,
+        letterSpacing = (-0.02).sp,
     ),
     headlineLarge = TextStyle(
         fontFamily = FontFamily.Default,
@@ -29,8 +31,8 @@ val MoneyManagerTypography = Typography(
     headlineSmall = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 24.sp,
-        lineHeight = 32.sp,
+        fontSize = 20.sp,
+        lineHeight = 26.sp,
     ),
     titleLarge = TextStyle(
         fontFamily = FontFamily.Default,
@@ -42,7 +44,7 @@ val MoneyManagerTypography = Typography(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Medium,
         fontSize = 16.sp,
-        lineHeight = 24.sp,
+        lineHeight = 22.sp,
         letterSpacing = 0.15.sp,
     ),
     titleSmall = TextStyle(
@@ -63,7 +65,7 @@ val MoneyManagerTypography = Typography(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
-        lineHeight = 20.sp,
+        lineHeight = 21.sp,
         letterSpacing = 0.25.sp,
     ),
     bodySmall = TextStyle(
@@ -95,3 +97,46 @@ val MoneyManagerTypography = Typography(
         letterSpacing = 0.5.sp,
     ),
 )
+
+/**
+ * Custom typography styles beyond Material 3 for Money Manager's financial UI.
+ *
+ * Usage: `MoneyManagerTheme.typography.balanceDisplay`
+ */
+@Immutable
+data class MoneyManagerExtendedTypography(
+    val balanceDisplay: TextStyle = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Bold,
+        fontSize = 34.sp,
+        lineHeight = 37.sp,
+        letterSpacing = (-0.02).sp,
+    ),
+    val sectionHeader: TextStyle = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 20.sp,
+        lineHeight = 26.sp,
+    ),
+    val cardTitle: TextStyle = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 16.sp,
+        lineHeight = 22.sp,
+    ),
+    val amount: TextStyle = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 16.sp,
+        lineHeight = 22.sp,
+    ),
+    val caption: TextStyle = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.06.sp,
+    ),
+)
+
+val LocalMoneyManagerTypography = staticCompositionLocalOf { MoneyManagerExtendedTypography() }

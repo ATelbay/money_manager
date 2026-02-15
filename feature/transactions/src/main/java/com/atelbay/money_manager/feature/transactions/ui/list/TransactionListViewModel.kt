@@ -49,7 +49,7 @@ class TransactionListViewModel @Inject constructor(
     val state: StateFlow<TransactionListState> = _state.asStateFlow()
 
     private val _selectedTab = MutableStateFlow<TransactionType?>(null)
-    private val _selectedPeriod = MutableStateFlow(Period.MONTH)
+    private val _selectedPeriod = MutableStateFlow(Period.ALL)
     private val _customDateRange = MutableStateFlow<Pair<LocalDate, LocalDate>?>(null)
     private val _searchQuery = MutableStateFlow("")
 
@@ -83,13 +83,17 @@ class TransactionListViewModel @Inject constructor(
                 data.transactions
             }
 
-            val (rangeStart, rangeEnd) = periodToRange(filters.period, filters.customRange)
-            val startMillis =
-                rangeStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            val endMillis =
-                rangeEnd.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-
-            val periodFiltered = accountFiltered.filter { it.date in startMillis until endMillis }
+            val periodFiltered = if (filters.period == Period.ALL) {
+                accountFiltered
+            } else {
+                val (rangeStart, rangeEnd) = periodToRange(filters.period, filters.customRange)
+                val startMillis =
+                    rangeStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val endMillis =
+                    rangeEnd.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()
+                        .toEpochMilli()
+                accountFiltered.filter { it.date in startMillis until endMillis }
+            }
 
             val tabFiltered = if (filters.tab != null) {
                 periodFiltered.filter { it.type == filters.tab }
@@ -171,6 +175,7 @@ class TransactionListViewModel @Inject constructor(
     ): Pair<LocalDate, LocalDate> {
         val today = LocalDate.now()
         return when (period) {
+            Period.ALL -> LocalDate.of(2000, 1, 1) to today
             Period.TODAY -> today to today
             Period.WEEK -> today.minusDays(6) to today
             Period.MONTH -> today.minusDays(29) to today

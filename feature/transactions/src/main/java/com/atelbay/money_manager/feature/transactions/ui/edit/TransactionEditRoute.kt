@@ -27,6 +27,13 @@ fun TransactionEditRoute(
         onDateDismiss = { viewModel.toggleDatePicker(false) },
         onNoteChange = viewModel::setNote,
         onSave = { viewModel.save(onBack) },
+        onDelete = if (state.isEditing) {
+            {
+                viewModel.deleteTransaction(onBack)
+            }
+        } else {
+            null
+        },
         modifier = modifier,
     )
 }

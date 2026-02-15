@@ -8,6 +8,7 @@ import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.core.model.TransactionType
+import com.atelbay.money_manager.feature.transactions.domain.usecase.DeleteTransactionUseCase
 import com.atelbay.money_manager.feature.transactions.domain.usecase.GetCategoriesUseCase
 import com.atelbay.money_manager.feature.transactions.domain.usecase.GetTransactionByIdUseCase
 import com.atelbay.money_manager.feature.transactions.domain.usecase.SaveTransactionUseCase
@@ -29,6 +30,7 @@ class TransactionEditViewModel @Inject constructor(
     private val getTransactionByIdUseCase: GetTransactionByIdUseCase,
     private val getCategoriesUseCase: GetCategoriesUseCase,
     private val saveTransactionUseCase: SaveTransactionUseCase,
+    private val deleteTransactionUseCase: DeleteTransactionUseCase,
     private val accountDao: AccountDao,
     private val userPreferences: UserPreferences,
 ) : ViewModel() {
@@ -130,6 +132,14 @@ class TransactionEditViewModel @Inject constructor(
 
     fun toggleDatePicker(show: Boolean) {
         _state.update { it.copy(showDatePicker = show) }
+    }
+
+    fun deleteTransaction(onComplete: () -> Unit) {
+        val id = transactionId ?: return
+        viewModelScope.launch {
+            deleteTransactionUseCase(id)
+            onComplete()
+        }
     }
 
     fun save(onComplete: () -> Unit) {
