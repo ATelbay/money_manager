@@ -428,8 +428,8 @@ private fun DateRangePickerDialog(
 }
 
 private val amountFormat = DecimalFormat("#,##0.##")
-private val dateHeaderFormat = SimpleDateFormat("dd MMMM", Locale("ru"))
-private val timeFormat = SimpleDateFormat("HH:mm", Locale("ru"))
+private val dateHeaderFormat = SimpleDateFormat("dd MMMM", Locale.forLanguageTag("ru"))
+private val timeFormat = SimpleDateFormat("HH:mm", Locale.forLanguageTag("ru"))
 
 private fun formatAmount(amount: Double): String = amountFormat.format(amount)
 

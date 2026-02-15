@@ -44,7 +44,7 @@ object DatabaseModule {
                     }
                 }
             })
-            .fallbackToDestructiveMigration()
+            .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
 

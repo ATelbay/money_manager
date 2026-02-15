@@ -599,7 +599,7 @@ private fun MoneyManagerDatePickerDialog(
     }
 }
 
-private val fullDateFormat = SimpleDateFormat("dd MMMM yyyy", Locale("ru"))
+private val fullDateFormat = SimpleDateFormat("dd MMMM yyyy", Locale.forLanguageTag("ru"))
 
 private fun formatDateFull(timestamp: Long): String = fullDateFormat.format(Date(timestamp))
 

@@ -1,6 +1,7 @@
 package com.atelbay.money_manager.core.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -134,16 +135,12 @@ fun TransactionListItem(
     }
 
     if (onDelete != null) {
-        val dismissState = rememberSwipeToDismissBoxState(
-            confirmValueChange = { value ->
-                if (value == SwipeToDismissBoxValue.EndToStart) {
-                    onDelete()
-                    true
-                } else {
-                    false
-                }
-            },
-        )
+        val dismissState = rememberSwipeToDismissBoxState()
+        LaunchedEffect(dismissState.currentValue) {
+            if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
+                onDelete()
+            }
+        }
         val bgColor by animateColorAsState(
             targetValue = when (dismissState.targetValue) {
                 SwipeToDismissBoxValue.EndToStart -> Color(0xFFEF4444)
