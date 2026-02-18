@@ -1,9 +1,5 @@
 package com.atelbay.money_manager.feature.transactions.ui.list
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +15,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.UploadFile
@@ -60,7 +55,6 @@ import com.atelbay.money_manager.core.ui.components.TransactionListItem
 import com.atelbay.money_manager.core.ui.components.categoryIconFromName
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import kotlinx.collections.immutable.persistentListOf
-import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -428,11 +422,8 @@ private fun DateRangePickerDialog(
     }
 }
 
-private val amountFormat = DecimalFormat("#,##0.##")
 private val dateHeaderFormat = SimpleDateFormat("dd MMMM", Locale.forLanguageTag("ru"))
 private val timeFormat = SimpleDateFormat("HH:mm", Locale.forLanguageTag("ru"))
-
-private fun formatAmount(amount: Double): String = amountFormat.format(amount)
 
 private fun formatDateHeader(timestamp: Long): String {
     val txDate = Instant.ofEpochMilli(timestamp)

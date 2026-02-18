@@ -17,7 +17,7 @@ private const val FETCH_INTERVAL_SECONDS = 3600L
 
 @Singleton
 class FirebaseParserConfigProvider @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) : ParserConfigProvider {
 
     private val json = Json { ignoreUnknownKeys = true }

@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.serialization.InternalSerializationApi::class)
+
 package com.atelbay.money_manager.core.remoteconfig
 
 import kotlinx.serialization.SerialName

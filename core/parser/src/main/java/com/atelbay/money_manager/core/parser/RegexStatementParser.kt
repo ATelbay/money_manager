@@ -40,7 +40,7 @@ class RegexStatementParser @Inject constructor() {
         dateFormatter: DateTimeFormatter,
         config: ParserConfig,
     ): ParsedTransaction {
-        val (dateStr, sign, amountStr, operation, details) = match.destructured
+        val (dateStr, _, amountStr, operation, details) = match.destructured
 
         val javaParsed = java.time.LocalDate.parse(dateStr, dateFormatter)
         val date = LocalDate(javaParsed.year, javaParsed.monthValue, javaParsed.dayOfMonth)

@@ -12,7 +12,7 @@ import javax.inject.Singleton
 
 @Singleton
 class PdfTextExtractor @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) {
 
     private var initialized = false

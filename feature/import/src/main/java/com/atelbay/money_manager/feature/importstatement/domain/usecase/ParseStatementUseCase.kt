@@ -182,8 +182,8 @@ class ParseStatementUseCase @Inject constructor(
     }
 
     private fun buildPrompt(
-        expenseCategories: List<com.atelbay.money_manager.core.database.entity.CategoryEntity>,
-        incomeCategories: List<com.atelbay.money_manager.core.database.entity.CategoryEntity>,
+        expenseCategories: List<CategoryEntity>,
+        incomeCategories: List<CategoryEntity>,
     ): String = buildString {
         appendLine("Распарси банковскую выписку. Верни JSON.")
         appendLine("Расход: ${expenseCategories.joinToString(", ") { "${it.id}:${it.name}" }}")

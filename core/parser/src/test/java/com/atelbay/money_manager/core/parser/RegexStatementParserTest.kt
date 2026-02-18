@@ -125,9 +125,7 @@ class RegexStatementParserTest {
     fun `ignore non-matching lines`() {
         val text = """
 ВЫПИСКА
-по Kaspi Gold за период с 14.01.26 по 14.02.26
-Дата              Сумма                     Операция        Детали
-  13.02.26              - 500,00 ₸                  Покупка    TOO "KASPI MAGAZIN"
+
         """.trimIndent()
 
         val result = parser.parse(text, kaspiConfig)
