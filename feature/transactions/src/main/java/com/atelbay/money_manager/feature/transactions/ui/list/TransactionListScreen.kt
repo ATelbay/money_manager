@@ -169,7 +169,8 @@ fun TransactionListScreen(
                 MoneyManagerTextField(
                     value = state.searchQuery,
                     onValueChange = onSearchQueryChange,
-                    placeholder = "Поиск по заметке или категории",
+                    placeholder = "Поиск",
+                    maxLines = 1,
                     leadingIcon = {
                         Icon(
                             Icons.Default.Search,

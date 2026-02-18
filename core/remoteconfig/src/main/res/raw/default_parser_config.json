@@ -1,0 +1,25 @@
+{
+  "banks": [
+    {
+      "bank_id": "kaspi",
+      "bank_markers": [
+        "Kaspi Gold",
+        "АО «Kaspi Bank»",
+        "CASPKZKA"
+      ],
+      "transaction_pattern": "^\\s*(\\d{2}\\.\\d{2}\\.\\d{2})\\s+([+-])\\s+([\\d\\s]+,\\d{2})\\s*₸\\s+(Покупка|Перевод|Пополнение)\\s+(.+?)\\s*$",
+      "date_format": "dd.MM.yy",
+      "operation_type_map": {
+        "Покупка": "expense",
+        "Перевод": "expense",
+        "Пополнение": "income"
+      },
+      "skip_patterns": [
+        "АО «Kaspi Bank»",
+        "Краткое содержание",
+        "Лимит на снятие",
+        "Сумма заблокирована"
+      ]
+    }
+  ]
+}

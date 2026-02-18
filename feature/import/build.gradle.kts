@@ -13,8 +13,10 @@ dependencies {
     implementation(projects.core.database)
     implementation(projects.core.datastore)
     implementation(projects.core.model)
+    implementation(projects.core.parser)
     implementation(projects.core.ui)
 
     implementation(libs.kotlinx.datetime)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.timber)
 }

@@ -4,13 +4,16 @@ import com.atelbay.money_manager.core.ai.GeminiService
 import com.atelbay.money_manager.core.common.generateTransactionHash
 import com.atelbay.money_manager.core.database.dao.CategoryDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
+import com.atelbay.money_manager.core.database.entity.CategoryEntity
 import com.atelbay.money_manager.core.model.ImportResult
 import com.atelbay.money_manager.core.model.ParsedTransaction
 import com.atelbay.money_manager.core.model.TransactionType
+import com.atelbay.money_manager.core.parser.StatementParser
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import timber.log.Timber
 import javax.inject.Inject
 
 @Serializable
@@ -30,6 +33,7 @@ private data class GeminiTransaction(
 )
 
 class ParseStatementUseCase @Inject constructor(
+    private val statementParser: StatementParser,
     private val geminiService: GeminiService,
     private val categoryDao: CategoryDao,
     private val transactionDao: TransactionDao,
@@ -38,6 +42,37 @@ class ParseStatementUseCase @Inject constructor(
     private val json = Json { ignoreUnknownKeys = true }
 
     suspend operator fun invoke(blobs: List<Pair<ByteArray, String>>): ImportResult {
+        val pdfBlob = blobs.firstOrNull { it.second == "application/pdf" }
+
+        val transactions = if (pdfBlob != null) {
+            tryRegexThenGemini(pdfBlob.first, blobs)
+        } else {
+            parseWithGemini(blobs)
+        }
+
+        return deduplicateAndBuildResult(transactions)
+    }
+
+    private suspend fun tryRegexThenGemini(
+        pdfBytes: ByteArray,
+        blobs: List<Pair<ByteArray, String>>,
+    ): List<ParsedTransaction> {
+        val regexResult = statementParser.tryParsePdf(pdfBytes)
+
+        if (regexResult != null && regexResult.transactions.isNotEmpty()) {
+            Timber.d(
+                "RegEx parsed %d transactions for bank %s",
+                regexResult.transactions.size,
+                regexResult.bankId,
+            )
+            return assignCategories(regexResult.transactions)
+        }
+
+        Timber.d("RegEx parsing failed or empty, falling back to Gemini")
+        return parseWithGemini(blobs)
+    }
+
+    private suspend fun parseWithGemini(blobs: List<Pair<ByteArray, String>>): List<ParsedTransaction> {
         val expenseCategories = categoryDao.getByType("expense")
         val incomeCategories = categoryDao.getByType("income")
 
@@ -48,16 +83,12 @@ class ParseStatementUseCase @Inject constructor(
         val parsed = try {
             json.decodeFromString<GeminiResponse>(jsonString)
         } catch (e: Exception) {
-            return ImportResult(
-                total = 0,
-                newTransactions = emptyList(),
-                duplicates = 0,
-                errors = listOf("Не удалось распарсить ответ AI: ${e.message}"),
-            )
+            Timber.e(e, "Failed to parse Gemini response")
+            return emptyList()
         }
 
         val errors = mutableListOf<String>()
-        val transactions = parsed.transactions.mapNotNull { tx ->
+        return parsed.transactions.mapNotNull { tx ->
             try {
                 val date = LocalDate.parse(tx.date)
                 val type = when (tx.type) {
@@ -81,7 +112,57 @@ class ParseStatementUseCase @Inject constructor(
                 null
             }
         }
+    }
 
+    private suspend fun assignCategories(
+        transactions: List<ParsedTransaction>,
+    ): List<ParsedTransaction> {
+        val expenseCategories = categoryDao.getByType("expense").toMutableList()
+        val incomeCategories = categoryDao.getByType("income").toMutableList()
+
+        val neededOperations = transactions
+            .filter { it.categoryId == null }
+            .map { it.operationType to it.type }
+            .distinct()
+
+        for ((operation, type) in neededOperations) {
+            val categories = if (type == TransactionType.EXPENSE) expenseCategories else incomeCategories
+            if (categories.any { it.name == operation }) continue
+
+            val dbType = if (type == TransactionType.EXPENSE) "expense" else "income"
+            val newCategory = CategoryEntity(
+                name = operation,
+                icon = "label",
+                color = DEFAULT_IMPORT_CATEGORY_COLOR,
+                type = dbType,
+                isDefault = false,
+            )
+            val id = categoryDao.insert(newCategory)
+            val created = newCategory.copy(id = id)
+            categories.add(created)
+            Timber.d("Created category '%s' (%s) with id=%d", operation, dbType, id)
+        }
+
+        return transactions.map { tx ->
+            if (tx.categoryId != null) return@map tx
+
+            val categories = if (tx.type == TransactionType.EXPENSE) expenseCategories else incomeCategories
+            val matched = categories.find { it.name == tx.operationType }
+
+            tx.copy(
+                categoryId = matched?.id,
+                suggestedCategoryName = tx.operationType,
+            )
+        }
+    }
+
+    companion object {
+        private const val DEFAULT_IMPORT_CATEGORY_COLOR = 0xFFB0BEC5
+    }
+
+    private suspend fun deduplicateAndBuildResult(
+        transactions: List<ParsedTransaction>,
+    ): ImportResult {
         val hashes = transactions.map { it.uniqueHash }
         val existingHashes = if (hashes.isNotEmpty()) {
             transactionDao.getExistingHashes(hashes)
@@ -93,10 +174,10 @@ class ParseStatementUseCase @Inject constructor(
         val duplicates = transactions.size - newTransactions.size
 
         return ImportResult(
-            total = parsed.transactions.size,
+            total = transactions.size,
             newTransactions = newTransactions,
             duplicates = duplicates,
-            errors = errors,
+            errors = emptyList(),
         )
     }
 
