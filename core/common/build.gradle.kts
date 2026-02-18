@@ -10,4 +10,6 @@ dependencies {
     implementation(libs.bundles.coroutines)
     implementation(libs.kotlinx.datetime)
     implementation(libs.timber)
+
+    testImplementation(libs.bundles.testing)
 }

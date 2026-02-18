@@ -22,6 +22,8 @@ Money Manager — Android-приложение для учёта личных ф
 | Build | Version Catalogs + Convention Plugins | AGP 8.13.2, Kotlin 2.3.0, KSP 2.3.1 |
 | Charts | Vico | 2.4.3 |
 | AI | Firebase AI (Gemini 2.5 Flash) | — |
+| PDF Parsing | PdfBox-Android | 2.0.27.0 |
+| Remote Config | Firebase Remote Config | — |
 | CI/CD | GitHub Actions → Firebase App Distribution → Play Store | — |
 
 ## Архитектура
@@ -98,12 +100,27 @@ MoneyManager/
 │   │   └── src/main/java/com/atelbay/money_manager/core/common/
 │   │       └── TransactionHashGenerator.kt
 │   │
-│   └── ai/                         # :core:ai — Gemini AI integration
-│       └── src/main/java/com/atelbay/money_manager/core/ai/
-│           ├── GeminiService.kt
-│           ├── GeminiServiceImpl.kt
+│   ├── ai/                         # :core:ai — Gemini AI integration
+│   │   └── src/main/java/com/atelbay/money_manager/core/ai/
+│   │       ├── GeminiService.kt
+│   │       ├── GeminiServiceImpl.kt
+│   │       └── di/
+│   │           └── AiModule.kt
+│   │
+│   ├── parser/                     # :core:parser — RegEx statement parser
+│   │   └── src/main/java/com/atelbay/money_manager/core/parser/
+│   │       ├── PdfTextExtractor.kt
+│   │       ├── BankDetector.kt
+│   │       ├── RegexStatementParser.kt
+│   │       └── StatementParser.kt
+│   │
+│   └── remoteconfig/               # :core:remoteconfig — Firebase Remote Config
+│       └── src/main/java/com/atelbay/money_manager/core/remoteconfig/
+│           ├── ParserConfig.kt
+│           ├── ParserConfigProvider.kt
+│           ├── FirebaseParserConfigProvider.kt
 │           └── di/
-│               └── AiModule.kt
+│               └── RemoteConfigModule.kt
 │
 ├── feature/
 │   ├── onboarding/                 # :feature:onboarding
@@ -361,9 +378,30 @@ Prepopulation через `RoomDatabase.Callback.onCreate`.
 ./gradlew detekt
 ```
 
-## Импорт банковской выписки (AI)
+## Импорт банковской выписки (RegEx + AI)
 
-Фича для автоматического импорта транзакций из PDF-выписки банка с помощью Gemini AI.
+Фича для автоматического импорта транзакций из PDF-выписки банка. Используется двухуровневая стратегия: RegEx-парсинг (бесплатно, быстро) с fallback на Gemini AI.
+
+### Стратегия парсинга
+```
+PDF bytes ──→ PdfTextExtractor ──→ raw text
+                                      │
+                                      ▼
+                              BankDetector (маркеры: "Kaspi Gold", etc.)
+                                      │
+                              ┌───────┴────────┐
+                              ▼                ▼
+                      RegEx parser       Unknown bank
+                              │                │
+                         ┌────┴────┐           │
+                         ▼         ▼           ▼
+                      Success    Fail ──→ Gemini AI (fallback)
+                         │
+                         ▼
+                  ParsedTransaction[]
+
+Image bytes ──────────────────────→ Gemini AI (directly)
+```
 
 ### Flow
 ```
@@ -371,10 +409,10 @@ Home → Import icon → Import screen
   ├─ Выбрать PDF (ActivityResultContracts.OpenDocument)
   └─ Сделать фото (TakePicturePreview)
       ↓
-  PDF → raw bytes (application/pdf) → Gemini AI
+  PDF → RegEx парсинг (Kaspi и др.) → если не распознан → Gemini AI
   Фото → JPEG bytes (image/jpeg) → Gemini AI
       ↓
-  Gemini AI парсит → ImportResult (transactions + duplicates + errors)
+  ImportResult (transactions + duplicates + errors)
       ↓
   Preview screen:
     ├─ Выбор счёта (dropdown)
@@ -393,12 +431,23 @@ Home → Import icon → Import screen
 
 ### Ключевые компоненты
 
-| Компонент | Файл | Назначение |
-|-----------|------|------------|
+| Компонент | Модуль | Назначение |
+|-----------|--------|------------|
+| `PdfTextExtractor` | `:core:parser` | Извлечение текста из PDF (PdfBox-Android) |
+| `BankDetector` | `:core:parser` | Определение банка по маркерам в тексте |
+| `RegexStatementParser` | `:core:parser` | Парсинг строк транзакций по regex-паттерну из конфига |
+| `StatementParser` | `:core:parser` | Фасад: extract → detect → regex parse |
+| `ParserConfigProvider` | `:core:remoteconfig` | Конфиг regex-паттернов (Firebase Remote Config + defaults) |
 | `GeminiService` | `:core:ai` | Отправка blobs (PDF/image) в Gemini, responseMimeType=JSON |
-| `ParseStatementUseCase` | `:feature:import` | Парсинг JSON от AI (сокращённые ключи), дедупликация по hash |
+| `ParseStatementUseCase` | `:feature:import` | Оркестрация: RegEx → fallback Gemini → дедупликация |
 | `ImportTransactionsUseCase` | `:feature:import` | Сохранение в Room, fallback на категорию "Другое" |
 | `TransactionOverride` | `:core:model` | Хранение пользовательских правок per-transaction |
+
+### Поддерживаемые банки (RegEx)
+
+| Банк | bank_id | Формат строки | Операции |
+|------|---------|---------------|----------|
+| Kaspi Gold | `kaspi` | `DD.MM.YY  [+-] сумма ₸  Операция  Детали` | Покупка, Перевод, Пополнение |
 
 ### Модели
 
