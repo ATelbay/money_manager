@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.moneymanager.android.application)
     alias(libs.plugins.moneymanager.android.compose)
@@ -7,29 +9,40 @@ plugins {
     alias(libs.plugins.google.services)
 }
 
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.inputStream().use { load(it) }
+    }
+}
+
+fun signingProp(fileKey: String, envKey: String): String? =
+    keystoreProperties.getProperty(fileKey) ?: System.getenv(envKey)
+
 android {
     namespace = "com.atelbay.money_manager"
 
     defaultConfig {
         applicationId = "com.atelbay.money_manager"
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
         create("release") {
-            storeFile = file("keystore.jks")
-            storePassword = System.getenv("SIGNING_STORE_PASSWORD")
-            keyAlias = System.getenv("SIGNING_KEY_ALIAS")
-            keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+            storeFile = file(signingProp("storeFile", "SIGNING_STORE_FILE") ?: "keystore.jks")
+            storePassword = signingProp("storePassword", "SIGNING_STORE_PASSWORD")
+            keyAlias = signingProp("keyAlias", "SIGNING_KEY_ALIAS")
+            keyPassword = signingProp("keyPassword", "SIGNING_KEY_PASSWORD")
         }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
