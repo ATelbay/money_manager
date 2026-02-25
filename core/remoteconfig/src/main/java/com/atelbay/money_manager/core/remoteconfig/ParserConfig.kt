@@ -18,4 +18,7 @@ data class ParserConfig(
     @SerialName("date_format") val dateFormat: String,
     @SerialName("operation_type_map") val operationTypeMap: Map<String, String>,
     @SerialName("skip_patterns") val skipPatterns: List<String> = emptyList(),
+    @SerialName("join_lines") val joinLines: Boolean = false,
+    @SerialName("amount_format") val amountFormat: String = "space_comma",
+    @SerialName("use_sign_for_type") val useSignForType: Boolean = false,
 )

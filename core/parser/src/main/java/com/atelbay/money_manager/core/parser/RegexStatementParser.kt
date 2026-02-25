@@ -12,14 +12,17 @@ import javax.inject.Inject
 class RegexStatementParser @Inject constructor() {
 
     fun parse(text: String, config: ParserConfig): List<ParsedTransaction> {
+        val skipPatterns = config.skipPatterns.map { Regex(Regex.escape(it)) }
+        val filteredText = text.lines()
+            .filterNot { line -> skipPatterns.any { it.containsMatchIn(line) } }
+            .joinToString("\n")
+        val processedText = if (config.joinLines) joinContinuationLines(filteredText) else filteredText
         val pattern = Regex(config.transactionPattern, RegexOption.MULTILINE)
         val dateFormatter = DateTimeFormatter.ofPattern(config.dateFormat)
-        val skipPatterns = config.skipPatterns.map { Regex(Regex.escape(it)) }
 
         val transactions = mutableListOf<ParsedTransaction>()
 
-        for (line in text.lines()) {
-            if (skipPatterns.any { it.containsMatchIn(line) }) continue
+        for (line in processedText.lines()) {
 
             val match = pattern.find(line) ?: continue
 
@@ -31,7 +34,7 @@ class RegexStatementParser @Inject constructor() {
             }
         }
 
-        Timber.d("RegEx parsed %d transactions from %d lines", transactions.size, text.lines().size)
+        Timber.d("RegEx parsed %d transactions from %d lines", transactions.size, processedText.lines().size)
         return transactions
     }
 
@@ -40,15 +43,19 @@ class RegexStatementParser @Inject constructor() {
         dateFormatter: DateTimeFormatter,
         config: ParserConfig,
     ): ParsedTransaction {
-        val (dateStr, _, amountStr, operation, details) = match.destructured
+        val (dateStr, sign, amountStr, operation, details) = match.destructured
 
         val javaParsed = java.time.LocalDate.parse(dateStr, dateFormatter)
         val date = LocalDate(javaParsed.year, javaParsed.monthValue, javaParsed.dayOfMonth)
 
-        val amount = amountStr.replace("\\s".toRegex(), "").replace(",", ".").toDouble()
+        val amount = parseAmount(amountStr, config.amountFormat)
 
-        val typeValue = config.operationTypeMap[operation] ?: "expense"
-        val type = if (typeValue == "income") TransactionType.INCOME else TransactionType.EXPENSE
+        val type = if (config.useSignForType) {
+            if (sign == "+") TransactionType.INCOME else TransactionType.EXPENSE
+        } else {
+            val typeValue = config.operationTypeMap[operation] ?: "expense"
+            if (typeValue == "income") TransactionType.INCOME else TransactionType.EXPENSE
+        }
 
         val hash = generateTransactionHash(date, amount, type.value, details.trim())
 
@@ -64,5 +71,31 @@ class RegexStatementParser @Inject constructor() {
             needsReview = false,
             uniqueHash = hash,
         )
+    }
+
+    private fun parseAmount(amountStr: String, format: String): Double = when (format) {
+        "comma_dot" -> amountStr.replace(",", "").toDouble()
+        else -> amountStr.replace("\\s".toRegex(), "").replace(",", ".").toDouble()
+    }
+
+    /**
+     * Joins continuation lines that don't start with a date pattern to the previous line.
+     * Used for bank statements where transaction details span multiple lines.
+     */
+    private fun joinContinuationLines(text: String): String {
+        val datePattern = Regex("""^\s*\d{2}\.\d{2}\.\d{2,4}""")
+        val lines = text.lines()
+        val joined = mutableListOf<String>()
+
+        for (line in lines) {
+            if (line.isBlank()) continue
+            if (datePattern.containsMatchIn(line) || joined.isEmpty()) {
+                joined.add(line)
+            } else {
+                joined[joined.lastIndex] = joined.last() + " " + line.trim()
+            }
+        }
+
+        return joined.joinToString("\n")
     }
 }
