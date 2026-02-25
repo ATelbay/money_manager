@@ -5,5 +5,5 @@ data class Account(
     val name: String,
     val currency: String,
     val balance: Double,
-    val createdAt: Long,
+    val createdAt: Long = 0,
 )
