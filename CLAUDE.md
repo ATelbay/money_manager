@@ -26,6 +26,47 @@ Money Manager — Android-приложение для учёта личных ф
 | Remote Config | Firebase Remote Config | — |
 | CI/CD | GitHub Actions → Firebase App Distribution → Play Store | — |
 
+## Архитектура (Layer-Centric Modules)
+
+24 Gradle-модуля с enforced layer boundaries:
+
+```
+MoneyManager/
+├── domain/                    # Repository interfaces + Use Cases
+│   ├── transactions/          # TransactionRepository + CRUD use cases
+│   ├── categories/            # CategoryRepository + CRUD use cases
+│   ├── accounts/              # AccountRepository + CRUD use cases
+│   ├── statistics/            # GetPeriodSummaryUseCase + models
+│   └── import/                # ParseStatement + ImportTransactions use cases
+├── data/                      # Repository implementations + Mappers + DI
+│   ├── transactions/
+│   ├── categories/
+│   └── accounts/
+├── presentation/              # Screens, ViewModels, States, Routes
+│   ├── transactions/
+│   ├── categories/
+│   ├── accounts/
+│   ├── statistics/
+│   ├── import/
+│   ├── settings/
+│   └── onboarding/
+├── core/                      # Shared infrastructure
+│   ├── model/                 # Domain models (Account, Transaction, Category...)
+│   ├── database/              # Room DB, Entities, DAOs
+│   ├── datastore/             # Preferences DataStore
+│   ├── ui/                    # Theme, shared Compose components
+│   ├── common/                # Utils, extensions
+│   ├── ai/                    # Gemini service
+│   ├── parser/                # PDF parsing, bank detection
+│   └── remoteconfig/          # Firebase Remote Config
+├── build-logic/convention/
+└── app/                       # Navigation, DI wiring
+```
+
+**Dependency rule:** `presentation → domain → core:model`. Presentation НЕ зависит от `core:database`.
+
+**Пакеты:** `com.atelbay.money_manager.{domain|data|presentation}.{feature}.*`
+
 ## Skills (технические гайдлайны)
 
 Все технические правила, паттерны и алгоритмы разбиты на модульные Skills в `.claude/skills/`. Используй Tool Search для поиска нужного скилла.

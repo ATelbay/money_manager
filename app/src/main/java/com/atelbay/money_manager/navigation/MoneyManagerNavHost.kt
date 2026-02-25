@@ -5,17 +5,17 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.atelbay.money_manager.feature.onboarding.ui.CreateAccountRoute
-import com.atelbay.money_manager.feature.onboarding.ui.OnboardingRoute
-import com.atelbay.money_manager.feature.categories.ui.edit.CategoryEditRoute
-import com.atelbay.money_manager.feature.categories.ui.list.CategoryListRoute
-import com.atelbay.money_manager.feature.accounts.ui.edit.AccountEditRoute
-import com.atelbay.money_manager.feature.accounts.ui.list.AccountListRoute
-import com.atelbay.money_manager.feature.statistics.ui.StatisticsRoute
-import com.atelbay.money_manager.feature.settings.ui.SettingsRoute
-import com.atelbay.money_manager.feature.transactions.ui.edit.TransactionEditRoute
-import com.atelbay.money_manager.feature.transactions.ui.list.TransactionListRoute
-import com.atelbay.money_manager.feature.importstatement.ui.ImportRoute
+import com.atelbay.money_manager.presentation.onboarding.ui.CreateAccountRoute
+import com.atelbay.money_manager.presentation.onboarding.ui.OnboardingRoute
+import com.atelbay.money_manager.presentation.categories.ui.edit.CategoryEditRoute
+import com.atelbay.money_manager.presentation.categories.ui.list.CategoryListRoute
+import com.atelbay.money_manager.presentation.accounts.ui.edit.AccountEditRoute
+import com.atelbay.money_manager.presentation.accounts.ui.list.AccountListRoute
+import com.atelbay.money_manager.presentation.statistics.ui.StatisticsRoute
+import com.atelbay.money_manager.presentation.settings.ui.SettingsRoute
+import com.atelbay.money_manager.presentation.transactions.ui.edit.TransactionEditRoute
+import com.atelbay.money_manager.presentation.transactions.ui.list.TransactionListRoute
+import com.atelbay.money_manager.presentation.importstatement.ui.ImportRoute
 
 @Composable
 fun MoneyManagerNavHost(

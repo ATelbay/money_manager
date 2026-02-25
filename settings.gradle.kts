@@ -26,6 +26,8 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 rootProject.name = "MoneyManager"
 
 include(":app")
+
+// Core
 include(":core:database")
 include(":core:datastore")
 include(":core:ui")
@@ -34,10 +36,24 @@ include(":core:model")
 include(":core:ai")
 include(":core:remoteconfig")
 include(":core:parser")
-include(":feature:onboarding")
-include(":feature:transactions")
-include(":feature:categories")
-include(":feature:statistics")
-include(":feature:accounts")
-include(":feature:settings")
-include(":feature:import")
+
+// Domain
+include(":domain:transactions")
+include(":domain:categories")
+include(":domain:accounts")
+include(":domain:statistics")
+include(":domain:import")
+
+// Data
+include(":data:transactions")
+include(":data:categories")
+include(":data:accounts")
+
+// Presentation
+include(":presentation:transactions")
+include(":presentation:categories")
+include(":presentation:accounts")
+include(":presentation:statistics")
+include(":presentation:import")
+include(":presentation:settings")
+include(":presentation:onboarding")

@@ -57,19 +57,23 @@ android {
 }
 
 dependencies {
-    // Modules
-    implementation(projects.core.database)
+    // Data (for Hilt DI wiring)
+    implementation(projects.data.transactions)
+    implementation(projects.data.categories)
+    implementation(projects.data.accounts)
+
+    // Presentation
+    implementation(projects.presentation.onboarding)
+    implementation(projects.presentation.transactions)
+    implementation(projects.presentation.categories)
+    implementation(projects.presentation.statistics)
+    implementation(projects.presentation.accounts)
+    implementation(projects.presentation.settings)
+    implementation(projects.presentation.`import`)
+
+    // Core
     implementation(projects.core.datastore)
     implementation(projects.core.ui)
-    implementation(projects.core.common)
-    implementation(projects.feature.onboarding)
-    implementation(projects.feature.transactions)
-    implementation(projects.feature.categories)
-    implementation(projects.feature.statistics)
-    implementation(projects.feature.accounts)
-    implementation(projects.core.ai)
-    implementation(projects.feature.settings)
-    implementation(projects.feature.`import`)
 
     // Core Android
     implementation(libs.androidx.core.ktx)

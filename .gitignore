@@ -83,3 +83,9 @@ secrets.properties
 keystore.properties
 
 app/google-services.json
+
+# Non-project artifacts
+/components/
+/styles/
+*.pdf
+*.svg
