@@ -39,6 +39,8 @@ Money Manager — Android-приложение для учёта личных ф
 | `generate-ui-test.md` | Генерация UI-тестов с ComposeTestRule |
 | `web-search-android-docs.md` | Верификация API через поиск документации |
 | `clean-architecture-feature-scaffold.md` | Генератор новой фичи (domain/data/ui/di) |
+| `gradle-troubleshooting.md` | Диагностика ошибок сборки Gradle |
+| `git-conventional-commits.md` | Анализ изменений и коммиты в формате Conventional Commits |
 
 ## Полезные команды
 
