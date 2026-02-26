@@ -88,4 +88,7 @@ app/google-services.json
 /components/
 /styles/
 *.pdf
-*.svg
+*.svg-e 
+# Claude-specific files
+/.claude
+
