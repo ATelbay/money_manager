@@ -1,0 +1,54 @@
+{
+  "project": {
+    "name": "Money Manager",
+    "package_name": "com.atelbay.money_manager",
+    "description": "Android-приложение для учёта личных финансов."
+  },
+  "tech_stack": {
+    "kotlin_version": "2.3.0",
+    "agp_version": "8.13.2",
+    "jvm_target": "11",
+    "compose_compiler_version": "1.5.1",
+    "target_sdk": 34,
+    "min_sdk": 26
+  },
+  "architecture": {
+    "style": "MVVM + Clean Architecture",
+    "module_layers": {
+      "app": "app (entrypoint, DI)",
+      "core": "core (shared logic, UI kit, DB)",
+      "domain": "domain (business logic, use cases)",
+      "data": "data (repositories, data sources)",
+      "presentation": "presentation (feature modules, UI)",
+      "build-logic": "build-logic (build conventions)"
+    }
+  },
+  "orchestration": {
+    "default_models": {
+      "analyst": "google/gemini-2.5-pro",
+      "architect": "google/gemini-2.5-pro",
+      "developer": "google/gemini-2.5-pro",
+      "reviewer": "google/gemini-2.5-flash",
+      "tester": "google/gemini-2.5-flash"
+    },
+    "parallel_agents_limit": 3
+  },
+  "testing": {
+    "unit_test_path": "src/test/java",
+    "instrumentation_test_path": "src/androidTest/java",
+    "mocking_framework": "MockK"
+  },
+  "code_quality": {
+    "detekt_config_path": "config/detekt/detekt.yml",
+    "ktlint_enabled": true
+  },
+  "ci_cd": {
+    "workflow_file": ".github/workflows/android-ci.yml",
+    "firebase_app_distribution": {
+      "default_group": "qa-testers"
+    },
+    "play_store": {
+      "default_track": "internal"
+    }
+  }
+}
