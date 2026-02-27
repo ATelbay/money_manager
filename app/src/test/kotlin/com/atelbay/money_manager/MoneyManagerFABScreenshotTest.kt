@@ -1,0 +1,34 @@
+package com.atelbay.money_manager
+
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onRoot
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.github.takahirom.roborazzi.captureRoboImage
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+
+@RunWith(AndroidJUnit4::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(sdk = [33], qualifiers = "xxhdpi")
+class MoneyManagerFABScreenshotTest {
+    @get:Rule
+    val composeTestRule = createComposeRule()
+
+    @Test
+    fun captureFloatingActionButton() {
+        composeTestRule.setContent {
+            FloatingActionButton(onClick = {}) {
+                Icon(imageVector = Icons.Default.Add, contentDescription = "Add")
+            }
+        }
+
+        composeTestRule.onRoot().captureRoboImage("src/test/screenshots/fab_screenshot.png")
+    }
+}
