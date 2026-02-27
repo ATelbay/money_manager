@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -43,6 +42,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.ui.components.MoneyManagerCard
+import com.atelbay.money_manager.core.ui.components.MoneyManagerFAB
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import kotlinx.collections.immutable.persistentListOf
 import java.text.DecimalFormat
@@ -65,12 +65,10 @@ fun AccountListScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            MoneyManagerFAB(
                 onClick = onAddClick,
                 modifier = Modifier.testTag("accountList:fab"),
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Добавить счёт")
-            }
+            )
         },
     ) { padding ->
         if (state.isLoading) {
