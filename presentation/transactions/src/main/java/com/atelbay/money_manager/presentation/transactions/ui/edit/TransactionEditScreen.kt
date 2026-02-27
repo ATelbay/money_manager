@@ -468,9 +468,19 @@ private fun CategoryBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) com.atelbay.money_manager.core.ui.theme.SurfaceDark else com.atelbay.money_manager.core.ui.theme.SurfaceLight,
+        containerColor = Color.Transparent,
+        tonalElevation = 0.dp,
         modifier = Modifier.testTag("transactionEdit:categorySheet"),
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    color = if (androidx.compose.foundation.isSystemInDarkTheme()) com.atelbay.money_manager.core.ui.theme.SurfaceDark else com.atelbay.money_manager.core.ui.theme.SurfaceLight,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                )
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+        ) {
         Text(
             text = "Выберите категорию",
             style = typography.sectionHeader,
@@ -497,6 +507,7 @@ private fun CategoryBottomSheet(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+        }
     }
 }
 
