@@ -66,8 +66,9 @@ fun AccountListScreen(
         },
         floatingActionButton = {
             MoneyManagerFAB(
+                
                 onClick = onAddClick,
-                modifier = Modifier.testTag("accountList:fab"),
+                testTag = "accountList:fab",
             )
         },
     ) { padding ->
