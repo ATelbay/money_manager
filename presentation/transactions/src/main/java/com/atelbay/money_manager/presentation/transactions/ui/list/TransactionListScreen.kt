@@ -108,8 +108,9 @@ fun TransactionListScreen(
         },
         floatingActionButton = {
             MoneyManagerFAB(
+                
                 onClick = onAddClick,
-                modifier = Modifier.testTag("transactionList:fab"),
+                testTag = "transactionList:fab",
             )
         },
     ) { padding ->

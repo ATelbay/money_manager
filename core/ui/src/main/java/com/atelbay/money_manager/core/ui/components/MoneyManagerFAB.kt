@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
@@ -29,6 +30,7 @@ fun MoneyManagerFAB(
     modifier: Modifier = Modifier,
     icon: ImageVector = Icons.Default.Add,
     contentDescription: String? = null,
+    testTag: String? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -42,7 +44,7 @@ fun MoneyManagerFAB(
         onClick = onClick,
         modifier = modifier
             .size(56.dp)
-            .scale(scale),
+            .scale(scale).then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
         shape = CircleShape,
         containerColor = Teal,
         contentColor = Color.White,

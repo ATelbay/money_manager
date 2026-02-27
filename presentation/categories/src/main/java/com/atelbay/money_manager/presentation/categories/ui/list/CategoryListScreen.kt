@@ -21,7 +21,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.ui.components.MoneyManagerCard
+import com.atelbay.money_manager.core.ui.components.MoneyManagerFAB
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.TransactionType
@@ -80,12 +80,10 @@ fun CategoryListScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            MoneyManagerFAB(
                 onClick = onAddClick,
-                modifier = Modifier.testTag("categoryList:fab"),
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Добавить категорию")
-            }
+                testTag = "categoryList:fab",
+            ) 
         },
     ) { padding ->
         if (state.isLoading) {
