@@ -33,7 +33,7 @@ fun MoneyManagerFAB(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.92f else 1f,
+        if (isPressed) 0.92f else 1f,
         animationSpec = spring(stiffness = 400f, dampingRatio = 0.6f),
         label = "fabScale",
     )

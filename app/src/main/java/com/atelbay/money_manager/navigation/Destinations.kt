@@ -1,3 +1,4 @@
+@file:Suppress("PackageNaming")
 package com.atelbay.money_manager.navigation
 
 import kotlinx.serialization.Serializable

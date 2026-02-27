@@ -1,8 +1,8 @@
+@file:Suppress("PackageNaming")
 package com.atelbay.money_manager
 
 import org.junit.Test
-
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
 
 /**
  * Example local unit test, which will execute on the development machine (host).

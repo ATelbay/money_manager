@@ -80,7 +80,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun MoneyManagerApp(
+@Suppress("FunctionNaming") private fun MoneyManagerApp(
     navController: NavHostController,
     startDestination: Any,
 ) {

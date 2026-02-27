@@ -1,3 +1,4 @@
+@file:Suppress("PackageNaming")
 package com.atelbay.money_manager.navigation
 
 import androidx.compose.material3.Icon
@@ -9,7 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 
 @Composable
-fun MoneyManagerBottomBar(
+@Suppress("FunctionNaming") fun MoneyManagerBottomBar(
     currentDestination: TopLevelDestination?,
     onNavigate: (TopLevelDestination) -> Unit,
     modifier: Modifier = Modifier,
