@@ -468,7 +468,7 @@ private fun CategoryBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = if (androidx.compose.foundation.isSystemInDarkTheme()) com.atelbay.money_manager.core.ui.theme.SurfaceDark else com.atelbay.money_manager.core.ui.theme.SurfaceLight,
         modifier = Modifier.testTag("transactionEdit:categorySheet"),
     ) {
         Text(
