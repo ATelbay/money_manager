@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.detekt)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.android.screenshot.test)
 }
 
 val keystorePropertiesFile = rootProject.file("keystore.properties")
