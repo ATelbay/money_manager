@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.detekt)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.roborazzi)
 }
 
 val keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -54,6 +55,12 @@ android {
     buildFeatures {
         buildConfig = true
     }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -97,6 +104,13 @@ dependencies {
 
     // Testing
     testImplementation(libs.bundles.testing)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.junit)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.junit)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    testImplementation(libs.robolectric)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.bundles.android.testing)
 }
