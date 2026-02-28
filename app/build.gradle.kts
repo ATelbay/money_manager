@@ -104,6 +104,8 @@ dependencies {
 
     // Testing
     testImplementation(libs.bundles.testing)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.junit)
     testImplementation(libs.roborazzi)
     testImplementation(libs.roborazzi.compose)
     testImplementation(libs.roborazzi.junit)
