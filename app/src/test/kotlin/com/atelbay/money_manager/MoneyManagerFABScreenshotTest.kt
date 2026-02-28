@@ -4,7 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onRoot
 import org.robolectric.RobolectricTestRunner
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -19,7 +19,7 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [33], qualifiers = "xxhdpi")
 class MoneyManagerFABScreenshotTest {
     @get:Rule
-    val composeTestRule = createComposeRule()
+    val composeTestRule = createAndroidComposeRule<MainActivity>()
 
     @Test
     fun captureFloatingActionButton() {
