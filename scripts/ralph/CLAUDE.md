@@ -77,6 +77,15 @@ If ALL stories are complete and passing, reply with:
 
 If there are still stories with `passes: false`, end your response normally (another iteration will pick up the next story).
 
+## PRD Generation
+
+`scripts/ralph/prd.json` can be created in two ways:
+
+1. **Manually** — copy `scripts/ralph/prd.json.example`, fill in the stories, and save to `scripts/ralph/prd.json`.
+2. **Via Garlic (Telegram)** — send a task description to Garlic. Garlic invokes the `prd-agent` (defined at `scripts/ralph/prd-agent.md`), which explores the codebase and writes `scripts/ralph/prd.json` automatically, then triggers Ralph.
+
+The `prd-agent.md` prompt is self-contained: it describes how to explore the MoneyManager codebase, the exact `prd.json` format, story decomposition rules, and Android-specific acceptance criteria.
+
 ## Important
 
 - Work on ONE story per iteration
