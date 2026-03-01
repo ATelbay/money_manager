@@ -128,6 +128,8 @@ class CategoryEditViewModel @Inject constructor(
             "volunteer_activism",
             "celebration",
             "music_note",
+            "swap_horiz",
+            "account_balance_wallet",
         )
 
         val AVAILABLE_COLORS = listOf(

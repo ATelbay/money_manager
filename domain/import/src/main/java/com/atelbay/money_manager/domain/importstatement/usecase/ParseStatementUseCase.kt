@@ -114,6 +114,15 @@ class ParseStatementUseCase @Inject constructor(
         }
     }
 
+    // Maps raw operation names from bank statements to existing default category names.
+    // Handles both Russian and English variants.
+    private val operationAliases = mapOf(
+        "Покупка" to "Покупки",
+        "Purchase" to "Покупки",
+        "Оплата" to "Покупки",
+        "Payment" to "Покупки",
+    )
+
     private suspend fun assignCategories(
         transactions: List<ParsedTransaction>,
     ): List<ParsedTransaction> {
@@ -127,11 +136,12 @@ class ParseStatementUseCase @Inject constructor(
 
         for ((operation, type) in neededOperations) {
             val categories = if (type == TransactionType.EXPENSE) expenseCategories else incomeCategories
-            if (categories.any { it.name == operation }) continue
+            val resolvedName = operationAliases[operation] ?: operation
+            if (categories.any { it.name == resolvedName }) continue
 
             val dbType = if (type == TransactionType.EXPENSE) "expense" else "income"
             val newCategory = CategoryEntity(
-                name = operation,
+                name = resolvedName,
                 icon = "label",
                 color = DEFAULT_IMPORT_CATEGORY_COLOR,
                 type = dbType,
@@ -140,14 +150,15 @@ class ParseStatementUseCase @Inject constructor(
             val id = categoryDao.insert(newCategory)
             val created = newCategory.copy(id = id)
             categories.add(created)
-            Timber.d("Created category '%s' (%s) with id=%d", operation, dbType, id)
+            Timber.d("Created category '%s' (%s) with id=%d", resolvedName, dbType, id)
         }
 
         return transactions.map { tx ->
             if (tx.categoryId != null) return@map tx
 
             val categories = if (tx.type == TransactionType.EXPENSE) expenseCategories else incomeCategories
-            val matched = categories.find { it.name == tx.operationType }
+            val resolvedName = operationAliases[tx.operationType] ?: tx.operationType
+            val matched = categories.find { it.name == resolvedName }
 
             tx.copy(
                 categoryId = matched?.id,

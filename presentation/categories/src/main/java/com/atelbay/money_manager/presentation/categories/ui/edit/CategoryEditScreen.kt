@@ -36,11 +36,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.ui.components.MoneyManagerButton
 import com.atelbay.money_manager.core.ui.components.MoneyManagerTextField
+import com.atelbay.money_manager.core.ui.components.categoryIconFromName
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.model.TransactionType
 import kotlinx.collections.immutable.ImmutableList
@@ -222,11 +222,11 @@ private fun IconPager(
                                     .testTag("categoryEdit:icon_$icon"),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Text(
-                                    text = iconToEmoji(icon),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = if (isSelected) Color.White else Color(selectedColor),
-                                    textAlign = TextAlign.Center,
+                                Icon(
+                                    imageVector = categoryIconFromName(icon),
+                                    contentDescription = icon,
+                                    tint = if (isSelected) Color.White else Color(selectedColor),
+                                    modifier = Modifier.size(24.dp),
                                 )
                             }
                         }
@@ -349,39 +349,6 @@ private fun PageIndicator(
     }
 }
 
-private fun iconToEmoji(icon: String): String = when (icon) {
-    "restaurant" -> "\uD83C\uDF7D"
-    "directions_car" -> "\uD83D\uDE97"
-    "sports_esports" -> "\uD83C\uDFAE"
-    "shopping_bag" -> "\uD83D\uDECD"
-    "medical_services" -> "\uD83C\uDFE5"
-    "home" -> "\uD83C\uDFE0"
-    "phone_android" -> "\uD83D\uDCF1"
-    "school" -> "\uD83C\uDF93"
-    "subscriptions" -> "\uD83D\uDCE6"
-    "more_horiz" -> "\u2022\u2022\u2022"
-    "payments" -> "\uD83D\uDCB3"
-    "work" -> "\uD83D\uDCBC"
-    "card_giftcard" -> "\uD83C\uDF81"
-    "trending_up" -> "\uD83D\uDCC8"
-    "flight" -> "\u2708\uFE0F"
-    "local_cafe" -> "\u2615"
-    "fitness_center" -> "\uD83C\uDFCB"
-    "pets" -> "\uD83D\uDC3E"
-    "child_care" -> "\uD83D\uDC76"
-    "checkroom" -> "\uD83D\uDC57"
-    "local_grocery_store" -> "\uD83D\uDED2"
-    "local_gas_station" -> "\u26FD"
-    "build" -> "\uD83D\uDD27"
-    "savings" -> "\uD83D\uDC37"
-    "account_balance" -> "\uD83C\uDFE6"
-    "attach_money" -> "\uD83D\uDCB5"
-    "redeem" -> "\uD83C\uDF9F"
-    "volunteer_activism" -> "\uD83E\uDD1D"
-    "celebration" -> "\uD83C\uDF89"
-    "music_note" -> "\uD83C\uDFB5"
-    else -> "\u2022"
-}
 
 @Preview(showBackground = true)
 @Composable

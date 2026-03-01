@@ -15,7 +15,7 @@ Read them carefully before doing anything.
 5. Pick the **highest priority** user story where `passes: false`
    - Each story has: `id`, `title`, `description`, `acceptanceCriteria`, `priority`, `passes`, `notes`
    - Always read the `notes` field — it often contains hints, constraints, or references to existing code
-   - Your implementation **must satisfy ALL** `acceptanceCriteria`
+   - Your implementation **must satisfy ALL** `acceptanceCriteria` — they are non-negotiable. If something seems to conflict with the codebase, implement it as specified and note the conflict in progress.txt. Do NOT silently substitute similar existing items.
    - If multiple stories share the same priority, prefer database/domain stories over UI stories
 6. Implement that single user story
 7. Run quality checks (see below)

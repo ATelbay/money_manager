@@ -89,6 +89,19 @@ if [ ! -f "$PROGRESS_FILE" ]; then
   echo "---" >> "$PROGRESS_FILE"
 fi
 
+# Validate prd.json exists and has pending stories
+if [ ! -f "$PRD_FILE" ]; then
+  echo "Error: scripts/ralph/prd.json not found. Create it before running Ralph."
+  exit 1
+fi
+if ! jq -e '.userStories[] | select(.passes == false)' "$PRD_FILE" > /dev/null 2>&1; then
+  if [[ "$CREATE_PR" == "false" && "$DOWNLOAD_APK" == "false" ]]; then
+    echo "Nothing to do: all stories in prd.json have passes: true."
+    exit 0
+  fi
+  echo "All stories already pass — skipping iterations, proceeding to PR/download flow."
+fi
+
 echo "Starting Ralph - Tool: $TOOL - Max iterations: $MAX_ITERATIONS"
 
 for i in $(seq 1 $MAX_ITERATIONS); do
