@@ -1,0 +1,41 @@
+name: Ralph Cleanup
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  cleanup:
+    name: Remove ralph artifacts from main
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'ralph/')
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Remove ralph artifacts if present
+        run: |
+          CHANGED=false
+          if [ -f scripts/ralph/prd.json ]; then
+            git rm scripts/ralph/prd.json
+            CHANGED=true
+          fi
+          if [ -f scripts/ralph/progress.txt ]; then
+            git rm scripts/ralph/progress.txt
+            CHANGED=true
+          fi
+          if [ "$CHANGED" = "true" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore(ralph): remove prd.json and progress.txt after PR merge"
+            git push
+          else
+            echo "Nothing to clean up."
+          fi
