@@ -46,6 +46,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.ui.components.MoneyManagerCard
 import com.atelbay.money_manager.core.ui.components.MoneyManagerFAB
+import com.atelbay.money_manager.core.ui.components.categoryIconFromName
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.TransactionType
@@ -189,13 +190,14 @@ private fun CategoryItem(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(Color(category.color).copy(alpha = 0.2f)),
+                    .background(Color(category.color)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = category.name.take(1),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color(category.color),
+                Icon(
+                    imageVector = categoryIconFromName(category.icon),
+                    contentDescription = category.name,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp),
                 )
             }
 
