@@ -95,8 +95,11 @@ if [ ! -f "$PRD_FILE" ]; then
   exit 1
 fi
 if ! jq -e '.userStories[] | select(.passes == false)' "$PRD_FILE" > /dev/null 2>&1; then
-  echo "Nothing to do: all stories in prd.json have passes: true."
-  exit 0
+  if [[ "$CREATE_PR" == "false" && "$DOWNLOAD_APK" == "false" ]]; then
+    echo "Nothing to do: all stories in prd.json have passes: true."
+    exit 0
+  fi
+  echo "All stories already pass — skipping iterations, proceeding to PR/download flow."
 fi
 
 echo "Starting Ralph - Tool: $TOOL - Max iterations: $MAX_ITERATIONS"
