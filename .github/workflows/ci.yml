@@ -72,7 +72,7 @@ jobs:
         run: echo "$GOOGLE_SERVICES_JSON" | base64 -d > app/google-services.json
 
       - name: Run Unit Tests
-        run: ./gradlew test
+        run: ./gradlew testDebugUnitTest
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
