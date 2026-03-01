@@ -141,7 +141,7 @@ class ParseStatementUseCase @Inject constructor(
 
             val dbType = if (type == TransactionType.EXPENSE) "expense" else "income"
             val newCategory = CategoryEntity(
-                name = operation,
+                name = resolvedName,
                 icon = "label",
                 color = DEFAULT_IMPORT_CATEGORY_COLOR,
                 type = dbType,
@@ -150,7 +150,7 @@ class ParseStatementUseCase @Inject constructor(
             val id = categoryDao.insert(newCategory)
             val created = newCategory.copy(id = id)
             categories.add(created)
-            Timber.d("Created category '%s' (%s) with id=%d", operation, dbType, id)
+            Timber.d("Created category '%s' (%s) with id=%d", resolvedName, dbType, id)
         }
 
         return transactions.map { tx ->
