@@ -18,7 +18,7 @@
         "./gradlew assembleDebug passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "This is a markdown prompt file only — no Kotlin/Gradle changes needed. Save to scripts/ralph/prd-agent.md. Context about Garlic: Garlic is an autonomous Telegram bot built on the OpenClaw framework, running on a Google Cloud VM. It supports custom agents defined as markdown prompt files (similar to how Ralph uses CLAUDE.md). Garlic uses Gemini 3.1 Pro as its main model and Gemini 3 Flash for lightweight researcher agents. Garlic has direct access to the MoneyManager git repository on the VM. When a user sends a task via Telegram, Garlic invokes the prd-agent with the task description, the agent explores the codebase and writes scripts/ralph/prd.json, then Garlic triggers ralph.sh. The prompt must be self-contained and written as instructions TO the prd-agent (not about it)."
     },
     {
@@ -32,7 +32,7 @@
         "./gradlew assembleDebug passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Small addition to existing CLAUDE.md file at scripts/ralph/CLAUDE.md"
     }
   ]

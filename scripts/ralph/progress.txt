@@ -1,3 +1,29 @@
+## Codebase Patterns
+- scripts/ralph/ is the Ralph agent directory: CLAUDE.md (agent instructions), ralph.sh (loop script), prd.json (task list), progress.txt (log), prd-agent.md (Garlic prompt)
+- prd.json and progress.txt are committed only in ralph/* branches, not main
+- Markdown-only stories (no Kotlin/Gradle) still require ./gradlew assembleDebug in acceptance criteria
+- Archive directory: scripts/ralph/archive/<date>-<branchname-without-ralph/>/ stores old prd.json + progress.txt
+
 # Ralph Progress Log
 Started: Sun Mar  1 22:31:27 +05 2026
+---
+
+## 2026-03-01 - US-001
+- Created scripts/ralph/prd-agent.md — self-contained Garlic agent prompt
+- Prompt covers: codebase exploration steps, exact prd.json format with full example, story decomposition rules (sizing, ordering by dependencies), Android acceptance criteria rules, save path, and archiving logic
+- Files changed: scripts/ralph/prd-agent.md (created)
+- **Learnings for future iterations:**
+  - This branch (ralph/prd-agent-for-garlic) is markdown-only — no Kotlin/Gradle changes. assembleDebug passes trivially.
+  - The prd-agent.md must be written as instructions TO the agent (imperative), not documentation ABOUT it
+  - Garlic uses Gemini 3.1 Pro; the agent prompt must be self-contained (no tool hints beyond what OpenClaw provides)
+---
+
+## 2026-03-01 - US-002
+- Added ## PRD Generation section to scripts/ralph/CLAUDE.md
+- Section explains both manual and Garlic/prd-agent methods for generating prd.json
+- References scripts/ralph/prd-agent.md so future Ralph iterations know where to look
+- Files changed: scripts/ralph/CLAUDE.md
+- **Learnings for future iterations:**
+  - CLAUDE.md additions are small and targeted — match the existing tone (concise, imperative)
+  - assembleDebug is always fast for markdown-only stories; no need to wait long
 ---
