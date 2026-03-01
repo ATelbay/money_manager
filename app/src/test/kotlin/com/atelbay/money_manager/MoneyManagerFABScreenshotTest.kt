@@ -6,7 +6,6 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import org.robolectric.RobolectricTestRunner
 import com.github.takahirom.roborazzi.captureRoboImage
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -23,7 +22,6 @@ class MoneyManagerFABScreenshotTest {
     val composeTestRule = createComposeRule()
 
     @Test
-    @Ignore("Fails in release build with Robolectric. Needs refactoring.")
     fun captureFloatingActionButton() {
         composeTestRule.setContent {
             MoneyManagerTheme(dynamicColor = false) {

@@ -79,6 +79,7 @@ dependencies {
     implementation(projects.presentation.`import`)
 
     // Core
+    implementation(projects.core.model)
     implementation(projects.core.datastore)
     implementation(projects.core.ui)
 
@@ -101,6 +102,9 @@ dependencies {
 
     // Debug
     debugImplementation(libs.leakcanary)
+
+    // Immutable collections (for test access to presentation state types)
+    testImplementation(libs.kotlinx.collections.immutable)
 
     // Testing
     testImplementation(libs.bundles.testing)
