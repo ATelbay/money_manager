@@ -1,0 +1,51 @@
+# Ralph Progress Log
+Started: Sun Mar  1 01:28:52 +05 2026
+
+## Codebase Patterns
+- Roborazzi tests use `@RunWith(RobolectricTestRunner::class)`, `@GraphicsMode(NATIVE)`, `@Config(sdk=[33], qualifiers="xxhdpi")`
+- Screenshots saved to `app/src/test/screenshots/` via `captureRoboImage("src/test/screenshots/name.png")`
+- Use `MoneyManagerTheme(dynamicColor = false)` wrapper for consistent screenshots
+- `./gradlew :app:recordRoborazziDebug` records, `./gradlew :app:testDebugUnitTest` runs tests
+- `core:model` and `kotlinx-collections-immutable` are NOT direct deps of `app` module — must add them if tests need `Category`, `TransactionType`, `ImmutableList` etc.
+- `kotlinx-collections-immutable` is added by `AndroidFeatureConventionPlugin` for feature modules, but `app` uses `android.application` plugin
+- `CategoryBottomSheet` is private — test via `TransactionEditScreen` with `showCategorySheet=true`
+---
+
+## 2026-03-01 - US-002
+- Removed `@Ignore` annotation from `captureFloatingActionButton` test
+- Removed unused `import org.junit.Ignore`
+- Files changed: `app/src/test/kotlin/com/atelbay/money_manager/MoneyManagerFABScreenshotTest.kt`
+- **Learnings for future iterations:**
+  - Roborazzi tests use `@RunWith(RobolectricTestRunner::class)`, `@GraphicsMode(NATIVE)`, `@Config(sdk=[33], qualifiers="xxhdpi")`
+  - Screenshots are saved to `app/src/test/screenshots/` relative path via `captureRoboImage()`
+  - Use `MoneyManagerTheme(dynamicColor = false)` wrapper for consistent screenshots
+  - `./gradlew :app:recordRoborazziDebug` records screenshots, `./gradlew :app:testDebugUnitTest` runs all tests
+---
+
+## 2026-03-01 - US-003
+- Added 3 Roborazzi screenshot tests for CategoryBottomSheet: empty, with items, with selected category
+- Added `core:model` and `kotlinx-collections-immutable` as test dependencies to app module
+- Files changed:
+  - `app/src/test/kotlin/com/atelbay/money_manager/CategoryBottomSheetScreenshotTest.kt` (new)
+  - `app/build.gradle.kts` (added deps)
+  - `app/src/test/screenshots/category_sheet_empty.png` (new)
+  - `app/src/test/screenshots/category_sheet_with_items.png` (new)
+  - `app/src/test/screenshots/category_sheet_selected.png` (new)
+- **Learnings for future iterations:**
+  - `core:model` is not a transitive dep of `app` — presentation modules use `implementation` not `api`, so test code in app can't see `Category`/`TransactionType` without explicit dep
+  - `kotlinx-collections-immutable` is also needed for `ImmutableList`/`persistentListOf` — it's auto-added by AndroidFeatureConventionPlugin but not by the application plugin
+  - `TransactionEditScreen` is a stateless composable — pass `TransactionEditState(...)` with desired values and empty lambdas `{}` for all callbacks
+  - To test bottom sheet states, set `showCategorySheet = true` and `isLoading = false` in state
+---
+
+## 2026-03-01 - US-004
+- Added 2 Roborazzi screenshot tests for TransactionEditScreen: empty form and filled form
+- Files changed:
+  - `app/src/test/kotlin/com/atelbay/money_manager/TransactionEditScreenScreenshotTest.kt` (new)
+  - `app/src/test/screenshots/transaction_edit_empty.png` (new)
+  - `app/src/test/screenshots/transaction_edit_filled.png` (new)
+- **Learnings for future iterations:**
+  - TransactionEditScreen accepts 11 lambda callbacks — all can be empty `{}` for screenshot tests
+  - For "filled" state, set `amount`, `selectedCategory`, `note` fields in TransactionEditState
+  - No additional dependencies needed beyond what US-003 already added (core:model, kotlinx-collections-immutable)
+---
