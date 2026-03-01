@@ -3,6 +3,7 @@ package com.atelbay.money_manager.core.ui.components
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CardGiftcard
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.Redeem
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.Subscriptions
@@ -64,5 +66,7 @@ fun categoryIconFromName(iconName: String): ImageVector = when (iconName) {
     "volunteer_activism" -> Icons.Default.VolunteerActivism
     "celebration" -> Icons.Default.Celebration
     "music_note" -> Icons.Default.MusicNote
+    "swap_horiz" -> Icons.Default.SwapHoriz
+    "account_balance_wallet" -> Icons.Default.AccountBalanceWallet
     else -> Icons.Default.MoreHoriz
 }

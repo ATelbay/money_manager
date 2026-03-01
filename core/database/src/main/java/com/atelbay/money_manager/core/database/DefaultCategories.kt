@@ -16,6 +16,7 @@ object DefaultCategories {
         category("Связь", "phone_android", 0xFF4DD0E1, "expense"),
         category("Образование", "school", 0xFF7986CB, "expense"),
         category("Подписки", "subscriptions", 0xFF9575CD, "expense"),
+        category("Перевод", "swap_horiz", 0xFF64B5F6, "expense"),
         category("Другое", "more_horiz", 0xFF90A4AE, "expense"),
     )
 
@@ -24,6 +25,8 @@ object DefaultCategories {
         category("Фриланс", "work", 0xFF4DB6AC, "income"),
         category("Подарки", "card_giftcard", 0xFFF06292, "income"),
         category("Инвестиции", "trending_up", 0xFF4FC3F7, "income"),
+        category("Перевод", "swap_horiz", 0xFF64B5F6, "income"),
+        category("Пополнение", "account_balance_wallet", 0xFF81C784, "income"),
         category("Другое", "more_horiz", 0xFFA5D6A7, "income"),
     )
 
