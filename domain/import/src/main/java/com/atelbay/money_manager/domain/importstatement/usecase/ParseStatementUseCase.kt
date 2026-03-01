@@ -114,6 +114,15 @@ class ParseStatementUseCase @Inject constructor(
         }
     }
 
+    // Maps raw operation names from bank statements to existing default category names.
+    // Handles both Russian and English variants.
+    private val operationAliases = mapOf(
+        "Покупка" to "Покупки",
+        "Purchase" to "Покупки",
+        "Оплата" to "Покупки",
+        "Payment" to "Покупки",
+    )
+
     private suspend fun assignCategories(
         transactions: List<ParsedTransaction>,
     ): List<ParsedTransaction> {
@@ -127,7 +136,8 @@ class ParseStatementUseCase @Inject constructor(
 
         for ((operation, type) in neededOperations) {
             val categories = if (type == TransactionType.EXPENSE) expenseCategories else incomeCategories
-            if (categories.any { it.name == operation }) continue
+            val resolvedName = operationAliases[operation] ?: operation
+            if (categories.any { it.name == resolvedName }) continue
 
             val dbType = if (type == TransactionType.EXPENSE) "expense" else "income"
             val newCategory = CategoryEntity(
@@ -147,7 +157,8 @@ class ParseStatementUseCase @Inject constructor(
             if (tx.categoryId != null) return@map tx
 
             val categories = if (tx.type == TransactionType.EXPENSE) expenseCategories else incomeCategories
-            val matched = categories.find { it.name == tx.operationType }
+            val resolvedName = operationAliases[tx.operationType] ?: tx.operationType
+            val matched = categories.find { it.name == resolvedName }
 
             tx.copy(
                 categoryId = matched?.id,
