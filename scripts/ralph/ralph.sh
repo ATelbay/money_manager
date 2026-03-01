@@ -225,8 +225,8 @@ EOF
           echo "Waiting for QA Build to finish..."
           gh run watch "$RUN_ID"
 
-          # Cleanup old APKs, keep only last one
-          find "$SCRIPT_DIR/artifacts/" -name "*.apk" 2>/dev/null | sort | head -n -1 | xargs rm -f 2>/dev/null || true
+          # Remove old APKs before downloading new one
+          rm -f "$SCRIPT_DIR/artifacts/"*.apk 2>/dev/null || true
 
           echo ""
           echo "Downloading QA debug APK..."
