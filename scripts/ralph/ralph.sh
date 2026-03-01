@@ -191,6 +191,16 @@ EOF
         echo "Manual review required for PR: $PR_URL"
       fi
 
+      # Check for merge conflicts before waiting for CI
+      echo ""
+      echo "Checking for merge conflicts..."
+      MERGEABLE=$(gh pr view "$BRANCH" --json mergeable -q '.mergeable' 2>/dev/null || echo "UNKNOWN")
+      if [[ "$MERGEABLE" == "CONFLICTING" ]]; then
+        echo "ERROR: PR has merge conflicts — CI will not run until resolved."
+        echo "Resolve conflicts and re-run Ralph: $PR_URL"
+        exit 1
+      fi
+
       # Wait for CI checks (lint, tests)
       echo ""
       echo "Waiting for CI checks..."
