@@ -151,7 +151,7 @@ for i in $(seq 1 $MAX_ITERATIONS); do
   elif [[ "$TOOL" == "gemini" ]]; then
     OUTPUT=$(cat "$SCRIPT_DIR/CLAUDE.md" | gemini --auto 2>&1 | tee /dev/stderr) || true
   elif [[ "$TOOL" == "codex" ]]; then
-    OUTPUT=$(cat "$SCRIPT_DIR/CLAUDE.md" | codex --full-auto 2>&1 | tee /dev/stderr) || true
+    OUTPUT=$(codex exec --dangerously-bypass-approvals-and-sandbox - < "$SCRIPT_DIR/CLAUDE.md" 2>&1 | tee /dev/stderr) || true
   fi
   
   # Check for completion signal
@@ -218,7 +218,7 @@ EOF
         elif [[ "$REVIEW_TOOL" == "amp" ]]; then
           REVIEW_OUTPUT=$(cat "$SCRIPT_DIR/review-prompt.md" | amp --dangerously-allow-all 2>&1 | tee /dev/stderr) || true
         elif [[ "$REVIEW_TOOL" == "codex" ]]; then
-          REVIEW_OUTPUT=$(cat "$SCRIPT_DIR/review-prompt.md" | codex --full-auto 2>&1 | tee /dev/stderr) || true
+          REVIEW_OUTPUT=$(codex exec --dangerously-bypass-approvals-and-sandbox - < "$SCRIPT_DIR/review-prompt.md" 2>&1 | tee /dev/stderr) || true
         fi
 
         if echo "$REVIEW_OUTPUT" | grep -q "<review>CLEAN</review>"; then
