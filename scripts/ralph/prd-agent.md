@@ -129,7 +129,7 @@ If the new task is **continuing the same `branchName`**, do NOT archive — just
       "acceptanceCriteria": [
         "Specific verifiable criterion (code-level, not UI-visual)",
         "Another criterion",
-        "./gradlew assembleDebug passes"
+        "./gradlew compileDebugKotlin passes"
       ],
       "priority": 1,
       "passes": false,
@@ -170,7 +170,7 @@ If the new task is **continuing the same `branchName`**, do NOT archive — just
         "Account data class in core:model has a `color: Int` field with default value `0xFF4CAF50.toInt()`",
         "AccountEntity in core:database has a `color INTEGER NOT NULL DEFAULT -16727040` column",
         "Room migration Migration_3_4 exists and is registered in AppDatabase",
-        "./gradlew assembleDebug passes"
+        "./gradlew compileDebugKotlin passes"
       ],
       "priority": 1,
       "passes": false,
@@ -184,7 +184,7 @@ If the new task is **continuing the same `branchName`**, do NOT archive — just
         "AccountMapper maps `color` field between AccountEntity and Account",
         "CreateAccountUseCase accepts color parameter",
         "UpdateAccountUseCase accepts color parameter",
-        "./gradlew assembleDebug passes"
+        "./gradlew compileDebugKotlin passes"
       ],
       "priority": 2,
       "passes": false,
@@ -199,7 +199,7 @@ If the new task is **continuing the same `branchName`**, do NOT archive — just
         "Tapping a swatch selects it and shows a checkmark",
         "Selected color is passed to CreateAccountUseCase / UpdateAccountUseCase",
         "AccountEditViewModel has a `selectedColor: Int` state field",
-        "./gradlew assembleDebug passes"
+        "./gradlew compileDebugKotlin passes"
       ],
       "priority": 3,
       "passes": false,

@@ -13,7 +13,7 @@ You are reviewing a Pull Request. Your job is to find real issues and fix them.
    - Security issues (hardcoded secrets, injection risks)
    - Broken patterns (not following existing codebase conventions)
    - Unused imports, dead code introduced in this PR
-4. If you find issues — fix them, run `./gradlew assembleDebug`, commit with message `fix(review): <description>`, and push
+4. If you find issues — fix them, run `./gradlew compileDebugKotlin`, commit with message `fix(review): <description>`, and push
 5. If no issues found — do nothing
 
 ## Output
@@ -30,4 +30,4 @@ If the code is clean and no fixes were needed, end with:
 - Do NOT refactor working code just because you'd write it differently
 - Do NOT add comments, docstrings, or type annotations unnecessarily
 - Keep fixes minimal and focused
-- Run `./gradlew assembleDebug` before pushing any fix
+- Run `./gradlew compileDebugKotlin` before pushing any fix

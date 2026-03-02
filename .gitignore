@@ -92,4 +92,6 @@ app/google-services.json
 # Ralph runtime files
 scripts/ralph/.qa-run-id
 scripts/ralph/.run-summary.json
+scripts/ralph/.last-branch
 scripts/ralph/artifacts/
+scripts/ralph/archive/

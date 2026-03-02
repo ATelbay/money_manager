@@ -137,6 +137,12 @@ else
   echo "Starting Ralph - Tool: $TOOL - Max iterations: $MAX_ITERATIONS"
 fi
 
+# Warm up Gradle daemon before iterations so each coding step compiles in 1-3 min
+echo ""
+echo "Warming up Gradle daemon (compileDebugKotlin)..."
+./gradlew compileDebugKotlin --quiet 2>&1 | tail -3 || true
+echo "Gradle daemon ready."
+
 for i in $(seq 1 $MAX_ITERATIONS); do
   echo ""
   echo "==============================================================="
