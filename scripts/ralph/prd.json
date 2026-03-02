@@ -1,0 +1,80 @@
+{
+  "project": "MoneyManager",
+  "branchName": "ralph/nbk-usd-support",
+  "description": "Add USD support with KZT conversion using National Bank of Kazakhstan exchange rates.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add exchange rate domain contracts",
+      "description": "As a developer, I want exchange-rate repository contracts and conversion use cases so that the app can convert between KZT and USD consistently.",
+      "acceptanceCriteria": [
+        "domain layer contains ExchangeRateRepository contract for loading/storing USD-KZT rate",
+        "domain layer contains GetUsdKztRateUseCase and ConvertAmountUseCase",
+        "ConvertAmountUseCase supports both KZT->USD and USD->KZT conversion with deterministic rounding strategy",
+        "./gradlew compileDebugKotlin passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Create this in a domain module that already holds cross-feature business logic (prefer domain:statistics or new minimal domain subpackage if existing module structure supports it). Follow existing use case style from domain/transactions and domain/accounts. Keep Android dependencies out of domain."
+    },
+    {
+      "id": "US-002",
+      "title": "Implement NBK rate data pipeline",
+      "description": "As a developer, I want to fetch USD-KZT rate from NBK and cache it locally so that conversion works offline with last known rate.",
+      "acceptanceCriteria": [
+        "data layer has NBK remote data source that parses official USD to KZT rate response",
+        "local cache stores rate value and fetchedAt timestamp",
+        "ExchangeRateRepositoryImpl uses remote-first with fallback to last cached rate on network failure",
+        "DI wiring provides ExchangeRateRepository implementation",
+        "./gradlew compileDebugKotlin passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Use existing project network/parsing patterns from core/parser and data modules. Persist cache in existing local storage approach (DataStore preferred for single rate record). Add clear mapper/model boundaries. Keep source marker (NBK) optional but ready for future providers."
+    },
+    {
+      "id": "US-003",
+      "title": "Add settings controls for base currency",
+      "description": "As a user, I want to choose KZT or USD as my display currency and manually refresh the exchange rate.",
+      "acceptanceCriteria": [
+        "Settings screen has base currency selector with KZT and USD",
+        "Settings screen shows current USD/KZT rate and last update time",
+        "Settings screen provides manual refresh action that updates rate through repository",
+        "user preference for base currency is persisted and restored",
+        "./gradlew compileDebugKotlin passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Update presentation:settings and core:datastore UserPreferences. Follow existing settings item composition patterns in SettingsScreen.kt and SettingsViewModel patterns if present. Keep texts in resources if that pattern already exists in module."
+    },
+    {
+      "id": "US-004",
+      "title": "Use converted currency in transactions overview",
+      "description": "As a user, I want transaction totals to be shown in my selected base currency so that I can read finances consistently.",
+      "acceptanceCriteria": [
+        "Transaction list summary cards use selected base currency from settings",
+        "When account currency differs from base currency, totals are converted using latest available rate",
+        "If rate is unavailable, UI falls back safely to source currency without crash",
+        "Transaction list state exposes display currency and conversion status flags",
+        "./gradlew compileDebugKotlin passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "Implement in presentation:transactions with minimal UI change, reusing existing currency string plumbing in TransactionListState/ViewModel and core/ui cards. Avoid changing Room schema in this iteration."
+    },
+    {
+      "id": "US-005",
+      "title": "Cover conversion logic with unit tests",
+      "description": "As a developer, I want tests for conversion and rate fallback behavior so that USD support is safe to evolve.",
+      "acceptanceCriteria": [
+        "unit tests cover ConvertAmountUseCase for both directions and rounding",
+        "unit tests cover repository fallback behavior (remote success, remote failure with cache, empty cache)",
+        "at least one ViewModel-level test validates selected base currency affects displayed totals",
+        "./gradlew compileDebugKotlin passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "Follow existing test style in core/parser tests and app screenshot/unit tests. Prefer pure unit tests with fakes over instrumentation."
+    }
+  ]
+}

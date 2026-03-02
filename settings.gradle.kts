@@ -43,6 +43,7 @@ include(":domain:categories")
 include(":domain:accounts")
 include(":domain:statistics")
 include(":domain:import")
+include(":domain:exchangerate")
 
 // Data
 include(":data:transactions")
