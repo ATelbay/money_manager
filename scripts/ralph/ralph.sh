@@ -1,8 +1,9 @@
 #!/bin/bash
 # Ralph Wiggum - Long-running AI agent loop
-# Usage: ./ralph.sh [--tool amp|claude|gemini] [--review-tool amp|claude|gemini] [--pr] [--download] [max_iterations]
+# Usage: ./ralph.sh [--tool amp|claude|gemini|codex] [--review-tool amp|claude|gemini|codex] [--codex] [--pr] [--download] [max_iterations]
 #   --tool           AI engine for coding iterations (default: amp)
 #   --review-tool    AI engine for code review step (default: same as --tool)
+#   --codex          shortcut: codex codes, claude reviews (--tool codex --review-tool claude)
 #   --pr             push branch, create PR, code review, wait CI, trigger QA Build
 #   --download       after QA Build: download APK locally (use on Mac; skip on VM — Garlic handles it)
 
@@ -31,6 +32,11 @@ while [[ $# -gt 0 ]]; do
       REVIEW_TOOL="${1#*=}"
       shift
       ;;
+    --codex)
+      TOOL="codex"
+      REVIEW_TOOL="claude"
+      shift
+      ;;
     --pr)
       CREATE_PR=true
       shift
@@ -49,9 +55,11 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+VALID_TOOLS="amp claude gemini codex"
+
 # Validate tool choice
-if [[ "$TOOL" != "amp" && "$TOOL" != "claude" && "$TOOL" != "gemini" ]]; then
-  echo "Error: Invalid tool '$TOOL'. Must be 'amp', 'claude', or 'gemini'."
+if [[ ! " $VALID_TOOLS " =~ " $TOOL " ]]; then
+  echo "Error: Invalid tool '$TOOL'. Must be one of: $VALID_TOOLS"
   exit 1
 fi
 
@@ -60,8 +68,8 @@ if [[ -z "$REVIEW_TOOL" ]]; then
   REVIEW_TOOL="$TOOL"
 fi
 
-if [[ "$REVIEW_TOOL" != "amp" && "$REVIEW_TOOL" != "claude" && "$REVIEW_TOOL" != "gemini" ]]; then
-  echo "Error: Invalid review tool '$REVIEW_TOOL'. Must be 'amp', 'claude', or 'gemini'."
+if [[ ! " $VALID_TOOLS " =~ " $REVIEW_TOOL " ]]; then
+  echo "Error: Invalid review tool '$REVIEW_TOOL'. Must be one of: $VALID_TOOLS"
   exit 1
 fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -142,6 +150,8 @@ for i in $(seq 1 $MAX_ITERATIONS); do
     OUTPUT=$(claude --dangerously-skip-permissions --print < "$SCRIPT_DIR/CLAUDE.md" 2>&1 | tee /dev/stderr) || true
   elif [[ "$TOOL" == "gemini" ]]; then
     OUTPUT=$(cat "$SCRIPT_DIR/CLAUDE.md" | gemini --auto 2>&1 | tee /dev/stderr) || true
+  elif [[ "$TOOL" == "codex" ]]; then
+    OUTPUT=$(cat "$SCRIPT_DIR/CLAUDE.md" | codex --full-auto 2>&1 | tee /dev/stderr) || true
   fi
   
   # Check for completion signal
@@ -207,6 +217,8 @@ EOF
           REVIEW_OUTPUT=$(cat "$SCRIPT_DIR/review-prompt.md" | gemini --auto 2>&1 | tee /dev/stderr) || true
         elif [[ "$REVIEW_TOOL" == "amp" ]]; then
           REVIEW_OUTPUT=$(cat "$SCRIPT_DIR/review-prompt.md" | amp --dangerously-allow-all 2>&1 | tee /dev/stderr) || true
+        elif [[ "$REVIEW_TOOL" == "codex" ]]; then
+          REVIEW_OUTPUT=$(cat "$SCRIPT_DIR/review-prompt.md" | codex --full-auto 2>&1 | tee /dev/stderr) || true
         fi
 
         if echo "$REVIEW_OUTPUT" | grep -q "<review>CLEAN</review>"; then
