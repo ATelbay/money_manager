@@ -119,7 +119,8 @@ Each story = one Ralph iteration (one Claude context window, ~4k tokens of imple
 
 ### Acceptance criteria rules (Android — critical):
 - Write criteria verifiable **from code or CLI only** — Ralph cannot open the app
-- ALWAYS include `"./gradlew assembleDebug passes"` as the last criterion in every story
+- ALWAYS include `"./gradlew compileDebugKotlin passes"` as the last criterion in every story
+  (full assembleDebug runs on GitHub CI — Ralph only does a fast compile check locally)
 - For DB changes: `"Room migration Migration_X_Y exists and is registered in AppDatabase"`
 - For UI changes: `"Screen compiles without error, no crash in Preview"`
 - For unit tests: `"./gradlew :module:test passes"`
@@ -144,7 +145,7 @@ Each story = one Ralph iteration (one Claude context window, ~4k tokens of imple
       "description": "As a [user/developer], I want [feature] so that [benefit]",
       "acceptanceCriteria": [
         "Specific verifiable criterion",
-        "./gradlew assembleDebug passes"
+        "./gradlew compileDebugKotlin passes"
       ],
       "priority": 1,
       "passes": false,
@@ -209,4 +210,4 @@ On failure:
 - One story = one Ralph iteration — if in doubt, make the story smaller
 - Respect module boundaries — `presentation` must NOT import from `core:database`
 - Never commit `prd.json` or `progress.txt` to `main` branch — Ralph handles this
-- Do NOT run Ralph if `assembleDebug` is already broken on the target branch
+- Do NOT run Ralph if `compileDebugKotlin` is already broken on the target branch

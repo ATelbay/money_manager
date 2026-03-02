@@ -146,7 +146,8 @@ If the new task is **continuing the same `branchName`**, do NOT archive — just
 
 ### Acceptance criteria rules for Android (critical):
 - Write criteria that are **verifiable from code or CLI**, not from the browser
-- ALWAYS include `"./gradlew assembleDebug passes"` as the last criterion in every story
+- ALWAYS include `"./gradlew compileDebugKotlin passes"` as the last criterion in every story
+  (full assembleDebug runs on GitHub CI — Ralph only does a fast compile check locally)
 - For database changes: `"Room migration Migration_X_Y exists and is registered in AppDatabase"`
 - For UI changes: `"Screen renders without crash in Preview"`
 - For unit tests: `"./gradlew :module:test passes"`

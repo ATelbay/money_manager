@@ -25,19 +25,23 @@ Read them carefully before doing anything.
 
 ## Project-Specific Quality Checks
 
-Run these checks before committing:
+The build runs on GitHub CI — do NOT run `./gradlew assembleDebug` locally.
+
+Before committing, verify your changes compile correctly by checking for obvious errors:
 
 ```bash
-# Must pass:
-./gradlew assembleDebug
+# Quick syntax check — catch missing imports, obvious type errors:
+./gradlew compileDebugKotlin
 
-# Should pass (warn if fails):
+# Should pass (warn if fails, do not block commit):
 ./gradlew lint
 ./gradlew test
 ```
 
-If `assembleDebug` fails, **fix the issue and re-run**. Do NOT skip a story or commit broken code.
-Do NOT set `passes: true` unless `assembleDebug` succeeds.
+If `compileDebugKotlin` fails, **fix the issue and re-run**. Do NOT commit code that fails to compile.
+Do NOT set `passes: true` if compilation fails.
+
+Full `assembleDebug` runs automatically on GitHub Actions after the PR is pushed — CI is the source of truth for build success.
 
 ## Progress Report Format
 
