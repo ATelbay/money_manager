@@ -1,11 +1,14 @@
 #!/bin/bash
 # Ralph Wiggum - Long-running AI agent loop
-# Usage: ./ralph.sh [--tool amp|claude|gemini] [--pr] [--download] [max_iterations]
-#   --pr         push branch, create PR, code review, wait CI, trigger QA Build
-#   --download   after QA Build: download APK locally (use on Mac; skip on VM — Garlic handles it)
+# Usage: ./ralph.sh [--tool amp|claude|gemini] [--review-tool amp|claude|gemini] [--pr] [--download] [max_iterations]
+#   --tool           AI engine for coding iterations (default: amp)
+#   --review-tool    AI engine for code review step (default: same as --tool)
+#   --pr             push branch, create PR, code review, wait CI, trigger QA Build
+#   --download       after QA Build: download APK locally (use on Mac; skip on VM — Garlic handles it)
 
 # Parse arguments
 TOOL="amp"  # Default to amp for backwards compatibility
+REVIEW_TOOL=""  # Empty = use same as TOOL
 MAX_ITERATIONS=10
 CREATE_PR=false
 DOWNLOAD_APK=false
@@ -18,6 +21,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --tool=*)
       TOOL="${1#*=}"
+      shift
+      ;;
+    --review-tool)
+      REVIEW_TOOL="$2"
+      shift 2
+      ;;
+    --review-tool=*)
+      REVIEW_TOOL="${1#*=}"
       shift
       ;;
     --pr)
@@ -41,6 +52,16 @@ done
 # Validate tool choice
 if [[ "$TOOL" != "amp" && "$TOOL" != "claude" && "$TOOL" != "gemini" ]]; then
   echo "Error: Invalid tool '$TOOL'. Must be 'amp', 'claude', or 'gemini'."
+  exit 1
+fi
+
+# Review tool defaults to same as main tool
+if [[ -z "$REVIEW_TOOL" ]]; then
+  REVIEW_TOOL="$TOOL"
+fi
+
+if [[ "$REVIEW_TOOL" != "amp" && "$REVIEW_TOOL" != "claude" && "$REVIEW_TOOL" != "gemini" ]]; then
+  echo "Error: Invalid review tool '$REVIEW_TOOL'. Must be 'amp', 'claude', or 'gemini'."
   exit 1
 fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -102,7 +123,11 @@ if ! jq -e '.userStories[] | select(.passes == false)' "$PRD_FILE" > /dev/null 2
   echo "All stories already pass — skipping iterations, proceeding to PR/download flow."
 fi
 
-echo "Starting Ralph - Tool: $TOOL - Max iterations: $MAX_ITERATIONS"
+if [[ "$REVIEW_TOOL" != "$TOOL" ]]; then
+  echo "Starting Ralph - Tool: $TOOL - Review: $REVIEW_TOOL - Max iterations: $MAX_ITERATIONS"
+else
+  echo "Starting Ralph - Tool: $TOOL - Max iterations: $MAX_ITERATIONS"
+fi
 
 for i in $(seq 1 $MAX_ITERATIONS); do
   echo ""
@@ -172,15 +197,15 @@ EOF
       for r in $(seq 1 $MAX_REVIEWS); do
         echo ""
         echo "==============================================================="
-        echo "  Code Review — attempt $r of $MAX_REVIEWS"
+        echo "  Code Review — attempt $r of $MAX_REVIEWS ($REVIEW_TOOL)"
         echo "==============================================================="
 
         REVIEW_OUTPUT=""
-        if [[ "$TOOL" == "claude" ]]; then
+        if [[ "$REVIEW_TOOL" == "claude" ]]; then
           REVIEW_OUTPUT=$(claude --dangerously-skip-permissions --print < "$SCRIPT_DIR/review-prompt.md" 2>&1 | tee /dev/stderr) || true
-        elif [[ "$TOOL" == "gemini" ]]; then
+        elif [[ "$REVIEW_TOOL" == "gemini" ]]; then
           REVIEW_OUTPUT=$(cat "$SCRIPT_DIR/review-prompt.md" | gemini --auto 2>&1 | tee /dev/stderr) || true
-        elif [[ "$TOOL" == "amp" ]]; then
+        elif [[ "$REVIEW_TOOL" == "amp" ]]; then
           REVIEW_OUTPUT=$(cat "$SCRIPT_DIR/review-prompt.md" | amp --dangerously-allow-all 2>&1 | tee /dev/stderr) || true
         fi
 
@@ -233,6 +258,29 @@ EOF
       RUN_ID=$(gh run list --branch "$BRANCH" --workflow "QA Build" --limit 1 --json databaseId,status -q '.[0].databaseId' 2>/dev/null)
       if [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ]; then
         echo "QA Build run ID: $RUN_ID"
+        echo "$RUN_ID" > "$SCRIPT_DIR/.qa-run-id"
+
+        # Write run summary for Garlic (Telegram report)
+        if [[ "$REVIEW_CLEAN" == "true" ]]; then
+          if [[ "$r" -eq 1 ]]; then
+            REVIEW_STATUS="CLEAN"
+          else
+            REVIEW_STATUS="FIXED (attempt $r)"
+          fi
+        else
+          REVIEW_STATUS="UNRESOLVED"
+        fi
+        CI_STATUS="passed"
+        STORIES_JSON=$(jq '[.userStories[] | {id: .id, title: .title}]' "$PRD_FILE")
+        jq -n \
+          --arg branch "$BRANCH" \
+          --arg pr_url "$PR_URL" \
+          --argjson iterations "$i" \
+          --arg review_status "$REVIEW_STATUS" \
+          --arg ci_status "$CI_STATUS" \
+          --argjson stories "$STORIES_JSON" \
+          '{branch: $branch, pr_url: $pr_url, iterations: $iterations, review_status: $review_status, ci_status: $ci_status, stories: $stories}' \
+          > "$SCRIPT_DIR/.run-summary.json"
 
         if [[ "$DOWNLOAD_APK" == "true" ]]; then
           echo "Waiting for QA Build to finish..."

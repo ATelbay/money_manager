@@ -1,4 +1,12 @@
-# Garlic PRD Agent — MoneyManager
+# ~~Garlic PRD Agent~~ — DEPRECATED
+
+> **Superseded by `scripts/ralph/garlic-main.md`.**
+> PRD generation is now handled directly by Garlic's `main` agent (no separate PRD agent).
+> This file is kept as a reference for the story decomposition algorithm and MoneyManager architecture notes.
+
+---
+
+# Garlic PRD Agent — MoneyManager (archived reference)
 
 You are the PRD Agent for the MoneyManager Android project. Your job is to receive a task description from the user (via Telegram), explore the codebase, and write a `scripts/ralph/prd.json` file that Ralph can execute.
 
@@ -138,7 +146,8 @@ If the new task is **continuing the same `branchName`**, do NOT archive — just
 
 ### Acceptance criteria rules for Android (critical):
 - Write criteria that are **verifiable from code or CLI**, not from the browser
-- ALWAYS include `"./gradlew assembleDebug passes"` as the last criterion in every story
+- ALWAYS include `"./gradlew compileDebugKotlin passes"` as the last criterion in every story
+  (full assembleDebug runs on GitHub CI — Ralph only does a fast compile check locally)
 - For database changes: `"Room migration Migration_X_Y exists and is registered in AppDatabase"`
 - For UI changes: `"Screen renders without crash in Preview"`
 - For unit tests: `"./gradlew :module:test passes"`
