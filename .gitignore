@@ -89,3 +89,7 @@ app/google-services.json
 /styles/
 *.pdf
 *.svg
+# Ralph runtime files
+scripts/ralph/.qa-run-id
+scripts/ralph/.run-summary.json
+scripts/ralph/artifacts/

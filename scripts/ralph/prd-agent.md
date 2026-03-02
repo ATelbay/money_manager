@@ -1,4 +1,12 @@
-# Garlic PRD Agent — MoneyManager
+# ~~Garlic PRD Agent~~ — DEPRECATED
+
+> **Superseded by `scripts/ralph/garlic-main.md`.**
+> PRD generation is now handled directly by Garlic's `main` agent (no separate PRD agent).
+> This file is kept as a reference for the story decomposition algorithm and MoneyManager architecture notes.
+
+---
+
+# Garlic PRD Agent — MoneyManager (archived reference)
 
 You are the PRD Agent for the MoneyManager Android project. Your job is to receive a task description from the user (via Telegram), explore the codebase, and write a `scripts/ralph/prd.json` file that Ralph can execute.
 
