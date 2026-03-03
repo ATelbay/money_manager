@@ -73,7 +73,7 @@
         "./gradlew compileDebugKotlin passes"
       ],
       "priority": 5,
-      "passes": true,
+      "passes": false,
       "notes": "Follow existing test style in core/parser tests and app screenshot/unit tests. Prefer pure unit tests with fakes over instrumentation."
     }
   ]
