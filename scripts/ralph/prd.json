@@ -1,80 +1,65 @@
 {
   "project": "MoneyManager",
-  "branchName": "ralph/nbk-usd-support",
-  "description": "Add USD support with KZT conversion using National Bank of Kazakhstan exchange rates.",
+  "branchName": "ralph/transaction-row-currency-conversion",
+  "description": "Show converted amounts directly on transaction rows in the selected base currency (with original amount context).",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Add exchange rate domain contracts",
-      "description": "As a developer, I want exchange-rate repository contracts and conversion use cases so that the app can convert between KZT and USD consistently.",
+      "title": "Add row-level converted amount model to transactions state",
+      "description": "As a developer, I want transaction row UI state to carry both original and converted amount fields so rendering can show selected base currency without losing source value context.",
       "acceptanceCriteria": [
-        "domain layer contains ExchangeRateRepository contract for loading/storing USD-KZT rate",
-        "domain layer contains GetUsdKztRateUseCase and ConvertAmountUseCase",
-        "ConvertAmountUseCase supports both KZT->USD and USD->KZT conversion with deterministic rounding strategy",
+        "Transaction row state includes original amount+currency and optional converted amount+currency",
+        "Conversion availability flag exists per row (available/unavailable) to avoid silent wrong formatting",
+        "No crash when rate is missing; row falls back to source amount",
         "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "Create this in a domain module that already holds cross-feature business logic (prefer domain:statistics or new minimal domain subpackage if existing module structure supports it). Follow existing use case style from domain/transactions and domain/accounts. Keep Android dependencies out of domain."
+      "notes": "Work in presentation:transactions state models and mappers. Keep backward compatibility for existing list item composables until final UI story."
     },
     {
       "id": "US-002",
-      "title": "Implement NBK rate data pipeline",
-      "description": "As a developer, I want to fetch USD-KZT rate from NBK and cache it locally so that conversion works offline with last known rate.",
+      "title": "Compute per-transaction conversion in TransactionListViewModel",
+      "description": "As a user, I want each transaction row to show value in my selected base currency so that list-level reading is consistent with summary cards.",
       "acceptanceCriteria": [
-        "data layer has NBK remote data source that parses official USD to KZT rate response",
-        "local cache stores rate value and fetchedAt timestamp",
-        "ExchangeRateRepositoryImpl uses remote-first with fallback to last cached rate on network failure",
-        "DI wiring provides ExchangeRateRepository implementation",
+        "When base currency differs from source currency, each row computes converted amount using latest available rate",
+        "When base currency matches source currency, converted amount is not redundantly shown",
+        "When rate is unavailable, row clearly shows original amount and marks conversion unavailable",
+        "ViewModel logic is deterministic and does not introduce extra recomposition loops",
         "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 2,
-      "passes": true,
-      "notes": "Use existing project network/parsing patterns from core/parser and data modules. Persist cache in existing local storage approach (DataStore preferred for single rate record). Add clear mapper/model boundaries. Keep source marker (NBK) optional but ready for future providers."
+      "passes": false,
+      "notes": "Reuse existing ConvertAmountUseCase and base currency preference flow already used for overview totals. Avoid database schema changes."
     },
     {
       "id": "US-003",
-      "title": "Add settings controls for base currency",
-      "description": "As a user, I want to choose KZT or USD as my display currency and manually refresh the exchange rate.",
+      "title": "Render transaction rows with converted + original value presentation",
+      "description": "As a user, I want to see converted value on each transaction row and still understand original currency source.",
       "acceptanceCriteria": [
-        "Settings screen has base currency selector with KZT and USD",
-        "Settings screen shows current USD/KZT rate and last update time",
-        "Settings screen provides manual refresh action that updates rate through repository",
-        "user preference for base currency is persisted and restored",
+        "Transaction row primary amount reflects selected base currency when conversion is available",
+        "Row also shows original source amount/currency in secondary text when conversion is applied",
+        "Formatting and sign conventions stay correct for income/expense",
+        "UI remains readable for long numbers and does not overlap existing metadata",
         "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 3,
-      "passes": true,
-      "notes": "Update presentation:settings and core:datastore UserPreferences. Follow existing settings item composition patterns in SettingsScreen.kt and SettingsViewModel patterns if present. Keep texts in resources if that pattern already exists in module."
+      "passes": false,
+      "notes": "Keep UI minimal and consistent with current list style. Do not redesign card layout; only add required secondary amount line/label."
     },
     {
       "id": "US-004",
-      "title": "Use converted currency in transactions overview",
-      "description": "As a user, I want transaction totals to be shown in my selected base currency so that I can read finances consistently.",
+      "title": "Add tests for row-level currency conversion behavior",
+      "description": "As a developer, I want test coverage for per-row conversion scenarios so future changes do not break display currency logic.",
       "acceptanceCriteria": [
-        "Transaction list summary cards use selected base currency from settings",
-        "When account currency differs from base currency, totals are converted using latest available rate",
-        "If rate is unavailable, UI falls back safely to source currency without crash",
-        "Transaction list state exposes display currency and conversion status flags",
+        "ViewModel tests cover: same-currency path, conversion path, and missing-rate fallback",
+        "Tests validate both displayed converted amount and original amount context fields",
+        "Tests validate correct sign handling for income and expense rows",
         "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 4,
-      "passes": true,
-      "notes": "Implement in presentation:transactions with minimal UI change, reusing existing currency string plumbing in TransactionListState/ViewModel and core/ui cards. Avoid changing Room schema in this iteration."
-    },
-    {
-      "id": "US-005",
-      "title": "Cover conversion logic with unit tests",
-      "description": "As a developer, I want tests for conversion and rate fallback behavior so that USD support is safe to evolve.",
-      "acceptanceCriteria": [
-        "unit tests cover ConvertAmountUseCase for both directions and rounding",
-        "unit tests cover repository fallback behavior (remote success, remote failure with cache, empty cache)",
-        "at least one ViewModel-level test validates selected base currency affects displayed totals",
-        "CI checks for this story commit pass on GitHub Actions"
-      ],
-      "priority": 5,
-      "passes": true,
-      "notes": "Follow existing test style in core/parser tests and app screenshot/unit tests. Prefer pure unit tests with fakes over instrumentation."
+      "passes": false,
+      "notes": "Prefer existing TransactionListViewModelTest style with fake repos and coroutine test dispatcher."
     }
   ]
 }
