@@ -83,7 +83,7 @@
         "Регрессии навигации между bottom-tab экранами отсутствуют"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]
