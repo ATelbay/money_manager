@@ -29,7 +29,7 @@
         "./gradlew compileDebugKotlin passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Use existing project network/parsing patterns from core/parser and data modules. Persist cache in existing local storage approach (DataStore preferred for single rate record). Add clear mapper/model boundaries. Keep source marker (NBK) optional but ready for future providers."
     },
     {

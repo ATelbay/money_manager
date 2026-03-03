@@ -49,6 +49,7 @@ include(":domain:exchangerate")
 include(":data:transactions")
 include(":data:categories")
 include(":data:accounts")
+include(":data:exchangerate")
 
 // Presentation
 include(":presentation:transactions")

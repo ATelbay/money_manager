@@ -68,6 +68,7 @@ dependencies {
     implementation(projects.data.transactions)
     implementation(projects.data.categories)
     implementation(projects.data.accounts)
+    implementation(projects.data.exchangerate)
 
     // Presentation
     implementation(projects.presentation.onboarding)
