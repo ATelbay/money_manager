@@ -34,6 +34,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -132,30 +133,10 @@ fun SettingsScreen(
                         color = colors.borderSubtle,
                     )
 
-                    SettingRow(
-                        icon = Icons.Default.Info,
-                        iconColor = Color(0xFF60A5FA),
-                        title = "Последнее обновление",
-                        subtitle = state.lastUpdatedDisplay.ifEmpty { "Ещё не обновлялся" },
-                        modifier = Modifier.testTag("settings:lastUpdated"),
-                    )
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        thickness = 0.5.dp,
-                        color = colors.borderSubtle,
-                    )
-
-                    SettingRow(
-                        icon = Icons.Default.Refresh,
-                        iconColor = Teal,
-                        title = "Обновить курс",
-                        subtitle = if (state.isRefreshingRate) {
-                            "Выполняется обновление"
-                        } else {
-                            "Загрузить актуальный курс НБК"
-                        },
-                        onClick = onRefreshRateClick,
+                    RefreshRateRow(
+                        lastUpdatedDisplay = state.lastUpdatedDisplay,
+                        isRefreshingRate = state.isRefreshingRate,
+                        onRefreshRateClick = onRefreshRateClick,
                         modifier = Modifier.testTag("settings:refreshRate"),
                     )
                 }
@@ -367,6 +348,79 @@ private fun CurrencySelectorField(
                     )
                 }
             }
+        }
+    }
+}
+
+// ── Refresh Rate Row ──
+
+@Composable
+private fun RefreshRateRow(
+    lastUpdatedDisplay: String,
+    isRefreshingRate: Boolean,
+    onRefreshRateClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MoneyManagerTheme.colors
+    val typography = MoneyManagerTheme.typography
+    val title = "Курс на ${lastUpdatedDisplay.ifEmpty { "--.--.---- --:--" }}"
+    val subtitle = if (isRefreshingRate) {
+        "Выполняется обновление"
+    } else {
+        "Загрузить актуальный курс НБК"
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Teal.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = null,
+                tint = Teal,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = typography.cardTitle,
+                color = colors.textPrimary,
+            )
+            Text(
+                text = subtitle,
+                style = typography.caption,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+
+        IconButton(
+            onClick = onRefreshRateClick,
+            enabled = !isRefreshingRate,
+            modifier = Modifier.testTag("settings:refreshRateAction"),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = null,
+                tint = if (isRefreshingRate) {
+                    colors.textSecondary.copy(alpha = 0.6f)
+                } else {
+                    Teal
+                },
+            )
         }
     }
 }
