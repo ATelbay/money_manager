@@ -171,18 +171,31 @@ echo "---" >> scripts/ralph/progress.txt
 
 ```bash
 cd /home/node/.openclaw/workspace/money_manager
-./scripts/ralph/ralph.sh --tool claude --pr
+./scripts/ralph/telegram-event-monitor.sh --reset >/dev/null 2>&1 || true
+pkill -f 'telegram-event-monitor\.sh --watch' 2>/dev/null || true
+nohup ./scripts/ralph/telegram-event-monitor.sh --watch >/tmp/ralph-telegram-monitor.log 2>&1 &
+timeout 3600 ./scripts/ralph/ralph.sh --codex --remote-run
 ```
 
-Default: 10 iterations, creates PR at the end.
+Default: 10 iterations. On this VM, always prefer `--remote-run` so GitHub CI is the validation gate instead of local heavy checks.
 
 ### Stop conditions:
-- Ralph exits with `<promise>COMPLETE</promise>` → success
-- Ralph reaches max iterations (10) → notify user, manual intervention needed
-- Build fails 3 iterations in a row → ralph.sh will exit; notify user with `progress.txt` tail
+- The background monitor sends Telegram updates automatically on key events:
+  - Ralph started
+  - a story completed
+  - CI failed (repair mode)
+  - the reviewer bot found an issue and Ralph applied review fixes
+  - QA Build started
+  - QA Build completed (the monitor downloads the `qa-debug-apk` artifact and sends the APK to Telegram)
+  - Ralph completed or crashed
+- The background monitor may stay alive after `ralph.sh` exits if `QA Build` is still running. That is expected: it will stop after the build finishes and the APK is sent (or after it reports that the build failed).
+- Ralph exits with code `0` → success. Read `scripts/ralph/.run-summary.json` and `scripts/ralph/.qa-run-id` if they exist.
+- Ralph exits with non-zero code → failure or manual intervention needed. Include the tail of `scripts/ralph/progress.txt`.
 
 ### Monitor progress during run:
-You can read `scripts/ralph/progress.txt` at any time to check status.
+During the run, do not spam routine status messages manually unless the user explicitly asks.
+The background event monitor handles normal progress notifications.
+Use `scripts/ralph/progress.txt`, `scripts/ralph/prd.json`, and `scripts/ralph/.run-summary.json` only for diagnostics or final summaries.
 
 ---
 
@@ -210,4 +223,4 @@ On failure:
 - One story = one Ralph iteration — if in doubt, make the story smaller
 - Respect module boundaries — `presentation` must NOT import from `core:database`
 - Never commit `prd.json` or `progress.txt` to `main` branch — Ralph handles this
-- Do NOT run Ralph if `compileDebugKotlin` is already broken on the target branch
+- On this weak VM, prefer `--remote-run` for normal Ralph work. Use local heavy checks only for one-off diagnostics.
