@@ -5,13 +5,25 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -28,6 +40,8 @@ import com.atelbay.money_manager.navigation.Onboarding
 import com.atelbay.money_manager.navigation.TopLevelDestination
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+
+private const val BottomBarAnimationDurationMs = 220
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -92,13 +106,40 @@ private fun MoneyManagerApp(
     }
 
     val showBottomBar = currentTopLevel != null
+    var lastTopLevel by remember { mutableStateOf(currentTopLevel) }
+    SideEffect {
+        if (currentTopLevel != null) {
+            lastTopLevel = currentTopLevel
+        }
+    }
+    val bottomBarDestination = currentTopLevel ?: lastTopLevel
+    val bottomBarVisibility = remember { MutableTransitionState(showBottomBar) }
+    bottomBarVisibility.targetState = showBottomBar
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            if (showBottomBar) {
+            AnimatedVisibility(
+                visibleState = bottomBarVisibility,
+                enter = slideInVertically(
+                    animationSpec = tween(
+                        durationMillis = BottomBarAnimationDurationMs,
+                        easing = FastOutSlowInEasing,
+                    ),
+                ) { fullHeight -> fullHeight } + fadeIn(
+                    animationSpec = tween(durationMillis = BottomBarAnimationDurationMs),
+                ),
+                exit = slideOutVertically(
+                    animationSpec = tween(
+                        durationMillis = BottomBarAnimationDurationMs,
+                        easing = FastOutSlowInEasing,
+                    ),
+                ) { fullHeight -> fullHeight } + fadeOut(
+                    animationSpec = tween(durationMillis = BottomBarAnimationDurationMs),
+                ),
+            ) {
                 MoneyManagerBottomBar(
-                    currentDestination = currentTopLevel,
+                    currentDestination = bottomBarDestination,
                     onNavigate = { destination ->
                         navController.navigate(destination.route) {
                             popUpTo(navController.graph.findStartDestination().id) {
