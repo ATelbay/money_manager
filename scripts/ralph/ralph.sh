@@ -1,9 +1,10 @@
 #!/bin/bash
 # Ralph Wiggum - Long-running AI agent loop
-# Usage: ./ralph.sh [--tool amp|claude|gemini|codex] [--review-tool amp|claude|gemini|codex] [--codex] [--pr] [--download] [max_iterations]
+# Usage: ./ralph.sh [--tool amp|claude|gemini|codex] [--review-tool amp|claude|gemini|codex] [--codex] [--remote-run] [--pr] [--download] [max_iterations]
 #   --tool           AI engine for coding iterations (default: amp)
 #   --review-tool    AI engine for code review step (default: same as --tool)
 #   --codex          shortcut: codex codes, claude reviews (--tool codex --review-tool claude)
+#   --remote-run     CI-first mode: no local heavy checks; draft PR + per-story commit/push + wait CI handled by agent prompt
 #   --pr             push branch, create PR, code review, wait CI, trigger QA Build
 #   --download       after QA Build: download APK locally (use on Mac; skip on VM — Garlic handles it)
 
@@ -13,6 +14,7 @@ REVIEW_TOOL=""  # Empty = use same as TOOL
 MAX_ITERATIONS=10
 CREATE_PR=false
 DOWNLOAD_APK=false
+REMOTE_RUN=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -35,6 +37,11 @@ while [[ $# -gt 0 ]]; do
     --codex)
       TOOL="codex"
       REVIEW_TOOL="claude"
+      shift
+      ;;
+    --remote-run)
+      REMOTE_RUN=true
+      CREATE_PR=true
       shift
       ;;
     --pr)
@@ -74,6 +81,9 @@ if [[ ! " $VALID_TOOLS " =~ " $REVIEW_TOOL " ]]; then
 fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PRD_FILE="$SCRIPT_DIR/prd.json"
+
+# Avoid interactive git credential prompts in automation
+export GIT_TERMINAL_PROMPT=0
 PROGRESS_FILE="$SCRIPT_DIR/progress.txt"
 ARCHIVE_DIR="$SCRIPT_DIR/archive"
 LAST_BRANCH_FILE="$SCRIPT_DIR/.last-branch"
@@ -137,11 +147,26 @@ else
   echo "Starting Ralph - Tool: $TOOL - Max iterations: $MAX_ITERATIONS"
 fi
 
-# Warm up Gradle daemon before iterations so each coding step compiles in 1-3 min
-echo ""
-echo "Warming up Gradle daemon (compileDebugKotlin)..."
-./gradlew compileDebugKotlin --quiet 2>&1 | tail -3 || true
-echo "Gradle daemon ready."
+if [[ "$REMOTE_RUN" == "true" ]]; then
+  echo "Mode: --remote-run (CI-first, local heavy checks disabled)"
+  if ! command -v gh >/dev/null 2>&1; then
+    echo "Error: --remote-run requires GitHub CLI (gh)"
+    exit 1
+  fi
+  if ! gh auth status >/dev/null 2>&1; then
+    echo "Error: --remote-run requires authenticated gh CLI (run: gh auth login)"
+    exit 1
+  fi
+else
+  # Warm up Gradle daemon before iterations so each coding step compiles in 1-3 min
+  echo ""
+  echo "Warming up Gradle daemon (compileDebugKotlin)..."
+  ./gradlew compileDebugKotlin --quiet 2>&1 | tail -3 || true
+  echo "Gradle daemon ready."
+fi
+
+export RALPH_REMOTE_RUN="$REMOTE_RUN"
+export RALPH_CREATE_PR="$CREATE_PR"
 
 for i in $(seq 1 $MAX_ITERATIONS); do
   echo ""
@@ -177,8 +202,18 @@ for i in $(seq 1 $MAX_ITERATIONS); do
       echo "  Creating PR for branch: $BRANCH"
       echo "==============================================================="
 
-      # Push branch
-      git push -u origin "$BRANCH"
+      # Ensure clean working tree before PR operations
+      if [[ -n "$(git status --porcelain)" ]]; then
+        echo "ERROR: Working tree has uncommitted changes. Commit/stash before PR create/push."
+        git status --short
+        exit 1
+      fi
+
+      # Push branch (non-interactive)
+      if ! git push -u origin "$BRANCH"; then
+        echo "ERROR: git push failed (non-interactive mode). Check gh auth / git credentials."
+        exit 1
+      fi
 
       # Create PR or reuse existing
       EXISTING_PR=$(gh pr view "$BRANCH" --json url -q '.url' 2>/dev/null || echo "")

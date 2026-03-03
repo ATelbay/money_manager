@@ -35,6 +35,7 @@ Ralph is an autonomous coding agent that executes tasks from a PRD (Product Requ
 | `--tool claude` | Use Claude Code as the AI engine (recommended) |
 | `--tool gemini` | Use Gemini CLI as the AI engine |
 | `--tool amp` | Use Amp CLI as the AI engine (default for backwards compatibility) |
+| `--remote-run` | CI-first iteration mode: Draft PR + per-story commit/push + wait CI on GitHub Actions; local heavy checks are not used as blockers. |
 | `--pr` | After completion: push branch → create PR → code review → wait CI → trigger QA Build |
 | `--download` | After QA Build: download the debug APK locally. Use this on your Mac. On a VM, omit this flag and let Garlic handle the download. |
 | `N` (number) | Maximum number of iterations (default: 10). Each iteration handles one user story. |
@@ -52,6 +53,23 @@ Just run the agent loop locally. Useful for quick tasks or testing.
 ```
 
 Ralph will work through all stories in `prd.json`, committing after each one. Stops when all stories are complete or max iterations is reached.
+
+---
+
+### CI-first remote mode (`--remote-run`)
+
+Use this on slower VMs when you want GitHub Actions to be the source of truth per story.
+
+```bash
+./scripts/ralph/ralph.sh --codex --remote-run 10
+```
+
+What `--remote-run` implies automatically:
+1. Works one story per iteration
+2. Creates/reuses a Draft PR
+3. After each story: commit → push → wait CI (`gh pr checks --watch --fail-fast`)
+4. Marks `passes:true` only after green CI on that story commit
+5. Local heavy checks are not used as blocking gates
 
 ---
 
@@ -229,6 +247,6 @@ Review the PR manually and merge if the remaining issues are acceptable.
 ## Architecture Notes
 
 - **Fresh context per iteration:** each Ralph iteration spawns a new AI session with no memory of previous iterations. State is passed through `prd.json`, `progress.txt`, and git history only.
-- **One story per iteration:** Ralph picks the highest-priority story with `passes: false`, implements it, runs `./gradlew assembleDebug`, commits, and marks it done.
+- **One story per iteration:** Ralph picks the highest-priority story with `passes: false`, implements it, validates according to mode (local checks or remote CI), commits, and marks it done.
 - **`prd.json` lives in feature branches only:** do not commit `prd.json` to `main`. It belongs in `ralph/*` branches and is visible in the PR diff for debugging.
 - **Artifacts are ephemeral:** only the most recent APK is kept in `scripts/ralph/artifacts/`. Add `scripts/ralph/artifacts/` to `.gitignore` if not already present.
