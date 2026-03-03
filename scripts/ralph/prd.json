@@ -11,7 +11,7 @@
         "domain layer contains ExchangeRateRepository contract for loading/storing USD-KZT rate",
         "domain layer contains GetUsdKztRateUseCase and ConvertAmountUseCase",
         "ConvertAmountUseCase supports both KZT->USD and USD->KZT conversion with deterministic rounding strategy",
-        "./gradlew compileDebugKotlin passes"
+        "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 1,
       "passes": true,
@@ -26,7 +26,7 @@
         "local cache stores rate value and fetchedAt timestamp",
         "ExchangeRateRepositoryImpl uses remote-first with fallback to last cached rate on network failure",
         "DI wiring provides ExchangeRateRepository implementation",
-        "./gradlew compileDebugKotlin passes"
+        "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 2,
       "passes": true,
@@ -41,7 +41,7 @@
         "Settings screen shows current USD/KZT rate and last update time",
         "Settings screen provides manual refresh action that updates rate through repository",
         "user preference for base currency is persisted and restored",
-        "./gradlew compileDebugKotlin passes"
+        "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 3,
       "passes": true,
@@ -56,7 +56,7 @@
         "When account currency differs from base currency, totals are converted using latest available rate",
         "If rate is unavailable, UI falls back safely to source currency without crash",
         "Transaction list state exposes display currency and conversion status flags",
-        "./gradlew compileDebugKotlin passes"
+        "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 4,
       "passes": true,
@@ -70,7 +70,7 @@
         "unit tests cover ConvertAmountUseCase for both directions and rounding",
         "unit tests cover repository fallback behavior (remote success, remote failure with cache, empty cache)",
         "at least one ViewModel-level test validates selected base currency affects displayed totals",
-        "./gradlew compileDebugKotlin passes"
+        "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 5,
       "passes": false,
