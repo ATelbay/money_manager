@@ -17,12 +17,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
-import com.atelbay.money_manager.core.ui.theme.Teal
 
 @Composable
 fun MoneyManagerFAB(
@@ -46,8 +44,8 @@ fun MoneyManagerFAB(
             .size(56.dp)
             .scale(scale).then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
         shape = CircleShape,
-        containerColor = Teal,
-        contentColor = Color.White,
+        containerColor = MoneyManagerTheme.colors.fabContainer,
+        contentColor = MoneyManagerTheme.colors.fabContent,
         elevation = FloatingActionButtonDefaults.elevation(
             defaultElevation = 6.dp,
             pressedElevation = 2.dp,
