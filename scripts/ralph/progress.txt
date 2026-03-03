@@ -3,6 +3,7 @@
 - For phased presentation updates, keep legacy screen state fields in place and add parallel row-specific UI models until the consuming composables are migrated.
 - For transaction row currency conversion, keep `originalAmount` and `originalCurrency` untouched and only populate `convertedAmount` and `convertedCurrency` when `convertToBaseCurrency` reports an actual conversion; same-currency and missing-rate paths should stay on source values.
 - Once a screen migrates to row-specific presentation models, update empty-state checks, grouping, and previews to read from that row collection instead of the legacy raw model list.
+- In remote-run mode, if `gh run view --log-failed` only shows the test name, download the `test-results` artifact and inspect the module HTML report to get the exact failing assertion line and message.
 
 Started: Tue Mar  3 13:56:46 UTC 2026
 ---
@@ -33,6 +34,16 @@ Started: Tue Mar  3 13:56:46 UTC 2026
 - Files changed: `core/ui/src/main/java/com/atelbay/money_manager/core/ui/components/TransactionListItem.kt`, `presentation/transactions/src/main/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListScreen.kt`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
 - **Learnings for future iterations:**
   - The transaction list screen now treats `transactionRows` as the source of truth for row rendering, so UI follow-up work should update that model first and only use `transactions` if legacy compatibility still requires it.
-  - Remote-run fixes may need follow-up commits after the initial story commit; CI log line numbers were sufficient to pinpoint the syntax issue without running Gradle locally.
-  - Keeping the reusable amount formatting inside the composable body is simpler here than introducing extra local helper structure during rapid CI-only debugging.
+- Remote-run fixes may need follow-up commits after the initial story commit; CI log line numbers were sufficient to pinpoint the syntax issue without running Gradle locally.
+- Keeping the reusable amount formatting inside the composable body is simpler here than introducing extra local helper structure during rapid CI-only debugging.
+---
+## 2026-03-03 17:07:03 UTC - US-004
+- Expanded `TransactionListViewModelTest` into explicit same-currency, converted-currency, and missing-rate scenarios, with row-level assertions for original vs converted display fields.
+- Added coverage that income and expense rows preserve their `TransactionType` context while summary income/expense totals remain separated correctly in both converted and fallback paths.
+- Fixed one CI-caught expectation typo in the missing-rate expense test, then re-ran GitHub Actions until both required checks passed for commit `7f78b2f`.
+- Files changed: `presentation/transactions/src/test/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListViewModelTest.kt`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+- **Learnings for future iterations:**
+  - `TransactionListViewModelTest` is easiest to extend by introducing small local builders (`transaction`, `account`, `createViewModel`) rather than duplicating large fixture blocks.
+  - For expense-only fallback scenarios, `periodIncome` should stay `0.0`; only `periodExpense` carries the source amount when conversion is unavailable.
+  - In CI-only debugging, the uploaded `test-results` artifact provides the exact assertion failure details even when the streamed Actions log only shows the failing test name.
 ---

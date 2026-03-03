@@ -1,0 +1,1 @@
+dead|1/4|  - The existing `TransactionListViewModelTest` already has fake repositories and a base-currency flow setup, which is the right place to extend coverage for the later conversion scenarios.|MERGEABLE/CLEAN|success:2

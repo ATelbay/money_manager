@@ -58,7 +58,7 @@
         "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "Prefer existing TransactionListViewModelTest style with fake repos and coroutine test dispatcher."
     }
   ]
