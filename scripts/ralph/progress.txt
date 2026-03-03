@@ -3,6 +3,7 @@
 - In `presentation:settings`, persist lightweight selector state in `UserPreferences` as raw string codes and map those codes to richer UI labels through a feature-local catalog.
 - Long in-place Compose pickers should cap `DropdownMenu` height to avoid overflow and clipped popups on smaller devices.
 - When multiple persisted selectors share one catalog, resolve unknown codes with a field-specific fallback instead of a single global default.
+- In `presentation:settings`, when an option set grows beyond a compact inline control, prefer a `TopAppBar` action that opens a `ModalBottomSheet` with search, and keep the screen body to a concise summary row.
 
 Started: Tue Mar  3 20:19:14 UTC 2026
 ---
@@ -33,4 +34,14 @@ Started: Tue Mar  3 20:19:14 UTC 2026
   - Patterns discovered (e.g., "this codebase uses X for Y"): when one settings item needs both status text and an inline action, a feature-local row composable fits better than forcing the generic `SettingRow` API.
   - Gotchas encountered (e.g., "don't forget to update Z when changing W"): in remote-run mode, leave `scripts/ralph/prd.json` unchanged even after the story implementation is complete; Ralph shell flips `passes` after CI.
   - Useful context (e.g., "the evaluation panel is in component X"): the exchange-rate summary block lives in `SettingsScreen` under the first `GlassCard`, and the new refresh tap target is tagged as `settings:refreshRateAction`.
+---
+## [2026-03-03 21:14:32 UTC] - US-003
+- Removed the large inline base/target currency selectors from the settings content and replaced them with a compact summary row that shows the currently selected pair.
+- Added a `TopAppBar` currency action that opens a `ModalBottomSheet` with a search field filtering by both currency code and localized name, plus target toggles for base vs target selection.
+- Wired bottom-sheet selections back through the existing callbacks so both base and target currencies update immediately and the summary row reflects the new values.
+- Files changed: `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsScreen.kt`, `scripts/ralph/progress.txt`
+- **Learnings for future iterations:**
+  - Patterns discovered (e.g., "this codebase uses X for Y"): for expanded settings choices, keep persisted state in the existing ViewModel flow and hold only transient sheet/search UI state locally in the stateless screen composable.
+  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): in `RALPH_REMOTE_RUN=true`, skip local Gradle checks entirely even for compile verification and rely on careful source inspection plus the upcoming CI pass.
+  - Useful context (e.g., "the evaluation panel is in component X"): the new currency picker entry points are tagged `settings:currencySheetAction` in the top bar and `settings:currencySummary` in the content, while the searchable sheet root is `settings:currencySheet`.
 ---
