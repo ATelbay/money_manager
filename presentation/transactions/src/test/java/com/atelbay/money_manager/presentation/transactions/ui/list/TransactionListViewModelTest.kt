@@ -41,89 +41,109 @@ class TransactionListViewModelTest {
     }
 
     @Test
-    fun `base currency updates displayed totals`() = runTest {
+    fun `same currency keeps transaction row on source amount`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
 
-        val baseCurrency = MutableStateFlow("KZT")
-        val exchangeRate = MutableStateFlow<ExchangeRate?>(
-            ExchangeRate(usdToKzt = 475.0, fetchedAt = 1L),
-        )
-        val userPreferences = mockk<UserPreferences>()
-        every { userPreferences.selectedAccountId } returns flowOf(null)
-        every { userPreferences.baseCurrency } returns baseCurrency
-
-        val viewModel = TransactionListViewModel(
-            getTransactionsUseCase = GetTransactionsUseCase(
-                FakeTransactionRepository(
-                    transactions = listOf(
-                        Transaction(
-                            id = 1L,
-                            amount = 47_500.0,
-                            type = TransactionType.INCOME,
-                            categoryId = 1L,
-                            categoryName = "Salary",
-                            categoryIcon = "wallet",
-                            categoryColor = 0L,
-                            accountId = 1L,
-                            note = null,
-                            date = 1L,
-                            createdAt = 1L,
-                        ),
-                    ),
+        val viewModel = createViewModel(
+            transactions = listOf(
+                transaction(
+                    amount = 125.0,
+                    type = TransactionType.INCOME,
+                    categoryName = "Salary",
                 ),
             ),
-            deleteTransactionUseCase = DeleteTransactionUseCase(FakeTransactionRepository()),
-            getAccountsUseCase = GetAccountsUseCase(
-                FakeAccountRepository(
-                    accounts = listOf(
-                        Account(
-                            id = 1L,
-                            name = "Cash",
-                            currency = "KZT",
-                            balance = 47_500.0,
-                            createdAt = 1L,
-                        ),
-                    ),
+            accounts = listOf(
+                account(
+                    currency = "USD",
+                    balance = 125.0,
                 ),
             ),
-            getUsdKztRateUseCase = GetUsdKztRateUseCase(
-                FakeExchangeRateRepository(exchangeRate),
-            ),
-            convertAmountUseCase = ConvertAmountUseCase(),
-            userPreferences = userPreferences,
+            baseCurrency = flowOf("usd"),
         )
 
         advanceTimeBy(300)
         advanceUntilIdle()
 
-        val initialRow = viewModel.state.value.transactionRows.single()
-        assertEquals(47_500.0, initialRow.originalAmount, 0.0)
-        assertEquals("KZT", initialRow.originalCurrency)
-        assertEquals(47_500.0, initialRow.displayAmount, 0.0)
-        assertEquals("KZT", initialRow.displayCurrency)
-        assertEquals(ConversionStatus.UNAVAILABLE, initialRow.conversionStatus)
-
-        assertEquals("KZT", viewModel.state.value.displayCurrency)
-        assertEquals(47_500.0, viewModel.state.value.balance, 0.0)
-        assertFalse(viewModel.state.value.isUsingConvertedTotals)
-        assertFalse(viewModel.state.value.isUsingFallbackCurrency)
-
-        baseCurrency.value = "USD"
-        advanceUntilIdle()
-
-        val convertedRow = viewModel.state.value.transactionRows.single()
-        assertEquals(47_500.0, convertedRow.originalAmount, 0.0)
-        assertEquals("KZT", convertedRow.originalCurrency)
-        assertTrue(convertedRow.convertedAmount != null)
-        assertEquals(100.0, convertedRow.convertedAmount ?: 0.0, 0.0)
-        assertEquals("USD", convertedRow.convertedCurrency)
-        assertEquals(100.0, convertedRow.displayAmount, 0.0)
-        assertEquals("USD", convertedRow.displayCurrency)
-        assertEquals(ConversionStatus.AVAILABLE, convertedRow.conversionStatus)
+        val row = viewModel.state.value.transactionRows.single()
+        assertEquals(125.0, row.originalAmount, 0.0)
+        assertEquals("USD", row.originalCurrency)
+        assertEquals(null, row.convertedAmount)
+        assertEquals(null, row.convertedCurrency)
+        assertEquals(125.0, row.displayAmount, 0.0)
+        assertEquals("USD", row.displayCurrency)
+        assertEquals(TransactionType.INCOME, row.transaction.type)
+        assertEquals(ConversionStatus.UNAVAILABLE, row.conversionStatus)
 
         assertEquals("USD", viewModel.state.value.displayCurrency)
-        assertEquals(100.0, viewModel.state.value.balance, 0.0)
+        assertEquals(125.0, viewModel.state.value.balance, 0.0)
+        assertEquals(125.0, viewModel.state.value.periodIncome, 0.0)
+        assertEquals(0.0, viewModel.state.value.periodExpense, 0.0)
+        assertFalse(viewModel.state.value.isUsingConvertedTotals)
+        assertFalse(viewModel.state.value.isUsingFallbackCurrency)
+    }
+
+    @Test
+    fun `base currency conversion keeps original context for income and expense rows`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+
+        val viewModel = createViewModel(
+            transactions = listOf(
+                transaction(
+                    id = 1L,
+                    amount = 47_500.0,
+                    type = TransactionType.INCOME,
+                    categoryName = "Salary",
+                ),
+                transaction(
+                    id = 2L,
+                    amount = 9_500.0,
+                    type = TransactionType.EXPENSE,
+                    categoryName = "Food",
+                ),
+            ),
+            accounts = listOf(
+                account(
+                    currency = "KZT",
+                    balance = 57_000.0,
+                ),
+            ),
+            baseCurrency = flowOf("USD"),
+            exchangeRate = MutableStateFlow(
+                ExchangeRate(usdToKzt = 475.0, fetchedAt = 1L),
+            ),
+        )
+
+        advanceTimeBy(300)
+        advanceUntilIdle()
+
+        val rows = viewModel.state.value.transactionRows
+        val incomeRow = rows.first { it.transaction.type == TransactionType.INCOME }
+        val expenseRow = rows.first { it.transaction.type == TransactionType.EXPENSE }
+
+        assertEquals(47_500.0, incomeRow.originalAmount, 0.0)
+        assertEquals("KZT", incomeRow.originalCurrency)
+        assertTrue(incomeRow.convertedAmount != null)
+        assertEquals(100.0, incomeRow.convertedAmount ?: 0.0, 0.0)
+        assertEquals("USD", incomeRow.convertedCurrency)
+        assertEquals(100.0, incomeRow.displayAmount, 0.0)
+        assertEquals("USD", incomeRow.displayCurrency)
+        assertEquals(TransactionType.INCOME, incomeRow.transaction.type)
+        assertEquals(ConversionStatus.AVAILABLE, incomeRow.conversionStatus)
+
+        assertEquals(9_500.0, expenseRow.originalAmount, 0.0)
+        assertEquals("KZT", expenseRow.originalCurrency)
+        assertTrue(expenseRow.convertedAmount != null)
+        assertEquals(20.0, expenseRow.convertedAmount ?: 0.0, 0.0)
+        assertEquals("USD", expenseRow.convertedCurrency)
+        assertEquals(20.0, expenseRow.displayAmount, 0.0)
+        assertEquals("USD", expenseRow.displayCurrency)
+        assertEquals(TransactionType.EXPENSE, expenseRow.transaction.type)
+        assertEquals(ConversionStatus.AVAILABLE, expenseRow.conversionStatus)
+
+        assertEquals("USD", viewModel.state.value.displayCurrency)
+        assertEquals(120.0, viewModel.state.value.balance, 0.0)
         assertEquals(100.0, viewModel.state.value.periodIncome, 0.0)
+        assertEquals(20.0, viewModel.state.value.periodExpense, 0.0)
         assertTrue(viewModel.state.value.isUsingConvertedTotals)
         assertFalse(viewModel.state.value.isUsingFallbackCurrency)
     }
@@ -132,49 +152,22 @@ class TransactionListViewModelTest {
     fun `missing exchange rate keeps transaction row in source currency`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
 
-        val userPreferences = mockk<UserPreferences>()
-        every { userPreferences.selectedAccountId } returns flowOf(null)
-        every { userPreferences.baseCurrency } returns flowOf("USD")
-
-        val viewModel = TransactionListViewModel(
-            getTransactionsUseCase = GetTransactionsUseCase(
-                FakeTransactionRepository(
-                    transactions = listOf(
-                        Transaction(
-                            id = 1L,
-                            amount = 47_500.0,
-                            type = TransactionType.EXPENSE,
-                            categoryId = 1L,
-                            categoryName = "Food",
-                            categoryIcon = "cart",
-                            categoryColor = 0L,
-                            accountId = 1L,
-                            note = null,
-                            date = 1L,
-                            createdAt = 1L,
-                        ),
-                    ),
+        val viewModel = createViewModel(
+            transactions = listOf(
+                transaction(
+                    amount = 47_500.0,
+                    type = TransactionType.EXPENSE,
+                    categoryName = "Food",
                 ),
             ),
-            deleteTransactionUseCase = DeleteTransactionUseCase(FakeTransactionRepository()),
-            getAccountsUseCase = GetAccountsUseCase(
-                FakeAccountRepository(
-                    accounts = listOf(
-                        Account(
-                            id = 1L,
-                            name = "Cash",
-                            currency = "KZT",
-                            balance = 47_500.0,
-                            createdAt = 1L,
-                        ),
-                    ),
+            accounts = listOf(
+                account(
+                    currency = "KZT",
+                    balance = 47_500.0,
                 ),
             ),
-            getUsdKztRateUseCase = GetUsdKztRateUseCase(
-                FakeExchangeRateRepository(MutableStateFlow(null)),
-            ),
-            convertAmountUseCase = ConvertAmountUseCase(),
-            userPreferences = userPreferences,
+            baseCurrency = flowOf("USD"),
+            exchangeRate = MutableStateFlow(null),
         )
 
         advanceTimeBy(300)
@@ -187,8 +180,74 @@ class TransactionListViewModelTest {
         assertEquals(null, row.convertedCurrency)
         assertEquals(47_500.0, row.displayAmount, 0.0)
         assertEquals("KZT", row.displayCurrency)
+        assertEquals(TransactionType.EXPENSE, row.transaction.type)
         assertEquals(ConversionStatus.UNAVAILABLE, row.conversionStatus)
+
+        assertEquals("KZT", viewModel.state.value.displayCurrency)
+        assertEquals(47_500.0, viewModel.state.value.periodIncome, 0.0)
+        assertEquals(47_500.0, viewModel.state.value.periodExpense, 0.0)
+        assertFalse(viewModel.state.value.isUsingConvertedTotals)
+        assertTrue(viewModel.state.value.isUsingFallbackCurrency)
     }
+
+    private fun createViewModel(
+        transactions: List<Transaction>,
+        accounts: List<Account>,
+        baseCurrency: Flow<String>,
+        exchangeRate: MutableStateFlow<ExchangeRate?> = MutableStateFlow(
+            ExchangeRate(usdToKzt = 475.0, fetchedAt = 1L),
+        ),
+    ): TransactionListViewModel {
+        val userPreferences = mockk<UserPreferences>()
+        every { userPreferences.selectedAccountId } returns flowOf(null)
+        every { userPreferences.baseCurrency } returns baseCurrency
+
+        return TransactionListViewModel(
+            getTransactionsUseCase = GetTransactionsUseCase(
+                FakeTransactionRepository(transactions),
+            ),
+            deleteTransactionUseCase = DeleteTransactionUseCase(FakeTransactionRepository()),
+            getAccountsUseCase = GetAccountsUseCase(
+                FakeAccountRepository(accounts),
+            ),
+            getUsdKztRateUseCase = GetUsdKztRateUseCase(
+                FakeExchangeRateRepository(exchangeRate),
+            ),
+            convertAmountUseCase = ConvertAmountUseCase(),
+            userPreferences = userPreferences,
+        )
+    }
+
+    private fun transaction(
+        id: Long = 1L,
+        amount: Double,
+        type: TransactionType,
+        categoryName: String,
+    ) = Transaction(
+        id = id,
+        amount = amount,
+        type = type,
+        categoryId = 1L,
+        categoryName = categoryName,
+        categoryIcon = "wallet",
+        categoryColor = 0L,
+        accountId = 1L,
+        note = null,
+        date = 1L,
+        createdAt = 1L,
+    )
+
+    private fun account(
+        id: Long = 1L,
+        currency: String,
+        balance: Double,
+    ) = Account(
+        id = id,
+        name = "Cash",
+        currency = currency,
+        balance = balance,
+        createdAt = 1L,
+    )
 
     private class FakeTransactionRepository(
         private val transactions: List<Transaction> = emptyList(),
