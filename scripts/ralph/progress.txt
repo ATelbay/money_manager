@@ -1,6 +1,7 @@
 # Ralph Progress Log
 ## Codebase Patterns
 - For phased presentation updates, keep legacy screen state fields in place and add parallel row-specific UI models until the consuming composables are migrated.
+- For transaction row currency conversion, keep `originalAmount` and `originalCurrency` untouched and only populate `convertedAmount` and `convertedCurrency` when `convertToBaseCurrency` reports an actual conversion; same-currency and missing-rate paths should stay on source values.
 
 Started: Tue Mar  3 13:56:46 UTC 2026
 ---
@@ -13,4 +14,14 @@ Started: Tue Mar  3 13:56:46 UTC 2026
   - The transaction list screen still renders from `state.transactions`, so row-level currency work should populate `state.transactionRows` first and switch the UI only in the dedicated rendering story.
   - `Transaction` models do not carry currency; row-level display currency has to be resolved from the owning `Account` in presentation state mapping.
   - The existing `TransactionListViewModelTest` already has fake repositories and a base-currency flow setup, which is the right place to extend coverage for the later conversion scenarios.
+---
+## 2026-03-03 16:35:59 UTC - US-002
+- Updated `TransactionListViewModel` so `transactionRows` reuse the selected base currency and latest exchange rate, and only expose converted row values when an actual conversion succeeds.
+- Preserved same-currency and missing-rate behavior by leaving row display on the source amount/currency with `ConversionStatus.UNAVAILABLE`.
+- Extended `TransactionListViewModelTest` to cover both the successful row conversion path and the missing-rate fallback path.
+- Files changed: `presentation/transactions/src/main/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListViewModel.kt`, `presentation/transactions/src/test/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListViewModelTest.kt`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+- **Learnings for future iterations:**
+  - `transactionRows` should mirror the summary conversion rules by delegating to the same `convertToBaseCurrency` helper instead of duplicating rate math.
+  - With the current two-state `ConversionStatus`, "same currency" and "missing rate" both map to `UNAVAILABLE`, so the later UI work should key off populated converted fields rather than assuming the enum distinguishes those cases.
+  - In remote-run mode, keep the story implementation commit separate, wait for CI on that commit, then update Ralph tracking files after the checks are green.
 ---

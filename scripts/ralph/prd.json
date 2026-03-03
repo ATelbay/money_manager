@@ -29,7 +29,7 @@
         "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Reuse existing ConvertAmountUseCase and base currency preference flow already used for overview totals. Avoid database schema changes."
     },
     {
