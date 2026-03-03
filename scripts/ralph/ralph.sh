@@ -342,15 +342,21 @@ EOF
         echo "CI failed. Check PR for details: $PR_URL"
       fi
 
-      # Trigger QA Build manually
-      echo ""
-      echo "Triggering QA Build..."
-      gh workflow run "QA Build" --ref "$BRANCH"
-      sleep 5
+      # Trigger QA Build only for final, review-passed state
+      ALL_PASSED=$(jq -r '[.userStories[] | select(.passes==false)] | length' "$PRD_FILE" 2>/dev/null)
+      if [[ "$REVIEW_CLEAN" == "true" && "$ALL_PASSED" == "0" ]]; then
+        echo ""
+        echo "Triggering QA Build..."
+        gh workflow run "QA Build" --ref "$BRANCH"
+        sleep 5
+      else
+        echo ""
+        echo "Skipping QA Build (not final or review not clean)."
+      fi
 
-      # Wait for QA Build to complete
-      RUN_ID=$(gh run list --branch "$BRANCH" --workflow "QA Build" --limit 1 --json databaseId,status -q '.[0].databaseId' 2>/dev/null)
-      if [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ]; then
+      # Wait for QA Build to complete (if triggered)
+      RUN_ID=$(gh run list --branch "$BRANCH" --workflow "QA Build" --limit 1 --json databaseId,status,createdAt -q '.[0].databaseId' 2>/dev/null)
+      if [[ "$REVIEW_CLEAN" == "true" && "$ALL_PASSED" == "0" ]] && [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ]; then
         echo "QA Build run ID: $RUN_ID"
         echo "$RUN_ID" > "$SCRIPT_DIR/.qa-run-id"
 
