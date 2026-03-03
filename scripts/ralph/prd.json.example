@@ -10,11 +10,11 @@
       "acceptanceCriteria": [
         "Add priority column to tasks table: 'high' | 'medium' | 'low' (default 'medium')",
         "Generate and run migration successfully",
-        "Typecheck passes"
+        "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 1,
       "passes": false,
-      "notes": ""
+      "notes": "For --remote-run mode, CI is the pass gate; local heavy checks are optional."
     },
     {
       "id": "US-002",
@@ -23,8 +23,7 @@
       "acceptanceCriteria": [
         "Each task card shows colored priority badge (red=high, yellow=medium, gray=low)",
         "Priority visible without hovering or clicking",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
+        "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 2,
       "passes": false,
@@ -38,8 +37,7 @@
         "Priority dropdown in task edit modal",
         "Shows current priority as selected",
         "Saves immediately on selection change",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
+        "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 3,
       "passes": false,
@@ -53,8 +51,7 @@
         "Filter dropdown with options: All | High | Medium | Low",
         "Filter persists in URL params",
         "Empty state message when no tasks match filter",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
+        "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 4,
       "passes": false,

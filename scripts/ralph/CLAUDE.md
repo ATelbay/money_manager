@@ -27,6 +27,7 @@ Read them carefully before doing anything.
 
 The build runs on GitHub CI — do NOT run `./gradlew assembleDebug` locally.
 
+### Default mode (no `--remote-run`)
 Before committing, verify your changes compile correctly by checking for obvious errors:
 
 ```bash
@@ -41,7 +42,19 @@ Before committing, verify your changes compile correctly by checking for obvious
 If `compileDebugKotlin` fails, **fix the issue and re-run**. Do NOT commit code that fails to compile.
 Do NOT set `passes: true` if compilation fails.
 
-Full `assembleDebug` runs automatically on GitHub Actions after the PR is pushed — CI is the source of truth for build success.
+### Remote CI mode (`--remote-run`)
+When env `RALPH_REMOTE_RUN=true` is set:
+- Do **not** run local heavy checks (`compileDebugKotlin`, `lint`, `test`) as blockers.
+- Work strictly one story per iteration.
+- After story implementation:
+  1. Commit with `feat: [Story ID] - [Story Title]`
+  2. Push to PR branch
+  3. Ensure Draft PR exists (create if absent, reuse if present) via `gh pr view`/`gh pr create --draft`
+  4. Wait for CI: `gh pr checks <branch> --watch --fail-fast`
+- Mark story `passes: true` **only if CI checks are green** for that story commit.
+- If CI fails, keep `passes: false`, log failure summary in `progress.txt`, and continue with fixes in the next iteration.
+
+CI is the source of truth for pass/fail in `--remote-run`.
 
 ## Progress Report Format
 

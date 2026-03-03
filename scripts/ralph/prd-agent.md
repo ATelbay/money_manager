@@ -146,12 +146,12 @@ If the new task is **continuing the same `branchName`**, do NOT archive — just
 
 ### Acceptance criteria rules for Android (critical):
 - Write criteria that are **verifiable from code or CLI**, not from the browser
-- ALWAYS include `"./gradlew compileDebugKotlin passes"` as the last criterion in every story
-  (full assembleDebug runs on GitHub CI — Ralph only does a fast compile check locally)
+- Local-run PRD: include `"./gradlew compileDebugKotlin passes"` as the last criterion in each story.
+- Remote-run PRD (`--remote-run`): include `"CI checks for this story commit pass on GitHub Actions"` as the final gate criterion.
 - For database changes: `"Room migration Migration_X_Y exists and is registered in AppDatabase"`
 - For UI changes: `"Screen renders without crash in Preview"`
-- For unit tests: `"./gradlew :module:test passes"`
-- For screenshot tests: `"./gradlew :app:recordRoborazziDebug passes"`
+- For unit tests: `"./gradlew :module:test passes"` (local mode) or CI check equivalent (remote mode)
+- For screenshot tests: `"./gradlew :app:recordRoborazziDebug passes"` (local mode) or CI check equivalent (remote mode)
 - NEVER write: "verify in browser", "open the app and check", "visually confirm" — Ralph cannot do this
 
 ### Example — complete prd.json:
