@@ -44,7 +44,7 @@
         "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Keep UI minimal and consistent with current list style. Do not redesign card layout; only add required secondary amount line/label."
     },
     {

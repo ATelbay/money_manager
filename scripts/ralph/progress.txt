@@ -2,6 +2,7 @@
 ## Codebase Patterns
 - For phased presentation updates, keep legacy screen state fields in place and add parallel row-specific UI models until the consuming composables are migrated.
 - For transaction row currency conversion, keep `originalAmount` and `originalCurrency` untouched and only populate `convertedAmount` and `convertedCurrency` when `convertToBaseCurrency` reports an actual conversion; same-currency and missing-rate paths should stay on source values.
+- Once a screen migrates to row-specific presentation models, update empty-state checks, grouping, and previews to read from that row collection instead of the legacy raw model list.
 
 Started: Tue Mar  3 13:56:46 UTC 2026
 ---
@@ -24,4 +25,14 @@ Started: Tue Mar  3 13:56:46 UTC 2026
   - `transactionRows` should mirror the summary conversion rules by delegating to the same `convertToBaseCurrency` helper instead of duplicating rate math.
   - With the current two-state `ConversionStatus`, "same currency" and "missing rate" both map to `UNAVAILABLE`, so the later UI work should key off populated converted fields rather than assuming the enum distinguishes those cases.
   - In remote-run mode, keep the story implementation commit separate, wait for CI on that commit, then update Ralph tracking files after the checks are green.
+---
+## 2026-03-03 16:51:18 UTC - US-003
+- Switched the transaction list UI to render from `state.transactionRows`, so row-level converted amounts now drive the live list, empty state, grouping, and preview data.
+- Extended `TransactionListItem` with an optional secondary amount line and flexible row height so converted rows show the base-currency value first and the original source amount underneath without overlapping metadata.
+- Fixed two CI-found issues during remote validation: a local helper simplification in `TransactionListItem` and a mismatched closing brace in the new secondary amount block.
+- Files changed: `core/ui/src/main/java/com/atelbay/money_manager/core/ui/components/TransactionListItem.kt`, `presentation/transactions/src/main/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListScreen.kt`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+- **Learnings for future iterations:**
+  - The transaction list screen now treats `transactionRows` as the source of truth for row rendering, so UI follow-up work should update that model first and only use `transactions` if legacy compatibility still requires it.
+  - Remote-run fixes may need follow-up commits after the initial story commit; CI log line numbers were sufficient to pinpoint the syntax issue without running Gradle locally.
+  - Keeping the reusable amount formatting inside the composable body is simpler here than introducing extra local helper structure during rapid CI-only debugging.
 ---
