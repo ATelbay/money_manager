@@ -17,6 +17,7 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
+import kotlin.test.assertFailsWith
 
 class ExchangeRateRepositoryImplTest {
 
@@ -77,10 +78,8 @@ class ExchangeRateRepositoryImplTest {
         coEvery { remoteDataSource.fetchUsdKztRate() } throws networkError
         coEvery { userPreferences.getExchangeRate() } returns null
 
-        val thrown = org.junit.Assert.assertThrows(IOException::class.java) {
-            kotlinx.coroutines.runBlocking {
-                repository.fetchAndStoreRate()
-            }
+        val thrown = assertFailsWith<IOException> {
+            repository.fetchAndStoreRate()
         }
 
         assertSame(networkError, thrown)

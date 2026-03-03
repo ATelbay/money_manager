@@ -343,7 +343,7 @@ class TransactionListViewModel @Inject constructor(
 
         val rate = exchangeRate?.usdToKzt
         return when {
-            normalizedSourceCurrency == KZT && baseCurrency == USD && rate != null ->
+            normalizedSourceCurrency == KZT && baseCurrency == USD && rate != null && rate > 0.0 ->
                 ConvertedAmount(
                     amount = convertAmountUseCase(
                         amount = amount,
@@ -354,7 +354,7 @@ class TransactionListViewModel @Inject constructor(
                     canDisplayInBaseCurrency = true,
                 )
 
-            normalizedSourceCurrency == USD && baseCurrency == KZT && rate != null ->
+            normalizedSourceCurrency == USD && baseCurrency == KZT && rate != null && rate > 0.0 ->
                 ConvertedAmount(
                     amount = convertAmountUseCase(
                         amount = amount,

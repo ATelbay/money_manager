@@ -202,11 +202,18 @@ for i in $(seq 1 $MAX_ITERATIONS); do
       echo "  Creating PR for branch: $BRANCH"
       echo "==============================================================="
 
-      # Ensure clean working tree before PR operations
+      # Handle dirty working tree before PR operations (default: auto-story)
       if [[ -n "$(git status --porcelain)" ]]; then
-        echo "ERROR: Working tree has uncommitted changes. Commit/stash before PR create/push."
+        echo "WARN: Working tree has uncommitted changes before PR."
         git status --short
-        exit 1
+        echo "Auto-story mode: staging and committing remaining changes before PR..."
+        git add -A
+        if ! git diff --cached --quiet; then
+          if ! git commit -m "chore(ralph): auto-commit remaining story-related changes before PR"; then
+            echo "ERROR: Auto-story commit failed. Resolve conflicts/issues and re-run."
+            exit 1
+          fi
+        fi
       fi
 
       # Push branch (non-interactive)

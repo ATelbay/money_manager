@@ -33,6 +33,10 @@ class NbkExchangeRateRemoteDataSource @Inject constructor() {
                     ?.toDoubleOrNull()
                     ?: throw IOException("Failed to parse USD/KZT rate from NBK response")
 
+                if (usdToKzt <= 0.0) {
+                    throw IOException("Parsed USD/KZT rate is invalid: $usdToKzt")
+                }
+
                 NbkExchangeRateRemoteModel(usdToKzt = usdToKzt)
             } finally {
                 connection.disconnect()
