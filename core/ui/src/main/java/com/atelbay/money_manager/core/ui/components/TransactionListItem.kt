@@ -62,6 +62,13 @@ fun TransactionListItem(
         minimumFractionDigits = 2
         maximumFractionDigits = 2
     }
+    val sign = if (isIncome) "+" else "\u2212"
+    val primaryAmountText = "$sign$currency ${formatter.format(amount)}"
+    val secondaryAmountText = secondaryAmount?.let {
+        val resolvedCurrency = secondaryCurrency ?: currency
+        val formattedAmount = "$sign$resolvedCurrency ${formatter.format(it)}"
+        secondaryAmountLabel?.let { label -> "$label $formattedAmount" } ?: formattedAmount
+    }
 
     val content = @Composable {
         Column(
@@ -116,27 +123,15 @@ fun TransactionListItem(
                     horizontalAlignment = Alignment.End,
                 ) {
                     Text(
-                        text = formatAmountText(
-                            amount = amount,
-                            currency = currency,
-                            isIncome = isIncome,
-                            formatter = formatter,
-                        ),
+                        text = primaryAmountText,
                         style = typography.amount,
                         color = if (isIncome) colors.incomeForeground else colors.expenseForeground,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    if (secondaryAmount != null) {
-                        val secondaryAmountText = formatAmountText(
-                            amount = secondaryAmount,
-                            currency = secondaryCurrency ?: currency,
-                            isIncome = isIncome,
-                            formatter = formatter,
-                        )
+                    if (secondaryAmountText != null) {
                         Text(
-                            text = secondaryAmountLabel?.let { "$it $secondaryAmountText" }
-                                ?: secondaryAmountText,
+                            text = secondaryAmountText,
                             style = typography.caption,
                             color = colors.textSecondary,
                             maxLines = 1,
@@ -202,13 +197,6 @@ fun TransactionListItem(
         }
     }
 }
-
-private fun formatAmountText(
-    amount: Double,
-    currency: String,
-    isIncome: Boolean,
-    formatter: NumberFormat,
-): String = "${if (isIncome) "+" else "\u2212"}$currency ${formatter.format(amount)}"
 
 @Preview(showBackground = true)
 @Composable
