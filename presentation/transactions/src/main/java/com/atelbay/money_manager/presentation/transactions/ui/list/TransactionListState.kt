@@ -7,7 +7,6 @@ import kotlinx.collections.immutable.persistentListOf
 import java.time.LocalDate
 
 data class TransactionListState(
-    val transactions: ImmutableList<Transaction> = persistentListOf(),
     val transactionRows: ImmutableList<TransactionRowState> = persistentListOf(),
     val balance: Double = 0.0,
     val currency: String = "",

@@ -165,7 +165,6 @@ class TransactionListViewModel @Inject constructor(
 
             _state.update {
                 it.copy(
-                    transactions = searchFiltered.toImmutableList(),
                     transactionRows = transactionRows,
                     searchQuery = filters.searchQuery,
                     balance = summaryMetrics.balance,
