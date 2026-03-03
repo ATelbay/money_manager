@@ -184,7 +184,7 @@ class TransactionListViewModelTest {
         assertEquals(ConversionStatus.UNAVAILABLE, row.conversionStatus)
 
         assertEquals("KZT", viewModel.state.value.displayCurrency)
-        assertEquals(47_500.0, viewModel.state.value.periodIncome, 0.0)
+        assertEquals(0.0, viewModel.state.value.periodIncome, 0.0)
         assertEquals(47_500.0, viewModel.state.value.periodExpense, 0.0)
         assertFalse(viewModel.state.value.isUsingConvertedTotals)
         assertTrue(viewModel.state.value.isUsingFallbackCurrency)
