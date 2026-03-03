@@ -15,9 +15,9 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import java.io.IOException
-import kotlin.test.assertFailsWith
 
 class ExchangeRateRepositoryImplTest {
 
@@ -78,8 +78,11 @@ class ExchangeRateRepositoryImplTest {
         coEvery { remoteDataSource.fetchUsdKztRate() } throws networkError
         coEvery { userPreferences.getExchangeRate() } returns null
 
-        val thrown = assertFailsWith<IOException> {
+        val thrown = try {
             repository.fetchAndStoreRate()
+            fail("Expected IOException to be thrown")
+        } catch (exception: IOException) {
+            exception
         }
 
         assertSame(networkError, thrown)
