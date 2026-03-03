@@ -15,7 +15,7 @@ Create detailed Product Requirements Documents that are clear, actionable, and s
 1. Receive a feature description from the user
 2. Ask 3-5 essential clarifying questions (with lettered options)
 3. Generate a structured PRD based on answers
-4. Save to `/home/node/.openclaw/workspace/money_manager/scripts/ralph/prd-[feature-name].md`
+4. Save to `scripts/ralph/prd-[feature-name].md`
 
 **Important:** Do NOT start implementing. Just create the PRD.
 
@@ -135,7 +135,7 @@ The PRD reader may be a junior developer or AI agent. Therefore:
 ## Output
 
 - **Format:** Markdown (`.md`)
-- **Location:** `/home/node/.openclaw/workspace/money_manager/scripts/ralph/`
+- **Location:** `scripts/ralph/`
 - **Filename:** `prd-[feature-name].md` (kebab-case)
 
 ---
@@ -238,4 +238,4 @@ Before saving the PRD:
 - [ ] User stories are small and specific
 - [ ] Functional requirements are numbered and unambiguous
 - [ ] Non-goals section defines clear boundaries
-- [ ] Saved to `/home/node/.openclaw/workspace/money_manager/scripts/ralph/prd-[feature-name].md`
+- [ ] Saved to `scripts/ralph/prd-[feature-name].md`
