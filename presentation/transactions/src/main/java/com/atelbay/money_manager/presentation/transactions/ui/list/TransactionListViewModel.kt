@@ -7,6 +7,10 @@ import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
+import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
+import com.atelbay.money_manager.domain.exchangerate.usecase.ConversionDirection
+import com.atelbay.money_manager.domain.exchangerate.usecase.ConvertAmountUseCase
+import com.atelbay.money_manager.domain.exchangerate.usecase.GetUsdKztRateUseCase
 import com.atelbay.money_manager.domain.transactions.usecase.DeleteTransactionUseCase
 import com.atelbay.money_manager.domain.transactions.usecase.GetTransactionsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -35,6 +39,23 @@ private data class DataParams(
     val transactions: List<Transaction>,
     val accounts: List<Account>,
     val selectedAccountId: Long?,
+    val baseCurrency: String,
+    val exchangeRate: ExchangeRate?,
+)
+
+private data class SummaryMetrics(
+    val balance: Double,
+    val income: Double,
+    val expense: Double,
+    val displayCurrency: String,
+    val isUsingConvertedTotals: Boolean,
+    val isUsingFallbackCurrency: Boolean,
+)
+
+private data class ConvertedAmount(
+    val amount: Double,
+    val wasConverted: Boolean,
+    val canDisplayInBaseCurrency: Boolean,
 )
 
 @HiltViewModel
@@ -42,6 +63,8 @@ class TransactionListViewModel @Inject constructor(
     getTransactionsUseCase: GetTransactionsUseCase,
     private val deleteTransactionUseCase: DeleteTransactionUseCase,
     getAccountsUseCase: GetAccountsUseCase,
+    getUsdKztRateUseCase: GetUsdKztRateUseCase,
+    private val convertAmountUseCase: ConvertAmountUseCase,
     userPreferences: UserPreferences,
 ) : ViewModel() {
 
@@ -58,8 +81,16 @@ class TransactionListViewModel @Inject constructor(
             getTransactionsUseCase(),
             getAccountsUseCase(),
             userPreferences.selectedAccountId,
-        ) { transactions, accounts, selectedAccountId ->
-            DataParams(transactions, accounts, selectedAccountId)
+            userPreferences.baseCurrency,
+            getUsdKztRateUseCase(),
+        ) { transactions, accounts, selectedAccountId, baseCurrency, exchangeRate ->
+            DataParams(
+                transactions = transactions,
+                accounts = accounts,
+                selectedAccountId = selectedAccountId,
+                baseCurrency = baseCurrency,
+                exchangeRate = exchangeRate,
+            )
         }
 
         @OptIn(FlowPreview::class)
@@ -111,35 +142,36 @@ class TransactionListViewModel @Inject constructor(
                 }
             }
 
-            val periodIncome =
-                periodFiltered.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-            val periodExpense =
-                periodFiltered.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
-
-            val balance = if (selectedAccount != null) {
-                selectedAccount.balance
-            } else {
-                data.accounts.sumOf { it.balance }
-            }
             val currency = if (selectedAccount != null) {
                 selectedAccount.currency
             } else {
                 data.accounts.firstOrNull()?.currency.orEmpty()
             }
+            val summaryMetrics = resolveSummaryMetrics(
+                selectedAccount = selectedAccount,
+                accounts = data.accounts,
+                periodTransactions = periodFiltered,
+                accountCurrencyFallback = currency,
+                baseCurrency = data.baseCurrency,
+                exchangeRate = data.exchangeRate,
+            )
 
             _state.update {
                 it.copy(
                     transactions = searchFiltered.toImmutableList(),
                     searchQuery = filters.searchQuery,
-                    balance = balance,
+                    balance = summaryMetrics.balance,
                     currency = currency,
+                    displayCurrency = summaryMetrics.displayCurrency,
+                    isUsingConvertedTotals = summaryMetrics.isUsingConvertedTotals,
+                    isUsingFallbackCurrency = summaryMetrics.isUsingFallbackCurrency,
                     isLoading = false,
                     selectedAccountName = selectedAccount?.name,
                     selectedTab = filters.tab,
                     selectedPeriod = filters.period,
                     customDateRange = filters.customRange,
-                    periodIncome = periodIncome,
-                    periodExpense = periodExpense,
+                    periodIncome = summaryMetrics.income,
+                    periodExpense = summaryMetrics.expense,
                 )
             }
         }.launchIn(viewModelScope)
@@ -182,5 +214,172 @@ class TransactionListViewModel @Inject constructor(
             Period.YEAR -> today.minusYears(1).plusDays(1) to today
             Period.CUSTOM -> customRange ?: (today.minusDays(29) to today)
         }
+    }
+
+    private fun resolveSummaryMetrics(
+        selectedAccount: Account?,
+        accounts: List<Account>,
+        periodTransactions: List<Transaction>,
+        accountCurrencyFallback: String,
+        baseCurrency: String,
+        exchangeRate: ExchangeRate?,
+    ): SummaryMetrics {
+        val normalizedBaseCurrency = normalizeCurrency(baseCurrency)
+        val canDisplayInBaseCurrency = canDisplayInBaseCurrency(
+            selectedAccount = selectedAccount,
+            accounts = accounts,
+            transactions = periodTransactions,
+            baseCurrency = normalizedBaseCurrency,
+            exchangeRate = exchangeRate,
+        )
+
+        if (!canDisplayInBaseCurrency) {
+            val fallbackBalance = if (selectedAccount != null) {
+                selectedAccount.balance
+            } else {
+                accounts.sumOf { it.balance }
+            }
+            val fallbackIncome =
+                periodTransactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+            val fallbackExpense =
+                periodTransactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+
+            return SummaryMetrics(
+                balance = fallbackBalance,
+                income = fallbackIncome,
+                expense = fallbackExpense,
+                displayCurrency = accountCurrencyFallback.ifBlank { normalizedBaseCurrency },
+                isUsingConvertedTotals = false,
+                isUsingFallbackCurrency = true,
+            )
+        }
+
+        val accountCurrenciesById = accounts.associateBy(Account::id)
+        val scopedAccounts = if (selectedAccount != null) listOf(selectedAccount) else accounts
+        val convertedBalances = scopedAccounts.map {
+            convertToBaseCurrency(
+                amount = it.balance,
+                sourceCurrency = it.currency,
+                baseCurrency = normalizedBaseCurrency,
+                exchangeRate = exchangeRate,
+            )
+        }
+        val convertedTransactions = periodTransactions.mapNotNull { transaction ->
+            val sourceCurrency = accountCurrenciesById[transaction.accountId]?.currency
+                ?: return@mapNotNull null
+
+            convertToBaseCurrency(
+                amount = transaction.amount,
+                sourceCurrency = sourceCurrency,
+                baseCurrency = normalizedBaseCurrency,
+                exchangeRate = exchangeRate,
+            ) to transaction.type
+        }
+
+        val convertedIncome = convertedTransactions
+            .filter { (_, type) -> type == TransactionType.INCOME }
+            .sumOf { (convertedAmount, _) -> convertedAmount.amount }
+        val convertedExpense = convertedTransactions
+            .filter { (_, type) -> type == TransactionType.EXPENSE }
+            .sumOf { (convertedAmount, _) -> convertedAmount.amount }
+
+        return SummaryMetrics(
+            balance = convertedBalances.sumOf { it.amount },
+            income = convertedIncome,
+            expense = convertedExpense,
+            displayCurrency = normalizedBaseCurrency,
+            isUsingConvertedTotals = convertedBalances.any { it.wasConverted } ||
+                convertedTransactions.any { (convertedAmount, _) -> convertedAmount.wasConverted },
+            isUsingFallbackCurrency = false,
+        )
+    }
+
+    private fun canDisplayInBaseCurrency(
+        selectedAccount: Account?,
+        accounts: List<Account>,
+        transactions: List<Transaction>,
+        baseCurrency: String,
+        exchangeRate: ExchangeRate?,
+    ): Boolean {
+        val scopedAccounts = if (selectedAccount != null) listOf(selectedAccount) else accounts
+        if (scopedAccounts.any {
+                !convertToBaseCurrency(
+                    amount = it.balance,
+                    sourceCurrency = it.currency,
+                    baseCurrency = baseCurrency,
+                    exchangeRate = exchangeRate,
+                ).canDisplayInBaseCurrency
+            }
+        ) {
+            return false
+        }
+
+        val currenciesByAccountId = accounts.associateBy(Account::id)
+        return transactions.all { transaction ->
+            val sourceCurrency = currenciesByAccountId[transaction.accountId]?.currency ?: return@all false
+            convertToBaseCurrency(
+                amount = transaction.amount,
+                sourceCurrency = sourceCurrency,
+                baseCurrency = baseCurrency,
+                exchangeRate = exchangeRate,
+            ).canDisplayInBaseCurrency
+        }
+    }
+
+    private fun convertToBaseCurrency(
+        amount: Double,
+        sourceCurrency: String,
+        baseCurrency: String,
+        exchangeRate: ExchangeRate?,
+    ): ConvertedAmount {
+        val normalizedSourceCurrency = normalizeCurrency(sourceCurrency)
+        if (normalizedSourceCurrency == baseCurrency) {
+            return ConvertedAmount(
+                amount = amount,
+                wasConverted = false,
+                canDisplayInBaseCurrency = true,
+            )
+        }
+
+        val rate = exchangeRate?.usdToKzt
+        return when {
+            normalizedSourceCurrency == KZT && baseCurrency == USD && rate != null ->
+                ConvertedAmount(
+                    amount = convertAmountUseCase(
+                        amount = amount,
+                        rate = rate,
+                        direction = ConversionDirection.KZT_TO_USD,
+                    ),
+                    wasConverted = true,
+                    canDisplayInBaseCurrency = true,
+                )
+
+            normalizedSourceCurrency == USD && baseCurrency == KZT && rate != null ->
+                ConvertedAmount(
+                    amount = convertAmountUseCase(
+                        amount = amount,
+                        rate = rate,
+                        direction = ConversionDirection.USD_TO_KZT,
+                    ),
+                    wasConverted = true,
+                    canDisplayInBaseCurrency = true,
+                )
+
+            else ->
+                ConvertedAmount(
+                    amount = amount,
+                    wasConverted = false,
+                    canDisplayInBaseCurrency = false,
+                )
+        }
+    }
+
+    private fun normalizeCurrency(currency: String): String {
+        return currency.trim().uppercase().ifBlank { KZT }
+    }
+
+    private companion object {
+        const val KZT = "KZT"
+        const val USD = "USD"
     }
 }

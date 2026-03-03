@@ -59,7 +59,7 @@
         "./gradlew compileDebugKotlin passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "Implement in presentation:transactions with minimal UI change, reusing existing currency string plumbing in TransactionListState/ViewModel and core/ui cards. Avoid changing Room schema in this iteration."
     },
     {
