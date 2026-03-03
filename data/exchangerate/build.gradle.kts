@@ -12,4 +12,6 @@ dependencies {
     implementation(projects.core.datastore)
 
     implementation(libs.bundles.coroutines)
+
+    testImplementation(libs.bundles.testing)
 }

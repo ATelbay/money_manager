@@ -9,4 +9,6 @@ android {
 
 dependencies {
     implementation(projects.core.model)
+
+    testImplementation(libs.bundles.testing)
 }
