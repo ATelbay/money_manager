@@ -44,15 +44,18 @@ Do NOT set `passes: true` if compilation fails.
 
 ### Remote CI mode (`--remote-run`)
 When env `RALPH_REMOTE_RUN=true` is set:
-- Do **not** run local heavy checks (`compileDebugKotlin`, `lint`, `test`) as blockers.
+- **Do NOT run any local `./gradlew` commands.**
+- Use GitHub Actions as the only validation source.
 - Work strictly one story per iteration.
 - After story implementation:
   1. Commit with `feat: [Story ID] - [Story Title]`
   2. Push to PR branch
   3. Ensure Draft PR exists (create if absent, reuse if present) via `gh pr view`/`gh pr create --draft`
-  4. Wait for CI: `gh pr checks <branch> --watch --fail-fast`
+  4. Wait for required CI checks: `gh pr checks <branch> --watch --required`
+- If CI fails:
+  - inspect failing checks/logs in GitHub (`gh pr view` + `gh run view --log-failed`)
+  - fix based on CI output, commit, push, and wait CI again.
 - Mark story `passes: true` **only if CI checks are green** for that story commit.
-- If CI fails, keep `passes: false`, log failure summary in `progress.txt`, and continue with fixes in the next iteration.
 
 CI is the source of truth for pass/fail in `--remote-run`.
 

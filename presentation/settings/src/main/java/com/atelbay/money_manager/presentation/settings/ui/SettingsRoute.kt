@@ -17,6 +17,8 @@ fun SettingsRoute(
     SettingsScreen(
         state = state,
         onThemeModeChange = viewModel::setThemeMode,
+        onBaseCurrencyChange = viewModel::setBaseCurrency,
+        onRefreshRateClick = viewModel::refreshExchangeRate,
         onCategoriesClick = onCategoriesClick,
         modifier = modifier,
     )

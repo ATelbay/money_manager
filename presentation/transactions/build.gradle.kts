@@ -10,7 +10,10 @@ dependencies {
     implementation(projects.domain.transactions)
     implementation(projects.domain.categories)
     implementation(projects.domain.accounts)
+    implementation(projects.domain.exchangerate)
     implementation(projects.core.model)
     implementation(projects.core.ui)
     implementation(projects.core.datastore)
+
+    testImplementation(libs.bundles.testing)
 }

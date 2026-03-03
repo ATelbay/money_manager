@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -53,6 +54,8 @@ import com.atelbay.money_manager.core.ui.theme.Teal
 fun SettingsScreen(
     state: SettingsState,
     onThemeModeChange: (ThemeMode) -> Unit,
+    onBaseCurrencyChange: (BaseCurrency) -> Unit,
+    onRefreshRateClick: () -> Unit,
     onCategoriesClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -110,11 +113,75 @@ fun SettingsScreen(
                     SettingRow(
                         icon = Icons.Default.AttachMoney,
                         iconColor = Color(0xFFFBBF24),
-                        title = "Валюта",
-                        subtitle = "KZT — Казахстанский тенге",
-                        hasChevron = true,
-                        enabled = false,
+                        title = "Курс USD/KZT",
+                        subtitle = state.rateDisplay.ifEmpty { "Курс ещё не загружен" },
+                        rightText = if (state.isRefreshingRate) "..." else null,
+                        modifier = Modifier.testTag("settings:exchangeRate"),
                     )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 0.5.dp,
+                        color = colors.borderSubtle,
+                    )
+
+                    SettingRow(
+                        icon = Icons.Default.Info,
+                        iconColor = Color(0xFF60A5FA),
+                        title = "Последнее обновление",
+                        subtitle = state.lastUpdatedDisplay.ifEmpty { "Ещё не обновлялся" },
+                        modifier = Modifier.testTag("settings:lastUpdated"),
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 0.5.dp,
+                        color = colors.borderSubtle,
+                    )
+
+                    SettingRow(
+                        icon = Icons.Default.Refresh,
+                        iconColor = Teal,
+                        title = "Обновить курс",
+                        subtitle = if (state.isRefreshingRate) {
+                            "Выполняется обновление"
+                        } else {
+                            "Загрузить актуальный курс НБК"
+                        },
+                        onClick = onRefreshRateClick,
+                        modifier = Modifier.testTag("settings:refreshRate"),
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Базовая валюта",
+                        style = typography.caption,
+                        color = colors.textSecondary,
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+
+                    BaseCurrencySelector(
+                        selected = state.baseCurrency,
+                        onSelect = onBaseCurrencyChange,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("settings:baseCurrencySelector"),
+                    )
+
+                    if (state.rateErrorMessage != null) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = state.rateErrorMessage,
+                            style = typography.caption,
+                            color = Color(0xFFFCA5A5),
+                            modifier = Modifier.testTag("settings:rateError"),
+                        )
+                    }
                 }
             }
 
@@ -190,6 +257,89 @@ private fun SectionHeader(title: String) {
         color = colors.textSecondary,
         modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
     )
+}
+
+// ── Base Currency Selector ──
+
+@Composable
+private fun BaseCurrencySelector(
+    selected: BaseCurrency,
+    onSelect: (BaseCurrency) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MoneyManagerTheme.colors
+
+    data class CurrencyOption(
+        val currency: BaseCurrency,
+        val label: String,
+        val subtitle: String,
+    )
+
+    val options = listOf(
+        CurrencyOption(
+            currency = BaseCurrency.KZT,
+            label = "KZT",
+            subtitle = "Тенге",
+        ),
+        CurrencyOption(
+            currency = BaseCurrency.USD,
+            label = "USD",
+            subtitle = "Доллар США",
+        ),
+    )
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        options.forEach { option ->
+            val isSelected = selected == option.currency
+
+            val bgColor by animateColorAsState(
+                targetValue = if (isSelected) Teal else Color.Transparent,
+                animationSpec = tween(250),
+                label = "baseCurrencyBg",
+            )
+            val contentColor by animateColorAsState(
+                targetValue = if (isSelected) Color.White else colors.textSecondary,
+                animationSpec = tween(250),
+                label = "baseCurrencyContent",
+            )
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(72.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(bgColor)
+                    .clickable { onSelect(option.currency) }
+                    .testTag(
+                        when (option.currency) {
+                            BaseCurrency.KZT -> "settings:baseCurrencyKzt"
+                            BaseCurrency.USD -> "settings:baseCurrencyUsd"
+                        },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        text = option.label,
+                        style = MoneyManagerTheme.typography.cardTitle,
+                        color = contentColor,
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = option.subtitle,
+                        style = MoneyManagerTheme.typography.caption,
+                        color = contentColor,
+                    )
+                }
+            }
+        }
+    }
 }
 
 // ── Setting Row ──
@@ -376,10 +526,15 @@ private fun SettingsScreenPreview() {
     MoneyManagerTheme(themeMode = "dark", dynamicColor = false) {
         SettingsScreen(
             state = SettingsState(
+                baseCurrency = BaseCurrency.USD,
+                rateDisplay = "1 USD = 512.34 KZT",
+                lastUpdatedDisplay = "03.03.2026 08:15",
                 themeMode = ThemeMode.DARK,
                 appVersion = "1.0.0",
             ),
             onThemeModeChange = {},
+            onBaseCurrencyChange = {},
+            onRefreshRateClick = {},
             onCategoriesClick = {},
         )
     }

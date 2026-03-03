@@ -67,7 +67,7 @@ Use this on slower VMs when you want GitHub Actions to be the source of truth pe
 What `--remote-run` implies automatically:
 1. Works one story per iteration
 2. Creates/reuses a Draft PR
-3. After each story: commit → push → wait CI (`gh pr checks --watch --fail-fast`)
+3. After each story: commit → push → wait required CI checks (`gh pr checks --watch --required`)
 4. Marks `passes:true` only after green CI on that story commit
 5. Local heavy checks are not used as blocking gates
 

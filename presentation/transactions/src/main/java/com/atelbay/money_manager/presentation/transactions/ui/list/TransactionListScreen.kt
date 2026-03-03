@@ -137,7 +137,7 @@ fun TransactionListScreen(
                 BalanceCard(
                     accountName = state.selectedAccountName ?: "Все счета",
                     balance = state.balance,
-                    currency = state.currency,
+                    currency = state.displayCurrency.ifBlank { state.currency },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -150,7 +150,7 @@ fun TransactionListScreen(
                 IncomeExpenseCard(
                     income = state.periodIncome,
                     expense = state.periodExpense,
-                    currency = state.currency,
+                    currency = state.displayCurrency.ifBlank { state.currency },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
