@@ -14,7 +14,7 @@
       ],
       "priority": 1,
       "passes": false,
-      "notes": "For --remote-run mode, CI is the pass gate; local heavy checks are optional."
+      "notes": "For --remote-run mode, CI is the pass gate; leave passes=false during the coding iteration and let Ralph shell flip it after green CI."
     },
     {
       "id": "US-002",

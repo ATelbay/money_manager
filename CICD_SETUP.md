@@ -5,6 +5,17 @@
 Для работы пайплайна нужно настроить следующие secrets в GitHub:
 **Settings → Secrets and variables → Actions**
 
+### Common CI / Debug Build
+
+| Secret | Описание |
+|--------|----------|
+| `GOOGLE_SERVICES_JSON` | `app/google-services.json` в base64 для CI, `QA Build` и debug-сборок |
+
+**Подготовка:**
+1. Возьми локальный `app/google-services.json`
+2. Закодируй файл в base64
+3. Сохрани результат в secret `GOOGLE_SERVICES_JSON`
+
 ### Signing (для Release сборок)
 
 | Secret | Описание |
@@ -51,20 +62,29 @@ keytool -genkey -v -keystore money_manager-release.jks \
 ## Структура веток
 
 ```
-main          ← production releases, protected
+main          ← основная и protected ветка
   ↑
-develop       ← integration branch
-  ↑
-feature/*     ← feature branches
+feature/*     ← обычные ручные feature branches
+ralph/*       ← ветки автономных Ralph-run'ов
 ```
 
 ## Workflow
 
 | Событие | Что происходит |
 |---------|----------------|
-| PR → develop/main | Lint + Tests + Build |
-| Push → main | + UI Tests + Firebase Distribution |
-| Tag v*.*.* | + Deploy to Play Store (internal track) |
+| PR → main | `Compile Debug Kotlin` + `Lint & Analysis` + `Unit Tests` |
+| Manual `QA Build` | Debug APK build + artifact upload |
+| Manual `Build Debug APK` | Debug APK build + artifact upload |
+| Tag `v*` | Release pipeline: release artifacts + optional Firebase / Play / GitHub Release |
+
+## Branch Protection (recommended)
+
+Для `main` стоит включить branch protection и сделать required checks:
+1. `Compile Debug Kotlin`
+2. `Lint & Analysis`
+3. `Unit Tests`
+
+Это особенно важно для `ralph/*` PR: `--remote-run` считает GitHub CI основным gate после каждой итерации.
 
 ## Продвижение в Play Store
 
@@ -87,8 +107,8 @@ feature/*     ← feature branches
 # Установить act (https://github.com/nektos/act)
 brew install act
 
-# Запустить workflow локально
-act push --job check
+# Прогнать compile gate локально
+act pull_request --job compile
 ```
 
 ## Полезные команды

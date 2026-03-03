@@ -3,7 +3,7 @@
 You are an autonomous coding agent working on the MoneyManager Android project.
 
 You have **no memory of previous iterations**. Each iteration starts with a completely fresh context.
-Your only sources of state are: `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`, and git history.
+Your only sources of state are: `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`, git history, and any repair context that Ralph shell injects for the current story.
 Read them carefully before doing anything.
 
 ## Your Task
@@ -20,8 +20,10 @@ Read them carefully before doing anything.
 6. Implement that single user story
 7. Run quality checks (see below)
 8. If checks pass, commit ALL changes with message: `feat: [Story ID] - [Story Title]`
-9. Update the PRD to set `passes: true` for the completed story
+9. In default mode, update the PRD to set `passes: true` for the completed story
 10. Append your progress to `scripts/ralph/progress.txt`
+
+In `--remote-run`, Ralph shell will handle `git push`, PR creation/reuse, waiting for CI, and setting `passes: true` only after CI is green. Your responsibility is to leave the repo in a clean, committed state on the PRD branch.
 
 ## Project-Specific Quality Checks
 
@@ -45,19 +47,18 @@ Do NOT set `passes: true` if compilation fails.
 ### Remote CI mode (`--remote-run`)
 When env `RALPH_REMOTE_RUN=true` is set:
 - **Do NOT run any local `./gradlew` commands.**
-- Use GitHub Actions as the only validation source.
 - Work strictly one story per iteration.
-- After story implementation:
-  1. Commit with `feat: [Story ID] - [Story Title]`
-  2. Push to PR branch
-  3. Ensure Draft PR exists (create if absent, reuse if present) via `gh pr view`/`gh pr create --draft`
-  4. Wait for required CI checks: `gh pr checks <branch> --watch --required`
-- If CI fails:
-  - inspect failing checks/logs in GitHub (`gh pr view` + `gh run view --log-failed`)
-  - fix based on CI output, commit, push, and wait CI again.
-- Mark story `passes: true` **only if CI checks are green** for that story commit.
-
-CI is the source of truth for pass/fail in `--remote-run`.
+- After implementing the story:
+  1. Leave the active story as `passes: false`
+  2. Append to `scripts/ralph/progress.txt`
+  3. Commit locally with `feat: [Story ID] - [Story Title]`
+- Leave **no uncommitted changes** behind. If you leave a dirty working tree, Ralph shell will fail the run.
+- Do **not** run `gh pr checks`, `gh workflow run`, `gh run watch`, or other long-lived CI waiting/orchestration commands yourself.
+- Do **not** create, edit, or mark PRs ready yourself unless the prompt explicitly asks for a one-off diagnostic read.
+- Ralph shell will push the branch, create/reuse the Draft PR, and wait for required CI checks after your iteration.
+- If the injected prompt says you are fixing a CI failure for the current story, stay on that story and repair the existing branch state. Do **not** start a new story.
+- If the injected PR/check snapshot shows failing checks, use that information to guide the fix in this iteration.
+- In `--remote-run`, your local commit is the candidate result; GitHub CI is the final validation gate immediately after the iteration, and Ralph shell flips `passes: true` after green CI.
 
 ## Progress Report Format
 
@@ -97,6 +98,8 @@ If ALL stories are complete and passing, reply with:
 
 If there are still stories with `passes: false`, end your response normally (another iteration will pick up the next story).
 
+In `--remote-run`, do **not** emit `<promise>COMPLETE</promise>`. Ralph shell decides completion after CI has marked every story as passed.
+
 ## PRD Generation
 
 `scripts/ralph/prd.json` can be created in two ways:
@@ -114,4 +117,5 @@ The `prd-agent.md` prompt is self-contained: it describes how to explore the Mon
 - Read the Codebase Patterns section in progress.txt before starting
 - Follow existing code patterns in the MoneyManager project
 - Read relevant `.claude/skills/*.md` files for detailed conventions
+- In `--remote-run`, leave the branch clean and committed; Ralph shell handles push/PR/CI synchronization and pass-marking after CI
 - Never commit `prd.json` or `progress.txt` to the `main` branch — they belong only in `ralph/*` feature branches
