@@ -73,7 +73,7 @@
         "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "Follow existing test style in core/parser tests and app screenshot/unit tests. Prefer pure unit tests with fakes over instrumentation."
     }
   ]

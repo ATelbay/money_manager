@@ -7,6 +7,7 @@ Started: Mon Mar  2 20:15:48 UTC 2026
 - `presentation:settings` stores persisted options in `UserPreferences` as simple string codes, then maps them into typed enums inside `SettingsViewModel` for UI state.
 - When a screen shows converted summary totals but unconverted row amounts, keep a separate `displayCurrency` in UI state instead of reusing the per-row `currency` label.
 - Feature ViewModel unit tests in this repo can stay as pure JVM tests by wiring fake repositories plus mocked `UserPreferences` flows and driving coroutine timing with `StandardTestDispatcher`.
+- Module-local JVM tests should prefer JUnit assertions (`fail` + explicit `try/catch`) unless the module already declares `kotlin-test`; relying on `assertFailsWith` without that dependency can break CI-only test compilation.
 
 ## [2026-03-02 23:24:44 UTC] - US-001
 - Validated and finalized the new `:domain:exchangerate` module for USD/KZT support, including the `ExchangeRateRepository` contract, `ExchangeRate` model, `GetUsdKztRateUseCase`, `ConvertAmountUseCase`, and `ConversionDirection`.
@@ -57,4 +58,13 @@ Started: Mon Mar  2 20:15:48 UTC 2026
   - Patterns discovered (e.g., "this codebase uses X for Y"): unit-test-only stories can often be satisfied entirely with JVM tests by adding the shared `libs.bundles.testing` bundle to the specific modules under test.
   - Gotchas encountered (e.g., "don't forget to update Z when changing W"): `compileDebugKotlin` does not compile test sources, so module test dependencies must be added explicitly or the story will look complete while test tasks fail later.
   - Useful context (e.g., "the evaluation panel is in component X"): `TransactionListViewModel` uses a debounced search flow, so tests that assert initial combined state should set `Dispatchers.Main` to a `StandardTestDispatcher` and advance virtual time before reading state.
+---
+## [2026-03-03 12:46:17 UTC] - US-005
+- Replaced the repository fallback test's `kotlin.test.assertFailsWith` usage with a JUnit-only `try/catch` plus `fail`, which removes the hidden dependency on `kotlin-test` and matches the module's declared test stack.
+- Pushed commit `fed964e` (`feat: [US-005] - [Cover conversion logic with unit tests]`), converted PR #25 back to draft, and validated the story in GitHub Actions: `Unit Tests` passed in 3m44s and `Lint & Analysis` passed in 5m7s.
+- Files changed: `data/exchangerate/src/test/java/com/atelbay/money_manager/data/exchangerate/repository/ExchangeRateRepositoryImplTest.kt`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+- **Learnings for future iterations:**
+  - Patterns discovered (e.g., "this codebase uses X for Y"): module-local JVM tests should stick to JUnit assertions unless `kotlin-test` is intentionally added, because CI compiles test sources against only declared module dependencies.
+  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): a green remote run is only attributable to the latest story once the PR head updates; earlier in-progress checks on the previous commit do not satisfy the story.
+  - Useful context (e.g., "the evaluation panel is in component X"): PR #25 now has green required checks for commit `fed964e1f8bec3bb731d266e87b4616394c659a4`, so `US-005` can be marked passing in `scripts/ralph/prd.json`.
 ---
