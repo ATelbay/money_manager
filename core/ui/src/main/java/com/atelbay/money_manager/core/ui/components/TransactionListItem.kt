@@ -137,7 +137,7 @@ fun TransactionListItem(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                    )
+                    }
                     Text(
                         text = date,
                         style = typography.caption,
