@@ -182,6 +182,52 @@ ensure_gh_ready() {
   fi
 }
 
+ensure_prd_branch_checked_out() {
+  local active_branch
+  active_branch=$(git branch --show-current 2>/dev/null || echo "")
+  if [[ "$active_branch" == "$BRANCH_NAME" ]]; then
+    return 0
+  fi
+
+  echo "Switching to PRD branch: $BRANCH_NAME"
+
+  if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
+    if ! git checkout "$BRANCH_NAME"; then
+      echo "ERROR: Failed to checkout local branch '$BRANCH_NAME'."
+      exit 1
+    fi
+    return 0
+  fi
+
+  if git ls-remote --exit-code --heads origin "$BRANCH_NAME" >/dev/null 2>&1; then
+    if ! git fetch origin "$BRANCH_NAME:$BRANCH_NAME"; then
+      echo "ERROR: Failed to fetch remote branch '$BRANCH_NAME'."
+      exit 1
+    fi
+    if ! git checkout "$BRANCH_NAME"; then
+      echo "ERROR: Failed to checkout fetched branch '$BRANCH_NAME'."
+      exit 1
+    fi
+    return 0
+  fi
+
+  if ! git show-ref --verify --quiet "refs/heads/$TARGET_BASE_BRANCH"; then
+    git fetch origin "$TARGET_BASE_BRANCH:$TARGET_BASE_BRANCH" >/dev/null 2>&1 || true
+  fi
+
+  if git show-ref --verify --quiet "refs/heads/$TARGET_BASE_BRANCH"; then
+    if ! git checkout -B "$BRANCH_NAME" "$TARGET_BASE_BRANCH"; then
+      echo "ERROR: Failed to create '$BRANCH_NAME' from '$TARGET_BASE_BRANCH'."
+      exit 1
+    fi
+  else
+    if ! git checkout -B "$BRANCH_NAME"; then
+      echo "ERROR: Failed to create '$BRANCH_NAME'."
+      exit 1
+    fi
+  fi
+}
+
 require_active_branch() {
   local active_branch
   active_branch=$(git branch --show-current 2>/dev/null || echo "")
@@ -432,43 +478,97 @@ EOF
 wait_required_checks() {
   local branch="$1"
   local pr_url="${2:-}"
-  local snapshot
+  local snapshot checks_output checks_exit
   local effective_pr_url="$pr_url"
+  local max_attempts="${RALPH_CHECKS_BOOTSTRAP_RETRIES:-12}"
+  local sleep_seconds="${RALPH_CHECKS_BOOTSTRAP_SLEEP_SEC:-10}"
+  local attempt=1
+  local check_count=0
+  local incomplete_count=0
+
   CHECKS_LAST_SNAPSHOT="{}"
   CHECKS_LAST_FAILURE_SUMMARY="- none"
 
-  echo ""
-  echo "Waiting for required CI checks..."
-  # gh CLI (Mar 2026) supports --watch/--required; --fail-fast is not available
-  if gh pr checks "$branch" --watch --required 2>&1; then
-    echo "CI passed!"
-    return 0
-  fi
+  while (( attempt <= max_attempts )); do
+    echo ""
+    echo "Waiting for required CI checks... (attempt $attempt/$max_attempts)"
 
-  if ! snapshot=$(gh pr view "$branch" --json url,statusCheckRollup 2>/dev/null); then
-    echo "ERROR: gh pr checks failed and Ralph could not read PR status afterwards."
-    echo "Treating this as a GitHub CLI/API issue, not a code failure."
-    return 2
-  fi
+    checks_output=$(gh pr checks "$branch" --watch --required 2>&1)
+    checks_exit=$?
+    [[ -n "$checks_output" ]] && echo "$checks_output"
 
-  CHECKS_LAST_SNAPSHOT="$snapshot"
-  CHECKS_LAST_FAILURE_SUMMARY=$(extract_failed_checks "$snapshot")
-  if [[ "$CHECKS_LAST_FAILURE_SUMMARY" == "- none" ]]; then
-    echo "ERROR: gh pr checks failed but no blocking failed checks were found in PR status."
-    echo "Treating this as a GitHub CLI/API issue, not a code failure."
-    return 2
-  fi
+    if [[ "$checks_exit" -eq 0 ]]; then
+      echo "CI passed!"
+      return 0
+    fi
 
-  if [[ -z "$effective_pr_url" ]]; then
-    effective_pr_url=$(jq -r '.url // empty' <<<"$snapshot")
-  fi
+    if ! snapshot=$(gh pr view "$branch" --json url,statusCheckRollup 2>/dev/null); then
+      if (( attempt == max_attempts )); then
+        echo "ERROR: gh pr checks failed and Ralph could not read PR status afterwards."
+        echo "Treating this as a GitHub CLI/API issue, not a code failure."
+        return 2
+      fi
+      echo "WARN: Unable to read PR status snapshot; retrying in ${sleep_seconds}s..."
+      sleep "$sleep_seconds"
+      ((attempt++))
+      continue
+    fi
 
-  if [[ -n "$effective_pr_url" ]]; then
-    echo "CI failed. Check PR for details: $effective_pr_url"
-  else
-    echo "CI failed."
-  fi
-  return 1
+    CHECKS_LAST_SNAPSHOT="$snapshot"
+    CHECKS_LAST_FAILURE_SUMMARY=$(extract_failed_checks "$snapshot")
+
+    if [[ -z "$effective_pr_url" ]]; then
+      effective_pr_url=$(jq -r '.url // empty' <<<"$snapshot")
+    fi
+
+    if [[ "$CHECKS_LAST_FAILURE_SUMMARY" != "- none" ]]; then
+      if [[ -n "$effective_pr_url" ]]; then
+        echo "CI failed. Check PR for details: $effective_pr_url"
+      else
+        echo "CI failed."
+      fi
+      return 1
+    fi
+
+    check_count=$(jq -r '[.statusCheckRollup[]?] | length' <<<"$snapshot")
+    incomplete_count=$(jq -r '
+      [
+        .statusCheckRollup[]?
+        | if .status? != null then
+            ((.status | ascii_upcase) != "COMPLETED")
+          elif .state? != null then
+            ((.state | ascii_upcase) == "PENDING" or (.state | ascii_upcase) == "EXPECTED" or (.state | ascii_upcase) == "IN_PROGRESS")
+          else
+            false
+          end
+        | select(. == true)
+      ]
+      | length
+    ' <<<"$snapshot")
+
+    if [[ "$check_count" -gt 0 && "$incomplete_count" -eq 0 ]]; then
+      echo "CI passed! (all reported checks completed successfully)"
+      return 0
+    fi
+
+    if (( attempt == max_attempts )); then
+      echo "ERROR: Timed out while waiting for required checks to appear/settle."
+      echo "Treating this as a GitHub CLI/API issue, not a code failure."
+      return 2
+    fi
+
+    if [[ "$check_count" -eq 0 ]]; then
+      echo "No checks reported yet; retrying in ${sleep_seconds}s..."
+    else
+      echo "Checks still running (${incomplete_count} unfinished); retrying in ${sleep_seconds}s..."
+    fi
+
+    sleep "$sleep_seconds"
+    ((attempt++))
+  done
+
+  echo "ERROR: Unexpected CI wait loop termination."
+  return 2
 }
 
 latest_workflow_run_id() {
@@ -529,9 +629,24 @@ sync_remote_run_iteration() {
   wait_required_checks "$BRANCH_NAME" "$PR_URL"
   wait_status=$?
   if [[ "$wait_status" -eq 2 ]]; then
-    echo "ERROR: Unable to determine CI state due to GitHub CLI/API failure."
+    local transient_retries="${RALPH_CHECKS_TRANSIENT_RETRIES:-3}"
+    local transient_sleep="${RALPH_CHECKS_TRANSIENT_SLEEP_SEC:-15}"
+    local transient_attempt=1
+
+    while [[ "$wait_status" -eq 2 && "$transient_attempt" -le "$transient_retries" ]]; do
+      echo "WARN: CI status unavailable (transient GitHub/API state). Retry ${transient_attempt}/${transient_retries} in ${transient_sleep}s..."
+      sleep "$transient_sleep"
+      wait_required_checks "$BRANCH_NAME" "$PR_URL"
+      wait_status=$?
+      ((transient_attempt++))
+    done
+  fi
+
+  if [[ "$wait_status" -eq 2 ]]; then
+    echo "ERROR: Unable to determine CI state after retries due to GitHub CLI/API instability."
     exit 1
   fi
+
   if [[ "$wait_status" -ne 0 ]]; then
     snapshot="${CHECKS_LAST_SNAPSHOT:-$(get_pr_snapshot)}"
     failed_checks="${CHECKS_LAST_FAILURE_SUMMARY:-$(extract_failed_checks "$snapshot")}"
@@ -547,6 +662,8 @@ sync_remote_run_iteration() {
   REMOTE_CI_PASSED=true
   echo "CI passed for $story_id. Marked as passed locally."
 }
+
+ensure_prd_branch_checked_out
 
 INITIAL_PENDING_STORIES=$(count_pending_stories)
 if [[ "$REMOTE_RUN" != "true" && -f "$REMOTE_STATE_FILE" ]]; then
