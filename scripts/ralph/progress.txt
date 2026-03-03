@@ -104,3 +104,12 @@ Started: Tue Mar  3 20:19:14 UTC 2026
   - Gotchas encountered (e.g., "don't forget to update Z when changing W"): expanding `MoneyManagerColors` requires updating both `LightMoneyManagerColors` and `DarkMoneyManagerColors` immediately, or the theme stops compiling.
   - Useful context (e.g., "the evaluation panel is in component X"): `MoneyManagerFAB.kt` is the single shared FAB used by the list screens in transactions, categories, and accounts, so color changes there apply app-wide.
 ---
+## [2026-03-03 22:14:26 UTC] - US-005
+- Tightened the shared FAB accent from the softer tertiary container pair to the stronger tertiary role pair, so the button reads as a clearly contrasty primary action in both light and dark themes.
+- Kept the shared semantic FAB tokens and `MoneyManagerFAB` component contract unchanged, so the transactions, categories, and accounts screens all inherit the stronger accent without any screen-level edits.
+- Files changed: `core/ui/src/main/java/com/atelbay/money_manager/core/ui/theme/Color.kt`, `scripts/ralph/progress.txt`
+- **Learnings for future iterations:**
+  - Patterns discovered (e.g., "this codebase uses X for Y"): for shared high-emphasis actions, semantic component tokens can still map to full Material color roles instead of container roles when the UI needs a stronger contrast target.
+  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): using a container tone for a global primary affordance may technically work but still undershoot the visual emphasis required by product acceptance criteria.
+  - Useful context (e.g., "the evaluation panel is in component X"): `fabContainer`/`fabContent` remain the only knobs for app-wide FAB color, so future polish work should adjust those theme tokens first.
+---
