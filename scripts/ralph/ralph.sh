@@ -302,7 +302,19 @@ validate_remote_story_iteration() {
     commit_range="HEAD"
   fi
 
-  other_story_commits=$(git log --format=%s "$commit_range" 2>/dev/null | grep -E '^feat: \[[^]]+\] - ' | grep -vF "feat: [$story_id] - " || true)
+  other_story_commits=$(git log --format=%s "$commit_range" 2>/dev/null | awk -v sid="$story_id" '
+    /^feat: / {
+      id = ""
+      if (match($0, /^feat: \[([^]]+)\] - /, m)) {
+        id = m[1]
+      } else if (match($0, /^feat: ([A-Za-z]+-[0-9]+) - /, m)) {
+        id = m[1]
+      }
+      if (id != "" && id != sid) {
+        print $0
+      }
+    }
+  ' || true)
   if [[ -n "$other_story_commits" ]]; then
     echo "ERROR: --remote-run iteration targeted a different story while $story_id is active."
     printf '%s\n' "$other_story_commits"
@@ -310,10 +322,16 @@ validate_remote_story_iteration() {
   fi
 
   head_subject=$(git log -1 --format=%s HEAD 2>/dev/null || echo "")
-  if [[ "$repair_mode" != "true" && ! "$head_subject" =~ ^feat:\ \[$story_id\]\ -\  ]]; then
-    echo "ERROR: Expected latest commit to target $story_id in --remote-run."
-    echo "Latest commit: ${head_subject:-<none>}"
-    exit 1
+  if [[ "$repair_mode" != "true" ]]; then
+    if [[ "$head_subject" =~ ^feat:\ \[$story_id\]\ -\  ]]; then
+      :
+    elif [[ "$head_subject" =~ ^feat:\ $story_id\ -\  ]]; then
+      echo "WARN: Non-canonical commit subject format detected for $story_id; expected 'feat: [$story_id] - ...'."
+    else
+      echo "ERROR: Expected latest commit to target $story_id in --remote-run."
+      echo "Latest commit: ${head_subject:-<none>}"
+      exit 1
+    fi
   fi
 }
 
