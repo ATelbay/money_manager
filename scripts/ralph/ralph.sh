@@ -128,11 +128,23 @@ if [ ! -f "$PROGRESS_FILE" ]; then
   echo "---" >> "$PROGRESS_FILE"
 fi
 
-# Validate prd.json exists and has pending stories
+# Validate prd.json exists, schema basics, and branch
 if [ ! -f "$PRD_FILE" ]; then
   echo "Error: scripts/ralph/prd.json not found. Create it before running Ralph."
   exit 1
 fi
+
+if ! jq -e '.userStories and (.userStories | type == "array") and (.userStories | length > 0)' "$PRD_FILE" > /dev/null 2>&1; then
+  echo "Error: scripts/ralph/prd.json is invalid: .userStories must be a non-empty array."
+  exit 1
+fi
+
+BRANCH_NAME=$(jq -r '.branchName // empty' "$PRD_FILE" 2>/dev/null)
+if [[ -z "$BRANCH_NAME" ]]; then
+  echo "Error: scripts/ralph/prd.json is invalid: .branchName is required."
+  exit 1
+fi
+
 if ! jq -e '.userStories[] | select(.passes == false)' "$PRD_FILE" > /dev/null 2>&1; then
   if [[ "$CREATE_PR" == "false" && "$DOWNLOAD_APK" == "false" ]]; then
     echo "Nothing to do: all stories in prd.json have passes: true."
@@ -173,7 +185,7 @@ build_agent_prompt() {
 
   if [[ "$REMOTE_RUN" == "true" ]]; then
     local branch
-    branch=$(jq -r '.branchName // empty' "$PRD_FILE" 2>/dev/null)
+    branch="$BRANCH_NAME"
     local pr_json failed_checks
     pr_json=$(gh pr view "$branch" --json mergeable,mergeStateStatus,statusCheckRollup,url 2>/dev/null || echo '{}')
     failed_checks=$(echo "$pr_json" | jq -r '.statusCheckRollup[]? | select((.conclusion // "") == "FAILURE") | "- \(.name // "check") :: \(.detailsUrl // "")"')
@@ -218,16 +230,30 @@ for i in $(seq 1 $MAX_ITERATIONS); do
     rm -f "$AGENT_PROMPT_FILE"
   fi
   
-  # Check for completion signal
+  # Check for completion signal (guard against false positives)
   if echo "$OUTPUT" | grep -q "<promise>COMPLETE</promise>"; then
+    PENDING_STORIES=$(jq -r '[.userStories[] | select(.passes != true)] | length' "$PRD_FILE" 2>/dev/null || echo "999")
+
+    if [[ "$PENDING_STORIES" != "0" ]]; then
+      echo ""
+      echo "WARNING: Agent signaled COMPLETE but $PENDING_STORIES stories still have passes=false. Ignoring completion signal."
+      echo "Iteration $i complete. Continuing..."
+      sleep 2
+      continue
+    fi
+
     echo ""
     echo "Ralph completed all tasks!"
     echo "Completed at iteration $i of $MAX_ITERATIONS"
 
     # Create PR if --pr flag was passed
     if [[ "$CREATE_PR" == "true" ]]; then
-      BRANCH=$(jq -r '.branchName // empty' "$PRD_FILE" 2>/dev/null)
+      BRANCH="$BRANCH_NAME"
       DESCRIPTION=$(jq -r '.description // "Ralph auto-PR"' "$PRD_FILE" 2>/dev/null)
+      if [[ -z "$BRANCH" ]]; then
+        echo "ERROR: Empty branchName in prd.json. Aborting PR flow."
+        exit 1
+      fi
       STORY_SUMMARY=$(jq -r '.userStories[] | "- [x] \(.id): \(.title)"' "$PRD_FILE" 2>/dev/null)
 
       echo ""
@@ -336,21 +362,30 @@ EOF
       echo ""
       echo "Waiting for CI checks..."
       # gh CLI (Mar 2026) supports --watch/--required; --fail-fast is not available
+      CI_STATUS="failed"
       if gh pr checks "$BRANCH" --watch --required 2>&1; then
+        CI_STATUS="passed"
         echo "CI passed!"
       else
         echo "CI failed. Check PR for details: $PR_URL"
+        exit 1
       fi
 
-      # Trigger QA Build manually
-      echo ""
-      echo "Triggering QA Build..."
-      gh workflow run "QA Build" --ref "$BRANCH"
-      sleep 5
+      # Trigger QA Build only for final, review-passed state
+      ALL_PASSED=$(jq -r '[.userStories[] | select(.passes==false)] | length' "$PRD_FILE" 2>/dev/null)
+      if [[ "$REVIEW_CLEAN" == "true" && "$ALL_PASSED" == "0" && "$CI_STATUS" == "passed" ]]; then
+        echo ""
+        echo "Triggering QA Build..."
+        gh workflow run "QA Build" --ref "$BRANCH"
+        sleep 5
+      else
+        echo ""
+        echo "Skipping QA Build (not final or review not clean)."
+      fi
 
-      # Wait for QA Build to complete
-      RUN_ID=$(gh run list --branch "$BRANCH" --workflow "QA Build" --limit 1 --json databaseId,status -q '.[0].databaseId' 2>/dev/null)
-      if [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ]; then
+      # Wait for QA Build to complete (if triggered)
+      RUN_ID=$(gh run list --branch "$BRANCH" --workflow "QA Build" --limit 1 --json databaseId,status,createdAt -q '.[0].databaseId' 2>/dev/null)
+      if [[ "$REVIEW_CLEAN" == "true" && "$ALL_PASSED" == "0" ]] && [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ]; then
         echo "QA Build run ID: $RUN_ID"
         echo "$RUN_ID" > "$SCRIPT_DIR/.qa-run-id"
 
@@ -364,7 +399,6 @@ EOF
         else
           REVIEW_STATUS="UNRESOLVED"
         fi
-        CI_STATUS="passed"
         STORIES_JSON=$(jq '[.userStories[] | {id: .id, title: .title}]' "$PRD_FILE")
         jq -n \
           --arg branch "$BRANCH" \

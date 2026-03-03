@@ -7,10 +7,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -50,6 +50,9 @@ fun TransactionListItem(
     isIncome: Boolean,
     modifier: Modifier = Modifier,
     currency: String = "\u20B8",
+    secondaryAmount: Double? = null,
+    secondaryCurrency: String? = null,
+    secondaryAmountLabel: String? = null,
     onClick: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
 ) {
@@ -58,6 +61,13 @@ fun TransactionListItem(
     val formatter = NumberFormat.getNumberInstance(Locale.US).apply {
         minimumFractionDigits = 2
         maximumFractionDigits = 2
+    }
+    val sign = if (isIncome) "+" else "\u2212"
+    val primaryAmountText = "$sign$currency ${formatter.format(amount)}"
+    val secondaryAmountText = secondaryAmount?.let {
+        val resolvedCurrency = secondaryCurrency ?: currency
+        val formattedAmount = "$sign$resolvedCurrency ${formatter.format(it)}"
+        secondaryAmountLabel?.let { label -> "$label $formattedAmount" } ?: formattedAmount
     }
 
     val content = @Composable {
@@ -70,7 +80,7 @@ fun TransactionListItem(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(72.dp),
+                    .defaultMinSize(minHeight = 72.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -113,10 +123,21 @@ fun TransactionListItem(
                     horizontalAlignment = Alignment.End,
                 ) {
                     Text(
-                        text = "${if (isIncome) "+" else "\u2212"}$currency ${formatter.format(amount)}",
+                        text = primaryAmountText,
                         style = typography.amount,
                         color = if (isIncome) colors.incomeForeground else colors.expenseForeground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
+                    if (secondaryAmountText != null) {
+                        Text(
+                            text = secondaryAmountText,
+                            style = typography.caption,
+                            color = colors.textSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                     Text(
                         text = date,
                         style = typography.caption,

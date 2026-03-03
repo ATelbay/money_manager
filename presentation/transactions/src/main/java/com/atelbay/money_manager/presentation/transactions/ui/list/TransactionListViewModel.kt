@@ -14,6 +14,7 @@ import com.atelbay.money_manager.domain.exchangerate.usecase.GetUsdKztRateUseCas
 import com.atelbay.money_manager.domain.transactions.usecase.DeleteTransactionUseCase
 import com.atelbay.money_manager.domain.transactions.usecase.GetTransactionsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -147,6 +148,12 @@ class TransactionListViewModel @Inject constructor(
             } else {
                 data.accounts.firstOrNull()?.currency.orEmpty()
             }
+            val transactionRows = mapTransactionRows(
+                transactions = searchFiltered,
+                accounts = data.accounts,
+                baseCurrency = data.baseCurrency,
+                exchangeRate = data.exchangeRate,
+            )
             val summaryMetrics = resolveSummaryMetrics(
                 selectedAccount = selectedAccount,
                 accounts = data.accounts,
@@ -158,7 +165,7 @@ class TransactionListViewModel @Inject constructor(
 
             _state.update {
                 it.copy(
-                    transactions = searchFiltered.toImmutableList(),
+                    transactionRows = transactionRows,
                     searchQuery = filters.searchQuery,
                     balance = summaryMetrics.balance,
                     currency = currency,
@@ -199,6 +206,47 @@ class TransactionListViewModel @Inject constructor(
         viewModelScope.launch {
             deleteTransactionUseCase(id)
         }
+    }
+
+    private fun mapTransactionRows(
+        transactions: List<Transaction>,
+        accounts: List<Account>,
+        baseCurrency: String,
+        exchangeRate: ExchangeRate?,
+    ): ImmutableList<TransactionRowState> {
+        val currenciesByAccountId = accounts.associateBy(Account::id)
+        val normalizedBaseCurrency = normalizeCurrency(baseCurrency)
+
+        return transactions.map { transaction ->
+            val accountCurrency = currenciesByAccountId[transaction.accountId]?.currency
+            val originalCurrency = accountCurrency?.let(::normalizeCurrency).orEmpty()
+            val convertedResult = accountCurrency?.let {
+                convertToBaseCurrency(
+                    amount = transaction.amount,
+                    sourceCurrency = it,
+                    baseCurrency = normalizedBaseCurrency,
+                    exchangeRate = exchangeRate,
+                )
+            }
+            val hasConvertedAmount = convertedResult?.let {
+                it.canDisplayInBaseCurrency && it.wasConverted
+            } == true
+
+            TransactionRowState(
+                transaction = transaction,
+                originalAmount = transaction.amount,
+                originalCurrency = originalCurrency,
+                convertedAmount = convertedResult
+                    ?.takeIf { hasConvertedAmount }
+                    ?.amount,
+                convertedCurrency = normalizedBaseCurrency.takeIf { hasConvertedAmount },
+                conversionStatus = if (hasConvertedAmount) {
+                    ConversionStatus.AVAILABLE
+                } else {
+                    ConversionStatus.UNAVAILABLE
+                },
+            )
+        }.toImmutableList()
     }
 
     private fun periodToRange(

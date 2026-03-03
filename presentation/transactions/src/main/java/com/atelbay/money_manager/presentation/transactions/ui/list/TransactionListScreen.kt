@@ -61,6 +61,8 @@ import java.time.ZoneId
 import java.util.Date
 import java.util.Locale
 
+private const val ORIGINAL_AMOUNT_LABEL = "Исх."
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionListScreen(
@@ -255,7 +257,7 @@ fun TransactionListScreen(
             }
 
             // Transaction list or empty state
-            if (state.transactions.isEmpty()) {
+            if (state.transactionRows.isEmpty()) {
                 item(key = "empty") {
                     EmptyState(
                         isSearchActive = state.searchQuery.isNotBlank(),
@@ -266,9 +268,9 @@ fun TransactionListScreen(
                 }
             } else {
                 // Group transactions by date
-                val grouped = state.transactions.groupBy { formatDateHeader(it.date) }
+                val grouped = state.transactionRows.groupBy { formatDateHeader(it.transaction.date) }
 
-                grouped.forEach { (dateHeader, transactions) ->
+                grouped.forEach { (dateHeader, transactionRows) ->
                     // Date section header
                     item(key = "header_$dateHeader") {
                         Text(
@@ -282,10 +284,15 @@ fun TransactionListScreen(
                     }
 
                     items(
-                        items = transactions,
-                        key = { it.id },
-                    ) { transaction ->
+                        items = transactionRows,
+                        key = { it.transaction.id },
+                    ) { row ->
+                        val transaction = row.transaction
                         val isExpense = transaction.type == TransactionType.EXPENSE
+                        val isShowingConvertedAmount =
+                            row.conversionStatus == ConversionStatus.AVAILABLE &&
+                                row.convertedAmount != null &&
+                                row.convertedCurrency != null
 
                         TransactionListItem(
                             description = transaction.note?.ifBlank { transaction.categoryName }
@@ -293,10 +300,15 @@ fun TransactionListScreen(
                             category = transaction.categoryName,
                             categoryIcon = categoryIconFromName(transaction.categoryIcon),
                             categoryColor = Color(transaction.categoryColor),
-                            amount = transaction.amount,
+                            amount = row.displayAmount,
                             date = formatTime(transaction.date),
                             isIncome = !isExpense,
-                            currency = state.currency,
+                            currency = row.displayCurrency,
+                            secondaryAmount = row.originalAmount.takeIf { isShowingConvertedAmount },
+                            secondaryCurrency = row.originalCurrency.takeIf { isShowingConvertedAmount },
+                            secondaryAmountLabel = ORIGINAL_AMOUNT_LABEL.takeIf {
+                                isShowingConvertedAmount
+                            },
                             onClick = { onTransactionClick(transaction.id) },
                             modifier = Modifier.testTag("transactionList:item_${transaction.id}"),
                         )
@@ -456,45 +468,60 @@ private fun TransactionListScreenPreview() {
                 selectedAccountName = "Kaspi Gold",
                 periodIncome = 450_000.0,
                 periodExpense = 358_400.0,
-                transactions = persistentListOf(
-                    Transaction(
-                        id = 1,
-                        amount = 15_480.0,
-                        type = TransactionType.EXPENSE,
-                        categoryId = 1,
-                        categoryName = "Еда",
-                        categoryIcon = "restaurant",
-                        categoryColor = 0xFF4ECDC4,
-                        accountId = 1,
-                        note = "Магнум супермаркет",
-                        date = System.currentTimeMillis(),
-                        createdAt = System.currentTimeMillis(),
+                transactionRows = persistentListOf(
+                    TransactionRowState(
+                        transaction = Transaction(
+                            id = 1,
+                            amount = 15_480.0,
+                            type = TransactionType.EXPENSE,
+                            categoryId = 1,
+                            categoryName = "Еда",
+                            categoryIcon = "restaurant",
+                            categoryColor = 0xFF4ECDC4,
+                            accountId = 1,
+                            note = "Магнум супермаркет",
+                            date = System.currentTimeMillis(),
+                            createdAt = System.currentTimeMillis(),
+                        ),
+                        originalAmount = 15_480.0,
+                        originalCurrency = "KZT",
                     ),
-                    Transaction(
-                        id = 2,
-                        amount = 2_450.0,
-                        type = TransactionType.EXPENSE,
-                        categoryId = 2,
-                        categoryName = "Транспорт",
-                        categoryIcon = "directions_car",
-                        categoryColor = 0xFF45B7D1,
-                        accountId = 1,
-                        note = "Bolt",
-                        date = System.currentTimeMillis(),
-                        createdAt = System.currentTimeMillis(),
+                    TransactionRowState(
+                        transaction = Transaction(
+                            id = 2,
+                            amount = 2_450.0,
+                            type = TransactionType.EXPENSE,
+                            categoryId = 2,
+                            categoryName = "Транспорт",
+                            categoryIcon = "directions_car",
+                            categoryColor = 0xFF45B7D1,
+                            accountId = 1,
+                            note = "Bolt",
+                            date = System.currentTimeMillis(),
+                            createdAt = System.currentTimeMillis(),
+                        ),
+                        originalAmount = 2_450.0,
+                        originalCurrency = "USD",
+                        convertedAmount = 1_220_875.0,
+                        convertedCurrency = "KZT",
+                        conversionStatus = ConversionStatus.AVAILABLE,
                     ),
-                    Transaction(
-                        id = 3,
-                        amount = 450_000.0,
-                        type = TransactionType.INCOME,
-                        categoryId = 11,
-                        categoryName = "Зарплата",
-                        categoryIcon = "payments",
-                        categoryColor = 0xFF00C9A7,
-                        accountId = 1,
-                        note = null,
-                        date = System.currentTimeMillis() - 86_400_000,
-                        createdAt = System.currentTimeMillis(),
+                    TransactionRowState(
+                        transaction = Transaction(
+                            id = 3,
+                            amount = 450_000.0,
+                            type = TransactionType.INCOME,
+                            categoryId = 11,
+                            categoryName = "Зарплата",
+                            categoryIcon = "payments",
+                            categoryColor = 0xFF00C9A7,
+                            accountId = 1,
+                            note = null,
+                            date = System.currentTimeMillis() - 86_400_000,
+                            createdAt = System.currentTimeMillis(),
+                        ),
+                        originalAmount = 450_000.0,
+                        originalCurrency = "KZT",
                     ),
                 ),
             ),

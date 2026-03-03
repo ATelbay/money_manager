@@ -7,7 +7,7 @@ import kotlinx.collections.immutable.persistentListOf
 import java.time.LocalDate
 
 data class TransactionListState(
-    val transactions: ImmutableList<Transaction> = persistentListOf(),
+    val transactionRows: ImmutableList<TransactionRowState> = persistentListOf(),
     val balance: Double = 0.0,
     val currency: String = "",
     val displayCurrency: String = "",
@@ -22,6 +22,26 @@ data class TransactionListState(
     val periodExpense: Double = 0.0,
     val searchQuery: String = "",
 )
+
+data class TransactionRowState(
+    val transaction: Transaction,
+    val originalAmount: Double,
+    val originalCurrency: String,
+    val convertedAmount: Double? = null,
+    val convertedCurrency: String? = null,
+    val conversionStatus: ConversionStatus = ConversionStatus.UNAVAILABLE,
+) {
+    val displayAmount: Double
+        get() = convertedAmount ?: originalAmount
+
+    val displayCurrency: String
+        get() = convertedCurrency ?: originalCurrency
+}
+
+enum class ConversionStatus {
+    AVAILABLE,
+    UNAVAILABLE,
+}
 
 enum class Period {
     ALL,
