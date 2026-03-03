@@ -151,6 +151,8 @@ class TransactionListViewModel @Inject constructor(
             val transactionRows = mapTransactionRows(
                 transactions = searchFiltered,
                 accounts = data.accounts,
+                baseCurrency = data.baseCurrency,
+                exchangeRate = data.exchangeRate,
             )
             val summaryMetrics = resolveSummaryMetrics(
                 selectedAccount = selectedAccount,
@@ -210,21 +212,40 @@ class TransactionListViewModel @Inject constructor(
     private fun mapTransactionRows(
         transactions: List<Transaction>,
         accounts: List<Account>,
+        baseCurrency: String,
+        exchangeRate: ExchangeRate?,
     ): ImmutableList<TransactionRowState> {
         val currenciesByAccountId = accounts.associateBy(Account::id)
+        val normalizedBaseCurrency = normalizeCurrency(baseCurrency)
 
         return transactions.map { transaction ->
-            val originalCurrency = currenciesByAccountId[transaction.accountId]
-                ?.currency
-                ?.trim()
-                ?.uppercase()
-                .orEmpty()
+            val accountCurrency = currenciesByAccountId[transaction.accountId]?.currency
+            val originalCurrency = accountCurrency?.let(::normalizeCurrency).orEmpty()
+            val convertedResult = accountCurrency?.let {
+                convertToBaseCurrency(
+                    amount = transaction.amount,
+                    sourceCurrency = it,
+                    baseCurrency = normalizedBaseCurrency,
+                    exchangeRate = exchangeRate,
+                )
+            }
+            val hasConvertedAmount = convertedResult?.let {
+                it.canDisplayInBaseCurrency && it.wasConverted
+            } == true
 
             TransactionRowState(
                 transaction = transaction,
                 originalAmount = transaction.amount,
                 originalCurrency = originalCurrency,
-                conversionStatus = ConversionStatus.UNAVAILABLE,
+                convertedAmount = convertedResult
+                    ?.takeIf { hasConvertedAmount }
+                    ?.amount,
+                convertedCurrency = normalizedBaseCurrency.takeIf { hasConvertedAmount },
+                conversionStatus = if (hasConvertedAmount) {
+                    ConversionStatus.AVAILABLE
+                } else {
+                    ConversionStatus.UNAVAILABLE
+                },
             )
         }.toImmutableList()
     }
