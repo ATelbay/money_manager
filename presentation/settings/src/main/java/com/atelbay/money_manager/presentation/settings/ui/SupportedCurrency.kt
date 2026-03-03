@@ -50,11 +50,19 @@ object SupportedCurrencies {
     )
 
     private val byCode = all.associateBy { it.code }
+    val defaultBase: SupportedCurrency = requireCurrency("KZT")
+    val defaultTarget: SupportedCurrency = requireCurrency("USD")
 
-    fun fromCode(code: String): SupportedCurrency {
-        return byCode[code.uppercase()] ?: defaultBase
+    fun fromCode(
+        code: String,
+        fallback: SupportedCurrency = defaultBase,
+    ): SupportedCurrency {
+        return byCode[code.uppercase()] ?: fallback
     }
 
-    val defaultBase: SupportedCurrency = fromCode("KZT")
-    val defaultTarget: SupportedCurrency = fromCode("USD")
+    private fun requireCurrency(code: String): SupportedCurrency {
+        return checkNotNull(byCode[code]) {
+            "Missing required supported currency: $code"
+        }
+    }
 }

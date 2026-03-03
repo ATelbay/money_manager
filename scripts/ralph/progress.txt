@@ -2,6 +2,7 @@
 ## Codebase Patterns
 - In `presentation:settings`, persist lightweight selector state in `UserPreferences` as raw string codes and map those codes to richer UI labels through a feature-local catalog.
 - Long in-place Compose pickers should cap `DropdownMenu` height to avoid overflow and clipped popups on smaller devices.
+- When multiple persisted selectors share one catalog, resolve unknown codes with a field-specific fallback instead of a single global default.
 
 Started: Tue Mar  3 20:19:14 UTC 2026
 ---
@@ -14,4 +15,13 @@ Started: Tue Mar  3 20:19:14 UTC 2026
   - Patterns discovered (e.g., "this codebase uses X for Y"): feature-local lookup catalogs are a good fit when the app only needs display metadata in one screen and persisted storage can stay as stable string codes.
   - Gotchas encountered (e.g., "don't forget to update Z when changing W"): adding a second persisted selector requires updating both the DataStore defaults and the `SettingsRoute` callback wiring, otherwise the UI silently renders but one picker never saves.
   - Useful context (e.g., "the evaluation panel is in component X"): the settings screen now exposes `settings:baseCurrencySelector` and `settings:targetCurrencySelector`, and menu item tags follow the pattern `settings:{base|target}CurrencyXxx`.
+---
+## [2026-03-03 20:58:30 UTC] - US-001
+- Hardened the shared settings currency catalog so invalid persisted codes no longer force the target selector back to `KZT`; base and target now recover with their own defaults.
+- Replaced recursive default lookup initialization with explicit required-currency resolution, which keeps the catalog bootstrap deterministic.
+- Files changed: `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SupportedCurrency.kt`, `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsViewModel.kt`, `scripts/ralph/progress.txt`
+- **Learnings for future iterations:**
+  - Patterns discovered (e.g., "this codebase uses X for Y"): shared UI catalogs can expose a generic lookup API, but callers should still supply the default that matches their own persisted field semantics.
+  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): using one global fallback for multiple selectors creates silent state drift after bad persisted values, even when the screen still renders.
+  - Useful context (e.g., "the evaluation panel is in component X"): `SettingsViewModel` is the right place to normalize persisted selector codes before they hit `SettingsState`, so the composables can stay dumb.
 ---

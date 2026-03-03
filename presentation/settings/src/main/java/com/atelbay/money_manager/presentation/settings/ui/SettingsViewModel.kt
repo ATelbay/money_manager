@@ -67,7 +67,12 @@ class SettingsViewModel @Inject constructor(
         userPreferences.baseCurrency
             .onEach { currency ->
                 _state.update {
-                    it.copy(baseCurrency = SupportedCurrencies.fromCode(currency))
+                    it.copy(
+                        baseCurrency = SupportedCurrencies.fromCode(
+                            code = currency,
+                            fallback = SupportedCurrencies.defaultBase,
+                        ),
+                    )
                 }
             }
             .launchIn(viewModelScope)
@@ -75,7 +80,12 @@ class SettingsViewModel @Inject constructor(
         userPreferences.targetCurrency
             .onEach { currency ->
                 _state.update {
-                    it.copy(targetCurrency = SupportedCurrencies.fromCode(currency))
+                    it.copy(
+                        targetCurrency = SupportedCurrencies.fromCode(
+                            code = currency,
+                            fallback = SupportedCurrencies.defaultTarget,
+                        ),
+                    )
                 }
             }
             .launchIn(viewModelScope)
