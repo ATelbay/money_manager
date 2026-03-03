@@ -14,6 +14,7 @@ import com.atelbay.money_manager.domain.exchangerate.usecase.GetUsdKztRateUseCas
 import com.atelbay.money_manager.domain.transactions.usecase.DeleteTransactionUseCase
 import com.atelbay.money_manager.domain.transactions.usecase.GetTransactionsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -147,6 +148,10 @@ class TransactionListViewModel @Inject constructor(
             } else {
                 data.accounts.firstOrNull()?.currency.orEmpty()
             }
+            val transactionRows = mapTransactionRows(
+                transactions = searchFiltered,
+                accounts = data.accounts,
+            )
             val summaryMetrics = resolveSummaryMetrics(
                 selectedAccount = selectedAccount,
                 accounts = data.accounts,
@@ -159,6 +164,7 @@ class TransactionListViewModel @Inject constructor(
             _state.update {
                 it.copy(
                     transactions = searchFiltered.toImmutableList(),
+                    transactionRows = transactionRows,
                     searchQuery = filters.searchQuery,
                     balance = summaryMetrics.balance,
                     currency = currency,
@@ -199,6 +205,28 @@ class TransactionListViewModel @Inject constructor(
         viewModelScope.launch {
             deleteTransactionUseCase(id)
         }
+    }
+
+    private fun mapTransactionRows(
+        transactions: List<Transaction>,
+        accounts: List<Account>,
+    ): ImmutableList<TransactionRowState> {
+        val currenciesByAccountId = accounts.associateBy(Account::id)
+
+        return transactions.map { transaction ->
+            val originalCurrency = currenciesByAccountId[transaction.accountId]
+                ?.currency
+                ?.trim()
+                ?.uppercase()
+                .orEmpty()
+
+            TransactionRowState(
+                transaction = transaction,
+                originalAmount = transaction.amount,
+                originalCurrency = originalCurrency,
+                conversionStatus = ConversionStatus.UNAVAILABLE,
+            )
+        }.toImmutableList()
     }
 
     private fun periodToRange(

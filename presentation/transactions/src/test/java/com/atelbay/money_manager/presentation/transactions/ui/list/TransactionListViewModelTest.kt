@@ -96,6 +96,13 @@ class TransactionListViewModelTest {
         advanceTimeBy(300)
         advanceUntilIdle()
 
+        val initialRow = viewModel.state.value.transactionRows.single()
+        assertEquals(47_500.0, initialRow.originalAmount, 0.0)
+        assertEquals("KZT", initialRow.originalCurrency)
+        assertEquals(47_500.0, initialRow.displayAmount, 0.0)
+        assertEquals("KZT", initialRow.displayCurrency)
+        assertEquals(ConversionStatus.UNAVAILABLE, initialRow.conversionStatus)
+
         assertEquals("KZT", viewModel.state.value.displayCurrency)
         assertEquals(47_500.0, viewModel.state.value.balance, 0.0)
         assertFalse(viewModel.state.value.isUsingConvertedTotals)
