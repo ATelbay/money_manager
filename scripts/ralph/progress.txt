@@ -1,49 +1,17 @@
 # Ralph Progress Log
 ## Codebase Patterns
-- For phased presentation updates, keep legacy screen state fields in place and add parallel row-specific UI models until the consuming composables are migrated.
-- For transaction row currency conversion, keep `originalAmount` and `originalCurrency` untouched and only populate `convertedAmount` and `convertedCurrency` when `convertToBaseCurrency` reports an actual conversion; same-currency and missing-rate paths should stay on source values.
-- Once a screen migrates to row-specific presentation models, update empty-state checks, grouping, and previews to read from that row collection instead of the legacy raw model list.
-- In remote-run mode, if `gh run view --log-failed` only shows the test name, download the `test-results` artifact and inspect the module HTML report to get the exact failing assertion line and message.
+- In `presentation:settings`, persist lightweight selector state in `UserPreferences` as raw string codes and map those codes to richer UI labels through a feature-local catalog.
+- Long in-place Compose pickers should cap `DropdownMenu` height to avoid overflow and clipped popups on smaller devices.
 
-Started: Tue Mar  3 13:56:46 UTC 2026
+Started: Tue Mar  3 20:19:14 UTC 2026
 ---
-## 2026-03-03 14:06:22 UTC - US-001
-- Added `TransactionRowState` and `ConversionStatus` to `TransactionListState`, including safe `displayAmount` and `displayCurrency` fallbacks so missing conversions do not break rendering.
-- Updated `TransactionListViewModel` to map filtered transactions into `transactionRows` using account currencies while leaving the existing `transactions` list unchanged for current UI compatibility.
-- Added a focused assertion in `TransactionListViewModelTest` to verify the new row state fields and fallback behavior.
-- Files changed: `presentation/transactions/src/main/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListState.kt`, `presentation/transactions/src/main/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListViewModel.kt`, `presentation/transactions/src/test/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListViewModelTest.kt`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+## [2026-03-03 20:25:25 UTC] - US-001
+- Expanded the settings currency picker from a hardcoded KZT/USD enum into a feature-local NBK currency catalog with code + Russian display name entries, based on the current NBK daily-rates list.
+- Added persisted `target_currency` support in `UserPreferences`, then wired `SettingsViewModel` and `SettingsRoute` so both base and target selections are restored and saved as raw currency codes.
+- Replaced the old two-tile selector with reusable dropdown-backed selectors for base and target currencies, including scroll-safe popup height limits and item test tags for the expanded list.
+- Files changed: `core/datastore/src/main/java/com/atelbay/money_manager/core/datastore/UserPreferences.kt`, `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SupportedCurrency.kt`, `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsState.kt`, `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsViewModel.kt`, `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsRoute.kt`, `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsScreen.kt`, `scripts/ralph/progress.txt`
 - **Learnings for future iterations:**
-  - The transaction list screen still renders from `state.transactions`, so row-level currency work should populate `state.transactionRows` first and switch the UI only in the dedicated rendering story.
-  - `Transaction` models do not carry currency; row-level display currency has to be resolved from the owning `Account` in presentation state mapping.
-  - The existing `TransactionListViewModelTest` already has fake repositories and a base-currency flow setup, which is the right place to extend coverage for the later conversion scenarios.
----
-## 2026-03-03 16:35:59 UTC - US-002
-- Updated `TransactionListViewModel` so `transactionRows` reuse the selected base currency and latest exchange rate, and only expose converted row values when an actual conversion succeeds.
-- Preserved same-currency and missing-rate behavior by leaving row display on the source amount/currency with `ConversionStatus.UNAVAILABLE`.
-- Extended `TransactionListViewModelTest` to cover both the successful row conversion path and the missing-rate fallback path.
-- Files changed: `presentation/transactions/src/main/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListViewModel.kt`, `presentation/transactions/src/test/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListViewModelTest.kt`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
-- **Learnings for future iterations:**
-  - `transactionRows` should mirror the summary conversion rules by delegating to the same `convertToBaseCurrency` helper instead of duplicating rate math.
-  - With the current two-state `ConversionStatus`, "same currency" and "missing rate" both map to `UNAVAILABLE`, so the later UI work should key off populated converted fields rather than assuming the enum distinguishes those cases.
-  - In remote-run mode, keep the story implementation commit separate, wait for CI on that commit, then update Ralph tracking files after the checks are green.
----
-## 2026-03-03 16:51:18 UTC - US-003
-- Switched the transaction list UI to render from `state.transactionRows`, so row-level converted amounts now drive the live list, empty state, grouping, and preview data.
-- Extended `TransactionListItem` with an optional secondary amount line and flexible row height so converted rows show the base-currency value first and the original source amount underneath without overlapping metadata.
-- Fixed two CI-found issues during remote validation: a local helper simplification in `TransactionListItem` and a mismatched closing brace in the new secondary amount block.
-- Files changed: `core/ui/src/main/java/com/atelbay/money_manager/core/ui/components/TransactionListItem.kt`, `presentation/transactions/src/main/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListScreen.kt`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
-- **Learnings for future iterations:**
-  - The transaction list screen now treats `transactionRows` as the source of truth for row rendering, so UI follow-up work should update that model first and only use `transactions` if legacy compatibility still requires it.
-- Remote-run fixes may need follow-up commits after the initial story commit; CI log line numbers were sufficient to pinpoint the syntax issue without running Gradle locally.
-- Keeping the reusable amount formatting inside the composable body is simpler here than introducing extra local helper structure during rapid CI-only debugging.
----
-## 2026-03-03 17:07:03 UTC - US-004
-- Expanded `TransactionListViewModelTest` into explicit same-currency, converted-currency, and missing-rate scenarios, with row-level assertions for original vs converted display fields.
-- Added coverage that income and expense rows preserve their `TransactionType` context while summary income/expense totals remain separated correctly in both converted and fallback paths.
-- Fixed one CI-caught expectation typo in the missing-rate expense test, then re-ran GitHub Actions until both required checks passed for commit `7f78b2f`.
-- Files changed: `presentation/transactions/src/test/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListViewModelTest.kt`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
-- **Learnings for future iterations:**
-  - `TransactionListViewModelTest` is easiest to extend by introducing small local builders (`transaction`, `account`, `createViewModel`) rather than duplicating large fixture blocks.
-  - For expense-only fallback scenarios, `periodIncome` should stay `0.0`; only `periodExpense` carries the source amount when conversion is unavailable.
-  - In CI-only debugging, the uploaded `test-results` artifact provides the exact assertion failure details even when the streamed Actions log only shows the failing test name.
+  - Patterns discovered (e.g., "this codebase uses X for Y"): feature-local lookup catalogs are a good fit when the app only needs display metadata in one screen and persisted storage can stay as stable string codes.
+  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): adding a second persisted selector requires updating both the DataStore defaults and the `SettingsRoute` callback wiring, otherwise the UI silently renders but one picker never saves.
+  - Useful context (e.g., "the evaluation panel is in component X"): the settings screen now exposes `settings:baseCurrencySelector` and `settings:targetCurrencySelector`, and menu item tags follow the pattern `settings:{base|target}CurrencyXxx`.
 ---

@@ -67,7 +67,15 @@ class SettingsViewModel @Inject constructor(
         userPreferences.baseCurrency
             .onEach { currency ->
                 _state.update {
-                    it.copy(baseCurrency = currency.toBaseCurrency())
+                    it.copy(baseCurrency = SupportedCurrencies.fromCode(currency))
+                }
+            }
+            .launchIn(viewModelScope)
+
+        userPreferences.targetCurrency
+            .onEach { currency ->
+                _state.update {
+                    it.copy(targetCurrency = SupportedCurrencies.fromCode(currency))
                 }
             }
             .launchIn(viewModelScope)
@@ -96,9 +104,15 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setBaseCurrency(currency: BaseCurrency) {
+    fun setBaseCurrency(currency: SupportedCurrency) {
         viewModelScope.launch {
-            userPreferences.setBaseCurrency(currency.name)
+            userPreferences.setBaseCurrency(currency.code)
+        }
+    }
+
+    fun setTargetCurrency(currency: SupportedCurrency) {
+        viewModelScope.launch {
+            userPreferences.setTargetCurrency(currency.code)
         }
     }
 
@@ -130,13 +144,6 @@ class SettingsViewModel @Inject constructor(
                     rateErrorMessage = refreshError?.let { "Не удалось обновить курс USD/KZT" },
                 )
             }
-        }
-    }
-
-    private fun String.toBaseCurrency(): BaseCurrency {
-        return when (this) {
-            BaseCurrency.USD.name -> BaseCurrency.USD
-            else -> BaseCurrency.KZT
         }
     }
 

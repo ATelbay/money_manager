@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,6 +30,8 @@ import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -37,6 +40,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,7 +60,8 @@ import com.atelbay.money_manager.core.ui.theme.Teal
 fun SettingsScreen(
     state: SettingsState,
     onThemeModeChange: (ThemeMode) -> Unit,
-    onBaseCurrencyChange: (BaseCurrency) -> Unit,
+    onBaseCurrencyChange: (SupportedCurrency) -> Unit,
+    onTargetCurrencyChange: (SupportedCurrency) -> Unit,
     onRefreshRateClick: () -> Unit,
     onCategoriesClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -159,18 +166,31 @@ fun SettingsScreen(
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Базовая валюта",
+                        text = "Валютная пара",
                         style = typography.caption,
                         color = colors.textSecondary,
-                        modifier = Modifier.padding(bottom = 12.dp),
                     )
 
-                    BaseCurrencySelector(
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    CurrencySelectorField(
+                        title = "Базовая валюта",
                         selected = state.baseCurrency,
                         onSelect = onBaseCurrencyChange,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("settings:baseCurrencySelector"),
+                        selectorTag = "settings:baseCurrencySelector",
+                        itemTagPrefix = "settings:baseCurrency",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    CurrencySelectorField(
+                        title = "Целевая валюта",
+                        selected = state.targetCurrency,
+                        onSelect = onTargetCurrencyChange,
+                        selectorTag = "settings:targetCurrencySelector",
+                        itemTagPrefix = "settings:targetCurrency",
+                        modifier = Modifier.fillMaxWidth(),
                     )
 
                     if (state.rateErrorMessage != null) {
@@ -259,82 +279,91 @@ private fun SectionHeader(title: String) {
     )
 }
 
-// ── Base Currency Selector ──
+// ── Currency Selector ──
 
 @Composable
-private fun BaseCurrencySelector(
-    selected: BaseCurrency,
-    onSelect: (BaseCurrency) -> Unit,
+private fun CurrencySelectorField(
+    title: String,
+    selected: SupportedCurrency,
+    onSelect: (SupportedCurrency) -> Unit,
+    selectorTag: String,
+    itemTagPrefix: String,
     modifier: Modifier = Modifier,
 ) {
     val colors = MoneyManagerTheme.colors
+    val typography = MoneyManagerTheme.typography
+    var expanded by remember { mutableStateOf(false) }
 
-    data class CurrencyOption(
-        val currency: BaseCurrency,
-        val label: String,
-        val subtitle: String,
-    )
+    Column(modifier = modifier) {
+        Text(
+            text = title,
+            style = typography.caption,
+            color = colors.textSecondary,
+        )
 
-    val options = listOf(
-        CurrencyOption(
-            currency = BaseCurrency.KZT,
-            label = "KZT",
-            subtitle = "Тенге",
-        ),
-        CurrencyOption(
-            currency = BaseCurrency.USD,
-            label = "USD",
-            subtitle = "Доллар США",
-        ),
-    )
+        Spacer(modifier = Modifier.height(8.dp))
 
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        options.forEach { option ->
-            val isSelected = selected == option.currency
-
-            val bgColor by animateColorAsState(
-                targetValue = if (isSelected) Teal else Color.Transparent,
-                animationSpec = tween(250),
-                label = "baseCurrencyBg",
-            )
-            val contentColor by animateColorAsState(
-                targetValue = if (isSelected) Color.White else colors.textSecondary,
-                animationSpec = tween(250),
-                label = "baseCurrencyContent",
-            )
-
-            Box(
+        Box {
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .height(72.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(bgColor)
-                    .clickable { onSelect(option.currency) }
-                    .testTag(
-                        when (option.currency) {
-                            BaseCurrency.KZT -> "settings:baseCurrencyKzt"
-                            BaseCurrency.USD -> "settings:baseCurrencyUsd"
-                        },
-                    ),
-                contentAlignment = Alignment.Center,
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(colors.glassBgStart.copy(alpha = 0.32f))
+                    .clickable { expanded = true }
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                    .testTag(selectorTag),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = option.label,
-                        style = MoneyManagerTheme.typography.cardTitle,
-                        color = contentColor,
+                        text = selected.code,
+                        style = typography.cardTitle,
+                        color = colors.textPrimary,
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = option.subtitle,
-                        style = MoneyManagerTheme.typography.caption,
-                        color = contentColor,
+                        text = selected.name,
+                        style = typography.caption,
+                        color = colors.textSecondary,
+                    )
+                }
+
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.heightIn(max = 320.dp),
+            ) {
+                SupportedCurrencies.all.forEach { currency ->
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Text(
+                                    text = currency.code,
+                                    style = typography.cardTitle,
+                                    color = colors.textPrimary,
+                                )
+                                Text(
+                                    text = currency.name,
+                                    style = typography.caption,
+                                    color = colors.textSecondary,
+                                )
+                            }
+                        },
+                        onClick = {
+                            expanded = false
+                            onSelect(currency)
+                        },
+                        modifier = Modifier.testTag(
+                            "$itemTagPrefix${currency.code.lowercase().replaceFirstChar { it.uppercase() }}",
+                        ),
                     )
                 }
             }
@@ -526,7 +555,8 @@ private fun SettingsScreenPreview() {
     MoneyManagerTheme(themeMode = "dark", dynamicColor = false) {
         SettingsScreen(
             state = SettingsState(
-                baseCurrency = BaseCurrency.USD,
+                baseCurrency = SupportedCurrencies.fromCode("USD"),
+                targetCurrency = SupportedCurrencies.fromCode("EUR"),
                 rateDisplay = "1 USD = 512.34 KZT",
                 lastUpdatedDisplay = "03.03.2026 08:15",
                 themeMode = ThemeMode.DARK,
@@ -534,6 +564,7 @@ private fun SettingsScreenPreview() {
             ),
             onThemeModeChange = {},
             onBaseCurrencyChange = {},
+            onTargetCurrencyChange = {},
             onRefreshRateClick = {},
             onCategoriesClick = {},
         )
