@@ -7,10 +7,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -50,6 +50,9 @@ fun TransactionListItem(
     isIncome: Boolean,
     modifier: Modifier = Modifier,
     currency: String = "\u20B8",
+    secondaryAmount: Double? = null,
+    secondaryCurrency: String? = null,
+    secondaryAmountLabel: String? = null,
     onClick: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
 ) {
@@ -70,7 +73,7 @@ fun TransactionListItem(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(72.dp),
+                    .defaultMinSize(minHeight = 72.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -113,9 +116,32 @@ fun TransactionListItem(
                     horizontalAlignment = Alignment.End,
                 ) {
                     Text(
-                        text = "${if (isIncome) "+" else "\u2212"}$currency ${formatter.format(amount)}",
+                        text = formatAmountText(
+                            amount = amount,
+                            currency = currency,
+                            isIncome = isIncome,
+                            formatter = formatter,
+                        ),
                         style = typography.amount,
                         color = if (isIncome) colors.incomeForeground else colors.expenseForeground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (secondaryAmount != null) {
+                        val secondaryAmountText = formatAmountText(
+                            amount = secondaryAmount,
+                            currency = secondaryCurrency ?: currency,
+                            isIncome = isIncome,
+                            formatter = formatter,
+                        )
+                        Text(
+                            text = secondaryAmountLabel?.let { "$it $secondaryAmountText" }
+                                ?: secondaryAmountText,
+                            style = typography.caption,
+                            color = colors.textSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     )
                     Text(
                         text = date,
@@ -176,6 +202,13 @@ fun TransactionListItem(
         }
     }
 }
+
+private fun formatAmountText(
+    amount: Double,
+    currency: String,
+    isIncome: Boolean,
+    formatter: NumberFormat,
+): String = "${if (isIncome) "+" else "\u2212"}$currency ${formatter.format(amount)}"
 
 @Preview(showBackground = true)
 @Composable
