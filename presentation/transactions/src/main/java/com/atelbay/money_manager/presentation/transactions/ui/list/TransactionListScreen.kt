@@ -63,7 +63,7 @@ import java.util.Date
 import java.util.Locale
 
 private const val ORIGINAL_AMOUNT_LABEL = "Исх."
-private val TransactionListBottomContentPadding = 96.dp
+private val TransactionListBottomGutter = 16.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -136,7 +136,7 @@ fun TransactionListScreen(
                 .testTag("transactionList:list"),
             contentPadding = PaddingValues(
                 top = padding.calculateTopPadding(),
-                bottom = TransactionListBottomContentPadding,
+                bottom = padding.calculateBottomPadding() + TransactionListBottomGutter,
             ),
         ) {
             // Balance card
