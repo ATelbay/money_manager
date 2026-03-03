@@ -95,3 +95,8 @@ scripts/ralph/.run-summary.json
 scripts/ralph/.last-branch
 scripts/ralph/artifacts/
 scripts/ralph/archive/
+
+# Local notes and generated screenshots
+app/src/test/screenshots/
+scripts/ralph/figma-pipeline-analysis.md
+universal-parser-plan.txt
