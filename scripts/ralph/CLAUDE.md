@@ -50,7 +50,7 @@ When env `RALPH_REMOTE_RUN=true` is set:
   1. Commit with `feat: [Story ID] - [Story Title]`
   2. Push to PR branch
   3. Ensure Draft PR exists (create if absent, reuse if present) via `gh pr view`/`gh pr create --draft`
-  4. Wait for CI: `gh pr checks <branch> --watch --fail-fast`
+  4. Wait for required CI checks: `gh pr checks <branch> --watch --required`
 - Mark story `passes: true` **only if CI checks are green** for that story commit.
 - If CI fails, keep `passes: false`, log failure summary in `progress.txt`, and continue with fixes in the next iteration.
 

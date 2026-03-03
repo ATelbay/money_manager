@@ -302,7 +302,8 @@ EOF
       # Wait for CI checks (lint, tests)
       echo ""
       echo "Waiting for CI checks..."
-      if gh pr checks "$BRANCH" --watch --fail-fast 2>&1; then
+      # gh CLI (Mar 2026) supports --watch/--required; --fail-fast is not available
+      if gh pr checks "$BRANCH" --watch --required 2>&1; then
         echo "CI passed!"
       else
         echo "CI failed. Check PR for details: $PR_URL"
