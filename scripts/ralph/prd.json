@@ -44,7 +44,7 @@
         "./gradlew compileDebugKotlin passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Update presentation:settings and core:datastore UserPreferences. Follow existing settings item composition patterns in SettingsScreen.kt and SettingsViewModel patterns if present. Keep texts in resources if that pattern already exists in module."
     },
     {

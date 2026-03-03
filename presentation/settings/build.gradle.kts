@@ -9,4 +9,5 @@ android {
 dependencies {
     implementation(projects.core.datastore)
     implementation(projects.core.ui)
+    implementation(projects.domain.exchangerate)
 }

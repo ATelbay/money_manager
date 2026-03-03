@@ -5,6 +5,9 @@ import android.content.pm.PackageManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atelbay.money_manager.core.datastore.UserPreferences
+import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
+import com.atelbay.money_manager.domain.exchangerate.repository.ExchangeRateRepository
+import com.atelbay.money_manager.domain.exchangerate.usecase.GetUsdKztRateUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,16 +16,28 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.text.NumberFormat
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
+    private val getUsdKztRateUseCase: GetUsdKztRateUseCase,
+    private val exchangeRateRepository: ExchangeRateRepository,
     application: Application,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsState())
     val state: StateFlow<SettingsState> = _state.asStateFlow()
+    private val timeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
+    private val numberFormatter = NumberFormat.getNumberInstance(Locale.US).apply {
+        minimumFractionDigits = 2
+        maximumFractionDigits = 2
+    }
 
     init {
         val versionName = try {
@@ -47,6 +62,26 @@ class SettingsViewModel @Inject constructor(
                 }
             }
             .launchIn(viewModelScope)
+
+        userPreferences.baseCurrency
+            .onEach { currency ->
+                _state.update {
+                    it.copy(baseCurrency = currency.toBaseCurrency())
+                }
+            }
+            .launchIn(viewModelScope)
+
+        getUsdKztRateUseCase()
+            .onEach { rate ->
+                _state.update {
+                    it.copy(
+                        rateDisplay = rate?.let(::formatRate).orEmpty(),
+                        lastUpdatedDisplay = rate?.let(::formatLastUpdated).orEmpty(),
+                        rateErrorMessage = if (rate != null) null else it.rateErrorMessage,
+                    )
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
     fun setThemeMode(mode: ThemeMode) {
@@ -58,5 +93,54 @@ class SettingsViewModel @Inject constructor(
             }
             userPreferences.setThemeMode(value)
         }
+    }
+
+    fun setBaseCurrency(currency: BaseCurrency) {
+        viewModelScope.launch {
+            userPreferences.setBaseCurrency(currency.name)
+        }
+    }
+
+    fun refreshExchangeRate() {
+        if (_state.value.isRefreshingRate) {
+            return
+        }
+
+        viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    isRefreshingRate = true,
+                    rateErrorMessage = null,
+                )
+            }
+
+            val refreshError = runCatching {
+                exchangeRateRepository.fetchAndStoreRate()
+            }.exceptionOrNull()
+
+            _state.update {
+                it.copy(
+                    isRefreshingRate = false,
+                    rateErrorMessage = refreshError?.let { "Не удалось обновить курс USD/KZT" },
+                )
+            }
+        }
+    }
+
+    private fun String.toBaseCurrency(): BaseCurrency {
+        return when (this) {
+            BaseCurrency.USD.name -> BaseCurrency.USD
+            else -> BaseCurrency.KZT
+        }
+    }
+
+    private fun formatRate(rate: ExchangeRate): String {
+        return "1 USD = ${numberFormatter.format(rate.usdToKzt)} KZT"
+    }
+
+    private fun formatLastUpdated(rate: ExchangeRate): String {
+        return Instant.ofEpochMilli(rate.fetchedAt)
+            .atZone(ZoneId.systemDefault())
+            .format(timeFormatter)
     }
 }
