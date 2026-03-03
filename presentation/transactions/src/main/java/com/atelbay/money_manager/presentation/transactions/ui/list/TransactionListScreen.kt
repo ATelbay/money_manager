@@ -4,6 +4,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -62,6 +63,7 @@ import java.util.Date
 import java.util.Locale
 
 private const val ORIGINAL_AMOUNT_LABEL = "Исх."
+private val TransactionListBottomContentPadding = 96.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -131,8 +133,11 @@ fun TransactionListScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .testTag("transactionList:list"),
+            contentPadding = PaddingValues(
+                top = padding.calculateTopPadding(),
+                bottom = TransactionListBottomContentPadding,
+            ),
         ) {
             // Balance card
             item(key = "balance") {
@@ -314,11 +319,6 @@ fun TransactionListScreen(
                         )
                     }
                 }
-            }
-
-            // Bottom spacing for FAB
-            item(key = "spacer") {
-                Spacer(modifier = Modifier.height(80.dp))
             }
         }
     }

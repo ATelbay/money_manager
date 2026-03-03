@@ -6,6 +6,7 @@
 - In `presentation:settings`, when an option set grows beyond a compact inline control, prefer a `TopAppBar` action that opens a `ModalBottomSheet` with search, and keep the screen body to a concise summary row.
 - Compose layout helpers such as `weight` and `matchParentSize()` come from the active `Row`/`Column`/`Box` scope in this codebase; after UI refactors, verify both the scope and the import block before assuming unresolved references are missing imports.
 - In this Compose setup, `Modifier.weight(...)` and `matchParentSize()` should be used from the surrounding `Row`/`Column`/`Box` scope; importing them explicitly can bind the wrong symbol and break compilation.
+- For top-level screens under the shared bottom navigation, avoid stacking an inner `Scaffold`'s bottom content padding with a manual trailing spacer; use explicit list `contentPadding` for the FAB clearance instead.
 
 Started: Tue Mar  3 20:19:14 UTC 2026
 ---
@@ -73,4 +74,13 @@ Started: Tue Mar  3 20:19:14 UTC 2026
   - Patterns discovered (e.g., "this codebase uses X for Y"): for transient Compose-only UI state in this project, `remember` is enough unless the screen explicitly needs save/restore across recreation.
   - Gotchas encountered (e.g., "don't forget to update Z when changing W"): `Modifier.weight(...)` and `matchParentSize()` compile inside their scope blocks without imports here; importing them directly can resolve to the wrong API surface and produce misleading Kotlin errors.
   - Useful context (e.g., "the evaluation panel is in component X"): `gh run view <run-id> --job <job-id> --log` works for one-off CI diagnostics in this repo and exposed the exact `presentation:settings:compileDebugKotlin` errors when the check annotations did not.
+---
+## [2026-03-03 21:42:25 UTC] - US-004
+- Removed the transaction list's duplicated bottom gap by replacing the trailing spacer item with explicit `LazyColumn` content padding that keeps the top app bar inset and uses one fixed FAB clearance.
+- This keeps the list scrollable above the FAB while avoiding the extra bottom inset that was stacking on top of the shared bottom-navigation layout.
+- Files changed: `presentation/transactions/src/main/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListScreen.kt`, `scripts/ralph/progress.txt`
+- **Learnings for future iterations:**
+  - Patterns discovered (e.g., "this codebase uses X for Y"): on list-heavy Compose screens, `contentPadding` is a cleaner way to reserve space for overlays like a FAB than adding a dedicated spacer row.
+  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): when a screen already lives inside the app-level bottom-nav scaffold, applying the inner scaffold's bottom padding to the list can create a visible double gap near the bottom edge.
+  - Useful context (e.g., "the evaluation panel is in component X"): the home transaction feed spacing is controlled in `TransactionListScreen.kt`; there is no separate home-specific bottom-bar padding in the feature module.
 ---
