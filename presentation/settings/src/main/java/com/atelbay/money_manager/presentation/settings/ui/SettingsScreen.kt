@@ -14,11 +14,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -48,7 +46,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,7 +74,7 @@ fun SettingsScreen(
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
-    var isCurrencySheetVisible by rememberSaveable { mutableStateOf(false) }
+    var isCurrencySheetVisible by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.testTag("settings:screen"),
@@ -340,8 +338,8 @@ private fun CurrencyPickerBottomSheet(
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
-    var query by rememberSaveable { mutableStateOf("") }
-    var selectionTarget by rememberSaveable { mutableStateOf(CurrencySelectionTarget.BASE) }
+    var query by remember { mutableStateOf("") }
+    var selectionTarget by remember { mutableStateOf(CurrencySelectionTarget.BASE) }
     val filteredCurrencies = SupportedCurrencies.all.filter { currency ->
         query.isBlank() ||
             currency.code.contains(query, ignoreCase = true) ||
@@ -437,14 +435,16 @@ private fun CurrencyPickerBottomSheet(
                     items(filteredCurrencies, key = { it.code }) { currency ->
                         CurrencySheetItem(
                             currency = currency,
-                            isSelected = when (selectionTarget) {
-                                CurrencySelectionTarget.BASE -> currency.code == baseCurrency.code
-                                CurrencySelectionTarget.TARGET -> currency.code == targetCurrency.code
+                            isSelected = if (selectionTarget == CurrencySelectionTarget.BASE) {
+                                currency.code == baseCurrency.code
+                            } else {
+                                currency.code == targetCurrency.code
                             },
                             onClick = {
-                                when (selectionTarget) {
-                                    CurrencySelectionTarget.BASE -> onBaseCurrencyChange(currency)
-                                    CurrencySelectionTarget.TARGET -> onTargetCurrencyChange(currency)
+                                if (selectionTarget == CurrencySelectionTarget.BASE) {
+                                    onBaseCurrencyChange(currency)
+                                } else {
+                                    onTargetCurrencyChange(currency)
                                 }
                             },
                             modifier = Modifier.testTag(
