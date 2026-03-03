@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.time.Instant
@@ -114,9 +115,14 @@ class SettingsViewModel @Inject constructor(
                 )
             }
 
-            val refreshError = runCatching {
+            var refreshError: Throwable? = null
+            try {
                 exchangeRateRepository.fetchAndStoreRate()
-            }.exceptionOrNull()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                refreshError = e
+            }
 
             _state.update {
                 it.copy(
