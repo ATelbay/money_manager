@@ -14,7 +14,7 @@
         "Typecheck/compile для затронутых модулей проходит"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
