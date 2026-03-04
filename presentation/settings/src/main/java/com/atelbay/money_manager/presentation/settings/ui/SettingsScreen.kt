@@ -128,7 +128,7 @@ fun SettingsScreen(
                     SettingRow(
                         icon = Icons.Default.AttachMoney,
                         iconColor = Color(0xFFFBBF24),
-                        title = "Курс ${state.baseCurrency.code}/${state.targetCurrency.code}",
+                        title = "Курс USD/KZT",
                         subtitle = state.rateDisplay.ifEmpty { "Курс ещё не загружен" },
                         hasChevron = true,
                         onClick = { showCurrencySheet = true },

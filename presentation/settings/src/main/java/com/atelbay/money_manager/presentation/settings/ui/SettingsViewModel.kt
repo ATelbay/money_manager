@@ -138,11 +138,7 @@ class SettingsViewModel @Inject constructor(
             _state.update {
                 it.copy(
                     isRefreshingRate = false,
-                    rateErrorMessage = refreshError?.let {
-                        val base = _state.value.baseCurrency.code
-                        val target = _state.value.targetCurrency.code
-                        "Не удалось обновить курс $base/$target"
-                    },
+                    rateErrorMessage = refreshError?.let { "Не удалось обновить курс USD/KZT" },
                 )
             }
         }
@@ -154,12 +150,12 @@ class SettingsViewModel @Inject constructor(
         rate: ExchangeRate?,
     ): String {
         if (rate == null) return ""
+        // System only stores usdToKzt; show that rate regardless of display currency selection
         return when {
-            base.code == "USD" && target.code == "KZT" ->
-                "1 USD = ${numberFormatter.format(rate.usdToKzt)} KZT"
-            base.code == "KZT" && target.code == "USD" ->
+            base.code == "KZT" ->
                 "1 KZT = ${numberFormatter.format(1.0 / rate.usdToKzt)} USD"
-            else -> "нет данных"
+            else ->
+                "1 USD = ${numberFormatter.format(rate.usdToKzt)} KZT"
         }
     }
 
