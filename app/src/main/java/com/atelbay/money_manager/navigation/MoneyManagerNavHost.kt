@@ -22,7 +22,6 @@ fun MoneyManagerNavHost(
     navController: NavHostController,
     startDestination: Any,
     modifier: Modifier = Modifier,
-    onFabNavigate: (() -> Unit)? = null,
 ) {
     NavHost(
         navController = navController,
@@ -54,7 +53,7 @@ fun MoneyManagerNavHost(
                 onTransactionClick = { id ->
                     navController.navigate(TransactionEdit(id = id))
                 },
-                onAddClick = onFabNavigate ?: {
+                onAddClick = {
                     navController.navigate(TransactionEdit())
                 },
                 onImportClick = {

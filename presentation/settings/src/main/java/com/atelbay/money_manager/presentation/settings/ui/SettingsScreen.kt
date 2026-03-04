@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -22,7 +21,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.GridView
@@ -33,18 +31,12 @@ import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,7 +61,6 @@ fun SettingsScreen(
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
-    var showCurrencySheet by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.testTag("settings:screen"),
@@ -124,8 +115,7 @@ fun SettingsScreen(
                         iconColor = Color(0xFFFBBF24),
                         title = "Курс USD/KZT",
                         subtitle = state.rateDisplay.ifEmpty { "Курс ещё не загружен" },
-                        hasChevron = true,
-                        onClick = { showCurrencySheet = true },
+                        rightText = if (state.isRefreshingRate) "..." else null,
                         modifier = Modifier.testTag("settings:exchangeRate"),
                     )
 
@@ -135,15 +125,24 @@ fun SettingsScreen(
                         color = colors.borderSubtle,
                     )
 
-                    val refreshTitle = if (state.lastUpdatedDisplay.isNotEmpty()) {
-                        "Курс на ${state.lastUpdatedDisplay}"
-                    } else {
-                        "Загрузить курс НБК"
-                    }
+                    SettingRow(
+                        icon = Icons.Default.Info,
+                        iconColor = Color(0xFF60A5FA),
+                        title = "Последнее обновление",
+                        subtitle = state.lastUpdatedDisplay.ifEmpty { "Ещё не обновлялся" },
+                        modifier = Modifier.testTag("settings:lastUpdated"),
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 0.5.dp,
+                        color = colors.borderSubtle,
+                    )
+
                     SettingRow(
                         icon = Icons.Default.Refresh,
                         iconColor = Teal,
-                        title = refreshTitle,
+                        title = "Обновить курс",
                         subtitle = if (state.isRefreshingRate) {
                             "Выполняется обновление"
                         } else {
@@ -152,15 +151,35 @@ fun SettingsScreen(
                         onClick = onRefreshRateClick,
                         modifier = Modifier.testTag("settings:refreshRate"),
                     )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Базовая валюта",
+                        style = typography.caption,
+                        color = colors.textSecondary,
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+
+                    BaseCurrencySelector(
+                        selected = state.baseCurrency,
+                        onSelect = onBaseCurrencyChange,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("settings:baseCurrencySelector"),
+                    )
 
                     if (state.rateErrorMessage != null) {
+                        Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = state.rateErrorMessage,
                             style = typography.caption,
                             color = Color(0xFFFCA5A5),
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                                .testTag("settings:rateError"),
+                            modifier = Modifier.testTag("settings:rateError"),
                         )
                     }
                 }
@@ -222,93 +241,6 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(80.dp))
         }
-
-        if (showCurrencySheet) {
-            CurrencyPickerBottomSheet(
-                selected = state.baseCurrency,
-                onSelect = { currency ->
-                    onBaseCurrencyChange(currency)
-                    showCurrencySheet = false
-                },
-                onDismiss = { showCurrencySheet = false },
-            )
-        }
-    }
-}
-
-// ── Currency Picker Bottom Sheet ──
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CurrencyPickerBottomSheet(
-    selected: BaseCurrency,
-    onSelect: (BaseCurrency) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val colors = MoneyManagerTheme.colors
-    val typography = MoneyManagerTheme.typography
-
-    val options = listOf(
-        BaseCurrency.KZT to "KZT · Казахский тенге",
-        BaseCurrency.USD to "USD · Доллар США",
-    )
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.testTag("settings:currencySheet"),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp),
-        ) {
-            Text(
-                text = "Базовая валюта",
-                style = typography.sectionHeader,
-                color = colors.textPrimary,
-                modifier = Modifier.padding(bottom = 16.dp),
-            )
-
-            options.forEachIndexed { index, (currency, label) ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { onSelect(currency) }
-                        .padding(vertical = 14.dp, horizontal = 8.dp)
-                        .testTag("settings:currency${currency.name}"),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = label,
-                        style = typography.cardTitle,
-                        color = colors.textPrimary,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (selected == currency) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = Teal,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                }
-                if (index < options.lastIndex) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 8.dp),
-                        thickness = 0.5.dp,
-                        color = colors.borderSubtle,
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-        }
     }
 }
 
@@ -325,6 +257,89 @@ private fun SectionHeader(title: String) {
         color = colors.textSecondary,
         modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
     )
+}
+
+// ── Base Currency Selector ──
+
+@Composable
+private fun BaseCurrencySelector(
+    selected: BaseCurrency,
+    onSelect: (BaseCurrency) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MoneyManagerTheme.colors
+
+    data class CurrencyOption(
+        val currency: BaseCurrency,
+        val label: String,
+        val subtitle: String,
+    )
+
+    val options = listOf(
+        CurrencyOption(
+            currency = BaseCurrency.KZT,
+            label = "KZT",
+            subtitle = "Тенге",
+        ),
+        CurrencyOption(
+            currency = BaseCurrency.USD,
+            label = "USD",
+            subtitle = "Доллар США",
+        ),
+    )
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        options.forEach { option ->
+            val isSelected = selected == option.currency
+
+            val bgColor by animateColorAsState(
+                targetValue = if (isSelected) Teal else Color.Transparent,
+                animationSpec = tween(250),
+                label = "baseCurrencyBg",
+            )
+            val contentColor by animateColorAsState(
+                targetValue = if (isSelected) Color.White else colors.textSecondary,
+                animationSpec = tween(250),
+                label = "baseCurrencyContent",
+            )
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(72.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(bgColor)
+                    .clickable { onSelect(option.currency) }
+                    .testTag(
+                        when (option.currency) {
+                            BaseCurrency.KZT -> "settings:baseCurrencyKzt"
+                            BaseCurrency.USD -> "settings:baseCurrencyUsd"
+                        },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        text = option.label,
+                        style = MoneyManagerTheme.typography.cardTitle,
+                        color = contentColor,
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = option.subtitle,
+                        style = MoneyManagerTheme.typography.caption,
+                        color = contentColor,
+                    )
+                }
+            }
+        }
+    }
 }
 
 // ── Setting Row ──
