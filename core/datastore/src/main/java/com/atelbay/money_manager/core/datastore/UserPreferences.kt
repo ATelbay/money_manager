@@ -74,6 +74,17 @@ class UserPreferences @Inject constructor(
         }
     }
 
+    val targetCurrency: Flow<String> =
+        context.dataStore.data.map { prefs ->
+            prefs[KEY_TARGET_CURRENCY] ?: "USD"
+        }
+
+    suspend fun setTargetCurrency(currencyCode: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_TARGET_CURRENCY] = currencyCode
+        }
+    }
+
     val exchangeRate: Flow<StoredExchangeRate?> =
         context.dataStore.data.map { prefs ->
             prefs.toStoredExchangeRate()
@@ -115,6 +126,7 @@ class UserPreferences @Inject constructor(
         val KEY_SELECTED_ACCOUNT_ID = longPreferencesKey("selected_account_id")
         val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         val KEY_BASE_CURRENCY = stringPreferencesKey("base_currency")
+        val KEY_TARGET_CURRENCY = stringPreferencesKey("target_currency")
         val KEY_USD_KZT_RATE = doublePreferencesKey("usd_kzt_rate")
         val KEY_USD_KZT_RATE_FETCHED_AT = longPreferencesKey("usd_kzt_rate_fetched_at")
         val KEY_USD_KZT_RATE_SOURCE = stringPreferencesKey("usd_kzt_rate_source")

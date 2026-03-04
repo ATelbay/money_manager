@@ -1,65 +1,90 @@
 {
   "project": "MoneyManager",
-  "branchName": "ralph/transaction-row-currency-conversion",
-  "description": "Show converted amounts directly on transaction rows in the selected base currency (with original amount context).",
+  "branchName": "ralph/currency-settings-and-home-ui-polish",
+  "description": "Currency settings UX expansion + main screen spacing/FAB/bottom-nav animation polish",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Add row-level converted amount model to transactions state",
-      "description": "As a developer, I want transaction row UI state to carry both original and converted amount fields so rendering can show selected base currency without losing source value context.",
+      "title": "Расширить список валют в настройках",
+      "description": "As a user, I want to pick from a broader NBK currency list so I can configure conversion pairs beyond basic options.",
       "acceptanceCriteria": [
-        "Transaction row state includes original amount+currency and optional converted amount+currency",
-        "Conversion availability flag exists per row (available/unavailable) to avoid silent wrong formatting",
-        "No crash when rate is missing; row falls back to source amount",
-        "CI checks for this story commit pass on GitHub Actions"
+        "В настройках доступен расширенный список валют НБК (коды + названия)",
+        "Список используется для выбора базовой и целевой валют",
+        "Валюта выбирается без падений и визуальных артефактов",
+        "Typecheck/compile для затронутых модулей проходит"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "Work in presentation:transactions state models and mappers. Keep backward compatibility for existing list item composables until final UI story."
+      "notes": ""
     },
     {
       "id": "US-002",
-      "title": "Compute per-transaction conversion in TransactionListViewModel",
-      "description": "As a user, I want each transaction row to show value in my selected base currency so that list-level reading is consistent with summary cards.",
+      "title": "Объединить блоки курса в один",
+      "description": "As a user, I want one compact exchange-rate row so the settings screen is cleaner and easier to read.",
       "acceptanceCriteria": [
-        "When base currency differs from source currency, each row computes converted amount using latest available rate",
-        "When base currency matches source currency, converted amount is not redundantly shown",
-        "When rate is unavailable, row clearly shows original amount and marks conversion unavailable",
-        "ViewModel logic is deterministic and does not introduce extra recomposition loops",
-        "CI checks for this story commit pass on GitHub Actions"
+        "Блоки 'Последнее обновление курса' и 'Обновить курс' объединены в одну сущность",
+        "Сохранена иконка обновления",
+        "Текст содержит 'Курс на ...' с датой/временем",
+        "Нажатие на действие обновления работает как раньше"
       ],
       "priority": 2,
       "passes": true,
-      "notes": "Reuse existing ConvertAmountUseCase and base currency preference flow already used for overview totals. Avoid database schema changes."
+      "notes": ""
     },
     {
       "id": "US-003",
-      "title": "Render transaction rows with converted + original value presentation",
-      "description": "As a user, I want to see converted value on each transaction row and still understand original currency source.",
+      "title": "Вынести выбор валют в верхнее меню + bottom sheet с поиском",
+      "description": "As a user, I want to open a searchable currency picker from top bar so large buttons do not clutter the settings content.",
       "acceptanceCriteria": [
-        "Transaction row primary amount reflects selected base currency when conversion is available",
-        "Row also shows original source amount/currency in secondary text when conversion is applied",
-        "Formatting and sign conventions stay correct for income/expense",
-        "UI remains readable for long numbers and does not overlap existing metadata",
-        "CI checks for this story commit pass on GitHub Actions"
+        "Большие кнопки выбора валют удалены из основного контента экрана",
+        "В TopBar добавлено действие для открытия currency bottom sheet",
+        "Bottom sheet содержит поиск по коду и названию валюты",
+        "Можно выбрать базовую и целевую валюту из bottom sheet",
+        "Выбранные значения корректно отображаются в настройках"
       ],
       "priority": 3,
       "passes": true,
-      "notes": "Keep UI minimal and consistent with current list style. Do not redesign card layout; only add required secondary amount line/label."
+      "notes": ""
     },
     {
       "id": "US-004",
-      "title": "Add tests for row-level currency conversion behavior",
-      "description": "As a developer, I want test coverage for per-row conversion scenarios so future changes do not break display currency logic.",
+      "title": "Убрать лишний зазор в списке транзакций",
+      "description": "As a user, I want consistent spacing between transaction list content and bottom navigation so the main screen feels polished.",
       "acceptanceCriteria": [
-        "ViewModel tests cover: same-currency path, conversion path, and missing-rate fallback",
-        "Tests validate both displayed converted amount and original amount context fields",
-        "Tests validate correct sign handling for income and expense rows",
-        "CI checks for this story commit pass on GitHub Actions"
+        "На главном экране исправлен зазор между списком транзакций и bottom nav",
+        "Список не перекрывается FAB и остаётся удобным для прокрутки",
+        "Визуально отступы соответствуют соседним экранам"
       ],
       "priority": 4,
       "passes": true,
-      "notes": "Prefer existing TransactionListViewModelTest style with fake repos and coroutine test dispatcher."
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Обновить цвет FAB",
+      "description": "As a user, I want a non-default FAB color that matches app style so the primary action looks intentional.",
+      "acceptanceCriteria": [
+        "Цвет FAB изменён на недефолтный и контрастный",
+        "Иконка FAB читаема в светлой и тёмной теме",
+        "Изменение не ломает другие экраны, где используется общий FAB компонент"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Сгладить скрытие bottom nav после нажатия FAB",
+      "description": "As a user, I want smooth bottom-nav/FAB transition so opening add-flow does not cause jerky UI movement.",
+      "acceptanceCriteria": [
+        "После нажатия FAB bottom nav скрывается плавно, без резкого исчезновения",
+        "FAB не дёргается вниз при переходе",
+        "Анимация согласована по времени и ощущается стабильной",
+        "Регрессии навигации между bottom-tab экранами отсутствуют"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": ""
     }
   ]
 }

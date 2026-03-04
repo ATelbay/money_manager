@@ -34,3 +34,6 @@ data object Settings
 
 @Serializable
 data object Import
+
+@Serializable
+data object CurrencyPicker

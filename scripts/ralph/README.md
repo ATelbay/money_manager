@@ -213,6 +213,18 @@ git log --oneline -10
 
 ---
 
+## Watchdog Launcher
+
+Use the watchdog wrapper when you want Telegram delivery on both success and failure, plus a per-run log file under `scripts/ralph/logs/`.
+
+```bash
+./scripts/ralph/run-watchdog.sh --codex --remote-run
+```
+
+The wrapper passes all arguments through to `ralph.sh`, starts `telegram-event-monitor.sh --watch` if needed, and sends a Telegram message through OpenClaw when the run exits.
+
+---
+
 ## Debugging
 
 ### Ralph stopped before completing all stories

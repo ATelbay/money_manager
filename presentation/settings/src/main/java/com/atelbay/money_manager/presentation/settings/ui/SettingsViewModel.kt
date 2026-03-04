@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -64,21 +65,25 @@ class SettingsViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        userPreferences.baseCurrency
-            .onEach { currency ->
-                _state.update {
-                    it.copy(baseCurrency = currency.toBaseCurrency())
-                }
-            }
-            .launchIn(viewModelScope)
-
-        getUsdKztRateUseCase()
-            .onEach { rate ->
-                _state.update {
-                    it.copy(
-                        rateDisplay = rate?.let(::formatRate).orEmpty(),
+        combine(
+            userPreferences.baseCurrency,
+            userPreferences.targetCurrency,
+            getUsdKztRateUseCase(),
+        ) { baseCurrencyCode, targetCurrencyCode, rate ->
+            Triple(
+                SupportedCurrencies.fromCode(baseCurrencyCode, SupportedCurrencies.defaultBase),
+                SupportedCurrencies.fromCode(targetCurrencyCode, SupportedCurrencies.defaultTarget),
+                rate,
+            )
+        }
+            .onEach { (base, target, rate) ->
+                _state.update { current ->
+                    current.copy(
+                        baseCurrency = base,
+                        targetCurrency = target,
+                        rateDisplay = buildRateDisplay(base, target, rate),
                         lastUpdatedDisplay = rate?.let(::formatLastUpdated).orEmpty(),
-                        rateErrorMessage = if (rate != null) null else it.rateErrorMessage,
+                        rateErrorMessage = if (rate != null) null else current.rateErrorMessage,
                     )
                 }
             }
@@ -96,9 +101,15 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setBaseCurrency(currency: BaseCurrency) {
+    fun setBaseCurrency(currency: SupportedCurrency) {
         viewModelScope.launch {
-            userPreferences.setBaseCurrency(currency.name)
+            userPreferences.setBaseCurrency(currency.code)
+        }
+    }
+
+    fun setTargetCurrency(currency: SupportedCurrency) {
+        viewModelScope.launch {
+            userPreferences.setTargetCurrency(currency.code)
         }
     }
 
@@ -133,15 +144,16 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    private fun String.toBaseCurrency(): BaseCurrency {
-        return when (this) {
-            BaseCurrency.USD.name -> BaseCurrency.USD
-            else -> BaseCurrency.KZT
+    private fun buildRateDisplay(
+        base: SupportedCurrency,
+        target: SupportedCurrency,
+        rate: ExchangeRate?,
+    ): String {
+        if (rate == null) return ""
+        return when (base.code) {
+            "KZT" -> "1 KZT = ${numberFormatter.format(1.0 / rate.usdToKzt)} USD"
+            else  -> "1 USD = ${numberFormatter.format(rate.usdToKzt)} KZT"
         }
-    }
-
-    private fun formatRate(rate: ExchangeRate): String {
-        return "1 USD = ${numberFormatter.format(rate.usdToKzt)} KZT"
     }
 
     private fun formatLastUpdated(rate: ExchangeRate): String {

@@ -1,49 +1,125 @@
 # Ralph Progress Log
 ## Codebase Patterns
-- For phased presentation updates, keep legacy screen state fields in place and add parallel row-specific UI models until the consuming composables are migrated.
-- For transaction row currency conversion, keep `originalAmount` and `originalCurrency` untouched and only populate `convertedAmount` and `convertedCurrency` when `convertToBaseCurrency` reports an actual conversion; same-currency and missing-rate paths should stay on source values.
-- Once a screen migrates to row-specific presentation models, update empty-state checks, grouping, and previews to read from that row collection instead of the legacy raw model list.
-- In remote-run mode, if `gh run view --log-failed` only shows the test name, download the `test-results` artifact and inspect the module HTML report to get the exact failing assertion line and message.
+- In `core:ui`, shared cross-screen components should read semantic colors from `MoneyManagerTheme.colors` instead of hardcoding palette constants, so light/dark variants can diverge safely in one place.
+- In `presentation:settings`, persist lightweight selector state in `UserPreferences` as raw string codes and map those codes to richer UI labels through a feature-local catalog.
+- Long in-place Compose pickers should cap `DropdownMenu` height to avoid overflow and clipped popups on smaller devices.
+- When multiple persisted selectors share one catalog, resolve unknown codes with a field-specific fallback instead of a single global default.
+- In `presentation:settings`, when an option set grows beyond a compact inline control, prefer a `TopAppBar` action that opens a `ModalBottomSheet` with search, and keep the screen body to a concise summary row.
+- Compose layout helpers such as `weight` and `matchParentSize()` come from the active `Row`/`Column`/`Box` scope in this codebase; after UI refactors, verify both the scope and the import block before assuming unresolved references are missing imports.
+- In this Compose setup, `Modifier.weight(...)` and `matchParentSize()` should be used from the surrounding `Row`/`Column`/`Box` scope; importing them explicitly can bind the wrong symbol and break compilation.
+- For top-level screens under the shared bottom navigation, avoid stacking an inner `Scaffold`'s bottom content padding with a manual trailing spacer; use explicit list `contentPadding` for the FAB clearance instead.
+- For top-level `Scaffold` screens with a FAB, prefer `LazyColumn` bottom padding derived from `padding.calculateBottomPadding()` plus a small gutter instead of hardcoding the FAB clearance; it tracks insets while keeping spacing aligned with neighboring screens.
+- In the app-level `Scaffold`, keep the shared bottom bar mounted and animate its visibility instead of removing the slot immediately on route changes; that lets the bottom inset collapse smoothly and avoids abrupt FAB repositioning on the outgoing top-level screen.
 
-Started: Tue Mar  3 13:56:46 UTC 2026
+Started: Tue Mar  3 20:19:14 UTC 2026
 ---
-## 2026-03-03 14:06:22 UTC - US-001
-- Added `TransactionRowState` and `ConversionStatus` to `TransactionListState`, including safe `displayAmount` and `displayCurrency` fallbacks so missing conversions do not break rendering.
-- Updated `TransactionListViewModel` to map filtered transactions into `transactionRows` using account currencies while leaving the existing `transactions` list unchanged for current UI compatibility.
-- Added a focused assertion in `TransactionListViewModelTest` to verify the new row state fields and fallback behavior.
-- Files changed: `presentation/transactions/src/main/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListState.kt`, `presentation/transactions/src/main/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListViewModel.kt`, `presentation/transactions/src/test/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListViewModelTest.kt`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+## [2026-03-03 20:25:25 UTC] - US-001
+- Expanded the settings currency picker from a hardcoded KZT/USD enum into a feature-local NBK currency catalog with code + Russian display name entries, based on the current NBK daily-rates list.
+- Added persisted `target_currency` support in `UserPreferences`, then wired `SettingsViewModel` and `SettingsRoute` so both base and target selections are restored and saved as raw currency codes.
+- Replaced the old two-tile selector with reusable dropdown-backed selectors for base and target currencies, including scroll-safe popup height limits and item test tags for the expanded list.
+- Files changed: `core/datastore/src/main/java/com/atelbay/money_manager/core/datastore/UserPreferences.kt`, `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SupportedCurrency.kt`, `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsState.kt`, `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsViewModel.kt`, `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsRoute.kt`, `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsScreen.kt`, `scripts/ralph/progress.txt`
 - **Learnings for future iterations:**
-  - The transaction list screen still renders from `state.transactions`, so row-level currency work should populate `state.transactionRows` first and switch the UI only in the dedicated rendering story.
-  - `Transaction` models do not carry currency; row-level display currency has to be resolved from the owning `Account` in presentation state mapping.
-  - The existing `TransactionListViewModelTest` already has fake repositories and a base-currency flow setup, which is the right place to extend coverage for the later conversion scenarios.
+  - Patterns discovered (e.g., "this codebase uses X for Y"): feature-local lookup catalogs are a good fit when the app only needs display metadata in one screen and persisted storage can stay as stable string codes.
+  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): adding a second persisted selector requires updating both the DataStore defaults and the `SettingsRoute` callback wiring, otherwise the UI silently renders but one picker never saves.
+  - Useful context (e.g., "the evaluation panel is in component X"): the settings screen now exposes `settings:baseCurrencySelector` and `settings:targetCurrencySelector`, and menu item tags follow the pattern `settings:{base|target}CurrencyXxx`.
 ---
-## 2026-03-03 16:35:59 UTC - US-002
-- Updated `TransactionListViewModel` so `transactionRows` reuse the selected base currency and latest exchange rate, and only expose converted row values when an actual conversion succeeds.
-- Preserved same-currency and missing-rate behavior by leaving row display on the source amount/currency with `ConversionStatus.UNAVAILABLE`.
-- Extended `TransactionListViewModelTest` to cover both the successful row conversion path and the missing-rate fallback path.
-- Files changed: `presentation/transactions/src/main/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListViewModel.kt`, `presentation/transactions/src/test/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListViewModelTest.kt`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+## [2026-03-03 20:58:30 UTC] - US-001
+- Hardened the shared settings currency catalog so invalid persisted codes no longer force the target selector back to `KZT`; base and target now recover with their own defaults.
+- Replaced recursive default lookup initialization with explicit required-currency resolution, which keeps the catalog bootstrap deterministic.
+- Files changed: `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SupportedCurrency.kt`, `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsViewModel.kt`, `scripts/ralph/progress.txt`
 - **Learnings for future iterations:**
-  - `transactionRows` should mirror the summary conversion rules by delegating to the same `convertToBaseCurrency` helper instead of duplicating rate math.
-  - With the current two-state `ConversionStatus`, "same currency" and "missing rate" both map to `UNAVAILABLE`, so the later UI work should key off populated converted fields rather than assuming the enum distinguishes those cases.
-  - In remote-run mode, keep the story implementation commit separate, wait for CI on that commit, then update Ralph tracking files after the checks are green.
+  - Patterns discovered (e.g., "this codebase uses X for Y"): shared UI catalogs can expose a generic lookup API, but callers should still supply the default that matches their own persisted field semantics.
+  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): using one global fallback for multiple selectors creates silent state drift after bad persisted values, even when the screen still renders.
+  - Useful context (e.g., "the evaluation panel is in component X"): `SettingsViewModel` is the right place to normalize persisted selector codes before they hit `SettingsState`, so the composables can stay dumb.
 ---
-## 2026-03-03 16:51:18 UTC - US-003
-- Switched the transaction list UI to render from `state.transactionRows`, so row-level converted amounts now drive the live list, empty state, grouping, and preview data.
-- Extended `TransactionListItem` with an optional secondary amount line and flexible row height so converted rows show the base-currency value first and the original source amount underneath without overlapping metadata.
-- Fixed two CI-found issues during remote validation: a local helper simplification in `TransactionListItem` and a mismatched closing brace in the new secondary amount block.
-- Files changed: `core/ui/src/main/java/com/atelbay/money_manager/core/ui/components/TransactionListItem.kt`, `presentation/transactions/src/main/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListScreen.kt`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+## [2026-03-03 21:05:41 UTC] - US-002
+- Merged the separate exchange-rate timestamp and refresh rows on the settings screen into one compact row that shows `Курс на ...` and keeps a dedicated trailing refresh action.
+- Preserved the refresh affordance with the existing refresh icon, including disabled styling while a refresh is already in progress, without changing the underlying refresh callback.
+- Files changed: `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsScreen.kt`, `scripts/ralph/progress.txt`
 - **Learnings for future iterations:**
-  - The transaction list screen now treats `transactionRows` as the source of truth for row rendering, so UI follow-up work should update that model first and only use `transactions` if legacy compatibility still requires it.
-- Remote-run fixes may need follow-up commits after the initial story commit; CI log line numbers were sufficient to pinpoint the syntax issue without running Gradle locally.
-- Keeping the reusable amount formatting inside the composable body is simpler here than introducing extra local helper structure during rapid CI-only debugging.
+  - Patterns discovered (e.g., "this codebase uses X for Y"): when one settings item needs both status text and an inline action, a feature-local row composable fits better than forcing the generic `SettingRow` API.
+  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): in remote-run mode, leave `scripts/ralph/prd.json` unchanged even after the story implementation is complete; Ralph shell flips `passes` after CI.
+  - Useful context (e.g., "the evaluation panel is in component X"): the exchange-rate summary block lives in `SettingsScreen` under the first `GlassCard`, and the new refresh tap target is tagged as `settings:refreshRateAction`.
 ---
-## 2026-03-03 17:07:03 UTC - US-004
-- Expanded `TransactionListViewModelTest` into explicit same-currency, converted-currency, and missing-rate scenarios, with row-level assertions for original vs converted display fields.
-- Added coverage that income and expense rows preserve their `TransactionType` context while summary income/expense totals remain separated correctly in both converted and fallback paths.
-- Fixed one CI-caught expectation typo in the missing-rate expense test, then re-ran GitHub Actions until both required checks passed for commit `7f78b2f`.
-- Files changed: `presentation/transactions/src/test/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListViewModelTest.kt`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+## [2026-03-03 21:14:32 UTC] - US-003
+- Removed the large inline base/target currency selectors from the settings content and replaced them with a compact summary row that shows the currently selected pair.
+- Added a `TopAppBar` currency action that opens a `ModalBottomSheet` with a search field filtering by both currency code and localized name, plus target toggles for base vs target selection.
+- Wired bottom-sheet selections back through the existing callbacks so both base and target currencies update immediately and the summary row reflects the new values.
+- Files changed: `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsScreen.kt`, `scripts/ralph/progress.txt`
 - **Learnings for future iterations:**
-  - `TransactionListViewModelTest` is easiest to extend by introducing small local builders (`transaction`, `account`, `createViewModel`) rather than duplicating large fixture blocks.
-  - For expense-only fallback scenarios, `periodIncome` should stay `0.0`; only `periodExpense` carries the source amount when conversion is unavailable.
-  - In CI-only debugging, the uploaded `test-results` artifact provides the exact assertion failure details even when the streamed Actions log only shows the failing test name.
+  - Patterns discovered (e.g., "this codebase uses X for Y"): for expanded settings choices, keep persisted state in the existing ViewModel flow and hold only transient sheet/search UI state locally in the stateless screen composable.
+  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): in `RALPH_REMOTE_RUN=true`, skip local Gradle checks entirely even for compile verification and rely on careful source inspection plus the upcoming CI pass.
+  - Useful context (e.g., "the evaluation panel is in component X"): the new currency picker entry points are tagged `settings:currencySheetAction` in the top bar and `settings:currencySummary` in the content, while the searchable sheet root is `settings:currencySheet`.
+---
+## [2026-03-03 21:20:11 UTC] - US-003
+- Repaired the US-003 implementation by restoring the missing `matchParentSize` layout import in `SettingsScreen`, which the new `ThemeSelector` code path references.
+- This keeps the bottom-sheet currency picker UI unchanged while resolving the Kotlin compile break that likely cascaded into the lint and unit-test job failures.
+- Files changed: `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsScreen.kt`, `scripts/ralph/progress.txt`
+- **Learnings for future iterations:**
+  - Patterns discovered (e.g., "this codebase uses X for Y"): when Compose UI refactors introduce new layout modifiers, verify the import list explicitly because extension functions like `matchParentSize` do not auto-resolve.
+  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): a single missing Compose import can fail `compileDebugKotlin` and make the downstream `lint` and `test` CI jobs fail even when their logic is otherwise unaffected.
+  - Useful context (e.g., "the evaluation panel is in component X"): the only source change in this repair iteration is the import block of `SettingsScreen.kt`; no behavior or test-tag contract changed.
+---
+## [2026-03-03 21:25:16 UTC] - US-003
+- Repaired the remaining `US-003` compile issue by importing `androidx.compose.foundation.layout.weight`, which the new currency summary, target buttons, and sheet rows already call via `Modifier.weight(...)`.
+- This is a no-behavior-change fix aimed at the CI compile path that also unblocks the downstream lint and unit-test jobs from failing on source compilation.
+- Files changed: `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsScreen.kt`, `scripts/ralph/progress.txt`
+- **Learnings for future iterations:**
+  - Patterns discovered (e.g., "this codebase uses X for Y"): Compose scope and layout helpers like `weight` are regular extension functions and need explicit imports even when the syntax reads like a built-in modifier.
+  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): after a partial import-only repair, re-scan the whole file for other extension modifiers in use before assuming the compile issue is fully resolved.
+  - Useful context (e.g., "the evaluation panel is in component X"): `SettingsScreen.kt` currently uses `Modifier.weight(...)` in `CurrencyPairSummaryRow`, `CurrencyTargetButton`, `CurrencySheetItem`, and `ThemeSelector`.
+---
+## [2026-03-03 21:34:30 UTC] - US-003
+- Repaired the actual CI break for `US-003` after reading the GitHub Actions logs: removed the incorrect explicit `weight` and `matchParentSize` imports, and replaced `rememberSaveable` with plain `remember` for the transient sheet/search state.
+- Simplified the bottom-sheet selection logic from `when` expressions to `if/else`, which removes the false non-exhaustive compiler error that was cascading from the bad state type resolution.
+- Files changed: `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsScreen.kt`, `scripts/ralph/progress.txt`
+- **Learnings for future iterations:**
+  - Patterns discovered (e.g., "this codebase uses X for Y"): for transient Compose-only UI state in this project, `remember` is enough unless the screen explicitly needs save/restore across recreation.
+  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): `Modifier.weight(...)` and `matchParentSize()` compile inside their scope blocks without imports here; importing them directly can resolve to the wrong API surface and produce misleading Kotlin errors.
+  - Useful context (e.g., "the evaluation panel is in component X"): `gh run view <run-id> --job <job-id> --log` works for one-off CI diagnostics in this repo and exposed the exact `presentation:settings:compileDebugKotlin` errors when the check annotations did not.
+---
+## [2026-03-03 21:42:25 UTC] - US-004
+- Removed the transaction list's duplicated bottom gap by replacing the trailing spacer item with explicit `LazyColumn` content padding that keeps the top app bar inset and uses one fixed FAB clearance.
+- This keeps the list scrollable above the FAB while avoiding the extra bottom inset that was stacking on top of the shared bottom-navigation layout.
+- Files changed: `presentation/transactions/src/main/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListScreen.kt`, `scripts/ralph/progress.txt`
+- **Learnings for future iterations:**
+  - Patterns discovered (e.g., "this codebase uses X for Y"): on list-heavy Compose screens, `contentPadding` is a cleaner way to reserve space for overlays like a FAB than adding a dedicated spacer row.
+  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): when a screen already lives inside the app-level bottom-nav scaffold, applying the inner scaffold's bottom padding to the list can create a visible double gap near the bottom edge.
+  - Useful context (e.g., "the evaluation panel is in component X"): the home transaction feed spacing is controlled in `TransactionListScreen.kt`; there is no separate home-specific bottom-bar padding in the feature module.
+---
+## [2026-03-03 21:54:01 UTC] - US-004
+- Replaced the fixed `96.dp` transaction list bottom padding with `padding.calculateBottomPadding() + 16.dp`, so the FAB clearance now follows the `Scaffold`'s actual inset instead of relying on a hardcoded value.
+- This keeps the earlier double-gap fix intact while better matching neighboring screens and preserving safe spacing on devices with different inset sizes.
+- Files changed: `presentation/transactions/src/main/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListScreen.kt`, `scripts/ralph/progress.txt`
+- **Learnings for future iterations:**
+  - Patterns discovered (e.g., "this codebase uses X for Y"): when a `LazyColumn` sits inside a `Scaffold` with a FAB, using the provided bottom content padding as the base clearance is more robust than pinning a magic number.
+  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): replacing a duplicated spacer with a fixed constant can still look off on devices with different system/FAB insets, so prefer deriving spacing from `padding`.
+  - Useful context (e.g., "the evaluation panel is in component X"): `TransactionListScreen.kt` now computes its bottom list inset directly in `contentPadding`; there is no trailing spacer item or separate hardcoded FAB padding constant.
+---
+## [2026-03-03 22:01:24 UTC] - US-005
+- Replaced the shared `MoneyManagerFAB` hardcoded teal/white colors with dedicated semantic FAB tokens, then mapped those tokens to the existing tertiary palette so the button reads as an intentional accent instead of the default primary teal.
+- Assigned separate light and dark FAB container/content pairs, which keeps the icon legible across themes while preserving the same shared component used by transactions, categories, and accounts screens.
+- Files changed: `core/ui/src/main/java/com/atelbay/money_manager/core/ui/theme/Color.kt`, `core/ui/src/main/java/com/atelbay/money_manager/core/ui/components/MoneyManagerFAB.kt`, `scripts/ralph/progress.txt`
+- **Learnings for future iterations:**
+  - Patterns discovered (e.g., "this codebase uses X for Y"): shared UI primitives in `core:ui` should expose their own semantic theme tokens when a component needs different light/dark styling than the base accent color.
+  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): expanding `MoneyManagerColors` requires updating both `LightMoneyManagerColors` and `DarkMoneyManagerColors` immediately, or the theme stops compiling.
+  - Useful context (e.g., "the evaluation panel is in component X"): `MoneyManagerFAB.kt` is the single shared FAB used by the list screens in transactions, categories, and accounts, so color changes there apply app-wide.
+---
+## [2026-03-03 22:14:26 UTC] - US-005
+- Tightened the shared FAB accent from the softer tertiary container pair to the stronger tertiary role pair, so the button reads as a clearly contrasty primary action in both light and dark themes.
+- Kept the shared semantic FAB tokens and `MoneyManagerFAB` component contract unchanged, so the transactions, categories, and accounts screens all inherit the stronger accent without any screen-level edits.
+- Files changed: `core/ui/src/main/java/com/atelbay/money_manager/core/ui/theme/Color.kt`, `scripts/ralph/progress.txt`
+- **Learnings for future iterations:**
+  - Patterns discovered (e.g., "this codebase uses X for Y"): for shared high-emphasis actions, semantic component tokens can still map to full Material color roles instead of container roles when the UI needs a stronger contrast target.
+  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): using a container tone for a global primary affordance may technically work but still undershoot the visual emphasis required by product acceptance criteria.
+  - Useful context (e.g., "the evaluation panel is in component X"): `fabContainer`/`fabContent` remain the only knobs for app-wide FAB color, so future polish work should adjust those theme tokens first.
+---
+## [2026-03-03 22:22:10 UTC] - US-006
+- Replaced the app-level instant bottom-bar removal with an `AnimatedVisibility` transition that slides and fades the shared bottom navigation in and out over a single tuned duration.
+- Preserved the last selected top-level destination during the exit animation, so the bar keeps a stable selected state while the scaffold bottom inset collapses smoothly instead of snapping away on FAB-driven navigation.
+- Files changed: `app/src/main/java/com/atelbay/money_manager/MainActivity.kt`, `scripts/ralph/progress.txt`
+- **Learnings for future iterations:**
+  - Patterns discovered (e.g., "this codebase uses X for Y"): shared route-level chrome transitions belong in `MainActivity`'s app scaffold, not in individual feature screens, when the behavior should stay consistent across all bottom-tab destinations.
+  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): if the bottom bar animates out after leaving a top-level route, keep the last non-null `TopLevelDestination` around for the exit frame or the selected tab can clear before the animation completes.
+  - Useful context (e.g., "the evaluation panel is in component X"): the bottom-nav visibility rule still comes from `currentDestination?.hasRoute(dest.route::class)` inside `MoneyManagerApp`; only the presentation changed.
 ---
