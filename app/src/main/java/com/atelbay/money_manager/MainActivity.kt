@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,10 +39,12 @@ import com.atelbay.money_manager.navigation.MoneyManagerBottomBar
 import com.atelbay.money_manager.navigation.MoneyManagerNavHost
 import com.atelbay.money_manager.navigation.Onboarding
 import com.atelbay.money_manager.navigation.TopLevelDestination
+import com.atelbay.money_manager.navigation.TransactionEdit
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.delay
 import javax.inject.Inject
 
-private const val BottomBarAnimationDurationMs = 220
+private const val BottomBarAnimationDurationMs = 150
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -106,6 +109,8 @@ private fun MoneyManagerApp(
     }
 
     val showBottomBar = currentTopLevel != null
+
+    // Keep last known destination so bottom bar shows correctly during exit animation
     var lastTopLevel by remember { mutableStateOf(currentTopLevel) }
     SideEffect {
         if (currentTopLevel != null) {
@@ -113,8 +118,23 @@ private fun MoneyManagerApp(
         }
     }
     val bottomBarDestination = currentTopLevel ?: lastTopLevel
-    val bottomBarVisibility = remember { MutableTransitionState(showBottomBar) }
-    bottomBarVisibility.targetState = showBottomBar
+
+    // Force-hide state for delayed FAB navigation
+    var forceHideBottomBar by remember { mutableStateOf(false) }
+    var pendingNavAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    val effectiveShowBottomBar = showBottomBar && !forceHideBottomBar
+    val bottomBarVisibility = remember { MutableTransitionState(effectiveShowBottomBar) }
+    bottomBarVisibility.targetState = effectiveShowBottomBar
+
+    // Execute pending navigation after bottom bar has finished hiding
+    LaunchedEffect(pendingNavAction) {
+        val action = pendingNavAction ?: return@LaunchedEffect
+        delay(BottomBarAnimationDurationMs.toLong() + 10L)
+        action()
+        forceHideBottomBar = false
+        pendingNavAction = null
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -157,6 +177,10 @@ private fun MoneyManagerApp(
             navController = navController,
             startDestination = startDestination,
             modifier = Modifier.padding(bottom = padding.calculateBottomPadding()),
+            onFabNavigate = {
+                forceHideBottomBar = true
+                pendingNavAction = { navController.navigate(TransactionEdit()) }
+            },
         )
     }
 }
