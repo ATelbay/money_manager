@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -23,16 +25,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
@@ -54,6 +59,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.ui.components.GlassCard
+import com.atelbay.money_manager.core.ui.components.MoneyManagerTextField
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.theme.Teal
 
@@ -253,10 +259,17 @@ private fun CurrencyPickerBottomSheet(
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
 
-    val options = listOf(
-        SupportedCurrencies.fromCode("KZT"),
-        SupportedCurrencies.fromCode("USD"),
-    )
+    var searchQuery by remember { mutableStateOf("") }
+    val filteredOptions = remember(searchQuery) {
+        val q = searchQuery.trim().lowercase()
+        if (q.isEmpty()) {
+            SupportedCurrencies.all
+        } else {
+            SupportedCurrencies.all.filter { c ->
+                c.code.lowercase().contains(q) || c.name.lowercase().contains(q)
+            }
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -274,40 +287,73 @@ private fun CurrencyPickerBottomSheet(
                 text = "Базовая валюта",
                 style = typography.sectionHeader,
                 color = colors.textPrimary,
-                modifier = Modifier.padding(bottom = 16.dp),
+                modifier = Modifier.padding(bottom = 12.dp),
             )
 
-            options.forEachIndexed { index, currency ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { onSelect(currency) }
-                        .padding(vertical = 14.dp, horizontal = 8.dp)
-                        .testTag("settings:currency${currency.code}"),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "${currency.code} · ${currency.name}",
-                        style = typography.cardTitle,
-                        color = colors.textPrimary,
-                        modifier = Modifier.weight(1f),
+            MoneyManagerTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = "Поиск валюты",
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(20.dp),
                     )
-                    if (selected.code == currency.code) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = Teal,
-                            modifier = Modifier.size(20.dp),
+                },
+                trailingIcon = if (searchQuery.isNotEmpty()) {
+                    {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = null,
+                                tint = colors.textSecondary,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+                } else null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                singleLine = true,
+                tag = "settings:currencySearch",
+            )
+
+            LazyColumn {
+                itemsIndexed(filteredOptions) { index, currency ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onSelect(currency) }
+                            .padding(vertical = 14.dp, horizontal = 8.dp)
+                            .testTag("settings:currency${currency.code}"),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "${currency.code} · ${currency.name}",
+                            style = typography.cardTitle,
+                            color = colors.textPrimary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (selected.code == currency.code) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Teal,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+                    if (index < filteredOptions.lastIndex) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 8.dp),
+                            thickness = 0.5.dp,
+                            color = colors.borderSubtle,
                         )
                     }
-                }
-                if (index < options.lastIndex) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 8.dp),
-                        thickness = 0.5.dp,
-                        color = colors.borderSubtle,
-                    )
                 }
             }
 

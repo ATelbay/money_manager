@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -173,10 +174,18 @@ private fun MoneyManagerApp(
             }
         },
     ) { padding ->
+        val animatedBottomPadding by animateDpAsState(
+            targetValue = padding.calculateBottomPadding(),
+            animationSpec = tween(
+                durationMillis = BottomBarAnimationDurationMs,
+                easing = FastOutSlowInEasing,
+            ),
+            label = "navHostBottomPadding",
+        )
         MoneyManagerNavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.padding(bottom = padding.calculateBottomPadding()),
+            modifier = Modifier.padding(bottom = animatedBottomPadding),
             onFabNavigate = {
                 forceHideBottomBar = true
                 pendingNavAction = { navController.navigate(TransactionEdit()) }
