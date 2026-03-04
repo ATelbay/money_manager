@@ -152,7 +152,6 @@ class SettingsViewModel @Inject constructor(
         if (rate == null) return ""
         return when (base.code) {
             "KZT" -> "1 KZT = ${numberFormatter.format(1.0 / rate.usdToKzt)} USD"
-            "USD" -> "1 USD = ${numberFormatter.format(rate.usdToKzt)} KZT"
             else  -> "1 USD = ${numberFormatter.format(rate.usdToKzt)} KZT"
         }
     }

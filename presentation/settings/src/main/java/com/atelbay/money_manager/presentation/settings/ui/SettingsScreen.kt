@@ -12,46 +12,31 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.SheetValue
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,7 +46,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.ui.components.GlassCard
-import com.atelbay.money_manager.core.ui.components.MoneyManagerTextField
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.theme.Teal
 
@@ -70,15 +54,13 @@ import com.atelbay.money_manager.core.ui.theme.Teal
 fun SettingsScreen(
     state: SettingsState,
     onThemeModeChange: (ThemeMode) -> Unit,
-    onBaseCurrencyChange: (SupportedCurrency) -> Unit,
-    onTargetCurrencyChange: (SupportedCurrency) -> Unit,
     onRefreshRateClick: () -> Unit,
     onCategoriesClick: () -> Unit,
+    onCurrencyPickerClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
-    var showCurrencySheet by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.testTag("settings:screen"),
@@ -133,7 +115,7 @@ fun SettingsScreen(
                         title = "Курс ${state.baseCurrency.code}/${state.targetCurrency.code}",
                         subtitle = state.rateDisplay.ifEmpty { "Курс ещё не загружен" },
                         hasChevron = true,
-                        onClick = { showCurrencySheet = true },
+                        onClick = onCurrencyPickerClick,
                         modifier = Modifier.testTag("settings:exchangeRate"),
                     )
 
@@ -227,160 +209,6 @@ fun SettingsScreen(
             }
 
             Spacer(modifier = Modifier.height(80.dp))
-        }
-
-        if (showCurrencySheet) {
-            CurrencyPickerBottomSheet(
-                selected = state.baseCurrency,
-                onSelect = { currency ->
-                    onBaseCurrencyChange(currency)
-                    val opposite = if (currency.code == "KZT") {
-                        SupportedCurrencies.fromCode("USD")
-                    } else {
-                        SupportedCurrencies.fromCode("KZT")
-                    }
-                    onTargetCurrencyChange(opposite)
-                    showCurrencySheet = false
-                },
-                onDismiss = { showCurrencySheet = false },
-            )
-        }
-    }
-}
-
-// ── Currency Picker Bottom Sheet ──
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CurrencyPickerBottomSheet(
-    selected: SupportedCurrency,
-    onSelect: (SupportedCurrency) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true,
-        confirmValueChange = { it != SheetValue.Hidden },
-    )
-    val colors = MoneyManagerTheme.colors
-    val typography = MoneyManagerTheme.typography
-
-    var searchQuery by remember { mutableStateOf("") }
-    val filteredOptions = remember(searchQuery) {
-        val q = searchQuery.trim().lowercase()
-        if (q.isEmpty()) {
-            SupportedCurrencies.all
-        } else {
-            SupportedCurrencies.all.filter { c ->
-                c.code.lowercase().contains(q) || c.name.lowercase().contains(q)
-            }
-        }
-    }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        dragHandle = {},
-        modifier = Modifier.testTag("settings:currencySheet"),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "Базовая валюта",
-                    style = typography.sectionHeader,
-                    color = colors.textPrimary,
-                )
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.testTag("settings:currencySheetClose"),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Закрыть",
-                        tint = colors.textSecondary,
-                    )
-                }
-            }
-
-            MoneyManagerTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = "Поиск валюты",
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null,
-                        tint = colors.textSecondary,
-                        modifier = Modifier.size(20.dp),
-                    )
-                },
-                trailingIcon = if (searchQuery.isNotEmpty()) {
-                    {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = null,
-                                tint = colors.textSecondary,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                    }
-                } else null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                singleLine = true,
-                tag = "settings:currencySearch",
-            )
-
-            LazyColumn {
-                itemsIndexed(filteredOptions) { index, currency ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onSelect(currency) }
-                            .padding(vertical = 14.dp, horizontal = 8.dp)
-                            .testTag("settings:currency${currency.code}"),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "${currency.code} · ${currency.name}",
-                            style = typography.cardTitle,
-                            color = colors.textPrimary,
-                            modifier = Modifier.weight(1f),
-                        )
-                        if (selected.code == currency.code) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = Teal,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                    }
-                    if (index < filteredOptions.lastIndex) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 8.dp),
-                            thickness = 0.5.dp,
-                            color = colors.borderSubtle,
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -586,10 +414,9 @@ private fun SettingsScreenPreview() {
                 appVersion = "1.0.0",
             ),
             onThemeModeChange = {},
-            onBaseCurrencyChange = {},
-            onTargetCurrencyChange = {},
             onRefreshRateClick = {},
             onCategoriesClick = {},
+            onCurrencyPickerClick = {},
         )
     }
 }
