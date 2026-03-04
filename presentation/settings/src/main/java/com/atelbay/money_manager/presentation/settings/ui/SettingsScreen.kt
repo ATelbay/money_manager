@@ -128,7 +128,7 @@ fun SettingsScreen(
                     SettingRow(
                         icon = Icons.Default.AttachMoney,
                         iconColor = Color(0xFFFBBF24),
-                        title = "Курс USD/KZT",
+                        title = "Курс ${state.baseCurrency.code}/${state.targetCurrency.code}",
                         subtitle = state.rateDisplay.ifEmpty { "Курс ещё не загружен" },
                         hasChevron = true,
                         onClick = { showCurrencySheet = true },
@@ -275,6 +275,7 @@ private fun CurrencyPickerBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = {},
         modifier = Modifier.testTag("settings:currencySheet"),
     ) {
         Column(

@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -64,39 +65,25 @@ class SettingsViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        userPreferences.baseCurrency
-            .onEach { currency ->
-                _state.update {
-                    it.copy(
-                        baseCurrency = SupportedCurrencies.fromCode(
-                            code = currency,
-                            fallback = SupportedCurrencies.defaultBase,
-                        ),
-                    )
-                }
-            }
-            .launchIn(viewModelScope)
-
-        userPreferences.targetCurrency
-            .onEach { currency ->
-                _state.update {
-                    it.copy(
-                        targetCurrency = SupportedCurrencies.fromCode(
-                            code = currency,
-                            fallback = SupportedCurrencies.defaultTarget,
-                        ),
-                    )
-                }
-            }
-            .launchIn(viewModelScope)
-
-        getUsdKztRateUseCase()
-            .onEach { rate ->
-                _state.update {
-                    it.copy(
-                        rateDisplay = rate?.let(::formatRate).orEmpty(),
+        combine(
+            userPreferences.baseCurrency,
+            userPreferences.targetCurrency,
+            getUsdKztRateUseCase(),
+        ) { baseCurrencyCode, targetCurrencyCode, rate ->
+            Triple(
+                SupportedCurrencies.fromCode(baseCurrencyCode, SupportedCurrencies.defaultBase),
+                SupportedCurrencies.fromCode(targetCurrencyCode, SupportedCurrencies.defaultTarget),
+                rate,
+            )
+        }
+            .onEach { (base, target, rate) ->
+                _state.update { current ->
+                    current.copy(
+                        baseCurrency = base,
+                        targetCurrency = target,
+                        rateDisplay = buildRateDisplay(base, target, rate),
                         lastUpdatedDisplay = rate?.let(::formatLastUpdated).orEmpty(),
-                        rateErrorMessage = if (rate != null) null else it.rateErrorMessage,
+                        rateErrorMessage = if (rate != null) null else current.rateErrorMessage,
                     )
                 }
             }
@@ -151,14 +138,29 @@ class SettingsViewModel @Inject constructor(
             _state.update {
                 it.copy(
                     isRefreshingRate = false,
-                    rateErrorMessage = refreshError?.let { "Не удалось обновить курс USD/KZT" },
+                    rateErrorMessage = refreshError?.let {
+                        val base = _state.value.baseCurrency.code
+                        val target = _state.value.targetCurrency.code
+                        "Не удалось обновить курс $base/$target"
+                    },
                 )
             }
         }
     }
 
-    private fun formatRate(rate: ExchangeRate): String {
-        return "1 USD = ${numberFormatter.format(rate.usdToKzt)} KZT"
+    private fun buildRateDisplay(
+        base: SupportedCurrency,
+        target: SupportedCurrency,
+        rate: ExchangeRate?,
+    ): String {
+        if (rate == null) return ""
+        return when {
+            base.code == "USD" && target.code == "KZT" ->
+                "1 USD = ${numberFormatter.format(rate.usdToKzt)} KZT"
+            base.code == "KZT" && target.code == "USD" ->
+                "1 KZT = ${numberFormatter.format(1.0 / rate.usdToKzt)} USD"
+            else -> "нет данных"
+        }
     }
 
     private fun formatLastUpdated(rate: ExchangeRate): String {
