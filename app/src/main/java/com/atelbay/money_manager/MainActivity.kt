@@ -15,6 +15,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -185,7 +186,9 @@ private fun MoneyManagerApp(
         MoneyManagerNavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.padding(bottom = animatedBottomPadding),
+            modifier = Modifier
+                .padding(bottom = animatedBottomPadding)
+                .consumeWindowInsets(padding),
             onFabNavigate = {
                 forceHideBottomBar = true
                 pendingNavAction = { navController.navigate(TransactionEdit()) }

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.GridView
@@ -44,6 +45,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -128,7 +130,7 @@ fun SettingsScreen(
                     SettingRow(
                         icon = Icons.Default.AttachMoney,
                         iconColor = Color(0xFFFBBF24),
-                        title = "Курс USD/KZT",
+                        title = "Курс ${state.baseCurrency.code}/${state.targetCurrency.code}",
                         subtitle = state.rateDisplay.ifEmpty { "Курс ещё не загружен" },
                         hasChevron = true,
                         onClick = { showCurrencySheet = true },
@@ -255,7 +257,10 @@ private fun CurrencyPickerBottomSheet(
     onSelect: (SupportedCurrency) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { it != SheetValue.Hidden },
+    )
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
 
@@ -284,12 +289,29 @@ private fun CurrencyPickerBottomSheet(
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp),
         ) {
-            Text(
-                text = "Базовая валюта",
-                style = typography.sectionHeader,
-                color = colors.textPrimary,
-                modifier = Modifier.padding(bottom = 12.dp),
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Базовая валюта",
+                    style = typography.sectionHeader,
+                    color = colors.textPrimary,
+                )
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.testTag("settings:currencySheetClose"),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Закрыть",
+                        tint = colors.textSecondary,
+                    )
+                }
+            }
 
             MoneyManagerTextField(
                 value = searchQuery,

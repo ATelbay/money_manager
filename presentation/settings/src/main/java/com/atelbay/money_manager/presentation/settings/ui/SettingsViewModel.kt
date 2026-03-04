@@ -150,12 +150,10 @@ class SettingsViewModel @Inject constructor(
         rate: ExchangeRate?,
     ): String {
         if (rate == null) return ""
-        // System only stores usdToKzt; show that rate regardless of display currency selection
-        return when {
-            base.code == "KZT" ->
-                "1 KZT = ${numberFormatter.format(1.0 / rate.usdToKzt)} USD"
-            else ->
-                "1 USD = ${numberFormatter.format(rate.usdToKzt)} KZT"
+        return when (base.code) {
+            "KZT" -> "1 KZT = ${numberFormatter.format(1.0 / rate.usdToKzt)} USD"
+            "USD" -> "1 USD = ${numberFormatter.format(rate.usdToKzt)} KZT"
+            else  -> "1 USD = ${numberFormatter.format(rate.usdToKzt)} KZT"
         }
     }
 
