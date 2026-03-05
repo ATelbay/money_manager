@@ -10,4 +10,5 @@ dependencies {
     implementation(projects.core.datastore)
     implementation(projects.core.ui)
     implementation(projects.domain.exchangerate)
+    implementation(projects.domain.transactions)
 }

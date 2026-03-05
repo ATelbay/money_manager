@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -87,6 +88,31 @@ class UserPreferences @Inject constructor(
         }
     }
 
+    val quoteRefreshFailureCount: Flow<Int> =
+        context.dataStore.data.map { prefs ->
+            prefs[KEY_QUOTE_REFRESH_FAILURE_COUNT] ?: 0
+        }
+
+    /**
+     * Increments the consecutive quote-refresh failure counter.
+     * @return the new failure count after incrementing.
+     */
+    suspend fun incrementQuoteRefreshFailureCount(): Int {
+        var newCount = 0
+        context.dataStore.edit { prefs ->
+            val current = prefs[KEY_QUOTE_REFRESH_FAILURE_COUNT] ?: 0
+            newCount = current + 1
+            prefs[KEY_QUOTE_REFRESH_FAILURE_COUNT] = newCount
+        }
+        return newCount
+    }
+
+    suspend fun resetQuoteRefreshFailureCount() {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_QUOTE_REFRESH_FAILURE_COUNT] = 0
+        }
+    }
+
     val exchangeRate: Flow<StoredExchangeRate?> =
         context.dataStore.data.map { prefs ->
             prefs.toStoredExchangeRate()
@@ -159,6 +185,7 @@ class UserPreferences @Inject constructor(
         val KEY_USD_KZT_RATE_FETCHED_AT = longPreferencesKey("usd_kzt_rate_fetched_at")
         val KEY_USD_KZT_RATE_SOURCE = stringPreferencesKey("usd_kzt_rate_source")
         val KEY_EXCHANGE_QUOTES_JSON = stringPreferencesKey("exchange_quotes_json")
+        val KEY_QUOTE_REFRESH_FAILURE_COUNT = intPreferencesKey("quote_refresh_failure_count")
 
         /**
          * Simple JSON serializer for quotes map. Avoids adding org.json / Gson dependency.

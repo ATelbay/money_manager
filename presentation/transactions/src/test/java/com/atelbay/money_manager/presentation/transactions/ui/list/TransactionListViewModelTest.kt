@@ -261,6 +261,8 @@ class TransactionListViewModelTest {
         override suspend fun save(transaction: Transaction): Long = transaction.id
 
         override suspend fun delete(id: Long) = Unit
+
+        override suspend fun getTopCurrenciesByUsage(): List<String> = emptyList()
     }
 
     private class FakeAccountRepository(

@@ -17,6 +17,11 @@ Started: Thu Mar  5 14:49:29 UTC 2026
 - TransactionListViewModel.convertToBaseCurrency() catches IllegalArgumentException from ConvertAmountUseCase for unsupported pairs
 - SettingsViewModel uses `combine(baseCurrency, targetCurrency, observeExchangeRateUseCase())` pattern for atomic state updates
 - Main added CurrencyPickerRoute/CurrencyPickerScreen for currency selection via navigation (not bottom sheet)
+- UserPreferences has `quoteRefreshFailureCount` Flow and `incrementQuoteRefreshFailureCount()`/`resetQuoteRefreshFailureCount()` for tracking consecutive failures
+- TransactionDao.getCurrencyTransactionCounts() joins transactions+accounts for currency frequency; returns CurrencyTransactionCount POJO
+- TransactionRepository.getTopCurrenciesByUsage() returns currency codes ranked by all-time transaction count (ties broken alphabetically)
+- SettingsViewModel auto-switches base/target pair after 3 consecutive refresh failures using transaction frequency data
+- presentation:settings depends on domain:transactions for accessing TransactionRepository
 
 ---
 
@@ -77,4 +82,23 @@ Started: Thu Mar  5 14:49:29 UTC 2026
   - Read path: JSON key preferred; if absent, falls back to legacy `usd_kzt_rate` — transparent to callers
   - `parseAllQuotes()` is `internal` visibility for testability from test module
   - The regex `CURRENCY_ROW_REGEX` uses `[^>]*` for td attributes and `[^<]+` for currency name to be flexible with NBK HTML changes
+---
+
+## 2026-03-05 - US-003
+- What was implemented: Auto-switch currency pair after 3 consecutive quote-refresh failures
+- Files changed:
+  - core/datastore/.../UserPreferences.kt — added `KEY_QUOTE_REFRESH_FAILURE_COUNT` (intPreferencesKey), `quoteRefreshFailureCount` Flow, `incrementQuoteRefreshFailureCount()` (returns new count), `resetQuoteRefreshFailureCount()`
+  - core/database/.../dao/CurrencyTransactionCount.kt — new Room POJO for currency frequency query results
+  - core/database/.../dao/TransactionDao.kt — added `getCurrencyTransactionCounts()` query joining transactions+accounts, ordered by count DESC then currency ASC for deterministic tie-breaking
+  - domain/transactions/.../repository/TransactionRepository.kt — added `getTopCurrenciesByUsage(): List<String>` method
+  - data/transactions/.../repository/TransactionRepositoryImpl.kt — implemented `getTopCurrenciesByUsage()` using DAO
+  - presentation/settings/build.gradle.kts — added `domain:transactions` dependency
+  - presentation/settings/.../SettingsViewModel.kt — injected `TransactionRepository`; on success: reset counter; on failure: increment counter, if ≥3 auto-switch pair (base=top-1, target=top-2, fallbacks USD/EUR) and reset counter
+  - presentation/transactions/.../TransactionListViewModelTest.kt — added `getTopCurrenciesByUsage()` stub to FakeTransactionRepository
+- **Learnings for future iterations:**
+  - CurrencyTransactionCount lives in dao package (not entity) since it's a query result POJO, not a Room entity
+  - The auto-switch logic is in SettingsViewModel (not repository) because it needs cross-domain access (exchange rate + transactions)
+  - presentation:settings now depends on domain:transactions — this was necessary for accessing transaction frequency data
+  - FakeTransactionRepository in TransactionListViewModelTest must be updated when new methods are added to the interface
+  - Tie-breaking for currency frequency is alphabetical by currency code (SQL ORDER BY ... a.currency ASC)
 ---

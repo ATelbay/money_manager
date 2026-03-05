@@ -8,4 +8,10 @@ interface TransactionRepository {
     fun observeById(id: Long): Flow<Transaction?>
     suspend fun save(transaction: Transaction): Long
     suspend fun delete(id: Long)
+
+    /**
+     * Returns currency codes ranked by all-time transaction count (descending).
+     * Ties are broken alphabetically by currency code for deterministic ordering.
+     */
+    suspend fun getTopCurrenciesByUsage(): List<String>
 }

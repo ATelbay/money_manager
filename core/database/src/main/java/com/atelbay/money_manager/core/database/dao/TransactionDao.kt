@@ -50,4 +50,19 @@ interface TransactionDao {
 
     @Query("SELECT uniqueHash FROM transactions WHERE uniqueHash IN (:hashes)")
     suspend fun getExistingHashes(hashes: List<String>): List<String>
+
+    /**
+     * Returns currency codes ranked by all-time transaction count (descending).
+     * Ties are broken alphabetically by currency code for deterministic ordering.
+     */
+    @Query(
+        """
+        SELECT a.currency, COUNT(t.id) AS transactionCount
+        FROM transactions t
+        INNER JOIN accounts a ON t.accountId = a.id
+        GROUP BY a.currency
+        ORDER BY transactionCount DESC, a.currency ASC
+        """,
+    )
+    suspend fun getCurrencyTransactionCounts(): List<CurrencyTransactionCount>
 }

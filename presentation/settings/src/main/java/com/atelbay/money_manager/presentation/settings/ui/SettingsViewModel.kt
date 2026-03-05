@@ -8,6 +8,7 @@ import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
 import com.atelbay.money_manager.domain.exchangerate.repository.ExchangeRateRepository
 import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
+import com.atelbay.money_manager.domain.transactions.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +31,7 @@ class SettingsViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
     private val observeExchangeRateUseCase: ObserveExchangeRateUseCase,
     private val exchangeRateRepository: ExchangeRateRepository,
+    private val transactionRepository: TransactionRepository,
     application: Application,
 ) : ViewModel() {
 
@@ -129,19 +131,48 @@ class SettingsViewModel @Inject constructor(
             var refreshError: Throwable? = null
             try {
                 exchangeRateRepository.fetchAndStoreQuotes()
+                userPreferences.resetQuoteRefreshFailureCount()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 refreshError = e
+                val failureCount = userPreferences.incrementQuoteRefreshFailureCount()
+                if (failureCount >= FAILURE_THRESHOLD_FOR_AUTO_SWITCH) {
+                    autoSwitchCurrencyPair()
+                    userPreferences.resetQuoteRefreshFailureCount()
+                }
             }
 
             _state.update {
                 it.copy(
                     isRefreshingRate = false,
-                    rateErrorMessage = refreshError?.let { "Не удалось обновить курс USD/KZT" },
+                    rateErrorMessage = refreshError?.let { "Не удалось обновить курс" },
                 )
             }
         }
+    }
+
+    /**
+     * Auto-selects base/target currency pair from all-time transaction frequency.
+     *
+     * - base = top-1 currency by transaction count (fallback: USD)
+     * - target = top-2 currency by transaction count (fallback: EUR)
+     *
+     * Tie-breaking: when multiple currencies have equal transaction counts,
+     * alphabetical order by currency code is used (enforced by DAO ORDER BY).
+     */
+    private suspend fun autoSwitchCurrencyPair() {
+        val topCurrencies = try {
+            transactionRepository.getTopCurrenciesByUsage()
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+        val base = topCurrencies.getOrNull(0) ?: DEFAULT_FALLBACK_BASE
+        val target = topCurrencies.getOrNull(1) ?: DEFAULT_FALLBACK_TARGET
+
+        userPreferences.setBaseCurrency(base)
+        userPreferences.setTargetCurrency(target)
     }
 
     private fun buildRateDisplay(
@@ -161,5 +192,11 @@ class SettingsViewModel @Inject constructor(
         return Instant.ofEpochMilli(rate.fetchedAt)
             .atZone(ZoneId.systemDefault())
             .format(timeFormatter)
+    }
+
+    private companion object {
+        const val FAILURE_THRESHOLD_FOR_AUTO_SWITCH = 3
+        const val DEFAULT_FALLBACK_BASE = "USD"
+        const val DEFAULT_FALLBACK_TARGET = "EUR"
     }
 }
