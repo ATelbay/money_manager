@@ -25,11 +25,8 @@ class ExchangeRateRepositoryImpl @Inject constructor(
 
     override suspend fun saveQuotes(rate: ExchangeRate) {
         val cacheModel = rate.toCacheModel(source = SOURCE_NBK)
-        // Legacy storage: extract USD quote for the single-value preference key.
-        // US-002 will migrate storage to persist the full quotes map.
-        val usdRate = cacheModel.quotes[USD] ?: return
         userPreferences.setExchangeRate(
-            usdToKzt = usdRate,
+            quotes = cacheModel.quotes,
             fetchedAt = cacheModel.fetchedAt,
             source = cacheModel.source,
         )
@@ -40,14 +37,11 @@ class ExchangeRateRepositoryImpl @Inject constructor(
             val cacheModel = remoteDataSource.fetchQuotes()
                 .toCacheModel(fetchedAt = System.currentTimeMillis())
 
-            val usdRate = cacheModel.quotes[USD]
-            if (usdRate != null) {
-                userPreferences.setExchangeRate(
-                    usdToKzt = usdRate,
-                    fetchedAt = cacheModel.fetchedAt,
-                    source = cacheModel.source,
-                )
-            }
+            userPreferences.setExchangeRate(
+                quotes = cacheModel.quotes,
+                fetchedAt = cacheModel.fetchedAt,
+                source = cacheModel.source,
+            )
 
             cacheModel.toDomain()
         } catch (error: Exception) {
@@ -64,6 +58,5 @@ class ExchangeRateRepositoryImpl @Inject constructor(
 
     private companion object {
         const val SOURCE_NBK = "NBK"
-        const val USD = "USD"
     }
 }

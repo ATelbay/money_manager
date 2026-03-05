@@ -34,10 +34,11 @@ class ExchangeRateRepositoryImplTest {
 
     @Test
     fun `fetchAndStoreQuotes returns fresh remote rate and caches it`() = runTest {
-        coEvery { remoteDataSource.fetchQuotes() } returns NbkExchangeRateRemoteModel(quotes = mapOf("USD" to 475.0))
+        val remoteQuotes = mapOf("USD" to 475.0, "EUR" to 520.0)
+        coEvery { remoteDataSource.fetchQuotes() } returns NbkExchangeRateRemoteModel(quotes = remoteQuotes)
         coEvery {
             userPreferences.setExchangeRate(
-                usdToKzt = any(),
+                quotes = any(),
                 fetchedAt = any(),
                 source = any(),
             )
@@ -46,10 +47,11 @@ class ExchangeRateRepositoryImplTest {
         val result = repository.fetchAndStoreQuotes()
 
         assertEquals(475.0, result.quotes["USD"]!!, 0.0)
+        assertEquals(520.0, result.quotes["EUR"]!!, 0.0)
         assertTrue(result.fetchedAt > 0L)
         coVerify(exactly = 1) {
             userPreferences.setExchangeRate(
-                usdToKzt = 475.0,
+                quotes = remoteQuotes,
                 fetchedAt = result.fetchedAt,
                 source = "NBK",
             )

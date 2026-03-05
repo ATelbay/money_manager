@@ -6,13 +6,12 @@ import com.atelbay.money_manager.data.exchangerate.model.NbkExchangeRateRemoteMo
 import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
 
 /**
- * Bridges legacy [StoredExchangeRate] (single usdToKzt value) to the
- * multi-currency [ExchangeRateCacheModel]. US-002 will migrate storage
- * to persist the full quotes map.
+ * Bridges [StoredExchangeRate] to [ExchangeRateCacheModel].
+ * Uses full quotes map when available; falls back to legacy single USD value.
  */
 internal fun StoredExchangeRate.toCacheModel(): ExchangeRateCacheModel =
     ExchangeRateCacheModel(
-        quotes = mapOf("USD" to usdToKzt),
+        quotes = quotes ?: mapOf("USD" to usdToKzt),
         fetchedAt = fetchedAt,
         source = source,
     )

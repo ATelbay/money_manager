@@ -9,7 +9,10 @@ Started: Thu Mar  5 14:49:29 UTC 2026
 - ExchangeRateRepository uses `observeQuotes()`, `saveQuotes()`, `fetchAndStoreQuotes()` method names
 - ConvertAmountUseCase accepts `sourceCurrency`, `targetCurrency`, `quotes` (not direction enum)
 - ObserveExchangeRateUseCase replaces GetUsdKztRateUseCase
-- Legacy storage in UserPreferences still uses `usdToKzt` single-value key — mapper bridges to quotes map
+- UserPreferences stores full quotes as JSON in `exchange_quotes_json` key; legacy `usd_kzt_rate` key kept for backward compat
+- StoredExchangeRate has both `usdToKzt: Double` and `quotes: Map<String, Double>?` — mapper uses `quotes ?: mapOf("USD" to usdToKzt)`
+- NbkExchangeRateRemoteDataSource.parseAllQuotes() extracts all currency rows; normalizes nominal (divides by 10/100)
+- UserPreferences.quotesToJson/jsonToQuotes: simple hand-rolled JSON serializer (no Gson/org.json dependency)
 - Data layer ExchangeRateCacheModel and NbkExchangeRateRemoteModel use `quotes: Map<String, Double>`
 - TransactionListViewModel.convertToBaseCurrency() catches IllegalArgumentException from ConvertAmountUseCase for unsupported pairs
 - SettingsViewModel uses `combine(baseCurrency, targetCurrency, observeExchangeRateUseCase())` pattern for atomic state updates
@@ -58,4 +61,20 @@ Started: Thu Mar  5 14:49:29 UTC 2026
 - **Learnings for future iterations:**
   - When conversion is unavailable (no exchange rate), UI must fall back to source/account currency for displayCurrency, not the selected base currency
   - Always verify unused function parameters aren't actually supposed to be used in some branch
+---
+
+## 2026-03-05 - US-002
+- What was implemented: Fetch and cache full NBK quotes instead of USD-only
+- Files changed:
+  - data/exchangerate/.../remote/NbkExchangeRateRemoteDataSource.kt — replaced single USD regex with `parseAllQuotes()` using `CURRENCY_ROW_REGEX` that matches all currency rows; normalizes nominal-based rates (e.g., 100 JPY) to per-1-unit
+  - core/datastore/.../UserPreferences.kt — added `KEY_EXCHANGE_QUOTES_JSON` for full quotes map storage; `StoredExchangeRate` gained `quotes: Map<String, Double>?` field; new `setExchangeRate(quotes, fetchedAt, source)` overload; read path falls back from JSON to legacy `usd_kzt_rate` key; added `quotesToJson()`/`jsonToQuotes()` helpers
+  - data/exchangerate/.../mapper/ExchangeRateMapper.kt — `StoredExchangeRate.toCacheModel()` now uses `quotes ?: mapOf("USD" to usdToKzt)` for legacy compat
+  - data/exchangerate/.../repository/ExchangeRateRepositoryImpl.kt — `saveQuotes()` and `fetchAndStoreQuotes()` now persist full quotes map via `setExchangeRate(quotes=...)` instead of extracting USD only
+  - data/exchangerate/.../repository/ExchangeRateRepositoryImplTest.kt — updated to verify multi-currency quotes storage (USD + EUR)
+- **Learnings for future iterations:**
+  - UserPreferences uses hand-rolled JSON serializer for quotes map to avoid adding org.json dependency
+  - Legacy backward-compat: `setExchangeRate(quotes=...)` still writes `KEY_USD_KZT_RATE` scalar alongside JSON for old code paths
+  - Read path: JSON key preferred; if absent, falls back to legacy `usd_kzt_rate` — transparent to callers
+  - `parseAllQuotes()` is `internal` visibility for testability from test module
+  - The regex `CURRENCY_ROW_REGEX` uses `[^>]*` for td attributes and `[^<]+` for currency name to be flexible with NBK HTML changes
 ---
