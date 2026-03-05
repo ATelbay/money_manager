@@ -52,6 +52,10 @@ object SupportedCurrencies {
     private val byCode = all.associateBy { it.code }
     val defaultBase: SupportedCurrency = requireCurrency("KZT")
     val defaultTarget: SupportedCurrency = requireCurrency("USD")
+    val supportedBase: List<SupportedCurrency> = listOf(
+        requireCurrency("KZT"),
+        requireCurrency("USD"),
+    )
 
     fun fromCode(
         code: String,

@@ -12,6 +12,7 @@ import com.atelbay.money_manager.presentation.categories.ui.list.CategoryListRou
 import com.atelbay.money_manager.presentation.accounts.ui.edit.AccountEditRoute
 import com.atelbay.money_manager.presentation.accounts.ui.list.AccountListRoute
 import com.atelbay.money_manager.presentation.statistics.ui.StatisticsRoute
+import com.atelbay.money_manager.presentation.settings.ui.CurrencyPickerRoute
 import com.atelbay.money_manager.presentation.settings.ui.SettingsRoute
 import com.atelbay.money_manager.presentation.transactions.ui.edit.TransactionEditRoute
 import com.atelbay.money_manager.presentation.transactions.ui.list.TransactionListRoute
@@ -22,6 +23,7 @@ fun MoneyManagerNavHost(
     navController: NavHostController,
     startDestination: Any,
     modifier: Modifier = Modifier,
+    onFabNavigate: (() -> Unit)? = null,
 ) {
     NavHost(
         navController = navController,
@@ -53,7 +55,7 @@ fun MoneyManagerNavHost(
                 onTransactionClick = { id ->
                     navController.navigate(TransactionEdit(id = id))
                 },
-                onAddClick = {
+                onAddClick = onFabNavigate ?: {
                     navController.navigate(TransactionEdit())
                 },
                 onImportClick = {
@@ -118,6 +120,15 @@ fun MoneyManagerNavHost(
                 onCategoriesClick = {
                     navController.navigate(CategoryList)
                 },
+                onCurrencyPickerClick = {
+                    navController.navigate(CurrencyPicker)
+                },
+            )
+        }
+
+        composable<CurrencyPicker> {
+            CurrencyPickerRoute(
+                onBack = { navController.popBackStack() },
             )
         }
     }
