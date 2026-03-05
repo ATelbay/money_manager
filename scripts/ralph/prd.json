@@ -63,7 +63,7 @@
         "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "Primary files: presentation/settings/.../SettingsViewModel.kt, SettingsState.kt, SettingsScreen.kt. Keep existing test tags stable where possible (settings:exchangeRate, settings:refreshRateAction, settings:currencySummary)."
     },
     {
