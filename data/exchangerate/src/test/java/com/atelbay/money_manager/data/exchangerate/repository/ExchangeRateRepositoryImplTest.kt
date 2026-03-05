@@ -89,4 +89,49 @@ class ExchangeRateRepositoryImplTest {
 
         assertSame(networkError, thrown)
     }
+
+    @Test
+    fun `fetchAndStoreQuotes falls back to multi-currency cached quotes on failure`() = runTest {
+        val cachedQuotes = mapOf("USD" to 470.0, "EUR" to 515.0, "GBP" to 590.0)
+        coEvery { remoteDataSource.fetchQuotes() } throws IOException("timeout")
+        coEvery { userPreferences.getExchangeRate() } returns StoredExchangeRate(
+            usdToKzt = 470.0,
+            fetchedAt = 456L,
+            source = "NBK",
+            quotes = cachedQuotes,
+        )
+
+        val result = repository.fetchAndStoreQuotes()
+
+        assertEquals(3, result.quotes.size)
+        assertEquals(470.0, result.quotes["USD"]!!, 0.0)
+        assertEquals(515.0, result.quotes["EUR"]!!, 0.0)
+        assertEquals(590.0, result.quotes["GBP"]!!, 0.0)
+        assertEquals(456L, result.fetchedAt)
+    }
+
+    @Test
+    fun `fetchAndStoreQuotes persists all remote quotes not just USD`() = runTest {
+        val remoteQuotes = mapOf("USD" to 475.0, "EUR" to 520.0, "JPY" to 0.34)
+        coEvery { remoteDataSource.fetchQuotes() } returns NbkExchangeRateRemoteModel(quotes = remoteQuotes)
+        coEvery {
+            userPreferences.setExchangeRate(
+                quotes = any(),
+                fetchedAt = any(),
+                source = any(),
+            )
+        } just runs
+
+        val result = repository.fetchAndStoreQuotes()
+
+        assertEquals(3, result.quotes.size)
+        assertEquals(0.34, result.quotes["JPY"]!!, 0.0)
+        coVerify {
+            userPreferences.setExchangeRate(
+                quotes = remoteQuotes,
+                fetchedAt = any(),
+                source = "NBK",
+            )
+        }
+    }
 }

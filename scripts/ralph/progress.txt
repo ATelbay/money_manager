@@ -128,3 +128,20 @@ Started: Thu Mar  5 14:49:29 UTC 2026
   - ConvertAmountUseCase already supports any NBK-supported pair via KZT pivot — no domain changes needed
   - Same-currency passthrough (`wasConverted = false`) works correctly even when `canConvertAll = true`
 ---
+
+## 2026-03-05 - US-006
+- What was implemented: Regression tests for multi-currency policy covering domain, data, failure-streak, and ViewModel layers
+- Files changed:
+  - domain/exchangerate/src/test/.../ConvertAmountUseCaseTest.kt — added 5 tests: inverse pair (EUR→USD via KZT pivot), nominal-based currency (JPY), KZT as source/target with implicit rate, missing source/target quote throws IllegalArgumentException
+  - data/exchangerate/src/test/.../NbkExchangeRateRemoteDataSourceTest.kt — new test class: multi-currency parsing (3 currencies), nominal normalization (100 JPY, 10 KRW), comma decimal separator, empty HTML, zero nominal skip, uppercase normalization
+  - data/exchangerate/src/test/.../ExchangeRateRepositoryImplTest.kt — added 2 tests: multi-currency cached fallback on failure (3 currencies preserved), full remote quotes persistence (not just USD)
+  - presentation/settings/build.gradle.kts — added testImplementation(libs.bundles.testing)
+  - presentation/settings/src/test/.../SettingsViewModelTest.kt — new test class: successful refresh resets counter, failed refresh increments counter, 3 failures trigger auto-switch to top-1/top-2, USD/EUR defaults when no transactions, single currency fallback (base=KZT target=EUR default), 2 failures do not trigger auto-switch
+  - presentation/transactions/src/test/.../TransactionListViewModelTest.kt — added 2 tests: EUR base converts KZT transactions (non-USD base scenario), full fallback when one account currency quote is missing (GBP missing, all conversion disabled)
+- **Learnings for future iterations:**
+  - NbkExchangeRateRemoteDataSource.parseAllQuotes() is `internal` — testable from same module's test directory
+  - SettingsViewModel needs mockk<Application>(relaxed = true) — avoids PackageInfo Android stub issues in JVM tests
+  - presentation:settings didn't have testImplementation for testing bundle — feature convention plugin doesn't include it automatically
+  - TransactionListViewModelTest transaction() helper needs accountId param for multi-account test scenarios
+  - Full fallback test needs two accounts with different currencies where one currency's quote is missing from ExchangeRate
+---
