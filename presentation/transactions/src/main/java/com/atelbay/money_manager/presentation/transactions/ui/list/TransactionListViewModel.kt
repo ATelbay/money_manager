@@ -295,7 +295,7 @@ class TransactionListViewModel @Inject constructor(
                 balance = fallbackBalance,
                 income = fallbackIncome,
                 expense = fallbackExpense,
-                displayCurrency = normalizedBaseCurrency,
+                displayCurrency = normalizeCurrency(accountCurrencyFallback),
                 isUsingConvertedTotals = false,
                 isUsingFallbackCurrency = true,
             )
