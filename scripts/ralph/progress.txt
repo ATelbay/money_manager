@@ -12,6 +12,8 @@ Started: Thu Mar  5 14:49:29 UTC 2026
 - Legacy storage in UserPreferences still uses `usdToKzt` single-value key — mapper bridges to quotes map
 - Data layer ExchangeRateCacheModel and NbkExchangeRateRemoteModel use `quotes: Map<String, Double>`
 - TransactionListViewModel.convertToBaseCurrency() catches IllegalArgumentException from ConvertAmountUseCase for unsupported pairs
+- SettingsViewModel uses `combine(baseCurrency, targetCurrency, observeExchangeRateUseCase())` pattern for atomic state updates
+- Main added CurrencyPickerRoute/CurrencyPickerScreen for currency selection via navigation (not bottom sheet)
 
 ---
 
@@ -36,4 +38,14 @@ Started: Thu Mar  5 14:49:29 UTC 2026
   - ConvertAmountUseCase throws IllegalArgumentException for missing quotes — callers should catch it
   - SettingsViewModel.formatRate() still shows "1 USD = X KZT" — US-004 will make it dynamic
   - The error message "Не удалось обновить курс USD/KZT" in SettingsViewModel is still hardcoded — US-004 territory
+---
+
+## 2026-03-05 - US-001 (merge conflict repair)
+- What was implemented: Resolved merge conflict between US-001 generalized API and main branch's refactored combine pattern in SettingsViewModel
+- Files changed:
+  - presentation/settings/.../SettingsViewModel.kt — adopted main's `combine(baseCurrency, targetCurrency, rate)` pattern with US-001's `observeExchangeRateUseCase()` and `rate.quotes` API; renamed `formatRate()` → `buildRateDisplay(base, target, rate)` from main
+- **Learnings for future iterations:**
+  - Main branch refactored SettingsViewModel to use `combine` for baseCurrency, targetCurrency, and rate flows (avoids state tearing vs separate `.onEach` flows)
+  - Main added CurrencyPickerRoute/Screen and navigation for currency selection — these auto-merged cleanly
+  - When resolving conflicts, adopt structural improvements from main while preserving US-001 API changes
 ---
