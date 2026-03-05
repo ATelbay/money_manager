@@ -239,6 +239,52 @@ require_active_branch() {
   fi
 }
 
+discard_local_worktree_changes() {
+  local reason="${1:-Cleaning local branch state}"
+
+  echo "WARN: $reason"
+  echo "Discarding local uncommitted changes in '$BRANCH_NAME'..."
+
+  git rebase --abort >/dev/null 2>&1 || true
+  git merge --abort >/dev/null 2>&1 || true
+  git cherry-pick --abort >/dev/null 2>&1 || true
+  git am --abort >/dev/null 2>&1 || true
+
+  if ! git reset --hard HEAD; then
+    echo "ERROR: Failed to reset local branch to HEAD while cleaning working tree."
+    exit 1
+  fi
+
+  if ! git clean -fd; then
+    echo "ERROR: Failed to remove untracked files while cleaning working tree."
+    exit 1
+  fi
+}
+
+rebase_remote_into_local_branch() {
+  local branch="$1"
+
+  if ! git fetch origin "$branch"; then
+    echo "ERROR: Failed to fetch origin/$branch before sync."
+    exit 1
+  fi
+
+  if ! git show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+    echo "WARN: origin/$branch does not exist yet. Skipping remote rebase sync."
+    return 0
+  fi
+
+  echo "Rebasing local '$branch' onto origin/$branch..."
+  if ! git rebase "origin/$branch"; then
+    echo "WARN: Rebase failed during branch sync. Resetting local '$branch' to origin/$branch."
+    git rebase --abort >/dev/null 2>&1 || true
+    if ! git reset --hard "origin/$branch"; then
+      echo "ERROR: Failed to reset '$branch' to origin/$branch after rebase failure."
+      exit 1
+    fi
+  fi
+}
+
 sync_prd_branch_with_remote_if_needed() {
   if [[ "$REMOTE_RUN" != "true" ]]; then
     return 0
@@ -251,22 +297,12 @@ sync_prd_branch_with_remote_if_needed() {
   fi
 
   if working_tree_has_user_changes; then
-    echo "ERROR: Cannot sync '$BRANCH_NAME' with origin because working tree is dirty."
     filtered_git_status
-    echo "Commit/stash/discard local changes, then rerun Ralph."
-    exit 1
+    discard_local_worktree_changes "Dirty working tree detected before --remote-run startup"
   fi
 
-  echo "Syncing local '$BRANCH_NAME' to origin/$BRANCH_NAME for --remote-run..."
-  if ! git fetch origin "$BRANCH_NAME"; then
-    echo "ERROR: Failed to fetch origin/$BRANCH_NAME before remote-run sync."
-    exit 1
-  fi
-
-  if ! git reset --hard "origin/$BRANCH_NAME"; then
-    echo "ERROR: Failed to hard-reset local '$BRANCH_NAME' to origin/$BRANCH_NAME."
-    exit 1
-  fi
+  echo "Syncing local '$BRANCH_NAME' with origin/$BRANCH_NAME for --remote-run..."
+  rebase_remote_into_local_branch "$BRANCH_NAME"
 }
 
 push_branch() {
@@ -701,10 +737,11 @@ sync_remote_run_iteration() {
   require_active_branch
 
   if working_tree_has_user_changes; then
-    echo "ERROR: --remote-run iteration left uncommitted changes."
-    echo "Remote CI mode requires the agent to commit the completed story before returning."
     filtered_git_status
-    exit 1
+    discard_local_worktree_changes "--remote-run iteration left uncommitted changes"
+    rebase_remote_into_local_branch "$BRANCH_NAME"
+    echo "Skipped this iteration after cleanup + remote rebase sync."
+    return 0
   fi
 
   end_head=$(git rev-parse HEAD 2>/dev/null || echo "")
