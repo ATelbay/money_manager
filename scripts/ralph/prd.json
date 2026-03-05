@@ -48,7 +48,7 @@
         "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Use all transactions history (no period filter) for frequency ranking. Likely touchpoints: exchange-rate refresh flow + preferences + transaction repository/use case access for counts."
     },
     {
