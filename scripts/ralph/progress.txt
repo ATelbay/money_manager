@@ -49,3 +49,13 @@ Started: Thu Mar  5 14:49:29 UTC 2026
   - Main added CurrencyPickerRoute/Screen and navigation for currency selection — these auto-merged cleanly
   - When resolving conflicts, adopt structural improvements from main while preserving US-001 API changes
 ---
+
+## 2026-03-05 - US-001 (unit test repair, attempt 1)
+- What was implemented: Fixed fallback displayCurrency in TransactionListViewModel.resolveSummaryMetrics()
+- Root cause: When exchange rate is null and conversion is unavailable, `displayCurrency` was set to `normalizedBaseCurrency` (e.g. "USD") instead of `accountCurrencyFallback` (e.g. "KZT"). The `accountCurrencyFallback` parameter was passed but unused in the fallback branch.
+- Files changed:
+  - presentation/transactions/.../TransactionListViewModel.kt — line 298: `displayCurrency = normalizedBaseCurrency` → `displayCurrency = normalizeCurrency(accountCurrencyFallback)`
+- **Learnings for future iterations:**
+  - When conversion is unavailable (no exchange rate), UI must fall back to source/account currency for displayCurrency, not the selected base currency
+  - Always verify unused function parameters aren't actually supposed to be used in some branch
+---
