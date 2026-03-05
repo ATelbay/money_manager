@@ -171,7 +171,12 @@ class SettingsViewModel @Inject constructor(
         }
 
         val base = topCurrencies.getOrNull(0) ?: DEFAULT_FALLBACK_BASE
-        val target = topCurrencies.getOrNull(1) ?: DEFAULT_FALLBACK_TARGET
+        val rawTarget = topCurrencies.getOrNull(1) ?: DEFAULT_FALLBACK_TARGET
+        val target = if (rawTarget == base) {
+            if (base == DEFAULT_FALLBACK_TARGET) DEFAULT_FALLBACK_BASE else DEFAULT_FALLBACK_TARGET
+        } else {
+            rawTarget
+        }
 
         userPreferences.setBaseCurrency(base)
         userPreferences.setTargetCurrency(target)
