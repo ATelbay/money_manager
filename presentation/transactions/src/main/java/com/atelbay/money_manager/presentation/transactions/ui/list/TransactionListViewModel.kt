@@ -147,11 +147,24 @@ class TransactionListViewModel @Inject constructor(
             } else {
                 data.accounts.firstOrNull()?.currency.orEmpty()
             }
+            // Full fallback rule: check if ALL items in scope can be converted.
+            // If any account or transaction currency lacks a required quote,
+            // disable conversion for both summary totals and individual rows.
+            val normalizedBase = normalizeCurrency(data.baseCurrency)
+            val canConvertAll = canDisplayInBaseCurrency(
+                selectedAccount = selectedAccount,
+                accounts = data.accounts,
+                transactions = periodFiltered,
+                baseCurrency = normalizedBase,
+                exchangeRate = data.exchangeRate,
+            )
+
             val transactionRows = mapTransactionRows(
                 transactions = searchFiltered,
                 accounts = data.accounts,
                 baseCurrency = data.baseCurrency,
                 exchangeRate = data.exchangeRate,
+                canConvertAll = canConvertAll,
             )
             val summaryMetrics = resolveSummaryMetrics(
                 selectedAccount = selectedAccount,
@@ -160,6 +173,7 @@ class TransactionListViewModel @Inject constructor(
                 accountCurrencyFallback = currency,
                 baseCurrency = data.baseCurrency,
                 exchangeRate = data.exchangeRate,
+                canConvertAll = canConvertAll,
             )
 
             _state.update {
@@ -212,6 +226,7 @@ class TransactionListViewModel @Inject constructor(
         accounts: List<Account>,
         baseCurrency: String,
         exchangeRate: ExchangeRate?,
+        canConvertAll: Boolean,
     ): ImmutableList<TransactionRowState> {
         val currenciesByAccountId = accounts.associateBy(Account::id)
         val normalizedBaseCurrency = normalizeCurrency(baseCurrency)
@@ -219,13 +234,21 @@ class TransactionListViewModel @Inject constructor(
         return transactions.map { transaction ->
             val accountCurrency = currenciesByAccountId[transaction.accountId]?.currency
             val originalCurrency = accountCurrency?.let(::normalizeCurrency).orEmpty()
-            val convertedResult = accountCurrency?.let {
-                convertToBaseCurrency(
-                    amount = transaction.amount,
-                    sourceCurrency = it,
-                    baseCurrency = normalizedBaseCurrency,
-                    exchangeRate = exchangeRate,
-                )
+
+            // Full fallback: only attempt row conversion when the entire scope can convert.
+            // This prevents partial mixed conversion where some rows show base currency
+            // and others show original currency.
+            val convertedResult = if (canConvertAll) {
+                accountCurrency?.let {
+                    convertToBaseCurrency(
+                        amount = transaction.amount,
+                        sourceCurrency = it,
+                        baseCurrency = normalizedBaseCurrency,
+                        exchangeRate = exchangeRate,
+                    )
+                }
+            } else {
+                null
             }
             val hasConvertedAmount = convertedResult?.let {
                 it.canDisplayInBaseCurrency && it.wasConverted
@@ -270,17 +293,11 @@ class TransactionListViewModel @Inject constructor(
         accountCurrencyFallback: String,
         baseCurrency: String,
         exchangeRate: ExchangeRate?,
+        canConvertAll: Boolean,
     ): SummaryMetrics {
         val normalizedBaseCurrency = normalizeCurrency(baseCurrency)
-        val canDisplayInBaseCurrency = canDisplayInBaseCurrency(
-            selectedAccount = selectedAccount,
-            accounts = accounts,
-            transactions = periodTransactions,
-            baseCurrency = normalizedBaseCurrency,
-            exchangeRate = exchangeRate,
-        )
 
-        if (!canDisplayInBaseCurrency) {
+        if (!canConvertAll) {
             val fallbackBalance = if (selectedAccount != null) {
                 selectedAccount.balance
             } else {

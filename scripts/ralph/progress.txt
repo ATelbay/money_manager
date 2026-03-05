@@ -22,6 +22,7 @@ Started: Thu Mar  5 14:49:29 UTC 2026
 - TransactionRepository.getTopCurrenciesByUsage() returns currency codes ranked by all-time transaction count (ties broken alphabetically)
 - SettingsViewModel auto-switches base/target pair after 3 consecutive refresh failures using transaction frequency data
 - presentation:settings depends on domain:transactions for accessing TransactionRepository
+- Full fallback policy: `canConvertAll` flag computed once from period scope, shared by mapTransactionRows() and resolveSummaryMetrics() — prevents partial mixed conversion
 
 ---
 
@@ -114,4 +115,16 @@ Started: Thu Mar  5 14:49:29 UTC 2026
   - Auto-switch after 3 failures works automatically because it updates UserPreferences base/target which triggers the combine flow and rebuilds state including rateDisplay
   - The KZT pivot conversion formula: rate = quotes[base] / quotes[target]; KZT has implicit rate 1.0 since all NBK quotes are in KZT per unit
   - Preview in SettingsScreen still shows "1 USD = 512.34 KZT" as example — acceptable for preview
+---
+
+## 2026-03-05 - US-005
+- What was implemented: Enforced full-scope fallback rule for multi-currency conversion in TransactionListViewModel
+- Files changed:
+  - presentation/transactions/.../TransactionListViewModel.kt — extracted `canDisplayInBaseCurrency` computation to shared `canConvertAll` flag; passed to both `mapTransactionRows()` and `resolveSummaryMetrics()` so that when ANY account or transaction in the period scope lacks a required quote, ALL conversion is disabled (rows + totals); prevents partial mixed conversion where some rows show base currency and others show original
+- **Learnings for future iterations:**
+  - Full fallback scope is period-filtered transactions + scoped accounts (not search/tab-filtered) — this ensures consistent behavior regardless of active filters
+  - `canConvertAll` is the single source of truth for conversion availability across the entire UI: balance card, income/expense summary, and individual transaction rows
+  - No UI changes needed — TransactionListScreen already handles converted/unconverted row display with secondary amount + "Исх." label
+  - ConvertAmountUseCase already supports any NBK-supported pair via KZT pivot — no domain changes needed
+  - Same-currency passthrough (`wasConverted = false`) works correctly even when `canConvertAll = true`
 ---
