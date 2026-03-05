@@ -101,4 +101,17 @@ Started: Thu Mar  5 14:49:29 UTC 2026
   - presentation:settings now depends on domain:transactions — this was necessary for accessing transaction frequency data
   - FakeTransactionRepository in TransactionListViewModelTest must be updated when new methods are added to the interface
   - Tie-breaking for currency frequency is alphabetical by currency code (SQL ORDER BY ... a.currency ASC)
+- buildRateDisplay() uses KZT pivot: baseToKzt / targetToKzt; KZT implicit rate = 1.0; same-currency returns "1 X = 1.00 X"
+---
+
+## 2026-03-05 - US-004
+- What was implemented: Generalized settings exchange-rate display to work with any base/target currency pair
+- Files changed:
+  - presentation/settings/.../SettingsViewModel.kt — rewrote `buildRateDisplay()` from hardcoded USD/KZT to generic KZT-pivot conversion for any pair; handles same-currency, KZT-as-base, KZT-as-target, and cross-currency (e.g., EUR/USD) cases
+- **Learnings for future iterations:**
+  - SettingsScreen title was already dynamic via `${state.baseCurrency.code}/${state.targetCurrency.code}` — no UI changes needed
+  - Error message was already pair-agnostic ("Не удалось обновить курс") — no changes needed
+  - Auto-switch after 3 failures works automatically because it updates UserPreferences base/target which triggers the combine flow and rebuilds state including rateDisplay
+  - The KZT pivot conversion formula: rate = quotes[base] / quotes[target]; KZT has implicit rate 1.0 since all NBK quotes are in KZT per unit
+  - Preview in SettingsScreen still shows "1 USD = 512.34 KZT" as example — acceptable for preview
 ---

@@ -181,11 +181,11 @@ class SettingsViewModel @Inject constructor(
         rate: ExchangeRate?,
     ): String {
         if (rate == null) return ""
-        val usdRate = rate.quotes["USD"] ?: return ""
-        return when (base.code) {
-            "KZT" -> "1 KZT = ${numberFormatter.format(1.0 / usdRate)} USD"
-            else  -> "1 USD = ${numberFormatter.format(usdRate)} KZT"
-        }
+        if (base.code == target.code) return "1 ${base.code} = 1.00 ${target.code}"
+        val baseToKzt = if (base.code == "KZT") 1.0 else rate.quotes[base.code] ?: return ""
+        val targetToKzt = if (target.code == "KZT") 1.0 else rate.quotes[target.code] ?: return ""
+        val convertedRate = baseToKzt / targetToKzt
+        return "1 ${base.code} = ${numberFormatter.format(convertedRate)} ${target.code}"
     }
 
     private fun formatLastUpdated(rate: ExchangeRate): String {
