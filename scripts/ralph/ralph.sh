@@ -4,7 +4,7 @@
 #   --tool           AI engine for coding iterations (default: amp)
 #   --review-tool    AI engine for code review step (default: same as --tool)
 #   --codex          shortcut: codex codes, claude reviews (--tool codex --review-tool claude)
-#   --remote-run     CI-first mode: no local heavy checks; Ralph shell handles per-story push + draft PR + required CI checks
+#   --remote-run     CI-first mode: no local heavy checks; Ralph shell handles per-story push + PR sync + required CI checks
 #   --pr             push branch, create PR, code review, wait CI, trigger QA Build
 #   --download       after QA Build: download APK locally (use on Mac; skip on VM — Garlic handles it)
 
@@ -91,6 +91,7 @@ ARCHIVE_DIR="$SCRIPT_DIR/archive"
 LAST_BRANCH_FILE="$SCRIPT_DIR/.last-branch"
 REMOTE_STATE_FILE="$GIT_DIR/ralph-remote-run-state.json"
 PR_URL=""
+REMOTE_PR_DRAFT_MODE="${RALPH_REMOTE_PR_DRAFT_MODE:-false}"
 
 # Archive previous run if branch changed
 if [ -f "$PRD_FILE" ] && [ -f "$LAST_BRANCH_FILE" ]; then
@@ -238,13 +239,73 @@ require_active_branch() {
   fi
 }
 
-push_branch() {
-  local branch="$1"
-  echo "Pushing branch: $branch"
-  if ! git push -u origin "$branch"; then
-    echo "ERROR: git push failed (non-interactive mode). Check gh auth / git credentials."
+sync_prd_branch_with_remote_if_needed() {
+  if [[ "$REMOTE_RUN" != "true" ]]; then
+    return 0
+  fi
+
+  require_active_branch
+
+  if ! git ls-remote --exit-code --heads origin "$BRANCH_NAME" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if working_tree_has_user_changes; then
+    echo "ERROR: Cannot sync '$BRANCH_NAME' with origin because working tree is dirty."
+    filtered_git_status
+    echo "Commit/stash/discard local changes, then rerun Ralph."
     exit 1
   fi
+
+  echo "Syncing local '$BRANCH_NAME' to origin/$BRANCH_NAME for --remote-run..."
+  if ! git fetch origin "$BRANCH_NAME"; then
+    echo "ERROR: Failed to fetch origin/$BRANCH_NAME before remote-run sync."
+    exit 1
+  fi
+
+  if ! git reset --hard "origin/$BRANCH_NAME"; then
+    echo "ERROR: Failed to hard-reset local '$BRANCH_NAME' to origin/$BRANCH_NAME."
+    exit 1
+  fi
+}
+
+push_branch() {
+  local branch="$1"
+  local push_output=""
+
+  echo "Pushing branch: $branch"
+  if push_output=$(git push -u origin "$branch" 2>&1); then
+    [[ -n "$push_output" ]] && echo "$push_output"
+    return 0
+  fi
+
+  [[ -n "$push_output" ]] && echo "$push_output"
+
+  if [[ "$REMOTE_RUN" == "true" ]] && grep -qiE 'non-fast-forward|fetch first|failed to push some refs|\[rejected\]' <<<"$push_output"; then
+    echo "Push rejected (non-fast-forward). Attempting auto-rebase onto origin/$branch..."
+    if ! git fetch origin "$branch"; then
+      echo "ERROR: Auto-recovery fetch failed for origin/$branch."
+      exit 1
+    fi
+
+    if git show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+      if ! git rebase "origin/$branch"; then
+        echo "ERROR: Auto-rebase failed. Resolve conflicts, then rerun Ralph."
+        git rebase --abort >/dev/null 2>&1 || true
+        exit 1
+      fi
+    fi
+
+    if push_output=$(git push -u origin "$branch" 2>&1); then
+      [[ -n "$push_output" ]] && echo "$push_output"
+      return 0
+    fi
+
+    [[ -n "$push_output" ]] && echo "$push_output"
+  fi
+
+  echo "ERROR: git push failed (non-interactive mode). Check gh auth / git credentials."
+  exit 1
 }
 
 branch_has_unpushed_commits() {
@@ -294,30 +355,43 @@ validate_remote_story_iteration() {
   local start_head="$1"
   local story_id="$2"
   local repair_mode="${3:-false}"
-  local commit_range head_subject other_story_commits
+  local commit_range head_subject other_story_commits current_head
+  local subject commit_story_id
+
+  current_head=$(git rev-parse HEAD 2>/dev/null || echo "")
 
   if [[ -n "$start_head" ]]; then
+    if ! git merge-base --is-ancestor "$start_head" "$current_head"; then
+      echo "ERROR: --remote-run iteration rewrote branch history while processing $story_id."
+      echo "Start HEAD: $start_head"
+      echo "Current HEAD: $current_head"
+      echo "History rewrites (rebase/reset/cherry-pick/amend) are not allowed in --remote-run."
+      exit 1
+    fi
     commit_range="$start_head..HEAD"
   else
     commit_range="HEAD"
   fi
 
-  other_story_commits=$(git log --format=%s "$commit_range" 2>/dev/null | awk -v sid="$story_id" '
-    /^feat: / {
-      id = ""
-      if (match($0, /^feat: \[([^]]+)\] - /, m)) {
-        id = m[1]
-      } else if (match($0, /^feat: ([A-Za-z]+-[0-9]+) - /, m)) {
-        id = m[1]
-      }
-      if (id != "" && id != sid) {
-        print $0
-      }
-    }
-  ' || true)
+  other_story_commits=""
+  while IFS= read -r subject; do
+    [[ "$subject" =~ ^feat:\  ]] || continue
+
+    commit_story_id=""
+    if [[ "$subject" =~ ^feat:\ \[([^]]+)\]\ -\  ]]; then
+      commit_story_id="${BASH_REMATCH[1]}"
+    elif [[ "$subject" =~ ^feat:\ ([A-Za-z]+-[0-9]+)\ -\  ]]; then
+      commit_story_id="${BASH_REMATCH[1]}"
+    fi
+
+    if [[ -n "$commit_story_id" && "$commit_story_id" != "$story_id" ]]; then
+      other_story_commits+="$subject"$'\n'
+    fi
+  done < <(git log --format=%s "$commit_range" 2>/dev/null || true)
+
   if [[ -n "$other_story_commits" ]]; then
     echo "ERROR: --remote-run iteration targeted a different story while $story_id is active."
-    printf '%s\n' "$other_story_commits"
+    printf '%s' "$other_story_commits"
     exit 1
   fi
 
@@ -643,7 +717,7 @@ sync_remote_run_iteration() {
 
   validate_remote_story_iteration "$start_head" "$story_id" "$REMOTE_REPAIR_MODE"
   push_branch "$BRANCH_NAME"
-  ensure_pr_exists "$BRANCH_NAME" "$RUN_DESCRIPTION" "$(build_story_summary)" true
+  ensure_pr_exists "$BRANCH_NAME" "$RUN_DESCRIPTION" "$(build_story_summary)" "$REMOTE_PR_DRAFT_MODE"
   wait_required_checks "$BRANCH_NAME" "$PR_URL"
   wait_status=$?
   if [[ "$wait_status" -eq 2 ]]; then
@@ -682,6 +756,7 @@ sync_remote_run_iteration() {
 }
 
 ensure_prd_branch_checked_out
+sync_prd_branch_with_remote_if_needed
 
 INITIAL_PENDING_STORIES=$(count_pending_stories)
 if [[ "$REMOTE_RUN" != "true" && -f "$REMOTE_STATE_FILE" ]]; then
@@ -750,8 +825,9 @@ build_agent_prompt() {
 - Work only on story: $REMOTE_STORY_ID — $REMOTE_STORY_TITLE
 - Implement exactly one story, commit it locally, and update progress.txt.
 - Do NOT set passes:true in prd.json; Ralph shell will mark the story as passed only after green CI.
-- Ralph shell will handle git push, draft PR creation/reuse, and waiting for required CI checks after your iteration.
+- Ralph shell will handle git push, PR creation/reuse, and waiting for required CI checks after your iteration.
 - Do NOT run gh pr checks, gh workflow run, or any long-lived CI waiting commands yourself.
+- Do NOT run git rebase, git reset, git cherry-pick, git commit --amend, or any force-push/history-rewrite commands.
 - If CI is failing, use the snapshot below as context for the next fix and keep working on the same story.
 - If you are in repair mode, fix the current branch state for the same story. Do NOT start a new story.
 - Current PR status snapshot:
