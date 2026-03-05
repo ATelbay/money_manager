@@ -9,7 +9,7 @@ import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
 import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
 import com.atelbay.money_manager.domain.exchangerate.repository.ExchangeRateRepository
 import com.atelbay.money_manager.domain.exchangerate.usecase.ConvertAmountUseCase
-import com.atelbay.money_manager.domain.exchangerate.usecase.GetUsdKztRateUseCase
+import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
 import com.atelbay.money_manager.domain.transactions.repository.TransactionRepository
 import com.atelbay.money_manager.domain.transactions.usecase.DeleteTransactionUseCase
 import com.atelbay.money_manager.domain.transactions.usecase.GetTransactionsUseCase
@@ -109,7 +109,7 @@ class TransactionListViewModelTest {
             ),
             baseCurrency = flowOf("USD"),
             exchangeRate = MutableStateFlow(
-                ExchangeRate(usdToKzt = 475.0, fetchedAt = 1L),
+                ExchangeRate(quotes = mapOf("USD" to 475.0), fetchedAt = 1L),
             ),
         )
 
@@ -195,7 +195,7 @@ class TransactionListViewModelTest {
         accounts: List<Account>,
         baseCurrency: Flow<String>,
         exchangeRate: MutableStateFlow<ExchangeRate?> = MutableStateFlow(
-            ExchangeRate(usdToKzt = 475.0, fetchedAt = 1L),
+            ExchangeRate(quotes = mapOf("USD" to 475.0), fetchedAt = 1L),
         ),
     ): TransactionListViewModel {
         val userPreferences = mockk<UserPreferences>()
@@ -210,7 +210,7 @@ class TransactionListViewModelTest {
             getAccountsUseCase = GetAccountsUseCase(
                 FakeAccountRepository(accounts),
             ),
-            getUsdKztRateUseCase = GetUsdKztRateUseCase(
+            observeExchangeRateUseCase = ObserveExchangeRateUseCase(
                 FakeExchangeRateRepository(exchangeRate),
             ),
             convertAmountUseCase = ConvertAmountUseCase(),
@@ -280,11 +280,11 @@ class TransactionListViewModelTest {
     private class FakeExchangeRateRepository(
         private val exchangeRate: MutableStateFlow<ExchangeRate?>,
     ) : ExchangeRateRepository {
-        override fun observeRate(): Flow<ExchangeRate?> = exchangeRate
+        override fun observeQuotes(): Flow<ExchangeRate?> = exchangeRate
 
-        override suspend fun saveRate(rate: ExchangeRate) = Unit
+        override suspend fun saveQuotes(rate: ExchangeRate) = Unit
 
-        override suspend fun fetchAndStoreRate(): ExchangeRate = exchangeRate.value
+        override suspend fun fetchAndStoreQuotes(): ExchangeRate = exchangeRate.value
             ?: error("Exchange rate missing")
     }
 }

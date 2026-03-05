@@ -18,30 +18,36 @@ class ExchangeRateRepositoryImpl @Inject constructor(
     private val userPreferences: UserPreferences,
 ) : ExchangeRateRepository {
 
-    override fun observeRate(): Flow<ExchangeRate?> =
+    override fun observeQuotes(): Flow<ExchangeRate?> =
         userPreferences.exchangeRate.map { storedRate ->
             storedRate?.toCacheModel()?.toDomain()
         }
 
-    override suspend fun saveRate(rate: ExchangeRate) {
+    override suspend fun saveQuotes(rate: ExchangeRate) {
         val cacheModel = rate.toCacheModel(source = SOURCE_NBK)
+        // Legacy storage: extract USD quote for the single-value preference key.
+        // US-002 will migrate storage to persist the full quotes map.
+        val usdRate = cacheModel.quotes[USD] ?: return
         userPreferences.setExchangeRate(
-            usdToKzt = cacheModel.usdToKzt,
+            usdToKzt = usdRate,
             fetchedAt = cacheModel.fetchedAt,
             source = cacheModel.source,
         )
     }
 
-    override suspend fun fetchAndStoreRate(): ExchangeRate {
+    override suspend fun fetchAndStoreQuotes(): ExchangeRate {
         return try {
-            val cacheModel = remoteDataSource.fetchUsdKztRate()
+            val cacheModel = remoteDataSource.fetchQuotes()
                 .toCacheModel(fetchedAt = System.currentTimeMillis())
 
-            userPreferences.setExchangeRate(
-                usdToKzt = cacheModel.usdToKzt,
-                fetchedAt = cacheModel.fetchedAt,
-                source = cacheModel.source,
-            )
+            val usdRate = cacheModel.quotes[USD]
+            if (usdRate != null) {
+                userPreferences.setExchangeRate(
+                    usdToKzt = usdRate,
+                    fetchedAt = cacheModel.fetchedAt,
+                    source = cacheModel.source,
+                )
+            }
 
             cacheModel.toDomain()
         } catch (error: Exception) {
@@ -58,5 +64,6 @@ class ExchangeRateRepositoryImpl @Inject constructor(
 
     private companion object {
         const val SOURCE_NBK = "NBK"
+        const val USD = "USD"
     }
 }

@@ -10,7 +10,7 @@ import javax.inject.Inject
 
 class NbkExchangeRateRemoteDataSource @Inject constructor() {
 
-    suspend fun fetchUsdKztRate(): NbkExchangeRateRemoteModel =
+    suspend fun fetchQuotes(): NbkExchangeRateRemoteModel =
         withContext(Dispatchers.IO) {
             val connection = (URL(NBK_RATES_URL).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
@@ -37,7 +37,7 @@ class NbkExchangeRateRemoteDataSource @Inject constructor() {
                     throw IOException("Parsed USD/KZT rate is invalid: $usdToKzt")
                 }
 
-                NbkExchangeRateRemoteModel(usdToKzt = usdToKzt)
+                NbkExchangeRateRemoteModel(quotes = mapOf("USD" to usdToKzt))
             } finally {
                 connection.disconnect()
             }

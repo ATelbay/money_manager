@@ -1,6 +1,6 @@
 package com.atelbay.money_manager.data.exchangerate.model
 
 data class NbkExchangeRateRemoteModel(
-    val usdToKzt: Double,
+    val quotes: Map<String, Double>,
     val source: String = "NBK",
 )

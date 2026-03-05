@@ -1,3 +1,39 @@
 # Ralph Progress Log
 Started: Thu Mar  5 14:49:29 UTC 2026
+
+## Codebase Patterns
+- Convention Plugins in build-logic/convention/ for shared build config
+- Type-Safe Navigation for routes in app module
+- Room entities live in core:database, domain models in core:model
+- ExchangeRate domain model now uses `quotes: Map<String, Double>` (code → KZT per 1 unit) with KZT as implicit pivot (rate 1.0)
+- ExchangeRateRepository uses `observeQuotes()`, `saveQuotes()`, `fetchAndStoreQuotes()` method names
+- ConvertAmountUseCase accepts `sourceCurrency`, `targetCurrency`, `quotes` (not direction enum)
+- ObserveExchangeRateUseCase replaces GetUsdKztRateUseCase
+- Legacy storage in UserPreferences still uses `usdToKzt` single-value key — mapper bridges to quotes map
+- Data layer ExchangeRateCacheModel and NbkExchangeRateRemoteModel use `quotes: Map<String, Double>`
+- TransactionListViewModel.convertToBaseCurrency() catches IllegalArgumentException from ConvertAmountUseCase for unsupported pairs
+
+---
+
+## 2026-03-05 - US-001
+- What was implemented: Generalized exchange-rate domain contracts from USD/KZT-only to multi-currency quotes support
+- Files changed:
+  - domain/exchangerate/.../model/ExchangeRate.kt — `usdToKzt: Double` → `quotes: Map<String, Double>`
+  - domain/exchangerate/.../repository/ExchangeRateRepository.kt — renamed methods: observeQuotes, saveQuotes, fetchAndStoreQuotes
+  - domain/exchangerate/.../usecase/ConvertAmountUseCase.kt — new signature: sourceCurrency, targetCurrency, quotes; KZT pivot conversion; removed ConversionDirection enum
+  - domain/exchangerate/.../usecase/ObserveExchangeRateUseCase.kt — renamed from GetUsdKztRateUseCase (old file deleted)
+  - data/exchangerate/.../model/ExchangeRateCacheModel.kt — `usdToKzt` → `quotes: Map<String, Double>`
+  - data/exchangerate/.../model/NbkExchangeRateRemoteModel.kt — `usdToKzt` → `quotes: Map<String, Double>`
+  - data/exchangerate/.../mapper/ExchangeRateMapper.kt — bridges legacy StoredExchangeRate.usdToKzt to quotes map
+  - data/exchangerate/.../remote/NbkExchangeRateRemoteDataSource.kt — fetchUsdKztRate → fetchQuotes, returns single-entry map
+  - data/exchangerate/.../repository/ExchangeRateRepositoryImpl.kt — uses new method names, extracts USD for legacy prefs storage
+  - presentation/settings/.../SettingsViewModel.kt — uses ObserveExchangeRateUseCase + fetchAndStoreQuotes + rate.quotes["USD"]
+  - presentation/transactions/.../TransactionListViewModel.kt — uses new ConvertAmountUseCase API, removed hardcoded USD/KZT direction logic
+  - Tests: ConvertAmountUseCaseTest, ExchangeRateRepositoryImplTest, TransactionListViewModelTest — all updated
+- **Learnings for future iterations:**
+  - StoredExchangeRate in UserPreferences still uses single usdToKzt value — US-002 should change this to persist full quotes map
+  - The mapper layer bridges old/new: `mapOf("USD" to usdToKzt)` in StoredExchangeRate.toCacheModel()
+  - ConvertAmountUseCase throws IllegalArgumentException for missing quotes — callers should catch it
+  - SettingsViewModel.formatRate() still shows "1 USD = X KZT" — US-004 will make it dynamic
+  - The error message "Не удалось обновить курс USD/KZT" in SettingsViewModel is still hardcoded — US-004 territory
 ---

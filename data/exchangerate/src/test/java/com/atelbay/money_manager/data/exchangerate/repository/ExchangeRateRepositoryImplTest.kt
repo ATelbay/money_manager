@@ -33,8 +33,8 @@ class ExchangeRateRepositoryImplTest {
     }
 
     @Test
-    fun `fetchAndStoreRate returns fresh remote rate and caches it`() = runTest {
-        coEvery { remoteDataSource.fetchUsdKztRate() } returns NbkExchangeRateRemoteModel(usdToKzt = 475.0)
+    fun `fetchAndStoreQuotes returns fresh remote rate and caches it`() = runTest {
+        coEvery { remoteDataSource.fetchQuotes() } returns NbkExchangeRateRemoteModel(quotes = mapOf("USD" to 475.0))
         coEvery {
             userPreferences.setExchangeRate(
                 usdToKzt = any(),
@@ -43,9 +43,9 @@ class ExchangeRateRepositoryImplTest {
             )
         } just runs
 
-        val result = repository.fetchAndStoreRate()
+        val result = repository.fetchAndStoreQuotes()
 
-        assertEquals(475.0, result.usdToKzt, 0.0)
+        assertEquals(475.0, result.quotes["USD"]!!, 0.0)
         assertTrue(result.fetchedAt > 0L)
         coVerify(exactly = 1) {
             userPreferences.setExchangeRate(
@@ -57,29 +57,29 @@ class ExchangeRateRepositoryImplTest {
     }
 
     @Test
-    fun `fetchAndStoreRate falls back to cached rate when remote fetch fails`() = runTest {
+    fun `fetchAndStoreQuotes falls back to cached rate when remote fetch fails`() = runTest {
         val networkError = IOException("network down")
-        coEvery { remoteDataSource.fetchUsdKztRate() } throws networkError
+        coEvery { remoteDataSource.fetchQuotes() } throws networkError
         coEvery { userPreferences.getExchangeRate() } returns StoredExchangeRate(
             usdToKzt = 470.0,
             fetchedAt = 123L,
             source = "NBK",
         )
 
-        val result = repository.fetchAndStoreRate()
+        val result = repository.fetchAndStoreQuotes()
 
-        assertEquals(470.0, result.usdToKzt, 0.0)
+        assertEquals(470.0, result.quotes["USD"]!!, 0.0)
         assertEquals(123L, result.fetchedAt)
     }
 
     @Test
-    fun `fetchAndStoreRate rethrows remote error when cache is empty`() = runTest {
+    fun `fetchAndStoreQuotes rethrows remote error when cache is empty`() = runTest {
         val networkError = IOException("network down")
-        coEvery { remoteDataSource.fetchUsdKztRate() } throws networkError
+        coEvery { remoteDataSource.fetchQuotes() } throws networkError
         coEvery { userPreferences.getExchangeRate() } returns null
 
         val thrown = try {
-            repository.fetchAndStoreRate()
+            repository.fetchAndStoreQuotes()
             fail("Expected IOException to be thrown")
         } catch (exception: IOException) {
             exception

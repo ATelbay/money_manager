@@ -8,9 +8,8 @@ import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
 import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
-import com.atelbay.money_manager.domain.exchangerate.usecase.ConversionDirection
 import com.atelbay.money_manager.domain.exchangerate.usecase.ConvertAmountUseCase
-import com.atelbay.money_manager.domain.exchangerate.usecase.GetUsdKztRateUseCase
+import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
 import com.atelbay.money_manager.domain.transactions.usecase.DeleteTransactionUseCase
 import com.atelbay.money_manager.domain.transactions.usecase.GetTransactionsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -64,7 +63,7 @@ class TransactionListViewModel @Inject constructor(
     getTransactionsUseCase: GetTransactionsUseCase,
     private val deleteTransactionUseCase: DeleteTransactionUseCase,
     getAccountsUseCase: GetAccountsUseCase,
-    getUsdKztRateUseCase: GetUsdKztRateUseCase,
+    observeExchangeRateUseCase: ObserveExchangeRateUseCase,
     private val convertAmountUseCase: ConvertAmountUseCase,
     userPreferences: UserPreferences,
 ) : ViewModel() {
@@ -83,7 +82,7 @@ class TransactionListViewModel @Inject constructor(
             getAccountsUseCase(),
             userPreferences.selectedAccountId,
             userPreferences.baseCurrency,
-            getUsdKztRateUseCase(),
+            observeExchangeRateUseCase(),
         ) { transactions, accounts, selectedAccountId, baseCurrency, exchangeRate ->
             DataParams(
                 transactions = transactions,
@@ -389,36 +388,26 @@ class TransactionListViewModel @Inject constructor(
             )
         }
 
-        val rate = exchangeRate?.usdToKzt
-        return when {
-            normalizedSourceCurrency == KZT && baseCurrency == USD && rate != null && rate > 0.0 ->
-                ConvertedAmount(
-                    amount = convertAmountUseCase(
-                        amount = amount,
-                        rate = rate,
-                        direction = ConversionDirection.KZT_TO_USD,
-                    ),
-                    wasConverted = true,
-                    canDisplayInBaseCurrency = true,
-                )
+        val quotes = exchangeRate?.quotes
+            ?: return ConvertedAmount(amount, wasConverted = false, canDisplayInBaseCurrency = false)
 
-            normalizedSourceCurrency == USD && baseCurrency == KZT && rate != null && rate > 0.0 ->
-                ConvertedAmount(
-                    amount = convertAmountUseCase(
-                        amount = amount,
-                        rate = rate,
-                        direction = ConversionDirection.USD_TO_KZT,
-                    ),
-                    wasConverted = true,
-                    canDisplayInBaseCurrency = true,
-                )
-
-            else ->
-                ConvertedAmount(
+        return try {
+            ConvertedAmount(
+                amount = convertAmountUseCase(
                     amount = amount,
-                    wasConverted = false,
-                    canDisplayInBaseCurrency = false,
-                )
+                    sourceCurrency = normalizedSourceCurrency,
+                    targetCurrency = baseCurrency,
+                    quotes = quotes,
+                ),
+                wasConverted = true,
+                canDisplayInBaseCurrency = true,
+            )
+        } catch (_: IllegalArgumentException) {
+            ConvertedAmount(
+                amount = amount,
+                wasConverted = false,
+                canDisplayInBaseCurrency = false,
+            )
         }
     }
 
@@ -428,6 +417,5 @@ class TransactionListViewModel @Inject constructor(
 
     private companion object {
         const val KZT = "KZT"
-        const val USD = "USD"
     }
 }

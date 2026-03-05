@@ -7,7 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
 import com.atelbay.money_manager.domain.exchangerate.repository.ExchangeRateRepository
-import com.atelbay.money_manager.domain.exchangerate.usecase.GetUsdKztRateUseCase
+import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,7 +27,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
-    private val getUsdKztRateUseCase: GetUsdKztRateUseCase,
+    private val observeExchangeRateUseCase: ObserveExchangeRateUseCase,
     private val exchangeRateRepository: ExchangeRateRepository,
     application: Application,
 ) : ViewModel() {
@@ -90,7 +90,7 @@ class SettingsViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        getUsdKztRateUseCase()
+        observeExchangeRateUseCase()
             .onEach { rate ->
                 _state.update {
                     it.copy(
@@ -141,7 +141,7 @@ class SettingsViewModel @Inject constructor(
 
             var refreshError: Throwable? = null
             try {
-                exchangeRateRepository.fetchAndStoreRate()
+                exchangeRateRepository.fetchAndStoreQuotes()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -158,7 +158,8 @@ class SettingsViewModel @Inject constructor(
     }
 
     private fun formatRate(rate: ExchangeRate): String {
-        return "1 USD = ${numberFormatter.format(rate.usdToKzt)} KZT"
+        val usdRate = rate.quotes["USD"] ?: return ""
+        return "1 USD = ${numberFormatter.format(usdRate)} KZT"
     }
 
     private fun formatLastUpdated(rate: ExchangeRate): String {
