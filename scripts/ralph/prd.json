@@ -79,7 +79,7 @@
         "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "Primary files: presentation/transactions/.../TransactionListViewModel.kt, TransactionListState.kt, TransactionListScreen.kt, core/ui/.../TransactionListItem.kt. Reuse current row-level conversion UX added in branch history; expand conversion matrix and fallback policy."
     },
     {
