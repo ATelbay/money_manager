@@ -389,6 +389,22 @@ clear_remote_repair_state() {
   rm -f "$REMOTE_STATE_FILE"
 }
 
+story_has_commit_in_history() {
+  local story_id="$1"
+  local subject
+
+  while IFS= read -r subject; do
+    if [[ "$subject" =~ ^feat:\ \[$story_id\]\ -\  ]]; then
+      return 0
+    fi
+    if [[ "$subject" =~ ^feat:\ $story_id\ -\  ]]; then
+      return 0
+    fi
+  done < <(git log --format=%s HEAD 2>/dev/null || true)
+
+  return 1
+}
+
 validate_remote_story_iteration() {
   local start_head="$1"
   local story_id="$2"
@@ -750,6 +766,15 @@ sync_remote_run_iteration() {
   end_pending=$(count_pending_stories)
 
   if [[ "$end_head" == "$start_head" && "$end_pending" == "$start_pending" ]]; then
+    if [[ "$REMOTE_DEFER_CI_UNTIL_READY" == "true" ]] && story_has_commit_in_history "$story_id"; then
+      echo "No new commit this iteration, but found existing feat commit for $story_id in branch history."
+      mark_story_passed_locally "$story_id"
+      push_branch "$BRANCH_NAME"
+      REMOTE_CI_PASSED=true
+      echo "Backfilled pass for $story_id from existing branch history (deferred-CI mode)."
+      return 0
+    fi
+
     echo "No committed progress detected in this iteration; skipping PR/CI sync."
     return 0
   fi
