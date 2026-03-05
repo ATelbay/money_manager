@@ -4,7 +4,7 @@
 #   --tool           AI engine for coding iterations (default: amp)
 #   --review-tool    AI engine for code review step (default: same as --tool)
 #   --codex          shortcut: codex codes, claude reviews (--tool codex --review-tool claude)
-#   --remote-run     CI-first mode: no local heavy checks; Ralph shell handles per-story push + PR sync + required CI checks
+#   --remote-run     Draft-first mode: no local heavy checks; Ralph shell pushes each story and runs required CI when PR is moved out of draft (default final gate)
 #   --pr             push branch, create PR, code review, wait CI, trigger QA Build
 #   --download       after QA Build: download APK locally (use on Mac; skip on VM — Garlic handles it)
 
@@ -91,7 +91,9 @@ ARCHIVE_DIR="$SCRIPT_DIR/archive"
 LAST_BRANCH_FILE="$SCRIPT_DIR/.last-branch"
 REMOTE_STATE_FILE="$GIT_DIR/ralph-remote-run-state.json"
 PR_URL=""
-REMOTE_PR_DRAFT_MODE="${RALPH_REMOTE_PR_DRAFT_MODE:-false}"
+# In remote-run, keep PR in draft until all stories are done, then run a single final CI gate.
+REMOTE_PR_DRAFT_MODE="${RALPH_REMOTE_PR_DRAFT_MODE:-true}"
+REMOTE_DEFER_CI_UNTIL_READY="${RALPH_REMOTE_DEFER_CI_UNTIL_READY:-true}"
 
 # Archive previous run if branch changed
 if [ -f "$PRD_FILE" ] && [ -f "$LAST_BRANCH_FILE" ]; then
@@ -755,6 +757,16 @@ sync_remote_run_iteration() {
   validate_remote_story_iteration "$start_head" "$story_id" "$REMOTE_REPAIR_MODE"
   push_branch "$BRANCH_NAME"
   ensure_pr_exists "$BRANCH_NAME" "$RUN_DESCRIPTION" "$(build_story_summary)" "$REMOTE_PR_DRAFT_MODE"
+
+  if [[ "$REMOTE_DEFER_CI_UNTIL_READY" == "true" ]]; then
+    clear_remote_repair_state
+    mark_story_passed_locally "$story_id"
+    push_branch "$BRANCH_NAME"
+    REMOTE_CI_PASSED=true
+    echo "Deferred CI mode: marked $story_id as passed after committed implementation; final CI runs when PR is moved out of draft."
+    return 0
+  fi
+
   wait_required_checks "$BRANCH_NAME" "$PR_URL"
   wait_status=$?
   if [[ "$wait_status" -eq 2 ]]; then
@@ -861,8 +873,8 @@ build_agent_prompt() {
 - You are in CI-first mode. DO NOT run any local ./gradlew commands.
 - Work only on story: $REMOTE_STORY_ID — $REMOTE_STORY_TITLE
 - Implement exactly one story, commit it locally, and update progress.txt.
-- Do NOT set passes:true in prd.json; Ralph shell will mark the story as passed only after green CI.
-- Ralph shell will handle git push, PR creation/reuse, and waiting for required CI checks after your iteration.
+- Do NOT set passes:true in prd.json; Ralph shell manages story pass flags.
+- Ralph shell will handle git push and PR creation/reuse. In deferred-CI mode it waits for CI only at final PR readiness.
 - Do NOT run gh pr checks, gh workflow run, or any long-lived CI waiting commands yourself.
 - Do NOT run git rebase, git reset, git cherry-pick, git commit --amend, or any force-push/history-rewrite commands.
 - If CI is failing, use the snapshot below as context for the next fix and keep working on the same story.
