@@ -164,6 +164,8 @@ class SettingsViewModel @Inject constructor(
     private suspend fun autoSwitchCurrencyPair() {
         val topCurrencies = try {
             transactionRepository.getTopCurrenciesByUsage()
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {
             emptyList()
         }
