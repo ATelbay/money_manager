@@ -28,7 +28,7 @@ Money Manager — Android-приложение для учёта личных ф
 
 ## Архитектура (Layer-Centric Modules)
 
-24 Gradle-модуля с enforced layer boundaries:
+~36 Gradle-модулей с enforced layer boundaries:
 
 ```
 MoneyManager/
@@ -37,11 +37,16 @@ MoneyManager/
 │   ├── categories/            # CategoryRepository + CRUD use cases
 │   ├── accounts/              # AccountRepository + CRUD use cases
 │   ├── statistics/            # GetPeriodSummaryUseCase + models
-│   └── import/                # ParseStatement + ImportTransactions use cases
+│   ├── import/                # ParseStatement + ImportTransactions use cases
+│   ├── auth/                  # AuthRepository + SignIn/SignOut use cases
+│   └── exchangerate/          # ExchangeRateRepository + use cases
 ├── data/                      # Repository implementations + Mappers + DI
 │   ├── transactions/
 │   ├── categories/
-│   └── accounts/
+│   ├── accounts/
+│   ├── auth/                  # FirebaseAuthRepositoryImpl
+│   ├── exchangerate/          # Exchange rate API client
+│   └── sync/                  # SyncManager: Room ↔ Firestore
 ├── presentation/              # Screens, ViewModels, States, Routes
 │   ├── transactions/
 │   ├── categories/
@@ -49,7 +54,8 @@ MoneyManager/
 │   ├── statistics/
 │   ├── import/
 │   ├── settings/
-│   └── onboarding/
+│   ├── onboarding/
+│   └── auth/                  # SignInScreen, SignInViewModel
 ├── core/                      # Shared infrastructure
 │   ├── model/                 # Domain models (Account, Transaction, Category...)
 │   ├── database/              # Room DB, Entities, DAOs
@@ -58,12 +64,18 @@ MoneyManager/
 │   ├── common/                # Utils, extensions
 │   ├── ai/                    # Gemini service
 │   ├── parser/                # PDF parsing, bank detection
-│   └── remoteconfig/          # Firebase Remote Config
+│   ├── remoteconfig/          # Firebase Remote Config
+│   ├── auth/                  # CredentialManager wrapper
+│   └── firestore/             # Firestore SDK wrapper
 ├── build-logic/convention/
 └── app/                       # Navigation, DI wiring
 ```
 
-**Dependency rule:** `presentation → domain → core:model`. Presentation НЕ зависит от `core:database`.
+**Правила зависимостей:**
+- `presentation/{name}` → `domain/{name}` → `core:model`
+- `data/{name}` → `domain/{name}` + `core:database`
+- Presentation **НИКОГДА** не зависит от `core:database`
+- Domain/data модули НЕ зависят от presentation
 
 **Пакеты:** `com.atelbay.money_manager.{domain|data|presentation}.{feature}.*`
 
@@ -73,15 +85,18 @@ MoneyManager/
 
 | Скилл | Описание |
 |-------|----------|
-| `architecture-and-di.md` | Многомодульность, Convention Plugins, Hilt DI, Type-Safe Navigation |
+| `architecture-and-di.md` | Layer-centric многомодульность, Convention Plugins, Hilt DI, Type-Safe Navigation |
+| `clean-architecture-feature-scaffold.md` | Генератор новой фичи: 3 модуля (domain/data/presentation) |
 | `compose-ui-guidelines.md` | Compose паттерны, naming, State Hoisting, testTag |
-| `room-database.md` | Room entities, DAO, миграции, DataStore |
+| `room-database.md` | Room entities, DAO, миграции, DataStore, Firestore sync |
 | `pdf-and-ai-parsing.md` | Импорт выписок: RegEx → Gemini AI fallback |
 | `generate-ui-test.md` | Генерация UI-тестов с ComposeTestRule |
-| `web-search-android-docs.md` | Верификация API через поиск документации |
-| `clean-architecture-feature-scaffold.md` | Генератор новой фичи (domain/data/ui/di) |
+| `unit-testing.md` | Unit-тесты: ViewModel + UseCase с MockK и Turbine |
+| `web-search-android-docs.md` | Верификация API через context7 MCP и веб-поиск |
 | `gradle-troubleshooting.md` | Диагностика ошибок сборки Gradle |
 | `git-conventional-commits.md` | Анализ изменений и коммиты в формате Conventional Commits |
+| `firebase-auth.md` | Firebase Auth + CredentialManager: Google Sign-In, Coil 3 |
+| `mcp-tools.md` | MCP-инструменты: context7 для документации, Firebase MCP |
 
 ## Полезные команды
 

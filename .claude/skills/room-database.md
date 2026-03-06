@@ -40,6 +40,17 @@ ForeignKeys: TransactionEntity → AccountEntity, TransactionEntity → Category
 | `selected_account_id` | Long? | Текущий выбранный счёт |
 | `theme_mode` | String | Тема: `"system"`, `"light"`, `"dark"` |
 
+## Cloud Sync (core:firestore + data:sync)
+
+Проект содержит дополнительные модули для облачной синхронизации:
+
+- **`core:firestore`** — обёртка над Firebase Firestore SDK (Firestore instance, query helpers)
+- **`data:sync`** — SyncManager: двусторонняя синхронизация Room ↔ Firestore
+
+Зависимость: `data:sync` → `core:firestore` + `core:database`
+
+Эти модули НЕ являются частью стандартного CRUD-слоя — они работают параллельно с Room и не меняют DAO-паттерн. Добавлять `core:firestore` в domain или presentation модули не нужно.
+
 ## Process
 
 ### Добавление новой Entity

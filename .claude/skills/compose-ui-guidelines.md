@@ -11,7 +11,7 @@ description: "Правила Jetpack Compose в Money Manager: naming convention
 **Ключевые файлы:**
 - `core/ui/src/.../theme/` — Color.kt, Type.kt, Theme.kt
 - `core/ui/src/.../components/` — переиспользуемые компоненты (MoneyManagerButton, MoneyManagerTextField, MoneyManagerCard)
-- `feature/*/src/.../ui/` — экраны каждой фичи
+- `presentation/*/src/.../ui/` — экраны каждой фичи
 
 ## Process
 

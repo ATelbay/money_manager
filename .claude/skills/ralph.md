@@ -183,7 +183,6 @@ Add ability to mark tasks with different statuses.
       "acceptanceCriteria": [
         "Each task card shows colored status badge",
         "Badge colors: gray=pending, blue=in_progress, green=done",
-        "./gradlew assembleDebug passes",
         "./gradlew assembleDebug passes"
       ],
       "priority": 2,
@@ -198,7 +197,6 @@ Add ability to mark tasks with different statuses.
         "Each row has status dropdown or toggle",
         "Changing status saves immediately",
         "UI updates without page refresh",
-        "./gradlew assembleDebug passes",
         "./gradlew assembleDebug passes"
       ],
       "priority": 3,
@@ -212,7 +210,6 @@ Add ability to mark tasks with different statuses.
       "acceptanceCriteria": [
         "Filter dropdown: All | Pending | In Progress | Done",
         "Filter persists in URL params",
-        "./gradlew assembleDebug passes",
         "./gradlew assembleDebug passes"
       ],
       "priority": 4,
