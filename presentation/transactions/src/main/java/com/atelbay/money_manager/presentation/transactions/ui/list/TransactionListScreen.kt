@@ -112,7 +112,7 @@ fun TransactionListScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
+                    containerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.5f),
                 ),
             )
         },
