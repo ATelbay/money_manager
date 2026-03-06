@@ -67,8 +67,9 @@ suspend fun signInWithGoogle(context: Context): String {
         .build()
 
     val result = credentialManager.getCredential(context, request)
-    val credential = result.credential as? GoogleIdTokenCredential
-    return credential?.idToken ?: throw IllegalStateException("No ID token")
+    // Используй createFrom() — прямой каст as? может упасть в runtime
+    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
+    return googleIdTokenCredential.idToken
 }
 ```
 

@@ -67,10 +67,6 @@ MoneyManager/
 │   ├── remoteconfig/          # Firebase Remote Config
 │   ├── auth/                  # CredentialManager wrapper
 │   └── firestore/             # Firestore SDK wrapper
-├── components/                # Design system
-│   ├── design-system/
-│   ├── ui/
-│   └── showcase/
 ├── build-logic/convention/
 └── app/                       # Navigation, DI wiring
 ```

@@ -214,10 +214,16 @@ include(":presentation:{name}")
 
 ### Шаг 5: Добавить в `app/build.gradle.kts`
 
+Необходимо добавить **оба** модуля — presentation для UI и data для Hilt DI wiring:
+
 ```kotlin
-// Только presentation-модуль
+// Presentation (UI + ViewModel + навигация)
 implementation(project(":presentation:{name}"))
+// Data (обязательно для Hilt — data-модуль должен быть на classpath :app)
+implementation(project(":data:{name}"))
 ```
+
+> Без `data:{name}` в `app/build.gradle.kts` Hilt не найдёт биндинги репозитория и упадёт при сборке.
 
 ### Шаг 6: Навигация
 
