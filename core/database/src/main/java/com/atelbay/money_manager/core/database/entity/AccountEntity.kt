@@ -10,4 +10,7 @@ data class AccountEntity(
     val currency: String,
     val balance: Double,
     val createdAt: Long,
+    val remoteId: String? = null,
+    val updatedAt: Long = 0,
+    val isDeleted: Boolean = false,
 )

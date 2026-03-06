@@ -10,6 +10,7 @@ android {
 
 dependencies {
     implementation(projects.core.database)
+    implementation(libs.room.ktx)
     implementation(projects.core.model)
     implementation(projects.core.ai)
     implementation(projects.core.parser)

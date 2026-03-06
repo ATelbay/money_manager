@@ -11,4 +11,5 @@ dependencies {
     implementation(projects.domain.accounts)
     implementation(projects.core.database)
     implementation(projects.core.model)
+    implementation(projects.data.sync)
 }

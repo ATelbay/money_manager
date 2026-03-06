@@ -3,6 +3,7 @@ package com.atelbay.money_manager.data.transactions.repository
 import com.atelbay.money_manager.core.database.dao.AccountDao
 import com.atelbay.money_manager.core.database.dao.CategoryDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
+import com.atelbay.money_manager.data.sync.SyncManager
 import com.atelbay.money_manager.data.transactions.mapper.toDomain
 import com.atelbay.money_manager.data.transactions.mapper.toEntity
 import com.atelbay.money_manager.core.model.Transaction
@@ -17,6 +18,7 @@ class TransactionRepositoryImpl @Inject constructor(
     private val transactionDao: TransactionDao,
     private val categoryDao: CategoryDao,
     private val accountDao: AccountDao,
+    private val syncManager: SyncManager,
 ) : TransactionRepository {
 
     override fun observeAll(): Flow<List<Transaction>> =
@@ -41,39 +43,50 @@ class TransactionRepositoryImpl @Inject constructor(
             }
         }
 
-
     override suspend fun save(transaction: Transaction): Long {
-        val entity = transaction.toEntity().let {
-            if (it.id == 0L) it.copy(createdAt = System.currentTimeMillis()) else it
-        }
+        val now = System.currentTimeMillis()
+        val baseEntity = transaction.toEntity()
 
-        val isNew = entity.id == 0L
-        val id = if (isNew) {
-            transactionDao.insert(entity)
+        return if (baseEntity.id == 0L) {
+            val newEntity = baseEntity.copy(createdAt = now, updatedAt = now)
+            val id = transactionDao.insert(newEntity)
+            val delta = if (newEntity.type == "income") newEntity.amount else -newEntity.amount
+            accountDao.updateBalance(newEntity.accountId, delta, now)
+            syncManager.syncTransaction(id)
+            syncManager.syncAccount(newEntity.accountId)
+            id
         } else {
-            val old = transactionDao.getById(entity.id)
-            transactionDao.update(entity)
+            val existing = transactionDao.getById(baseEntity.id)
+            val updatedEntity = baseEntity.copy(
+                remoteId = existing?.remoteId,
+                isDeleted = existing?.isDeleted ?: false,
+                updatedAt = now,
+            )
+            transactionDao.update(updatedEntity)
             // Revert old transaction's effect on balance
-            if (old != null) {
-                val oldDelta = if (old.type == "income") -old.amount else old.amount
-                accountDao.updateBalance(old.accountId, oldDelta)
+            if (existing != null) {
+                val oldDelta = if (existing.type == "income") -existing.amount else existing.amount
+                accountDao.updateBalance(existing.accountId, oldDelta, now)
+                syncManager.syncAccount(existing.accountId)
             }
-            entity.id
+            // Apply new transaction's effect on balance
+            val delta = if (updatedEntity.type == "income") updatedEntity.amount else -updatedEntity.amount
+            accountDao.updateBalance(updatedEntity.accountId, delta, now)
+            syncManager.syncTransaction(baseEntity.id)
+            syncManager.syncAccount(updatedEntity.accountId)
+            baseEntity.id
         }
-
-        // Apply new transaction's effect on balance
-        val delta = if (entity.type == "income") entity.amount else -entity.amount
-        accountDao.updateBalance(entity.accountId, delta)
-
-        return id
     }
 
     override suspend fun delete(id: Long) {
         val entity = transactionDao.getById(id) ?: return
         // Revert balance
         val delta = if (entity.type == "income") -entity.amount else entity.amount
-        accountDao.updateBalance(entity.accountId, delta)
-        transactionDao.deleteById(id)
+        val now = System.currentTimeMillis()
+        accountDao.updateBalance(entity.accountId, delta, now)
+        transactionDao.softDeleteById(id, now)
+        syncManager.syncTransaction(id)
+        syncManager.syncAccount(entity.accountId)
     }
 
     override suspend fun getTopCurrenciesByUsage(): List<String> =

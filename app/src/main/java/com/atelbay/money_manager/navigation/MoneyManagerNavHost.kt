@@ -17,6 +17,7 @@ import com.atelbay.money_manager.presentation.settings.ui.CurrencyPickerRoute
 import com.atelbay.money_manager.presentation.settings.ui.SettingsRoute
 import com.atelbay.money_manager.presentation.transactions.ui.edit.TransactionEditRoute
 import com.atelbay.money_manager.presentation.transactions.ui.list.TransactionListRoute
+import com.atelbay.money_manager.presentation.auth.ui.SignInRoute
 import com.atelbay.money_manager.presentation.importstatement.ui.ImportRoute
 
 @Composable
@@ -124,6 +125,15 @@ fun MoneyManagerNavHost(
                 onCurrencyPickerClick = {
                     navController.navigate(CurrencyPicker())
                 },
+                onSignInClick = {
+                    navController.navigate(SignIn)
+                },
+            )
+        }
+
+        composable<SignIn> {
+            SignInRoute(
+                onBack = { navController.popBackStack() },
             )
         }
 

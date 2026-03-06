@@ -5,6 +5,10 @@ import android.content.pm.PackageManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atelbay.money_manager.core.datastore.UserPreferences
+import com.atelbay.money_manager.data.sync.LoginSyncOrchestrator
+import com.atelbay.money_manager.data.sync.SyncManager
+import com.atelbay.money_manager.data.sync.SyncStatus
+import com.atelbay.money_manager.domain.auth.usecase.ObserveAuthUserUseCase
 import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
 import com.atelbay.money_manager.domain.exchangerate.repository.ExchangeRateRepository
 import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
@@ -32,6 +36,9 @@ class SettingsViewModel @Inject constructor(
     private val observeExchangeRateUseCase: ObserveExchangeRateUseCase,
     private val exchangeRateRepository: ExchangeRateRepository,
     private val transactionRepository: TransactionRepository,
+    private val observeAuthUser: ObserveAuthUserUseCase,
+    private val syncManager: SyncManager,
+    private val loginSyncOrchestrator: LoginSyncOrchestrator,
     application: Application,
 ) : ViewModel() {
 
@@ -52,6 +59,21 @@ class SettingsViewModel @Inject constructor(
             ""
         }
         _state.update { it.copy(appVersion = versionName) }
+
+        observeAuthUser()
+            .onEach { user -> _state.update { it.copy(currentUser = user) } }
+            .launchIn(viewModelScope)
+
+        syncManager.syncStatus
+            .onEach { status ->
+                val lastSyncDisplay = when (status) {
+                    is SyncStatus.Synced -> formatSyncDate(status.lastSyncedAt)
+                    is SyncStatus.Failed -> status.lastSyncedAt?.let(::formatSyncDate).orEmpty()
+                    else -> ""
+                }
+                _state.update { it.copy(syncStatus = status, lastSyncDisplay = lastSyncDisplay) }
+            }
+            .launchIn(viewModelScope)
 
         userPreferences.themeMode
             .onEach { mode ->
@@ -97,6 +119,10 @@ class SettingsViewModel @Inject constructor(
                 }
             }
             .launchIn(viewModelScope)
+    }
+
+    fun retrySync() {
+        loginSyncOrchestrator.retrySync()
     }
 
     fun setThemeMode(mode: ThemeMode) {
@@ -218,6 +244,12 @@ class SettingsViewModel @Inject constructor(
 
     private fun formatLastUpdated(rate: ExchangeRate): String {
         return Instant.ofEpochMilli(rate.fetchedAt)
+            .atZone(ZoneId.systemDefault())
+            .format(timeFormatter)
+    }
+
+    private fun formatSyncDate(epochMillis: Long): String {
+        return Instant.ofEpochMilli(epochMillis)
             .atZone(ZoneId.systemDefault())
             .format(timeFormatter)
     }

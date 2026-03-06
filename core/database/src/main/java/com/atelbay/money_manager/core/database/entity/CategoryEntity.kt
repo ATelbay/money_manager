@@ -11,4 +11,7 @@ data class CategoryEntity(
     val color: Long,
     val type: String,
     val isDefault: Boolean,
+    val remoteId: String? = null,
+    val updatedAt: Long = 0,
+    val isDeleted: Boolean = false,
 )

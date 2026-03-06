@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
@@ -28,6 +29,8 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.SyncProblem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -48,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.ui.components.GlassCard
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.theme.Teal
+import com.atelbay.money_manager.data.sync.SyncStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +61,8 @@ fun SettingsScreen(
     onRefreshRateClick: () -> Unit,
     onCategoriesClick: () -> Unit,
     onCurrencyPickerClick: () -> Unit,
+    onSignInClick: () -> Unit,
+    onRetrySyncClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MoneyManagerTheme.colors
@@ -88,6 +94,73 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp),
         ) {
             Spacer(modifier = Modifier.height(4.dp))
+
+            SectionHeader("Аккаунт")
+
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    val accountTitle = state.currentUser?.displayName
+                        ?: state.currentUser?.email
+                        ?: "Войти через Google"
+                    val accountSubtitle = if (state.currentUser != null) {
+                        state.currentUser.email
+                    } else {
+                        "Синхронизация данных"
+                    }
+                    SettingRow(
+                        icon = Icons.Default.AccountCircle,
+                        iconColor = Teal,
+                        title = accountTitle,
+                        subtitle = accountSubtitle,
+                        hasChevron = true,
+                        onClick = onSignInClick,
+                        modifier = Modifier.testTag(
+                            if (state.currentUser == null) "settings:signIn" else "settings:accountRow",
+                        ),
+                    )
+
+                    if (state.currentUser != null) {
+                        val syncColor = when (state.syncStatus) {
+                            is SyncStatus.Syncing -> Color(0xFFFBBF24)
+                            is SyncStatus.Synced -> Color(0xFF4ADE80)
+                            is SyncStatus.Failed -> Color(0xFFF87171)
+                            is SyncStatus.Idle -> colors.textSecondary
+                        }
+                        val syncTitle = when (state.syncStatus) {
+                            is SyncStatus.Syncing -> "Синхронизация..."
+                            is SyncStatus.Synced -> "Синхронизировано"
+                            is SyncStatus.Failed -> "Ошибка синхронизации"
+                            is SyncStatus.Idle -> "Синхронизация данных"
+                        }
+                        val syncSubtitle = when {
+                            state.lastSyncDisplay.isNotEmpty() -> "Обновлено ${state.lastSyncDisplay}"
+                            state.syncStatus is SyncStatus.Failed -> "Нажмите для повтора"
+                            else -> null
+                        }
+                        val syncIcon = if (state.syncStatus is SyncStatus.Failed) {
+                            Icons.Default.SyncProblem
+                        } else {
+                            Icons.Default.Sync
+                        }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            thickness = 0.5.dp,
+                            color = colors.borderSubtle,
+                        )
+                        SettingRow(
+                            icon = syncIcon,
+                            iconColor = syncColor,
+                            title = syncTitle,
+                            subtitle = syncSubtitle,
+                            onClick = if (state.syncStatus is SyncStatus.Failed) onRetrySyncClick else null,
+                            modifier = Modifier.testTag("settings:syncStatus"),
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             SectionHeader("Общее")
 
@@ -361,28 +434,9 @@ private fun ThemeSelector(
                     .height(56.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(bgColor)
-                    .then(
-                        if (!isSelected) {
-                            Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color.Transparent)
-                        } else {
-                            Modifier
-                        },
-                    )
                     .clickable { onSelect(option.mode) },
                 contentAlignment = Alignment.Center,
             ) {
-                if (!isSelected) {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color.Transparent)
-                            .padding(0.dp),
-                    )
-                }
-
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
@@ -421,6 +475,8 @@ private fun SettingsScreenPreview() {
             onRefreshRateClick = {},
             onCategoriesClick = {},
             onCurrencyPickerClick = {},
+            onSignInClick = {},
+            onRetrySyncClick = {},
         )
     }
 }

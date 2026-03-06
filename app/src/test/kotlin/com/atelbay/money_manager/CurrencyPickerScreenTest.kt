@@ -25,7 +25,7 @@ import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [33], qualifiers = "xxhdpi")
+@Config(sdk = [33], qualifiers = "xxhdpi", application = android.app.Application::class)
 class CurrencyPickerScreenTest {
 
     @get:Rule

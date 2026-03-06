@@ -7,6 +7,10 @@ android {
     namespace = "com.atelbay.money_manager.core.database"
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(libs.bundles.room)
     ksp(libs.room.compiler)

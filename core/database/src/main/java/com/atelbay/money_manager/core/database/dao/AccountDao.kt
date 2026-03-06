@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface AccountDao {
 
-    @Query("SELECT * FROM accounts ORDER BY createdAt DESC")
+    @Query("SELECT * FROM accounts WHERE isDeleted = 0 ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<AccountEntity>>
 
     @Query("SELECT * FROM accounts WHERE id = :id")
@@ -30,6 +30,26 @@ interface AccountDao {
     @Delete
     suspend fun delete(account: AccountEntity)
 
-    @Query("UPDATE accounts SET balance = balance + :delta WHERE id = :accountId")
-    suspend fun updateBalance(accountId: Long, delta: Double)
+    @Query("UPDATE accounts SET balance = balance + :delta, updatedAt = :updatedAt WHERE id = :accountId")
+    suspend fun updateBalance(accountId: Long, delta: Double, updatedAt: Long)
+
+    @Query("UPDATE accounts SET isDeleted = 1, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun softDeleteById(id: Long, updatedAt: Long)
+
+    // ── Sync ──
+
+    @Query("SELECT * FROM accounts WHERE isDeleted = 0")
+    suspend fun getAllForSync(): List<AccountEntity>
+
+    @Query("SELECT * FROM accounts WHERE remoteId IS NULL AND isDeleted = 0")
+    suspend fun getPendingSync(): List<AccountEntity>
+
+    @Query("SELECT * FROM accounts WHERE remoteId = :remoteId LIMIT 1")
+    suspend fun getByRemoteId(remoteId: String): AccountEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSync(accounts: List<AccountEntity>)
+
+    @Query("UPDATE accounts SET remoteId = NULL")
+    suspend fun clearRemoteIds()
 }

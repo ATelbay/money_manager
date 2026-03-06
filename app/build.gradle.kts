@@ -65,12 +65,18 @@ android {
 
 dependencies {
     // Data (for Hilt DI wiring)
+    implementation(projects.data.auth)
+    implementation(projects.data.sync)
     implementation(projects.data.transactions)
     implementation(projects.data.categories)
     implementation(projects.data.accounts)
     implementation(projects.data.exchangerate)
 
+    // Core sync infra
+    implementation(projects.core.firestore)
+
     // Presentation
+    implementation(projects.presentation.auth)
     implementation(projects.presentation.onboarding)
     implementation(projects.presentation.transactions)
     implementation(projects.presentation.categories)
@@ -80,6 +86,7 @@ dependencies {
     implementation(projects.presentation.`import`)
 
     // Core
+    implementation(projects.core.auth)
     implementation(projects.core.model)
     implementation(projects.core.datastore)
     implementation(projects.core.ui)
@@ -115,6 +122,7 @@ dependencies {
     testImplementation(libs.roborazzi.compose)
     testImplementation(libs.roborazzi.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    testImplementation(libs.androidx.compose.ui.test.manifest)
     testImplementation(libs.robolectric)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.bundles.android.testing)
