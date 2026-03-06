@@ -1,6 +1,5 @@
 package com.atelbay.money_manager.core.auth
 
-import android.content.Context
 import kotlinx.coroutines.flow.StateFlow
 
 interface AuthManager {
@@ -9,11 +8,11 @@ interface AuthManager {
 
     /**
      * Launches the Google Sign-In credential picker.
-     * @param context Must be an Activity context (required by CredentialManager).
+     * Uses [ActivityProvider] internally to obtain the required Activity context.
      * @throws SignInCancelledException if the user dismissed the picker.
      * @throws SignInFailedException wrapping the underlying cause.
      */
-    suspend fun signInWithGoogle(context: Context): AuthUser
+    suspend fun signInWithGoogle(): AuthUser
 
     /** Signs out from Firebase and clears the credential session. */
     suspend fun signOut()

@@ -48,7 +48,8 @@ class CategoryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun delete(id: Long) {
-        val entity = categoryDao.getById(id) ?: return
-        categoryDao.delete(entity)
+        val now = System.currentTimeMillis()
+        categoryDao.softDeleteById(id, now)
+        syncManager.syncCategory(id)
     }
 }

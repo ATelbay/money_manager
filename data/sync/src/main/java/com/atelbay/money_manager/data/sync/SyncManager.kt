@@ -13,8 +13,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,6 +30,9 @@ class SyncManager @Inject constructor(
     private val categoryDao: CategoryDao,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private val accountMutexes = ConcurrentHashMap<Long, Mutex>()
+    private val categoryMutexes = ConcurrentHashMap<Long, Mutex>()
 
     private val _syncStatus = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
     val syncStatus: StateFlow<SyncStatus> = _syncStatus.asStateFlow()
@@ -120,20 +126,26 @@ class SyncManager @Inject constructor(
     }
 
     private suspend fun ensureAccountRemoteId(id: Long): String? {
-        val entity = accountDao.getById(id) ?: return null
-        if (entity.remoteId != null) return entity.remoteId
-        val remoteId = UUID.randomUUID().toString()
-        accountDao.update(entity.copy(remoteId = remoteId))
-        return remoteId
+        val mutex = accountMutexes.getOrPut(id) { Mutex() }
+        return mutex.withLock {
+            val entity = accountDao.getById(id) ?: return@withLock null
+            if (entity.remoteId != null) return@withLock entity.remoteId
+            val remoteId = UUID.randomUUID().toString()
+            accountDao.update(entity.copy(remoteId = remoteId))
+            remoteId
+        }
     }
 
     private suspend fun ensureCategoryRemoteId(id: Long): String? {
-        val entity = categoryDao.getById(id) ?: return null
-        if (entity.isDefault) return defaultCategoryRemoteId(entity.name, entity.type)
-        if (entity.remoteId != null) return entity.remoteId
-        val remoteId = UUID.randomUUID().toString()
-        categoryDao.update(entity.copy(remoteId = remoteId))
-        return remoteId
+        val mutex = categoryMutexes.getOrPut(id) { Mutex() }
+        return mutex.withLock {
+            val entity = categoryDao.getById(id) ?: return@withLock null
+            if (entity.isDefault) return@withLock defaultCategoryRemoteId(entity.name, entity.type)
+            if (entity.remoteId != null) return@withLock entity.remoteId
+            val remoteId = UUID.randomUUID().toString()
+            categoryDao.update(entity.copy(remoteId = remoteId))
+            remoteId
+        }
     }
 
     companion object {

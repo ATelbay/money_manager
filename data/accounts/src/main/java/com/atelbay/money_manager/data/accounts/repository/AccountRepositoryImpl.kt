@@ -45,7 +45,8 @@ class AccountRepositoryImpl @Inject constructor(
     }
 
     override suspend fun delete(id: Long) {
-        val entity = accountDao.getById(id) ?: return
-        accountDao.delete(entity)
+        val now = System.currentTimeMillis()
+        accountDao.softDeleteById(id, now)
+        syncManager.syncAccount(id)
     }
 }

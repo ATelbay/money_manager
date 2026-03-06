@@ -1,5 +1,7 @@
 package com.atelbay.money_manager.domain.importstatement.usecase
 
+import androidx.room.withTransaction
+import com.atelbay.money_manager.core.database.MoneyManagerDatabase
 import com.atelbay.money_manager.core.database.dao.AccountDao
 import com.atelbay.money_manager.core.database.dao.CategoryDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
@@ -12,6 +14,7 @@ import kotlinx.datetime.atStartOfDayIn
 import javax.inject.Inject
 
 class ImportTransactionsUseCase @Inject constructor(
+    private val database: MoneyManagerDatabase,
     private val transactionDao: TransactionDao,
     private val accountDao: AccountDao,
     private val categoryDao: CategoryDao,
@@ -72,13 +75,17 @@ class ImportTransactionsUseCase @Inject constructor(
             )
         }.filterNotNull()
 
-        transactionDao.insertOrIgnore(entities)
+        val existingHashes = transactionDao.getExistingHashes(entities.mapNotNull { it.uniqueHash }).toSet()
+        val toInsert = entities.filter { it.uniqueHash == null || it.uniqueHash !in existingHashes }
 
-        entities.forEach { entity ->
-            val delta = if (entity.type == "income") entity.amount else -entity.amount
-            accountDao.updateBalance(entity.accountId, delta, System.currentTimeMillis())
+        database.withTransaction {
+            transactionDao.insertOrIgnore(toInsert)
+            toInsert.forEach { entity ->
+                val delta = if (entity.type == "income") entity.amount else -entity.amount
+                accountDao.updateBalance(entity.accountId, delta, System.currentTimeMillis())
+            }
         }
 
-        return entities.size
+        return toInsert.size
     }
 }

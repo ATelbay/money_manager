@@ -79,8 +79,10 @@ class TransactionRepositoryImpl @Inject constructor(
         val entity = transactionDao.getById(id) ?: return
         // Revert balance
         val delta = if (entity.type == "income") -entity.amount else entity.amount
-        accountDao.updateBalance(entity.accountId, delta, System.currentTimeMillis())
-        transactionDao.deleteById(id)
+        val now = System.currentTimeMillis()
+        accountDao.updateBalance(entity.accountId, delta, now)
+        transactionDao.softDeleteById(id, now)
+        syncManager.syncTransaction(id)
     }
 
     override suspend fun getTopCurrenciesByUsage(): List<String> =

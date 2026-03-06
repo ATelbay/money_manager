@@ -34,7 +34,7 @@ class PullSyncUseCase @Inject constructor(
         for (dto in remoteAccounts) {
             val local = accountDao.getByRemoteId(dto.remoteId)
             if (dto.isDeleted) {
-                if (local != null) accountDao.delete(local)
+                if (local != null) accountDao.softDeleteById(local.id, dto.updatedAt)
                 continue
             }
             if (local != null && local.updatedAt >= dto.updatedAt) continue
@@ -52,7 +52,7 @@ class PullSyncUseCase @Inject constructor(
         for (dto in remoteCategories) {
             val local = categoryDao.getByRemoteId(dto.remoteId)
             if (dto.isDeleted) {
-                if (local != null) categoryDao.delete(local)
+                if (local != null) categoryDao.softDeleteById(local.id, dto.updatedAt)
                 continue
             }
             if (local != null && local.updatedAt >= dto.updatedAt) continue
@@ -81,7 +81,11 @@ class PullSyncUseCase @Inject constructor(
         for (dto in remoteTransactions) {
             val local = transactionDao.getByRemoteId(dto.remoteId)
             if (dto.isDeleted) {
-                if (local != null) transactionDao.deleteById(local.id)
+                if (local != null) {
+                    val delta = if (local.type == "income") -local.amount else local.amount
+                    accountDao.updateBalance(local.accountId, delta, dto.updatedAt)
+                    transactionDao.softDeleteById(local.id, dto.updatedAt)
+                }
                 continue
             }
             if (local != null && local.updatedAt >= dto.updatedAt) continue

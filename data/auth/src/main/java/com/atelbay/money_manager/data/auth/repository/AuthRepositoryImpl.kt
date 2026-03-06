@@ -1,6 +1,5 @@
 package com.atelbay.money_manager.data.auth.repository
 
-import android.content.Context
 import com.atelbay.money_manager.core.auth.AuthManager
 import com.atelbay.money_manager.core.auth.AuthUser
 import com.atelbay.money_manager.domain.auth.repository.AuthRepository
@@ -15,8 +14,7 @@ class AuthRepositoryImpl @Inject constructor(
 
     override fun observeCurrentUser(): Flow<AuthUser?> = authManager.currentUser
 
-    override suspend fun signInWithGoogle(activityContext: Context): AuthUser =
-        authManager.signInWithGoogle(activityContext)
+    override suspend fun signInWithGoogle(): AuthUser = authManager.signInWithGoogle()
 
     override suspend fun signOut() = authManager.signOut()
 }

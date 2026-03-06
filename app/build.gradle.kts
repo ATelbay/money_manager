@@ -86,6 +86,7 @@ dependencies {
     implementation(projects.presentation.`import`)
 
     // Core
+    implementation(projects.core.auth)
     implementation(projects.core.model)
     implementation(projects.core.datastore)
     implementation(projects.core.ui)

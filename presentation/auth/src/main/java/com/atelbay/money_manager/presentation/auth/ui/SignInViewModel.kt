@@ -1,6 +1,5 @@
 package com.atelbay.money_manager.presentation.auth.ui
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atelbay.money_manager.core.auth.SignInCancelledException
@@ -35,12 +34,12 @@ class SignInViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    fun signIn(activityContext: Context) {
+    fun signIn() {
         if (_state.value.isLoading) return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                signInWithGoogle(activityContext)
+                signInWithGoogle()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: SignInCancelledException) {

@@ -23,6 +23,7 @@ import javax.inject.Singleton
 @Singleton
 class FirebaseAuthManager @Inject constructor(
     @ApplicationContext private val appContext: Context,
+    private val activityProvider: ActivityProvider,
 ) : AuthManager {
 
     private val firebaseAuth = Firebase.auth
@@ -37,11 +38,14 @@ class FirebaseAuthManager @Inject constructor(
         }
     }
 
-    override suspend fun signInWithGoogle(context: Context): AuthUser {
-        val webClientId = context.resources.getIdentifier(
-            "default_web_client_id", "string", context.packageName,
+    override suspend fun signInWithGoogle(): AuthUser {
+        val context = activityProvider.currentActivity
+            ?: throw SignInFailedException(Exception("No activity available for sign-in"))
+
+        val webClientId = appContext.resources.getIdentifier(
+            "default_web_client_id", "string", appContext.packageName,
         ).let { resId ->
-            if (resId != 0) context.getString(resId) else ""
+            if (resId != 0) appContext.getString(resId) else ""
         }
 
         val signInWithGoogleOption = GetSignInWithGoogleOption
