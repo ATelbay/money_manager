@@ -16,7 +16,7 @@ import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [33], qualifiers = "xxhdpi")
+@Config(sdk = [33], qualifiers = "xxhdpi", application = android.app.Application::class)
 class MoneyManagerFABScreenshotTest {
     @get:Rule
     val composeTestRule = createComposeRule()
