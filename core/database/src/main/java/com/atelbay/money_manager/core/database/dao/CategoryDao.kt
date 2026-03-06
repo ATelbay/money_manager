@@ -55,4 +55,7 @@ interface CategoryDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSync(categories: List<CategoryEntity>)
+
+    @Query("UPDATE categories SET remoteId = NULL")
+    suspend fun clearRemoteIds()
 }

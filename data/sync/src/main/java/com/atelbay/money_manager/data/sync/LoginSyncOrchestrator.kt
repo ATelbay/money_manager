@@ -31,6 +31,9 @@ class LoginSyncOrchestrator @Inject constructor(
                     if (user != null) {
                         Timber.d("LoginSyncOrchestrator: user signed in (${user.userId}), starting sync")
                         runSync(user.userId)
+                    } else {
+                        Timber.d("LoginSyncOrchestrator: user signed out, clearing sync metadata")
+                        syncManager.clearSyncMetadata()
                     }
                 }
         }

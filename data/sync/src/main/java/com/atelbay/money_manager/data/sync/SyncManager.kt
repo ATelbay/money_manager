@@ -148,6 +148,17 @@ class SyncManager @Inject constructor(
         }
     }
 
+    /**
+     * Clears all remote IDs from local entities on sign-out so that the next user's
+     * sync session cannot accidentally push the previous user's data to their Firestore path.
+     */
+    suspend fun clearSyncMetadata() {
+        accountDao.clearRemoteIds()
+        categoryDao.clearRemoteIds()
+        transactionDao.clearRemoteIds()
+        Timber.d("SyncManager: sync metadata cleared on sign-out")
+    }
+
     companion object {
         fun defaultCategoryRemoteId(name: String, type: String) = "default:$name:$type"
     }

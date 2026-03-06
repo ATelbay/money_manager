@@ -51,29 +51,14 @@ class FirestoreDataSourceImpl @Inject constructor(
     }
 
     override suspend fun pullTransactions(userId: String): List<TransactionDto> =
-        try {
-            transactions(userId).get().await()
-                .documents.mapNotNull { it.toObject(TransactionDto::class.java) }
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to pull transactions")
-            emptyList()
-        }
+        transactions(userId).get().await()
+            .documents.mapNotNull { it.toObject(TransactionDto::class.java) }
 
     override suspend fun pullAccounts(userId: String): List<AccountDto> =
-        try {
-            accounts(userId).get().await()
-                .documents.mapNotNull { it.toObject(AccountDto::class.java) }
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to pull accounts")
-            emptyList()
-        }
+        accounts(userId).get().await()
+            .documents.mapNotNull { it.toObject(AccountDto::class.java) }
 
     override suspend fun pullCategories(userId: String): List<CategoryDto> =
-        try {
-            categories(userId).get().await()
-                .documents.mapNotNull { it.toObject(CategoryDto::class.java) }
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to pull categories")
-            emptyList()
-        }
+        categories(userId).get().await()
+            .documents.mapNotNull { it.toObject(CategoryDto::class.java) }
 }

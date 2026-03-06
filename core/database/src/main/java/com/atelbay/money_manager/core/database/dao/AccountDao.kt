@@ -49,4 +49,7 @@ interface AccountDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSync(accounts: List<AccountEntity>)
+
+    @Query("UPDATE accounts SET remoteId = NULL")
+    suspend fun clearRemoteIds()
 }

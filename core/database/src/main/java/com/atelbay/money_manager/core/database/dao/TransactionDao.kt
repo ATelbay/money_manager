@@ -85,4 +85,7 @@ interface TransactionDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSync(transactions: List<TransactionEntity>)
+
+    @Query("UPDATE transactions SET remoteId = NULL")
+    suspend fun clearRemoteIds()
 }

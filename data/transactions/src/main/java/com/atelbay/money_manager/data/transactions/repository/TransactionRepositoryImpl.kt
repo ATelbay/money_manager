@@ -53,6 +53,7 @@ class TransactionRepositoryImpl @Inject constructor(
             val delta = if (newEntity.type == "income") newEntity.amount else -newEntity.amount
             accountDao.updateBalance(newEntity.accountId, delta, now)
             syncManager.syncTransaction(id)
+            syncManager.syncAccount(newEntity.accountId)
             id
         } else {
             val existing = transactionDao.getById(baseEntity.id)
@@ -66,11 +67,13 @@ class TransactionRepositoryImpl @Inject constructor(
             if (existing != null) {
                 val oldDelta = if (existing.type == "income") -existing.amount else existing.amount
                 accountDao.updateBalance(existing.accountId, oldDelta, now)
+                syncManager.syncAccount(existing.accountId)
             }
             // Apply new transaction's effect on balance
             val delta = if (updatedEntity.type == "income") updatedEntity.amount else -updatedEntity.amount
             accountDao.updateBalance(updatedEntity.accountId, delta, now)
             syncManager.syncTransaction(baseEntity.id)
+            syncManager.syncAccount(updatedEntity.accountId)
             baseEntity.id
         }
     }
@@ -83,6 +86,7 @@ class TransactionRepositoryImpl @Inject constructor(
         accountDao.updateBalance(entity.accountId, delta, now)
         transactionDao.softDeleteById(id, now)
         syncManager.syncTransaction(id)
+        syncManager.syncAccount(entity.accountId)
     }
 
     override suspend fun getTopCurrenciesByUsage(): List<String> =
