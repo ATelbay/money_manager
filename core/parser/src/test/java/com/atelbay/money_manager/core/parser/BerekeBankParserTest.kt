@@ -8,6 +8,23 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
+/**
+ * Tests for Bereke Bank statement parser.
+ *
+ * PdfBox extracts Bereke's multi-column table where every row spans at least 2 physical lines.
+ * After [joinLines], continuation line content is appended to the primary line:
+ *
+ * PDF Line 1: `26.03.2025  Payment for goods and  ROYAL PETROL AZS 10-4  -10,000.00  KZT  -10,000.00  ****`
+ * PDF Line 2: `                                   services                                                0600`
+ * Joined:     `26.03.2025 Payment for goods and ROYAL PETROL AZS 10-4 -10,000.00 KZT -10,000.00 **** services 0600`
+ *
+ * Key consequences:
+ * - "Payment for goods and services" → operation captured as "Payment for goods and" (services at end)
+ * - "Card replenishment through Bereke Bank" → operation as "Card replenishment through" (Bereke Bank at end)
+ * - "Card replenishment through payment terminal" → operation as "Card replenishment through" (payment terminal at end)
+ * - "Transfer from a card through Bereke Bank" → operation as "Transfer from a card" (through Bereke Bank at end)
+ * - Card number (e.g., `**** 0600`) also lands at end of joined line
+ */
 class BerekeBankParserTest {
 
     private lateinit var parser: RegexStatementParser
@@ -19,16 +36,26 @@ class BerekeBankParserTest {
         berekeConfig = ParserConfig(
             bankId = "bereke",
             bankMarkers = listOf("Bereke Bank", "BRKEKZKA", "berekebank.kz"),
-            transactionPattern = "^(?<date>\\d{2}\\.\\d{2}\\.\\d{4})\\s+(?<operation>Operation|Payment for goods and services|Card replenishment through Bereke Bank|Card replenishment through payment terminal|Transfer from a card through Bereke Bank)\\s+(?<details>.+?)\\s+[-]?[\\d,]+\\.\\d{2}\\s+[A-Z]{3}\\s+(?<sign>[-]?)(?<amount>[\\d,]+\\.\\d{2})(?:\\s+\\*{4}\\s+\\d+)?$",
+            transactionPattern = "^(?<date>\\d{2}\\.\\d{2}\\.\\d{4})\\s+(?<operation>Operation|Payment for goods and(?:\\s+services)?|Card replenishment through(?:\\s+Bereke Bank|\\s+payment terminal)?|Transfer from a card(?:\\s+through Bereke Bank)?)\\s+(?<details>.+?)\\s+(?<sign>[-]?)(?<amount>[\\d,]+\\.\\d{2})(?:\\s.*)?$",
             dateFormat = "dd.MM.yyyy",
             operationTypeMap = mapOf(
                 "Operation" to "expense",
+                "Payment for goods and" to "expense",
                 "Payment for goods and services" to "expense",
+                "Card replenishment through" to "income",
                 "Card replenishment through Bereke Bank" to "income",
                 "Card replenishment through payment terminal" to "income",
+                "Transfer from a card" to "expense",
                 "Transfer from a card through Bereke Bank" to "expense",
             ),
-            skipPatterns = listOf("Transaction date", "Card account statement", "For the period"),
+            skipPatterns = listOf(
+                "Transaction date",
+                "Card account statement",
+                "For the period",
+                "Available as of",
+                "Debit total",
+                "Credit total",
+            ),
             joinLines = true,
             amountFormat = "comma_dot",
             useNamedGroups = true,
@@ -36,9 +63,10 @@ class BerekeBankParserTest {
         )
     }
 
+    // Actual joined format: operation split, "services" appears after **** at end
     @Test
-    fun `parse expense payment for goods`() {
-        val text = "26.03.2025 Payment for goods and services ROYAL PETROL AZS 10-4 -10,000.00 KZT -10,000.00 **** 0600"
+    fun `parse expense payment for goods (joined line format)`() {
+        val text = "26.03.2025 Payment for goods and ROYAL PETROL AZS 10-4 -10,000.00 KZT -10,000.00 **** services 0600"
 
         val result = parser.parse(text, berekeConfig)
 
@@ -47,12 +75,26 @@ class BerekeBankParserTest {
         assertEquals(LocalDate(2025, 3, 26), tx.date)
         assertEquals(10000.0, tx.amount, 0.01)
         assertEquals(TransactionType.EXPENSE, tx.type)
-        assertEquals("Payment for goods and services", tx.operationType)
+        assertEquals("Payment for goods and", tx.operationType)
         assertEquals("ROYAL PETROL AZS 10-4", tx.details)
+    }
+
+    // Idealized format (full operation on one line) also works
+    @Test
+    fun `parse expense payment for goods and services (full operation name)`() {
+        val text = "09.04.2025 Payment for goods and services STARBUCKS COFFEE -3,300.00 KZT -3,300.00 **** 0600"
+
+        val result = parser.parse(text, berekeConfig)
+
+        assertEquals(1, result.size)
+        assertEquals(3300.0, result[0].amount, 0.01)
+        assertEquals(TransactionType.EXPENSE, result[0].type)
+        assertEquals("STARBUCKS COFFEE", result[0].details)
     }
 
     @Test
     fun `parse expense operation (transfer out)`() {
+        // "Operation" is a single word — card number on continuation, joined as **** 0600 at end
         val text = "07.03.2025 Operation JSC Eurasian Bank АРЫСТАН Т. -20,000.00 KZT -20,000.00 **** 0600"
 
         val result = parser.parse(text, berekeConfig)
@@ -75,21 +117,23 @@ class BerekeBankParserTest {
     }
 
     @Test
-    fun `parse income card replenishment through bank`() {
-        val text = "20.04.2025 Card replenishment through Bereke Bank from your deposit 20,000.00 KZT 20,000.00 **** 0600"
+    fun `parse income card replenishment through bank (joined line format)`() {
+        // "Bereke Bank" on continuation → appended after **** at end
+        val text = "20.04.2025 Card replenishment through from your deposit 20,000.00 KZT 20,000.00 **** Bereke Bank 0600"
 
         val result = parser.parse(text, berekeConfig)
 
         assertEquals(1, result.size)
         assertEquals(20000.0, result[0].amount, 0.01)
         assertEquals(TransactionType.INCOME, result[0].type)
-        assertEquals("Card replenishment through Bereke Bank", result[0].operationType)
+        assertEquals("Card replenishment through", result[0].operationType)
         assertEquals("from your deposit", result[0].details)
     }
 
     @Test
-    fun `parse income card replenishment through payment terminal`() {
-        val text = "06.08.2025 Card replenishment through payment terminal АРЫСТАН ЖАНАЙБЕКҰЛЫ Т. 490,000.00 KZT 490,000.00"
+    fun `parse income card replenishment through payment terminal (joined line format)`() {
+        // "payment terminal" on continuation → appended at end of joined line
+        val text = "06.08.2025 Card replenishment through АРЫСТАН ЖАНАЙБЕКҰЛЫ Т. 490,000.00 KZT 490,000.00 payment terminal"
 
         val result = parser.parse(text, berekeConfig)
 
@@ -99,8 +143,9 @@ class BerekeBankParserTest {
     }
 
     @Test
-    fun `parse expense transfer from card`() {
-        val text = "23.04.2025 Transfer from a card through Bereke Bank to your account -500,000.00 KZT -500,000.00 **** 0600"
+    fun `parse expense transfer from card (joined line format)`() {
+        // "through Bereke Bank" on continuation → appended after **** at end
+        val text = "23.04.2025 Transfer from a card to your account -500,000.00 KZT -500,000.00 **** through Bereke Bank 0600"
 
         val result = parser.parse(text, berekeConfig)
 
@@ -132,18 +177,6 @@ class BerekeBankParserTest {
     }
 
     @Test
-    fun `parse starbucks coffee purchase`() {
-        val text = "09.04.2025 Payment for goods and services STARBUCKS COFFEE -3,300.00 KZT -3,300.00 **** 0600"
-
-        val result = parser.parse(text, berekeConfig)
-
-        assertEquals(1, result.size)
-        assertEquals(3300.0, result[0].amount, 0.01)
-        assertEquals(TransactionType.EXPENSE, result[0].type)
-        assertEquals("STARBUCKS COFFEE", result[0].details)
-    }
-
-    @Test
     fun `skip header lines`() {
         val text = """
 Transaction date Transaction Detailed description Amount in transaction currency Transaction currency Amount in account currency Card number
@@ -160,7 +193,7 @@ Transaction date Transaction Detailed description Amount in transaction currency
         val text = """
 07.03.2025 Operation JSC Eurasian Bank АРЫСТАН Т. -20,000.00 KZT -20,000.00 **** 0600
 14.03.2025 Operation Bonus Transfer 9,344.57 KZT 9,344.57
-26.03.2025 Payment for goods and services ROYAL PETROL AZS 10-4 -10,000.00 KZT -10,000.00 **** 0600
+26.03.2025 Payment for goods and ROYAL PETROL AZS 10-4 -10,000.00 KZT -10,000.00 **** services 0600
         """.trimIndent()
 
         val result = parser.parse(text, berekeConfig)

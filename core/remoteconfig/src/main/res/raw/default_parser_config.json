@@ -93,13 +93,16 @@
         "BRKEKZKA",
         "berekebank.kz"
       ],
-      "transaction_pattern": "^(?<date>\\d{2}\\.\\d{2}\\.\\d{4})\\s+(?<operation>Operation|Payment for goods and services|Card replenishment through Bereke Bank|Card replenishment through payment terminal|Transfer from a card through Bereke Bank)\\s+(?<details>.+?)\\s+[-]?[\\d,]+\\.\\d{2}\\s+[A-Z]{3}\\s+(?<sign>[-]?)(?<amount>[\\d,]+\\.\\d{2})(?:\\s+\\*{4}\\s+\\d+)?$",
+      "transaction_pattern": "^(?<date>\\d{2}\\.\\d{2}\\.\\d{4})\\s+(?<operation>Operation|Payment for goods and(?:\\s+services)?|Card replenishment through(?:\\s+Bereke Bank|\\s+payment terminal)?|Transfer from a card(?:\\s+through Bereke Bank)?)\\s+(?<details>.+?)\\s+(?<sign>[-]?)(?<amount>[\\d,]+\\.\\d{2})(?:\\s.*)?$",
       "date_format": "dd.MM.yyyy",
       "operation_type_map": {
         "Operation": "expense",
+        "Payment for goods and": "expense",
         "Payment for goods and services": "expense",
+        "Card replenishment through": "income",
         "Card replenishment through Bereke Bank": "income",
         "Card replenishment through payment terminal": "income",
+        "Transfer from a card": "expense",
         "Transfer from a card through Bereke Bank": "expense"
       },
       "skip_patterns": [

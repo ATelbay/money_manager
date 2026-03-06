@@ -130,12 +130,16 @@ class ParseStatementUseCase @Inject constructor(
         "Платёж" to "Переводы",
         "Списание средств в рамках сервиса быстрых платежей" to "Переводы",
         "Комиссия" to "Комиссии",
-        // Bereke Bank (English)
+        // Bereke Bank (English) — full names
         "Payment for goods and services" to "Покупки",
         "Card replenishment through Bereke Bank" to "Пополнения",
         "Card replenishment through payment terminal" to "Пополнения",
         "Transfer from a card through Bereke Bank" to "Переводы",
         "Operation" to "Переводы",
+        // Bereke Bank (English) — truncated names captured when PDF line wraps (services/Bank/terminal on continuation)
+        "Payment for goods and" to "Покупки",
+        "Card replenishment through" to "Пополнения",
+        "Transfer from a card" to "Переводы",
     )
 
     private suspend fun assignCategories(
