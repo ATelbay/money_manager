@@ -34,6 +34,7 @@ fun IncomeExpenseCard(
     expense: Double,
     modifier: Modifier = Modifier,
     currency: String = "\u20B8",
+    isUnavailable: Boolean = false,
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
@@ -89,7 +90,7 @@ fun IncomeExpenseCard(
                         )
                     }
                     Text(
-                        text = "+$currency ${formatter.format(income)}",
+                        text = if (isUnavailable) "-" else "+$currency ${formatter.format(income)}",
                         style = typography.amount,
                         color = colors.incomeForeground,
                         modifier = Modifier.padding(top = 4.dp),
@@ -115,7 +116,7 @@ fun IncomeExpenseCard(
                         )
                     }
                     Text(
-                        text = "\u2212$currency ${formatter.format(expense)}",
+                        text = if (isUnavailable) "-" else "\u2212$currency ${formatter.format(expense)}",
                         style = typography.amount,
                         color = colors.expenseForeground,
                         modifier = Modifier.padding(top = 4.dp),
@@ -140,42 +141,53 @@ fun IncomeExpenseCard(
                     color = colors.textSecondary,
                 )
                 Text(
-                    text = "${if (isPositive) "+" else "\u2212"}$currency ${formatter.format(abs(net))}",
+                    text = if (isUnavailable) {
+                        "-"
+                    } else {
+                        "${if (isPositive) "+" else "\u2212"}$currency ${formatter.format(abs(net))}"
+                    },
                     style = typography.cardTitle,
                     color = if (isPositive) colors.incomeForeground else colors.expenseForeground,
                     fontWeight = FontWeight.SemiBold,
                 )
             }
 
-            // Savings rate bar: green (saved) from left, red (spent) from right
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp)
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(colors.surfaceBorder),
-            ) {
-                if (animatedSavings > 0f) {
-                    Box(
-                        modifier = Modifier
-                            .weight(animatedSavings.coerceAtLeast(0.001f))
-                            .height(8.dp)
-                            .background(colors.income),
-                    )
-                }
-                if (animatedExpense > 0f) {
-                    Box(
-                        modifier = Modifier
-                            .weight(animatedExpense.coerceAtLeast(0.001f))
-                            .height(8.dp)
-                            .background(colors.expense),
-                    )
+            if (!isUnavailable) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(colors.surfaceBorder),
+                ) {
+                    if (animatedSavings > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .weight(animatedSavings.coerceAtLeast(0.001f))
+                                .height(8.dp)
+                                .background(colors.income),
+                        )
+                    }
+                    if (animatedExpense > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .weight(animatedExpense.coerceAtLeast(0.001f))
+                                .height(8.dp)
+                                .background(colors.expense),
+                        )
+                    }
                 }
             }
 
-            // Savings rate label
-            if (income > 0) {
+            if (isUnavailable) {
+                Text(
+                    text = "Недостаточно курсов для конвертации",
+                    style = typography.caption,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            } else if (income > 0) {
                 Text(
                     text = "Сохранено ${(savingsRate * 100).toInt()}%",
                     style = typography.caption,

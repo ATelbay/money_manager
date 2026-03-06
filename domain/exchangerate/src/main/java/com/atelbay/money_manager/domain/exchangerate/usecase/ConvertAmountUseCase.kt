@@ -8,7 +8,8 @@ import javax.inject.Inject
  * Converts a monetary amount between any two currencies using KZT as the pivot.
  *
  * [quotes] maps each currency code to its KZT-per-1-unit rate (e.g. "USD" → 475.0).
- * KZT is the implicit pivot with a rate of 1.0 and does not need to appear in the map.
+ * Snapshots normally include KZT with a rate of 1.0, but the use case still treats it as
+ * an implicit pivot so legacy inputs without an explicit KZT entry remain valid.
  *
  * Conversion path: source → KZT → target.
  * Same-currency passthrough returns [amount] unchanged (no rounding applied).

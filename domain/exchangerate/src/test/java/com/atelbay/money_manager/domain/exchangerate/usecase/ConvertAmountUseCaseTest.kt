@@ -13,7 +13,7 @@ class ConvertAmountUseCaseTest {
             amount = 50_000.0,
             sourceCurrency = "KZT",
             targetCurrency = "USD",
-            quotes = mapOf("USD" to 475.0),
+            quotes = mapOf("KZT" to 1.0, "USD" to 475.0),
         )
 
         assertEquals(105.26, converted, 0.0)
@@ -25,7 +25,7 @@ class ConvertAmountUseCaseTest {
             amount = 100.0,
             sourceCurrency = "USD",
             targetCurrency = "KZT",
-            quotes = mapOf("USD" to 475.0),
+            quotes = mapOf("KZT" to 1.0, "USD" to 475.0),
         )
 
         assertEquals(47_500.0, converted, 0.0)
@@ -37,7 +37,7 @@ class ConvertAmountUseCaseTest {
             amount = 2.345,
             sourceCurrency = "USD",
             targetCurrency = "KZT",
-            quotes = mapOf("USD" to 1.0),
+            quotes = mapOf("KZT" to 1.0, "USD" to 1.0),
         )
 
         assertEquals(2.35, converted, 0.0)
@@ -63,7 +63,7 @@ class ConvertAmountUseCaseTest {
             amount = 100.0,
             sourceCurrency = "EUR",
             targetCurrency = "USD",
-            quotes = mapOf("EUR" to 520.0, "USD" to 475.0),
+            quotes = mapOf("KZT" to 1.0, "EUR" to 520.0, "USD" to 475.0),
         )
 
         assertEquals(109.47, converted, 0.0)
@@ -77,7 +77,7 @@ class ConvertAmountUseCaseTest {
             amount = 10_000.0,
             sourceCurrency = "JPY",
             targetCurrency = "USD",
-            quotes = mapOf("JPY" to 0.3357, "USD" to 475.0),
+            quotes = mapOf("KZT" to 1.0, "JPY" to 0.3357, "USD" to 475.0),
         )
 
         assertEquals(7.07, converted, 0.0)

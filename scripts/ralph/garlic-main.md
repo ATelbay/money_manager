@@ -121,6 +121,7 @@ Each story = one Ralph iteration (one Claude context window, ~4k tokens of imple
 - Write criteria verifiable **from code or CLI only** — Ralph cannot open the app
 - ALWAYS include `"./gradlew compileDebugKotlin passes"` as the last criterion in every story
   (full assembleDebug runs on GitHub CI — Ralph only does a fast compile check locally)
+- Set `"status": "todo"` on every new story. Ralph moves stories through `implemented` and `passed` in remote mode.
 - For DB changes: `"Room migration Migration_X_Y exists and is registered in AppDatabase"`
 - For UI changes: `"Screen compiles without error, no crash in Preview"`
 - For unit tests: `"./gradlew :module:test passes"`
@@ -148,6 +149,7 @@ Each story = one Ralph iteration (one Claude context window, ~4k tokens of imple
         "./gradlew compileDebugKotlin passes"
       ],
       "priority": 1,
+      "status": "todo",
       "passes": false,
       "notes": "Hints for Ralph: file paths, patterns to follow, constraints"
     }
@@ -177,7 +179,7 @@ nohup ./scripts/ralph/telegram-event-monitor.sh --watch >/tmp/ralph-telegram-mon
 timeout 3600 ./scripts/ralph/ralph.sh --codex --remote-run
 ```
 
-Default: 10 iterations. On this VM, always prefer `--remote-run` so GitHub CI is the validation gate instead of local heavy checks.
+Default: 10 iterations. On this VM, always prefer `--remote-run` so GitHub CI is the validation gate instead of local heavy checks. `--remote-run` defaults to `RALPH_REMOTE_RUN_MODE=ci-first`; set `RALPH_REMOTE_RUN_MODE=deferred` only when you intentionally want to defer pass promotion until the final PR gate.
 
 ### Stop conditions:
 - The background monitor sends Telegram updates automatically on key events:

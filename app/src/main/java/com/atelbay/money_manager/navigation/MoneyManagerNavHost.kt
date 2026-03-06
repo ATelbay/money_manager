@@ -5,6 +5,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.toRoute
 import com.atelbay.money_manager.presentation.onboarding.ui.CreateAccountRoute
 import com.atelbay.money_manager.presentation.onboarding.ui.OnboardingRoute
 import com.atelbay.money_manager.presentation.categories.ui.edit.CategoryEditRoute
@@ -121,13 +122,14 @@ fun MoneyManagerNavHost(
                     navController.navigate(CategoryList)
                 },
                 onCurrencyPickerClick = {
-                    navController.navigate(CurrencyPicker)
+                    navController.navigate(CurrencyPicker())
                 },
             )
         }
 
-        composable<CurrencyPicker> {
+        composable<CurrencyPicker> { backStackEntry ->
             CurrencyPickerRoute(
+                initialActiveSide = backStackEntry.toRoute<CurrencyPicker>().activeSide,
                 onBack = { navController.popBackStack() },
             )
         }

@@ -8,18 +8,16 @@ import java.time.LocalDate
 
 data class TransactionListState(
     val transactionRows: ImmutableList<TransactionRowState> = persistentListOf(),
-    val balance: Double = 0.0,
-    val currency: String = "",
-    val displayCurrency: String = "",
-    val isUsingConvertedTotals: Boolean = false,
-    val isUsingFallbackCurrency: Boolean = false,
+    val balance: Double? = null,
+    val displayCurrency: String? = null,
+    val summaryDisplayMode: SummaryDisplayMode = SummaryDisplayMode.UNAVAILABLE,
     val isLoading: Boolean = true,
     val selectedAccountName: String? = null,
     val selectedTab: TransactionType? = null,
     val selectedPeriod: Period = Period.ALL,
     val customDateRange: Pair<LocalDate, LocalDate>? = null,
-    val periodIncome: Double = 0.0,
-    val periodExpense: Double = 0.0,
+    val periodIncome: Double? = null,
+    val periodExpense: Double? = null,
     val searchQuery: String = "",
 )
 
@@ -40,6 +38,12 @@ data class TransactionRowState(
 
 enum class ConversionStatus {
     AVAILABLE,
+    UNAVAILABLE,
+}
+
+enum class SummaryDisplayMode {
+    CONVERTED,
+    ORIGINAL_SINGLE_CURRENCY,
     UNAVAILABLE,
 }
 

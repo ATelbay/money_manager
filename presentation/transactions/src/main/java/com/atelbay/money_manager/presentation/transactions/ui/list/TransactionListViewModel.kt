@@ -44,12 +44,11 @@ private data class DataParams(
 )
 
 private data class SummaryMetrics(
-    val balance: Double,
-    val income: Double,
-    val expense: Double,
-    val displayCurrency: String,
-    val isUsingConvertedTotals: Boolean,
-    val isUsingFallbackCurrency: Boolean,
+    val balance: Double?,
+    val income: Double?,
+    val expense: Double?,
+    val displayCurrency: String?,
+    val displayMode: SummaryDisplayMode,
 )
 
 private data class ConvertedAmount(
@@ -142,11 +141,6 @@ class TransactionListViewModel @Inject constructor(
                 }
             }
 
-            val currency = if (selectedAccount != null) {
-                selectedAccount.currency
-            } else {
-                data.accounts.firstOrNull()?.currency.orEmpty()
-            }
             // Full fallback rule: check if ALL items in scope can be converted.
             // If any account or transaction currency lacks a required quote,
             // disable conversion for both summary totals and individual rows.
@@ -170,7 +164,6 @@ class TransactionListViewModel @Inject constructor(
                 selectedAccount = selectedAccount,
                 accounts = data.accounts,
                 periodTransactions = periodFiltered,
-                accountCurrencyFallback = currency,
                 baseCurrency = data.baseCurrency,
                 exchangeRate = data.exchangeRate,
                 canConvertAll = canConvertAll,
@@ -181,10 +174,8 @@ class TransactionListViewModel @Inject constructor(
                     transactionRows = transactionRows,
                     searchQuery = filters.searchQuery,
                     balance = summaryMetrics.balance,
-                    currency = currency,
                     displayCurrency = summaryMetrics.displayCurrency,
-                    isUsingConvertedTotals = summaryMetrics.isUsingConvertedTotals,
-                    isUsingFallbackCurrency = summaryMetrics.isUsingFallbackCurrency,
+                    summaryDisplayMode = summaryMetrics.displayMode,
                     isLoading = false,
                     selectedAccountName = selectedAccount?.name,
                     selectedTab = filters.tab,
@@ -290,19 +281,44 @@ class TransactionListViewModel @Inject constructor(
         selectedAccount: Account?,
         accounts: List<Account>,
         periodTransactions: List<Transaction>,
-        accountCurrencyFallback: String,
         baseCurrency: String,
         exchangeRate: ExchangeRate?,
         canConvertAll: Boolean,
     ): SummaryMetrics {
         val normalizedBaseCurrency = normalizeCurrency(baseCurrency)
+        val accountCurrenciesById = accounts.associateBy(Account::id)
+        val scopedAccounts = if (selectedAccount != null) listOf(selectedAccount) else accounts
+        val scopedCurrencies = buildSet {
+            scopedAccounts
+                .map { normalizeCurrency(it.currency) }
+                .filterTo(this) { it.isNotBlank() }
+            periodTransactions
+                .mapNotNull { accountCurrenciesById[it.accountId]?.currency }
+                .map(::normalizeCurrency)
+                .filterTo(this) { it.isNotBlank() }
+        }
+
+        if (scopedAccounts.isEmpty() && periodTransactions.isEmpty()) {
+            return SummaryMetrics(
+                balance = 0.0,
+                income = 0.0,
+                expense = 0.0,
+                displayCurrency = normalizedBaseCurrency,
+                displayMode = SummaryDisplayMode.ORIGINAL_SINGLE_CURRENCY,
+            )
+        }
 
         if (!canConvertAll) {
-            val fallbackBalance = if (selectedAccount != null) {
-                selectedAccount.balance
-            } else {
-                accounts.sumOf { it.balance }
+            if (scopedCurrencies.size != 1) {
+                return SummaryMetrics(
+                    balance = null,
+                    income = null,
+                    expense = null,
+                    displayCurrency = null,
+                    displayMode = SummaryDisplayMode.UNAVAILABLE,
+                )
             }
+            val fallbackBalance = scopedAccounts.sumOf { it.balance }
             val fallbackIncome =
                 periodTransactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
             val fallbackExpense =
@@ -312,14 +328,11 @@ class TransactionListViewModel @Inject constructor(
                 balance = fallbackBalance,
                 income = fallbackIncome,
                 expense = fallbackExpense,
-                displayCurrency = normalizeCurrency(accountCurrencyFallback),
-                isUsingConvertedTotals = false,
-                isUsingFallbackCurrency = true,
+                displayCurrency = scopedCurrencies.single(),
+                displayMode = SummaryDisplayMode.ORIGINAL_SINGLE_CURRENCY,
             )
         }
 
-        val accountCurrenciesById = accounts.associateBy(Account::id)
-        val scopedAccounts = if (selectedAccount != null) listOf(selectedAccount) else accounts
         val convertedBalances = scopedAccounts.map {
             convertToBaseCurrency(
                 amount = it.balance,
@@ -352,9 +365,7 @@ class TransactionListViewModel @Inject constructor(
             income = convertedIncome,
             expense = convertedExpense,
             displayCurrency = normalizedBaseCurrency,
-            isUsingConvertedTotals = convertedBalances.any { it.wasConverted } ||
-                convertedTransactions.any { (convertedAmount, _) -> convertedAmount.wasConverted },
-            isUsingFallbackCurrency = false,
+            displayMode = SummaryDisplayMode.CONVERTED,
         )
     }
 
@@ -366,6 +377,9 @@ class TransactionListViewModel @Inject constructor(
         exchangeRate: ExchangeRate?,
     ): Boolean {
         val scopedAccounts = if (selectedAccount != null) listOf(selectedAccount) else accounts
+        if (scopedAccounts.isEmpty() && transactions.isEmpty()) {
+            return true
+        }
         if (scopedAccounts.any {
                 !convertToBaseCurrency(
                     amount = it.balance,

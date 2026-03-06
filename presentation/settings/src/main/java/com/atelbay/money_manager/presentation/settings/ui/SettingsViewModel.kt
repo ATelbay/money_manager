@@ -72,18 +72,25 @@ class SettingsViewModel @Inject constructor(
             userPreferences.targetCurrency,
             observeExchangeRateUseCase(),
         ) { baseCurrencyCode, targetCurrencyCode, rate ->
-            Triple(
-                SupportedCurrencies.fromCode(baseCurrencyCode, SupportedCurrencies.defaultBase),
-                SupportedCurrencies.fromCode(targetCurrencyCode, SupportedCurrencies.defaultTarget),
-                rate,
-            )
+            Triple(baseCurrencyCode, targetCurrencyCode, rate)
         }
-            .onEach { (base, target, rate) ->
+            .onEach { (baseCurrencyCode, targetCurrencyCode, rate) ->
+                val base = sanitizeCurrency(
+                    code = baseCurrencyCode,
+                    fallback = SupportedCurrencies.defaultBase,
+                    persist = userPreferences::setBaseCurrency,
+                )
+                val target = sanitizeCurrency(
+                    code = targetCurrencyCode,
+                    fallback = SupportedCurrencies.defaultTarget,
+                    persist = userPreferences::setTargetCurrency,
+                )
                 _state.update { current ->
                     current.copy(
                         baseCurrency = base,
                         targetCurrency = target,
                         rateDisplay = buildRateDisplay(base, target, rate),
+                        hasRateSnapshot = rate != null,
                         lastUpdatedDisplay = rate?.let(::formatLastUpdated).orEmpty(),
                         rateErrorMessage = if (rate != null) null else current.rateErrorMessage,
                     )
@@ -186,13 +193,27 @@ class SettingsViewModel @Inject constructor(
         base: SupportedCurrency,
         target: SupportedCurrency,
         rate: ExchangeRate?,
-    ): String {
-        if (rate == null) return ""
+    ): String? {
+        if (rate == null) return null
         if (base.code == target.code) return "1 ${base.code} = 1.00 ${target.code}"
-        val baseToKzt = if (base.code == "KZT") 1.0 else rate.quotes[base.code] ?: return ""
-        val targetToKzt = if (target.code == "KZT") 1.0 else rate.quotes[target.code] ?: return ""
+        val baseToKzt = rate.quotes[base.code] ?: return null
+        val targetToKzt = rate.quotes[target.code] ?: return null
         val convertedRate = baseToKzt / targetToKzt
         return "1 ${base.code} = ${numberFormatter.format(convertedRate)} ${target.code}"
+    }
+
+    private suspend fun sanitizeCurrency(
+        code: String,
+        fallback: SupportedCurrency,
+        persist: suspend (String) -> Unit,
+    ): SupportedCurrency {
+        val normalized = code.trim().uppercase()
+        return if (SupportedCurrencies.isSupported(normalized)) {
+            SupportedCurrencies.fromCode(normalized, fallback)
+        } else {
+            persist(fallback.code)
+            fallback
+        }
     }
 
     private fun formatLastUpdated(rate: ExchangeRate): String {

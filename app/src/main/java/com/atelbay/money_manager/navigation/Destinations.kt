@@ -1,5 +1,6 @@
 package com.atelbay.money_manager.navigation
 
+import com.atelbay.money_manager.presentation.settings.ui.CurrencyPickerSide
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -36,4 +37,6 @@ data object Settings
 data object Import
 
 @Serializable
-data object CurrencyPicker
+data class CurrencyPicker(
+    val activeSide: CurrencyPickerSide = CurrencyPickerSide.BASE,
+)

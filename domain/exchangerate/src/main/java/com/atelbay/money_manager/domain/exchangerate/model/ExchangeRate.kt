@@ -9,8 +9,10 @@ package com.atelbay.money_manager.domain.exchangerate.model
  *
  * @param quotes Currency code → KZT per 1 unit. Example: {"USD": 475.0, "EUR": 520.0}.
  * @param fetchedAt Epoch millis when the quotes were fetched from NBK.
+ * @param source Source provider label for the cached quote snapshot.
  */
 data class ExchangeRate(
     val quotes: Map<String, Double>,
     val fetchedAt: Long,
+    val source: String? = null,
 )

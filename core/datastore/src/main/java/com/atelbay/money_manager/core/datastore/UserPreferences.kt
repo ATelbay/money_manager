@@ -127,7 +127,7 @@ class UserPreferences @Inject constructor(
         source: String? = null,
     ) {
         setExchangeRate(
-            quotes = mapOf("USD" to usdToKzt),
+            quotes = mapOf("KZT" to 1.0, "USD" to usdToKzt),
             fetchedAt = fetchedAt,
             source = source,
         )
@@ -138,13 +138,14 @@ class UserPreferences @Inject constructor(
         fetchedAt: Long,
         source: String? = null,
     ) {
+        val normalizedQuotes = if (quotes.containsKey("KZT")) quotes else quotes + ("KZT" to 1.0)
         context.dataStore.edit { prefs ->
             // Persist full quotes map as JSON
-            prefs[KEY_EXCHANGE_QUOTES_JSON] = quotesToJson(quotes)
+            prefs[KEY_EXCHANGE_QUOTES_JSON] = quotesToJson(normalizedQuotes)
             prefs[KEY_USD_KZT_RATE_FETCHED_AT] = fetchedAt
 
             // Legacy backward-compat: keep writing USD scalar for older code paths
-            val usdRate = quotes["USD"]
+            val usdRate = normalizedQuotes["USD"]
             if (usdRate != null) {
                 prefs[KEY_USD_KZT_RATE] = usdRate
             }

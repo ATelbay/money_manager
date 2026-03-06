@@ -132,6 +132,7 @@ If the new task is **continuing the same `branchName`**, do NOT archive — just
         "./gradlew compileDebugKotlin passes"
       ],
       "priority": 1,
+      "status": "todo",
       "passes": false,
       "notes": "Hints for Ralph: which files to look at, patterns to follow, constraints"
     }
@@ -148,6 +149,7 @@ If the new task is **continuing the same `branchName`**, do NOT archive — just
 - Write criteria that are **verifiable from code or CLI**, not from the browser
 - Local-run PRD: include `"./gradlew compileDebugKotlin passes"` as the last criterion in each story.
 - Remote-run PRD (`--remote-run`): include `"CI checks for this story commit pass on GitHub Actions"` as the final gate criterion.
+- For new PRDs, set `"status": "todo"` on every new story. Ralph later moves stories through `implemented` and `passed`.
 - For database changes: `"Room migration Migration_X_Y exists and is registered in AppDatabase"`
 - For UI changes: `"Screen renders without crash in Preview"`
 - For unit tests: `"./gradlew :module:test passes"` (local mode) or CI check equivalent (remote mode)
@@ -173,6 +175,7 @@ If the new task is **continuing the same `branchName`**, do NOT archive — just
         "./gradlew compileDebugKotlin passes"
       ],
       "priority": 1,
+      "status": "todo",
       "passes": false,
       "notes": "core:model Account is at core/model/src/main/java/com/atelbay/money_manager/core/model/Account.kt. AccountEntity is at core/database/src/main/java/com/atelbay/money_manager/core/database/entity/AccountEntity.kt. Current schema version is 3 — bump to 4 and add Migration_3_4. Follow the same migration pattern as Migration_2_3."
     },
@@ -187,6 +190,7 @@ If the new task is **continuing the same `branchName`**, do NOT archive — just
         "./gradlew compileDebugKotlin passes"
       ],
       "priority": 2,
+      "status": "todo",
       "passes": false,
       "notes": "AccountMapper is in data:accounts at data/accounts/src/main/java/com/atelbay/money_manager/data/accounts/mapper/AccountMapper.kt. CreateAccountUseCase is in domain:accounts. Follow existing mapper patterns."
     },
@@ -202,6 +206,7 @@ If the new task is **continuing the same `branchName`**, do NOT archive — just
         "./gradlew compileDebugKotlin passes"
       ],
       "priority": 3,
+      "status": "todo",
       "passes": false,
       "notes": "AccountEditScreen is at presentation/accounts/src/main/java/com/atelbay/money_manager/presentation/accounts/AccountEditScreen.kt. Follow the same color swatch pattern used in CategoryEditScreen if one exists. Use Material 3 components from core:ui."
     }

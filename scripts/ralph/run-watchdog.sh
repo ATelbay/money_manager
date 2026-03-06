@@ -3,6 +3,7 @@ set -u
 set -o pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/ralph_prd.sh"
 RALPH_SCRIPT="$SCRIPT_DIR/ralph.sh"
 MONITOR_SCRIPT="$SCRIPT_DIR/telegram-event-monitor.sh"
 PRD_FILE="$SCRIPT_DIR/prd.json"
@@ -79,9 +80,25 @@ story_total() {
   fi
 }
 
+story_todo() {
+  if [[ -f "$PRD_FILE" ]]; then
+    ralph_count_todo_stories "$PRD_FILE"
+  else
+    echo "?"
+  fi
+}
+
+story_implemented() {
+  if [[ -f "$PRD_FILE" ]]; then
+    ralph_count_implemented_stories "$PRD_FILE"
+  else
+    echo "?"
+  fi
+}
+
 story_passed() {
   if [[ -f "$PRD_FILE" ]]; then
-    jq -r '[.userStories[]? | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo "?"
+    ralph_count_passed_stories "$PRD_FILE"
   else
     echo "?"
   fi
@@ -117,6 +134,8 @@ notify_once() {
   local exit_code="$2"
   local signal_name="$3"
   local branch
+  local todo
+  local implemented
   local passed
   local total
   local progress_line
@@ -128,6 +147,8 @@ notify_once() {
 
   branch="$(branch_name)"
   [[ -z "$branch" ]] && branch="unknown"
+  todo="$(story_todo)"
+  implemented="$(story_implemented)"
   passed="$(story_passed)"
   total="$(story_total)"
   progress_line="$(latest_non_empty_line)"
@@ -136,13 +157,13 @@ notify_once() {
   if [[ "$outcome" == "success" ]]; then
     message="Ralph succeeded
 branch: $branch
-stories: $passed/$total
+stories: todo=$todo implemented=$implemented passed=$passed/$total
 log: $RUN_LOG"
   else
     message="Ralph failed
 branch: $branch
 status: $(status_text "$exit_code" "$signal_name")
-stories: $passed/$total
+stories: todo=$todo implemented=$implemented passed=$passed/$total
 latest progress: $progress_line
 log: $RUN_LOG"
   fi

@@ -27,6 +27,7 @@ fun BalanceCard(
     balance: Double,
     modifier: Modifier = Modifier,
     currency: String = "\u20B8",
+    isUnavailable: Boolean = false,
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
@@ -68,11 +69,19 @@ fun BalanceCard(
                 color = colors.textSecondary,
             )
             Text(
-                text = "$currency ${formatter.format(animatedBalance.toDouble())}",
+                text = if (isUnavailable) "-" else "$currency ${formatter.format(animatedBalance.toDouble())}",
                 style = typography.balanceDisplay,
                 color = colors.textPrimary,
                 modifier = Modifier.padding(top = 8.dp),
             )
+            if (isUnavailable) {
+                Text(
+                    text = "Недостаточно курсов для конвертации",
+                    style = typography.caption,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
         }
     }
 }

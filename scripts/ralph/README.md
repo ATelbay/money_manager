@@ -37,7 +37,7 @@ Ralph is an autonomous coding agent that executes tasks from a PRD (Product Requ
 | `--tool amp` | Use Amp CLI as the AI engine (default for backwards compatibility) |
 | `--review-tool claude` | Override the tool used for the post-completion code review loop |
 | `--codex` | Shortcut for `--tool codex --review-tool claude` |
-| `--remote-run` | CI-first iteration mode: the agent commits one story locally, then Ralph shell pushes, creates/reuses a Draft PR, waits for required CI checks, and keeps repairing the same story on red CI until it goes green or the run hits its iteration limit. Local heavy checks are skipped. |
+| `--remote-run` | Shell-managed remote mode: the agent commits one story locally, Ralph shell handles push/PR/CI, and story state is tracked as `todo` / `implemented` / `passed`. Defaults to `ci-first`; set `RALPH_REMOTE_RUN_MODE=deferred` to defer pass promotion until the final PR gate. |
 | `--pr` | After completion: push branch → create PR → code review → wait CI → trigger QA Build |
 | `--download` | After QA Build: download the debug APK locally. Use this on your Mac. On a VM, omit this flag and let Garlic handle the download. |
 | `N` (number) | Maximum number of iterations (default: 10). Each iteration handles one user story. |
@@ -58,9 +58,9 @@ Ralph will work through all stories in `prd.json`, committing after each one. St
 
 ---
 
-### CI-first remote mode (`--remote-run`)
+### Remote mode (`--remote-run`)
 
-Use this on slower VMs when you want GitHub Actions to be the source of truth per story.
+Use this on slower VMs when you want GitHub Actions to be the source of truth and Ralph shell to manage the PRD state machine.
 
 ```bash
 ./scripts/ralph/ralph.sh --codex --remote-run 10
@@ -69,10 +69,17 @@ Use this on slower VMs when you want GitHub Actions to be the source of truth pe
 What `--remote-run` implies automatically:
 1. Works one story per iteration
 2. The agent only codes, updates `progress.txt`, and commits the story locally
-3. Ralph shell pushes the branch, creates/reuses a Draft PR targeting `main`, and waits for required CI checks
+3. Ralph shell pushes the branch, creates/reuses a Draft PR targeting `main`, and keeps the branch rebased on fresh `origin/main` before the coding prompt
 4. If CI fails, Ralph stays in the same run and enters repair mode for that same story on the next iteration
-5. Ralph shell marks `passes: true` only after CI is green for that story
-6. Local heavy checks are not used as blocking gates
+5. Local heavy checks are not used as blocking gates
+6. Story state is explicit:
+   - `todo` = eligible for coding
+   - `implemented` = coded and committed, but not yet fully validated
+   - `passed` = validated and complete
+
+Modes:
+- Default remote mode is `ci-first`: after each story commit, Ralph waits for CI and marks the story `passed` only after green CI.
+- Set `RALPH_REMOTE_RUN_MODE=deferred` to keep moving after each story by marking it `implemented`; once all stories are implemented, Ralph runs the final PR review/CI flow and promotes them to `passed`.
 
 ---
 
@@ -106,11 +113,12 @@ Use this when running Ralph from a Google Cloud VM or any server. Garlic will ha
 ```
 
 What happens:
-1. The agent commits one story locally per iteration; Ralph shell handles push/PR/CI after each iteration
+1. The agent commits one story locally per iteration; Ralph shell handles push/PR/CI and story-state transitions after each iteration
 2. If CI goes red, Ralph stays alive and spends the next iteration repairing that same story with the failing check context injected into the prompt
-3. After all stories are complete, Ralph runs the normal PR review flow and triggers `QA Build`
-4. Prints the GitHub Actions run ID for the build
-5. Exits — Garlic picks up the run ID and downloads/sends the APK via Telegram
+3. If branch freshness rebases onto `main` conflict, Ralph keeps the same outer iteration and asks the agent to resolve the in-progress rebase before continuing
+4. After all stories are complete (or all are at least `implemented` in deferred mode), Ralph runs the normal PR review flow and triggers `QA Build`
+5. Prints the GitHub Actions run ID for the build
+6. Exits — Garlic picks up the run ID and downloads/sends the APK via Telegram
 
 ---
 
@@ -168,10 +176,18 @@ Copy `scripts/ralph/prd.json.example` and fill in your stories. Each story must 
     "./gradlew assembleDebug passes"
   ],
   "priority": 1,
+  "status": "todo",
   "passes": false,
   "notes": ""
 }
 ```
+
+`status` is the source of truth:
+- `todo` = not implemented yet
+- `implemented` = coded/committed, waiting on final validation
+- `passed` = validated and done
+
+`passes` remains for compatibility. Ralph keeps `passes=true` only when `status="passed"`.
 
 **Story sizing rule:** each story must be completable in a single Claude Code context window. If in doubt, split it.
 
@@ -202,7 +218,7 @@ While Ralph is running, open a second terminal and check:
 
 ```bash
 # See which stories are done
-cat scripts/ralph/prd.json | jq '.userStories[] | {id, title, passes}'
+cat scripts/ralph/prd.json | jq '.userStories[] | {id, title, status, passes}'
 
 # Read the progress log
 cat scripts/ralph/progress.txt
@@ -236,7 +252,7 @@ cat scripts/ralph/progress.txt
 git log --oneline -5
 ```
 
-Increase max iterations and re-run — Ralph will skip stories that are already `passes: true`.
+Increase max iterations and re-run — Ralph will skip stories that are already `status: "passed"` and, in deferred mode, continue from the remaining `todo` stories.
 
 ### CI failed on the PR
 
@@ -264,7 +280,7 @@ Review the PR manually and merge if the remaining issues are acceptable.
 ## Architecture Notes
 
 - **Fresh context per iteration:** each Ralph iteration spawns a new AI session with no memory of previous iterations. State is passed through `prd.json`, `progress.txt`, git history, and in `--remote-run` an injected repair snapshot for the current story.
-- **One story per iteration:** Ralph picks the highest-priority story with `passes: false`, implements it, validates according to mode (local checks or remote CI), commits it, and in `--remote-run` marks it passed only after green CI.
-- **`--remote-run` is shell-managed:** the AI agent handles code + local commit only; `ralph.sh` performs push, Draft PR creation/reuse, and required CI waiting after each iteration.
+- **One story per iteration:** Ralph picks the highest-priority story whose effective status is `todo`, implements it, validates according to mode, commits it, and lets the shell manage the `implemented` / `passed` transitions.
+- **`--remote-run` is shell-managed:** the AI agent handles code + local commit only; `ralph.sh` performs branch freshness sync, Draft PR creation/reuse, CI waiting, and story-state promotion.
 - **`prd.json` lives in feature branches only:** do not commit `prd.json` to `main`. It belongs in `ralph/*` branches and is visible in the PR diff for debugging.
 - **Artifacts are ephemeral:** only the most recent APK is kept in `scripts/ralph/artifacts/`. Add `scripts/ralph/artifacts/` to `.gitignore` if not already present.

@@ -46,12 +46,14 @@ class ExchangeRateRepositoryImplTest {
 
         val result = repository.fetchAndStoreQuotes()
 
+        assertEquals("NBK", result.source)
+        assertEquals(1.0, result.quotes["KZT"]!!, 0.0)
         assertEquals(475.0, result.quotes["USD"]!!, 0.0)
         assertEquals(520.0, result.quotes["EUR"]!!, 0.0)
         assertTrue(result.fetchedAt > 0L)
         coVerify(exactly = 1) {
             userPreferences.setExchangeRate(
-                quotes = remoteQuotes,
+                quotes = remoteQuotes + ("KZT" to 1.0),
                 fetchedAt = result.fetchedAt,
                 source = "NBK",
             )
@@ -70,6 +72,8 @@ class ExchangeRateRepositoryImplTest {
 
         val result = repository.fetchAndStoreQuotes()
 
+        assertEquals("NBK", result.source)
+        assertEquals(1.0, result.quotes["KZT"]!!, 0.0)
         assertEquals(470.0, result.quotes["USD"]!!, 0.0)
         assertEquals(123L, result.fetchedAt)
     }
@@ -103,11 +107,13 @@ class ExchangeRateRepositoryImplTest {
 
         val result = repository.fetchAndStoreQuotes()
 
-        assertEquals(3, result.quotes.size)
+        assertEquals(4, result.quotes.size)
+        assertEquals(1.0, result.quotes["KZT"]!!, 0.0)
         assertEquals(470.0, result.quotes["USD"]!!, 0.0)
         assertEquals(515.0, result.quotes["EUR"]!!, 0.0)
         assertEquals(590.0, result.quotes["GBP"]!!, 0.0)
         assertEquals(456L, result.fetchedAt)
+        assertEquals("NBK", result.source)
     }
 
     @Test
@@ -124,14 +130,33 @@ class ExchangeRateRepositoryImplTest {
 
         val result = repository.fetchAndStoreQuotes()
 
-        assertEquals(3, result.quotes.size)
+        assertEquals(4, result.quotes.size)
+        assertEquals(1.0, result.quotes["KZT"]!!, 0.0)
         assertEquals(0.34, result.quotes["JPY"]!!, 0.0)
         coVerify {
             userPreferences.setExchangeRate(
-                quotes = remoteQuotes,
+                quotes = remoteQuotes + ("KZT" to 1.0),
                 fetchedAt = any(),
                 source = "NBK",
             )
         }
+    }
+
+    @Test
+    fun `legacy USD cache is surfaced as minimal KZT USD snapshot`() = runTest {
+        coEvery { remoteDataSource.fetchQuotes() } throws IOException("timeout")
+        coEvery { userPreferences.getExchangeRate() } returns StoredExchangeRate(
+            usdToKzt = 468.0,
+            fetchedAt = 789L,
+            source = "NBK",
+            quotes = null,
+        )
+
+        val result = repository.fetchAndStoreQuotes()
+
+        assertEquals(2, result.quotes.size)
+        assertEquals(1.0, result.quotes["KZT"]!!, 0.0)
+        assertEquals(468.0, result.quotes["USD"]!!, 0.0)
+        assertEquals("NBK", result.source)
     }
 }

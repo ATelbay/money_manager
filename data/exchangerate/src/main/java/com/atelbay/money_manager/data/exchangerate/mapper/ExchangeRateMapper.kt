@@ -11,31 +11,35 @@ import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
  */
 internal fun StoredExchangeRate.toCacheModel(): ExchangeRateCacheModel =
     ExchangeRateCacheModel(
-        quotes = quotes ?: mapOf("USD" to usdToKzt),
+        quotes = quotes?.withKzt() ?: mapOf("KZT" to 1.0, "USD" to usdToKzt),
         fetchedAt = fetchedAt,
         source = source,
     )
 
 internal fun ExchangeRateCacheModel.toDomain(): ExchangeRate =
     ExchangeRate(
-        quotes = quotes,
+        quotes = quotes.withKzt(),
         fetchedAt = fetchedAt,
+        source = source,
     )
 
 internal fun ExchangeRate.toCacheModel(
     source: String? = null,
 ): ExchangeRateCacheModel =
     ExchangeRateCacheModel(
-        quotes = quotes,
+        quotes = quotes.withKzt(),
         fetchedAt = fetchedAt,
-        source = source,
+        source = source ?: this.source,
     )
 
 internal fun NbkExchangeRateRemoteModel.toCacheModel(
     fetchedAt: Long,
 ): ExchangeRateCacheModel =
     ExchangeRateCacheModel(
-        quotes = quotes,
+        quotes = quotes.withKzt(),
         fetchedAt = fetchedAt,
         source = source,
     )
+
+private fun Map<String, Double>.withKzt(): Map<String, Double> =
+    if (containsKey("KZT")) this else this + ("KZT" to 1.0)
