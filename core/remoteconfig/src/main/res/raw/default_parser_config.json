@@ -54,6 +54,101 @@
       "join_lines": true,
       "amount_format": "comma_dot",
       "use_sign_for_type": true
+    },
+    {
+      "bank_id": "forte",
+      "bank_markers": [
+        "IRTYKZKA",
+        "forte.kz",
+        "АО «ForteBank»",
+        "ForteBank"
+      ],
+      "transaction_pattern": "^\\s*(\\d{2}\\.\\d{2}\\.\\d{4})\\s+([-]?)(\\d+\\.\\d{2})\\s+KZT(?:\\s*\\([^)]+\\))?\\s+(Перевод|Пополнение счета|Списание средств в рамках сервиса быстрых платежей|Покупка|Покупка бонусами|Платёж|Платеж|Комиссия|Списание)\\s+(.+?)\\s*$",
+      "date_format": "dd.MM.yyyy",
+      "operation_type_map": {
+        "Перевод": "expense",
+        "Пополнение счета": "income",
+        "Списание средств в рамках сервиса быстрых платежей": "expense",
+        "Покупка": "expense",
+        "Покупка бонусами": "income",
+        "Платёж": "expense",
+        "Платеж": "expense",
+        "Комиссия": "expense",
+        "Списание": "expense"
+      },
+      "skip_patterns": [
+        "Дата Сумма",
+        "Задолженность на",
+        "Сервисные Комиссии",
+        "Реквизиты:",
+        "Сформировано в Интернет Банкинге"
+      ],
+      "join_lines": true,
+      "negative_sign_means_expense": true
+    },
+    {
+      "bank_id": "bereke",
+      "bank_markers": [
+        "Bereke Bank",
+        "BRKEKZKA",
+        "berekebank.kz"
+      ],
+      "transaction_pattern": "^(?<date>\\d{2}\\.\\d{2}\\.\\d{4})\\s+(?<operation>Operation|Payment for goods and services|Card replenishment through Bereke Bank|Card replenishment through payment terminal|Transfer from a card through Bereke Bank)\\s+(?<details>.+?)\\s+[-]?[\\d,]+\\.\\d{2}\\s+[A-Z]{3}\\s+(?<sign>[-]?)(?<amount>[\\d,]+\\.\\d{2})(?:\\s+\\*{4}\\s+\\d+)?$",
+      "date_format": "dd.MM.yyyy",
+      "operation_type_map": {
+        "Operation": "expense",
+        "Payment for goods and services": "expense",
+        "Card replenishment through Bereke Bank": "income",
+        "Card replenishment through payment terminal": "income",
+        "Transfer from a card through Bereke Bank": "expense"
+      },
+      "skip_patterns": [
+        "Transaction date",
+        "Card account statement",
+        "For the period",
+        "Available as of",
+        "Debit total",
+        "Credit total"
+      ],
+      "join_lines": true,
+      "amount_format": "comma_dot",
+      "use_named_groups": true,
+      "negative_sign_means_expense": true
+    },
+    {
+      "bank_id": "eurasian",
+      "bank_markers": [
+        "EURIKZKA",
+        "eubank.kz",
+        "АО \"Евразийский Банк\"",
+        "Евразийский Банк"
+      ],
+      "transaction_pattern": "^(?<date>\\d{2}\\.\\d{2}\\.\\d{4})(?:\\s+\\d{2}:\\d{2}:\\d{2})?\\s+(?<operation>Путешествия|Финансы|Продукты|Кафе и рестораны|Услуги|Развлечения|Государственные услуги|Здоровье и красота|Транспорт|Связь)\\s+(?<details>.+?)\\s+[\\d.]+\\s+[A-Z]{3}\\s+(?<sign>[+-]?)(?<amount>[\\d.]+)(?:\\s+(?:Карта|Счёт):\\s+\\*{2}\\d{4})?(?:\\s+\\d{2}:\\d{2}:\\d{2})?$",
+      "date_format": "dd.MM.yyyy",
+      "operation_type_map": {
+        "Путешествия": "expense",
+        "Финансы": "income",
+        "Продукты": "expense",
+        "Кафе и рестораны": "expense",
+        "Услуги": "expense",
+        "Развлечения": "expense",
+        "Государственные услуги": "expense",
+        "Здоровье и красота": "expense",
+        "Транспорт": "expense",
+        "Связь": "expense"
+      },
+      "skip_patterns": [
+        "Дата Тип операции",
+        "Выписка по счёту",
+        "Приход за период",
+        "Расход за период",
+        "Расшифровка заблокированных сумм",
+        "По операциям"
+      ],
+      "join_lines": true,
+      "use_named_groups": true,
+      "negative_sign_means_expense": true,
+      "deduplicate_max_amount": true
     }
   ]
 }

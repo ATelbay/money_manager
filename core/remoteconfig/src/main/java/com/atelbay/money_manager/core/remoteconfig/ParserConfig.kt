@@ -21,4 +21,10 @@ data class ParserConfig(
     @SerialName("join_lines") val joinLines: Boolean = false,
     @SerialName("amount_format") val amountFormat: String = "space_comma",
     @SerialName("use_sign_for_type") val useSignForType: Boolean = false,
+    /** When true: captured sign "-" → EXPENSE, anything else (empty or "+") → INCOME. */
+    @SerialName("negative_sign_means_expense") val negativeSignMeansExpense: Boolean = false,
+    /** When true: regex uses named groups (date, sign, amount, operation, details) instead of positional. */
+    @SerialName("use_named_groups") val useNamedGroups: Boolean = false,
+    /** When true: after parsing, keep only the transaction with the max amount per (date, details) group. */
+    @SerialName("deduplicate_max_amount") val deduplicateMaxAmount: Boolean = false,
 )

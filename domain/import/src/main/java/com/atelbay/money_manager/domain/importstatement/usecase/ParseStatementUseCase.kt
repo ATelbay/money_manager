@@ -115,12 +115,27 @@ class ParseStatementUseCase @Inject constructor(
     }
 
     // Maps raw operation names from bank statements to existing default category names.
-    // Handles both Russian and English variants.
+    // Handles both Russian and English variants across all supported banks.
     private val operationAliases = mapOf(
+        // Generic
         "Покупка" to "Покупки",
         "Purchase" to "Покупки",
         "Оплата" to "Покупки",
         "Payment" to "Покупки",
+        // Forte Bank
+        "Покупка бонусами" to "Покупки",
+        "Пополнение счета" to "Пополнения",
+        "Перевод" to "Переводы",
+        "Платеж" to "Переводы",
+        "Платёж" to "Переводы",
+        "Списание средств в рамках сервиса быстрых платежей" to "Переводы",
+        "Комиссия" to "Комиссии",
+        // Bereke Bank (English)
+        "Payment for goods and services" to "Покупки",
+        "Card replenishment through Bereke Bank" to "Пополнения",
+        "Card replenishment through payment terminal" to "Пополнения",
+        "Transfer from a card through Bereke Bank" to "Переводы",
+        "Operation" to "Переводы",
     )
 
     private suspend fun assignCategories(
