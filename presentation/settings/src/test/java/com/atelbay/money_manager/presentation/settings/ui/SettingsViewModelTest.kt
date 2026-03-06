@@ -2,6 +2,10 @@ package com.atelbay.money_manager.presentation.settings.ui
 
 import android.app.Application
 import com.atelbay.money_manager.core.datastore.UserPreferences
+import com.atelbay.money_manager.data.sync.LoginSyncOrchestrator
+import com.atelbay.money_manager.data.sync.SyncManager
+import com.atelbay.money_manager.data.sync.SyncStatus
+import com.atelbay.money_manager.domain.auth.usecase.ObserveAuthUserUseCase
 import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
 import com.atelbay.money_manager.domain.exchangerate.repository.ExchangeRateRepository
 import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
@@ -249,11 +253,22 @@ class SettingsViewModelTest {
     ): SettingsViewModel {
         val application = mockk<Application>(relaxed = true)
 
+        val observeAuthUser = mockk<ObserveAuthUserUseCase>().also {
+            every { it() } returns flowOf(null)
+        }
+        val syncManager = mockk<SyncManager>().also {
+            every { it.syncStatus } returns MutableStateFlow(SyncStatus.Idle)
+        }
+        val loginSyncOrchestrator = mockk<LoginSyncOrchestrator>(relaxed = true)
+
         return SettingsViewModel(
             userPreferences = preferenceHarness.preferences,
             observeExchangeRateUseCase = ObserveExchangeRateUseCase(exchangeRateRepository),
             exchangeRateRepository = exchangeRateRepository,
             transactionRepository = transactionRepository,
+            observeAuthUser = observeAuthUser,
+            syncManager = syncManager,
+            loginSyncOrchestrator = loginSyncOrchestrator,
             application = application,
         )
     }
