@@ -28,6 +28,7 @@ rootProject.name = "MoneyManager"
 include(":app")
 
 // Core
+include(":core:auth")
 include(":core:database")
 include(":core:datastore")
 include(":core:ui")
@@ -38,6 +39,7 @@ include(":core:remoteconfig")
 include(":core:parser")
 
 // Domain
+include(":domain:auth")
 include(":domain:transactions")
 include(":domain:categories")
 include(":domain:accounts")
@@ -46,12 +48,14 @@ include(":domain:import")
 include(":domain:exchangerate")
 
 // Data
+include(":data:auth")
 include(":data:transactions")
 include(":data:categories")
 include(":data:accounts")
 include(":data:exchangerate")
 
 // Presentation
+include(":presentation:auth")
 include(":presentation:transactions")
 include(":presentation:categories")
 include(":presentation:accounts")

@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
@@ -57,6 +58,7 @@ fun SettingsScreen(
     onRefreshRateClick: () -> Unit,
     onCategoriesClick: () -> Unit,
     onCurrencyPickerClick: () -> Unit,
+    onSignInClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MoneyManagerTheme.colors
@@ -88,6 +90,32 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp),
         ) {
             Spacer(modifier = Modifier.height(4.dp))
+
+            SectionHeader("Аккаунт")
+
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                val accountTitle = state.currentUser?.displayName
+                    ?: state.currentUser?.email
+                    ?: "Войти через Google"
+                val accountSubtitle = if (state.currentUser != null) {
+                    state.currentUser.email
+                } else {
+                    "Синхронизация данных"
+                }
+                SettingRow(
+                    icon = Icons.Default.AccountCircle,
+                    iconColor = Teal,
+                    title = accountTitle,
+                    subtitle = accountSubtitle,
+                    hasChevron = true,
+                    onClick = onSignInClick,
+                    modifier = Modifier.testTag(
+                        if (state.currentUser == null) "settings:signIn" else "settings:accountRow",
+                    ),
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             SectionHeader("Общее")
 
@@ -421,6 +449,7 @@ private fun SettingsScreenPreview() {
             onRefreshRateClick = {},
             onCategoriesClick = {},
             onCurrencyPickerClick = {},
+            onSignInClick = {},
         )
     }
 }

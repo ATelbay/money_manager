@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atelbay.money_manager.core.datastore.UserPreferences
+import com.atelbay.money_manager.domain.auth.usecase.ObserveAuthUserUseCase
 import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
 import com.atelbay.money_manager.domain.exchangerate.repository.ExchangeRateRepository
 import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
@@ -32,6 +33,7 @@ class SettingsViewModel @Inject constructor(
     private val observeExchangeRateUseCase: ObserveExchangeRateUseCase,
     private val exchangeRateRepository: ExchangeRateRepository,
     private val transactionRepository: TransactionRepository,
+    private val observeAuthUser: ObserveAuthUserUseCase,
     application: Application,
 ) : ViewModel() {
 
@@ -52,6 +54,10 @@ class SettingsViewModel @Inject constructor(
             ""
         }
         _state.update { it.copy(appVersion = versionName) }
+
+        observeAuthUser()
+            .onEach { user -> _state.update { it.copy(currentUser = user) } }
+            .launchIn(viewModelScope)
 
         userPreferences.themeMode
             .onEach { mode ->

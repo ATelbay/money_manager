@@ -1,6 +1,9 @@
 package com.atelbay.money_manager.presentation.settings.ui
 
+import com.atelbay.money_manager.core.auth.AuthUser
+
 data class SettingsState(
+    val currentUser: AuthUser? = null,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val baseCurrency: SupportedCurrency = SupportedCurrencies.defaultBase,
     val targetCurrency: SupportedCurrency = SupportedCurrencies.defaultTarget,

@@ -40,3 +40,6 @@ data object Import
 data class CurrencyPicker(
     val activeSide: CurrencyPickerSide = CurrencyPickerSide.BASE,
 )
+
+@Serializable
+data object SignIn

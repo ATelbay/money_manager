@@ -10,6 +10,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 fun SettingsRoute(
     onCategoriesClick: () -> Unit,
     onCurrencyPickerClick: () -> Unit,
+    onSignInClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -21,6 +22,7 @@ fun SettingsRoute(
         onRefreshRateClick = viewModel::refreshExchangeRate,
         onCategoriesClick = onCategoriesClick,
         onCurrencyPickerClick = onCurrencyPickerClick,
+        onSignInClick = onSignInClick,
         modifier = modifier,
     )
 }
