@@ -1,4 +1,5 @@
 #!/bin/bash
+set -uo pipefail
 # Ralph Wiggum - Long-running AI agent loop
 # Usage: ./ralph.sh [--tool amp|claude|gemini|codex] [--review-tool amp|claude|gemini|codex] [--codex] [--remote-run] [--pr] [--download] [max_iterations]
 #   --tool           AI engine for coding iterations (default: amp)
@@ -53,9 +54,12 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     *)
-      # Assume it's max_iterations if it's a number
       if [[ "$1" =~ ^[0-9]+$ ]]; then
         MAX_ITERATIONS="$1"
+      else
+        echo "Error: Unknown argument '$1'"
+        echo "Usage: ./ralph.sh [--tool amp|claude|gemini|codex] [--review-tool amp|claude|gemini|codex] [--codex] [--remote-run] [--pr] [--download] [max_iterations]"
+        exit 1
       fi
       shift
       ;;

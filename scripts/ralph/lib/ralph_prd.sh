@@ -1,4 +1,5 @@
 #!/bin/bash
+set -uo pipefail
 
 RALPH_EFFECTIVE_STATUS_JQ='(.status // (if .passes == true then "passed" else "todo" end))'
 
