@@ -5,6 +5,7 @@ import com.atelbay.money_manager.data.categories.mapper.toDomain
 import com.atelbay.money_manager.data.categories.mapper.toEntity
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.TransactionType
+import com.atelbay.money_manager.data.sync.SyncManager
 import com.atelbay.money_manager.domain.categories.repository.CategoryRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -14,6 +15,7 @@ import javax.inject.Singleton
 @Singleton
 class CategoryRepositoryImpl @Inject constructor(
     private val categoryDao: CategoryDao,
+    private val syncManager: SyncManager,
 ) : CategoryRepository {
 
     override fun observeByType(type: TransactionType): Flow<List<Category>> =
@@ -26,10 +28,21 @@ class CategoryRepositoryImpl @Inject constructor(
 
     override suspend fun save(category: Category): Long {
         val entity = category.toEntity()
+        val now = System.currentTimeMillis()
         return if (entity.id == 0L) {
-            categoryDao.insert(entity)
+            val id = categoryDao.insert(entity.copy(updatedAt = now))
+            syncManager.syncCategory(id)
+            id
         } else {
-            categoryDao.update(entity)
+            val existing = categoryDao.getById(entity.id)
+            categoryDao.update(
+                entity.copy(
+                    remoteId = existing?.remoteId,
+                    isDeleted = existing?.isDeleted ?: false,
+                    updatedAt = now,
+                ),
+            )
+            syncManager.syncCategory(entity.id)
             entity.id
         }
     }

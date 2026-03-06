@@ -30,6 +30,7 @@ include(":app")
 // Core
 include(":core:auth")
 include(":core:database")
+include(":core:firestore")
 include(":core:datastore")
 include(":core:ui")
 include(":core:common")
@@ -49,6 +50,7 @@ include(":domain:exchangerate")
 
 // Data
 include(":data:auth")
+include(":data:sync")
 include(":data:transactions")
 include(":data:categories")
 include(":data:accounts")

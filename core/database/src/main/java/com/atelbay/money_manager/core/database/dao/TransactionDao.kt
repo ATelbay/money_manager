@@ -12,16 +12,16 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface TransactionDao {
 
-    @Query("SELECT * FROM transactions ORDER BY date DESC")
+    @Query("SELECT * FROM transactions WHERE isDeleted = 0 ORDER BY date DESC")
     fun observeAll(): Flow<List<TransactionEntity>>
 
-    @Query("SELECT * FROM transactions WHERE date BETWEEN :startDate AND :endDate ORDER BY date DESC")
+    @Query("SELECT * FROM transactions WHERE isDeleted = 0 AND date BETWEEN :startDate AND :endDate ORDER BY date DESC")
     fun observeByDateRange(startDate: Long, endDate: Long): Flow<List<TransactionEntity>>
 
-    @Query("SELECT * FROM transactions WHERE accountId = :accountId ORDER BY date DESC")
+    @Query("SELECT * FROM transactions WHERE isDeleted = 0 AND accountId = :accountId ORDER BY date DESC")
     fun observeByAccount(accountId: Long): Flow<List<TransactionEntity>>
 
-    @Query("SELECT * FROM transactions WHERE categoryId = :categoryId ORDER BY date DESC")
+    @Query("SELECT * FROM transactions WHERE isDeleted = 0 AND categoryId = :categoryId ORDER BY date DESC")
     fun observeByCategory(categoryId: Long): Flow<List<TransactionEntity>>
 
     @Query("SELECT * FROM transactions WHERE id = :id")
@@ -41,6 +41,9 @@ interface TransactionDao {
 
     @Query("DELETE FROM transactions WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("UPDATE transactions SET isDeleted = 1, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun softDeleteById(id: Long, updatedAt: Long)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertOrIgnore(transactions: List<TransactionEntity>)
@@ -65,4 +68,21 @@ interface TransactionDao {
         """,
     )
     suspend fun getCurrencyTransactionCounts(): List<CurrencyTransactionCount>
+
+    // ── Sync ──
+
+    @Query("SELECT * FROM transactions WHERE isDeleted = 0")
+    suspend fun getAllForSync(): List<TransactionEntity>
+
+    @Query("SELECT * FROM transactions WHERE remoteId IS NULL AND isDeleted = 0")
+    suspend fun getPendingSync(): List<TransactionEntity>
+
+    @Query("SELECT * FROM transactions WHERE isDeleted = 1")
+    suspend fun getDeletedForSync(): List<TransactionEntity>
+
+    @Query("SELECT * FROM transactions WHERE remoteId = :remoteId LIMIT 1")
+    suspend fun getByRemoteId(remoteId: String): TransactionEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSync(transactions: List<TransactionEntity>)
 }

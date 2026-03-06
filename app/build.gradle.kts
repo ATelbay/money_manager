@@ -66,10 +66,14 @@ android {
 dependencies {
     // Data (for Hilt DI wiring)
     implementation(projects.data.auth)
+    implementation(projects.data.sync)
     implementation(projects.data.transactions)
     implementation(projects.data.categories)
     implementation(projects.data.accounts)
     implementation(projects.data.exchangerate)
+
+    // Core sync infra
+    implementation(projects.core.firestore)
 
     // Presentation
     implementation(projects.presentation.auth)

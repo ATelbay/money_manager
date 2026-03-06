@@ -76,7 +76,7 @@ class ImportTransactionsUseCase @Inject constructor(
 
         entities.forEach { entity ->
             val delta = if (entity.type == "income") entity.amount else -entity.amount
-            accountDao.updateBalance(entity.accountId, delta)
+            accountDao.updateBalance(entity.accountId, delta, System.currentTimeMillis())
         }
 
         return entities.size

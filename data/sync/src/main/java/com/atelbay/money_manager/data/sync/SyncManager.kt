@@ -1,0 +1,142 @@
+package com.atelbay.money_manager.data.sync
+
+import com.atelbay.money_manager.core.auth.AuthManager
+import com.atelbay.money_manager.core.database.dao.AccountDao
+import com.atelbay.money_manager.core.database.dao.CategoryDao
+import com.atelbay.money_manager.core.database.dao.TransactionDao
+import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
+import com.atelbay.money_manager.core.firestore.mapper.toDto
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import timber.log.Timber
+import java.util.UUID
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class SyncManager @Inject constructor(
+    private val authManager: AuthManager,
+    private val firestoreDataSource: FirestoreDataSource,
+    private val transactionDao: TransactionDao,
+    private val accountDao: AccountDao,
+    private val categoryDao: CategoryDao,
+) {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private val _syncStatus = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
+    val syncStatus: StateFlow<SyncStatus> = _syncStatus.asStateFlow()
+
+    /** Timestamp of the last successful bulk sync, preserved across Failed transitions. */
+    private var _lastSuccessfulSyncAt: Long? = null
+    val lastSuccessfulSyncAt: Long? get() = _lastSuccessfulSyncAt
+
+    /** Only [LoginSyncOrchestrator] should drive bulk-sync status transitions. */
+    internal fun updateStatus(status: SyncStatus) {
+        if (status is SyncStatus.Synced) _lastSuccessfulSyncAt = status.lastSyncedAt
+        _syncStatus.value = status
+    }
+
+    fun syncTransaction(id: Long) = scope.launch {
+        val userId = authManager.currentUser.value?.userId ?: return@launch
+        try {
+            val entity = transactionDao.getById(id) ?: return@launch
+            val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@launch
+            val accountRemoteId = ensureAccountRemoteId(entity.accountId) ?: return@launch
+            val finalEntity = if (entity.remoteId == null) {
+                val remoteId = UUID.randomUUID().toString()
+                transactionDao.update(entity.copy(remoteId = remoteId))
+                entity.copy(remoteId = remoteId)
+            } else entity
+            firestoreDataSource.pushTransaction(userId, finalEntity.toDto(categoryRemoteId, accountRemoteId))
+        } catch (e: Exception) {
+            Timber.e(e, "syncTransaction($id) failed")
+        }
+    }
+
+    fun syncAccount(id: Long) = scope.launch {
+        val userId = authManager.currentUser.value?.userId ?: return@launch
+        try {
+            val remoteId = ensureAccountRemoteId(id) ?: return@launch
+            val entity = accountDao.getById(id) ?: return@launch
+            firestoreDataSource.pushAccount(userId, entity.copy(remoteId = remoteId).toDto())
+        } catch (e: Exception) {
+            Timber.e(e, "syncAccount($id) failed")
+        }
+    }
+
+    fun syncCategory(id: Long) = scope.launch {
+        val userId = authManager.currentUser.value?.userId ?: return@launch
+        try {
+            val entity = categoryDao.getById(id) ?: return@launch
+            if (entity.isDefault) return@launch
+            val remoteId = ensureCategoryRemoteId(id) ?: return@launch
+            firestoreDataSource.pushCategory(userId, entity.copy(remoteId = remoteId).toDto())
+        } catch (e: Exception) {
+            Timber.e(e, "syncCategory($id) failed")
+        }
+    }
+
+    /**
+     * Pushes all accounts that already have a remoteId (i.e. ensures latest balance is remote).
+     * Accounts without a remoteId are handled by [pushAllPending].
+     */
+    suspend fun pushAllAccounts() {
+        val userId = authManager.currentUser.value?.userId ?: return
+        accountDao.getAllForSync()
+            .filter { it.remoteId != null }
+            .forEach { entity ->
+                val updated = accountDao.getById(entity.id) ?: return@forEach
+                firestoreDataSource.pushAccount(userId, updated.toDto())
+            }
+    }
+
+    suspend fun pushAllPending() {
+        val userId = authManager.currentUser.value?.userId ?: return
+        Timber.d("pushAllPending: starting for userId=$userId")
+        accountDao.getPendingSync().forEach { entity ->
+            val remoteId = UUID.randomUUID().toString()
+            accountDao.update(entity.copy(remoteId = remoteId))
+            val updated = accountDao.getById(entity.id) ?: return@forEach
+            firestoreDataSource.pushAccount(userId, updated.toDto())
+        }
+        categoryDao.getPendingSync().forEach { entity ->
+            val remoteId = UUID.randomUUID().toString()
+            categoryDao.update(entity.copy(remoteId = remoteId))
+            firestoreDataSource.pushCategory(userId, entity.copy(remoteId = remoteId).toDto())
+        }
+        transactionDao.getPendingSync().forEach { entity ->
+            val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@forEach
+            val accountRemoteId = ensureAccountRemoteId(entity.accountId) ?: return@forEach
+            val remoteId = UUID.randomUUID().toString()
+            transactionDao.update(entity.copy(remoteId = remoteId, updatedAt = System.currentTimeMillis()))
+            firestoreDataSource.pushTransaction(userId, entity.copy(remoteId = remoteId).toDto(categoryRemoteId, accountRemoteId))
+        }
+        Timber.d("pushAllPending: done")
+    }
+
+    private suspend fun ensureAccountRemoteId(id: Long): String? {
+        val entity = accountDao.getById(id) ?: return null
+        if (entity.remoteId != null) return entity.remoteId
+        val remoteId = UUID.randomUUID().toString()
+        accountDao.update(entity.copy(remoteId = remoteId))
+        return remoteId
+    }
+
+    private suspend fun ensureCategoryRemoteId(id: Long): String? {
+        val entity = categoryDao.getById(id) ?: return null
+        if (entity.isDefault) return defaultCategoryRemoteId(entity.name, entity.type)
+        if (entity.remoteId != null) return entity.remoteId
+        val remoteId = UUID.randomUUID().toString()
+        categoryDao.update(entity.copy(remoteId = remoteId))
+        return remoteId
+    }
+
+    companion object {
+        fun defaultCategoryRemoteId(name: String, type: String) = "default:$name:$type"
+    }
+}

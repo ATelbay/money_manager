@@ -134,6 +134,7 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 firebase-ai = { group = "com.google.firebase", name = "firebase-ai" }
 firebase-config = { group = "com.google.firebase", name = "firebase-config" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
+firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 
 # Auth / Credentials
 androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }

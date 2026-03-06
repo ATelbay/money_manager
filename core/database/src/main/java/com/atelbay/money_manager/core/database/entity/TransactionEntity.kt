@@ -38,4 +38,7 @@ data class TransactionEntity(
     val date: Long,
     val createdAt: Long,
     val uniqueHash: String? = null,
+    val remoteId: String? = null,
+    val updatedAt: Long = 0,
+    val isDeleted: Boolean = false,
 )

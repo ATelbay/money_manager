@@ -9,6 +9,7 @@ import com.atelbay.money_manager.core.database.MoneyManagerDatabase
 import com.atelbay.money_manager.core.database.dao.AccountDao
 import com.atelbay.money_manager.core.database.dao.CategoryDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
+import com.atelbay.money_manager.core.database.migration.MIGRATION_2_3
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -44,7 +45,7 @@ object DatabaseModule {
                     }
                 }
             })
-            .fallbackToDestructiveMigration(dropAllTables = true)
+            .addMigrations(MIGRATION_2_3)
             .build()
     }
 

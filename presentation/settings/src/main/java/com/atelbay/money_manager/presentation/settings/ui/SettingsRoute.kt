@@ -23,6 +23,7 @@ fun SettingsRoute(
         onCategoriesClick = onCategoriesClick,
         onCurrencyPickerClick = onCurrencyPickerClick,
         onSignInClick = onSignInClick,
+        onRetrySyncClick = viewModel::retrySync,
         modifier = modifier,
     )
 }
