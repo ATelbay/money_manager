@@ -15,17 +15,10 @@ fun CurrencyPickerRoute(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     CurrencyPickerScreen(
-        selected = state.baseCurrency,
-        onSelect = { currency ->
-            viewModel.setBaseCurrency(currency)
-            val opposite = if (currency.code == "KZT") {
-                SupportedCurrencies.fromCode("USD")
-            } else {
-                SupportedCurrencies.fromCode("KZT")
-            }
-            viewModel.setTargetCurrency(opposite)
-            onBack()
-        },
+        baseCurrency = state.baseCurrency,
+        targetCurrency = state.targetCurrency,
+        onBaseCurrencySelect = viewModel::setBaseCurrency,
+        onTargetCurrencySelect = viewModel::setTargetCurrency,
         onBack = onBack,
         modifier = modifier,
     )

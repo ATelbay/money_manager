@@ -1,6 +1,7 @@
 package com.atelbay.money_manager.data.exchangerate.repository
 
-import com.atelbay.money_manager.core.datastore.StoredExchangeRate
+import com.atelbay.money_manager.core.datastore.StoredCurrencyRate
+import com.atelbay.money_manager.core.datastore.StoredExchangeRateSnapshot
 import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.data.exchangerate.model.NbkExchangeRateRemoteModel
 import com.atelbay.money_manager.data.exchangerate.remote.NbkExchangeRateRemoteDataSource
@@ -29,57 +30,62 @@ class ExchangeRateRepositoryImplTest {
     )
 
     init {
-        every { userPreferences.exchangeRate } returns emptyFlow()
+        every { userPreferences.exchangeRateSnapshot } returns emptyFlow()
     }
 
     @Test
-    fun `fetchAndStoreRate returns fresh remote rate and caches it`() = runTest {
-        coEvery { remoteDataSource.fetchUsdKztRate() } returns NbkExchangeRateRemoteModel(usdToKzt = 475.0)
-        coEvery {
-            userPreferences.setExchangeRate(
-                usdToKzt = any(),
-                fetchedAt = any(),
-                source = any(),
-            )
-        } just runs
+    fun `fetchAndStoreRates returns fresh remote snapshot and caches it`() = runTest {
+        coEvery { remoteDataSource.fetchRates() } returns NbkExchangeRateRemoteModel(
+            rates = mapOf(
+                "KZT" to 1.0,
+                "USD" to 475.0,
+                "EUR" to 550.0,
+            ),
+        )
+        coEvery { userPreferences.setExchangeRateSnapshot(any()) } just runs
 
-        val result = repository.fetchAndStoreRate()
+        val result = repository.fetchAndStoreRates()
 
-        assertEquals(475.0, result.usdToKzt, 0.0)
+        assertEquals(475.0, result.rates.getValue("USD").kztPerUnit, 0.0)
+        assertEquals(550.0, result.rates.getValue("EUR").kztPerUnit, 0.0)
         assertTrue(result.fetchedAt > 0L)
         coVerify(exactly = 1) {
-            userPreferences.setExchangeRate(
-                usdToKzt = 475.0,
-                fetchedAt = result.fetchedAt,
-                source = "NBK",
+            userPreferences.setExchangeRateSnapshot(
+                withArg { stored ->
+                    assertEquals(475.0, stored.rates.getValue("USD").kztPerUnit, 0.0)
+                    assertEquals(550.0, stored.rates.getValue("EUR").kztPerUnit, 0.0)
+                },
             )
         }
     }
 
     @Test
-    fun `fetchAndStoreRate falls back to cached rate when remote fetch fails`() = runTest {
+    fun `fetchAndStoreRates falls back to cached snapshot when remote fetch fails`() = runTest {
         val networkError = IOException("network down")
-        coEvery { remoteDataSource.fetchUsdKztRate() } throws networkError
-        coEvery { userPreferences.getExchangeRate() } returns StoredExchangeRate(
-            usdToKzt = 470.0,
+        coEvery { remoteDataSource.fetchRates() } throws networkError
+        coEvery { userPreferences.getExchangeRateSnapshot() } returns StoredExchangeRateSnapshot(
             fetchedAt = 123L,
             source = "NBK",
+            rates = mapOf(
+                "KZT" to StoredCurrencyRate(code = "KZT", kztPerUnit = 1.0),
+                "USD" to StoredCurrencyRate(code = "USD", kztPerUnit = 470.0),
+            ),
         )
 
-        val result = repository.fetchAndStoreRate()
+        val result = repository.fetchAndStoreRates()
 
-        assertEquals(470.0, result.usdToKzt, 0.0)
+        assertEquals(470.0, result.rates.getValue("USD").kztPerUnit, 0.0)
         assertEquals(123L, result.fetchedAt)
     }
 
     @Test
-    fun `fetchAndStoreRate rethrows remote error when cache is empty`() = runTest {
+    fun `fetchAndStoreRates rethrows remote error when cache is empty`() = runTest {
         val networkError = IOException("network down")
-        coEvery { remoteDataSource.fetchUsdKztRate() } throws networkError
-        coEvery { userPreferences.getExchangeRate() } returns null
+        coEvery { remoteDataSource.fetchRates() } throws networkError
+        coEvery { userPreferences.getExchangeRateSnapshot() } returns null
 
         val thrown = try {
-            repository.fetchAndStoreRate()
+            repository.fetchAndStoreRates()
             fail("Expected IOException to be thrown")
         } catch (exception: IOException) {
             exception

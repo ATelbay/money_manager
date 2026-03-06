@@ -1,42 +1,69 @@
 package com.atelbay.money_manager.domain.exchangerate.usecase
 
+import com.atelbay.money_manager.domain.exchangerate.model.CurrencyRate
+import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRateSnapshot
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ConvertAmountUseCaseTest {
 
     private val useCase = ConvertAmountUseCase()
+    private val snapshot = ExchangeRateSnapshot(
+        fetchedAt = 1L,
+        source = "NBK",
+        rates = mapOf(
+            "KZT" to CurrencyRate(code = "KZT", kztPerUnit = 1.0),
+            "USD" to CurrencyRate(code = "USD", kztPerUnit = 500.0),
+            "EUR" to CurrencyRate(code = "EUR", kztPerUnit = 550.0),
+        ),
+    )
 
     @Test
-    fun `convert KZT to USD uses provided rate`() {
+    fun `convert KZT to EUR uses snapshot rates`() {
         val converted = useCase(
             amount = 50_000.0,
-            rate = 475.0,
-            direction = ConversionDirection.KZT_TO_USD,
+            sourceCurrency = "KZT",
+            targetCurrency = "EUR",
+            snapshot = snapshot,
         )
 
-        assertEquals(105.26, converted, 0.0)
+        assertEquals(90.91, converted ?: 0.0, 0.0)
     }
 
     @Test
-    fun `convert USD to KZT uses provided rate`() {
+    fun `convert EUR to USD uses snapshot rates`() {
         val converted = useCase(
             amount = 100.0,
-            rate = 475.0,
-            direction = ConversionDirection.USD_TO_KZT,
+            sourceCurrency = "EUR",
+            targetCurrency = "USD",
+            snapshot = snapshot,
         )
 
-        assertEquals(47_500.0, converted, 0.0)
+        assertEquals(110.0, converted ?: 0.0, 0.0)
     }
 
     @Test
-    fun `rounds converted amount with HALF_UP strategy`() {
+    fun `same currency returns rounded source amount`() {
         val converted = useCase(
             amount = 2.345,
-            rate = 1.0,
-            direction = ConversionDirection.USD_TO_KZT,
+            sourceCurrency = "USD",
+            targetCurrency = "USD",
+            snapshot = snapshot,
         )
 
-        assertEquals(2.35, converted, 0.0)
+        assertEquals(2.35, converted ?: 0.0, 0.0)
+    }
+
+    @Test
+    fun `missing rate returns null`() {
+        val converted = useCase(
+            amount = 10.0,
+            sourceCurrency = "GBP",
+            targetCurrency = "USD",
+            snapshot = snapshot,
+        )
+
+        assertNull(converted)
     }
 }

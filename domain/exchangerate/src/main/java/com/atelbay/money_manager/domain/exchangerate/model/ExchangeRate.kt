@@ -1,12 +1,21 @@
 package com.atelbay.money_manager.domain.exchangerate.model
 
 /**
- * Represents a cached USD→KZT exchange rate from National Bank of Kazakhstan.
+ * Represents a full exchange-rate snapshot normalized to KZT-per-unit values.
  *
- * @param usdToKzt Amount of KZT per 1 USD.
- * @param fetchedAt Epoch millis when the rate was fetched from NBK.
+ * @param fetchedAt Epoch millis when the snapshot was fetched from NBK.
+ * @param source Source label for the snapshot.
+ * @param rates Map keyed by ISO code.
  */
-data class ExchangeRate(
-    val usdToKzt: Double,
+data class ExchangeRateSnapshot(
     val fetchedAt: Long,
+    val source: String?,
+    val rates: Map<String, CurrencyRate>,
+) {
+    fun rateFor(code: String): CurrencyRate? = rates[code.trim().uppercase()]
+}
+
+data class CurrencyRate(
+    val code: String,
+    val kztPerUnit: Double,
 )

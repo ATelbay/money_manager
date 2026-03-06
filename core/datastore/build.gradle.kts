@@ -10,4 +10,5 @@ android {
 dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.bundles.coroutines)
+    implementation(libs.kotlinx.serialization.json)
 }

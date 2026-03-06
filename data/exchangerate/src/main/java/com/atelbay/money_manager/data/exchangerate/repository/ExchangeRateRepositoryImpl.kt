@@ -3,8 +3,9 @@ package com.atelbay.money_manager.data.exchangerate.repository
 import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.data.exchangerate.mapper.toCacheModel
 import com.atelbay.money_manager.data.exchangerate.mapper.toDomain
+import com.atelbay.money_manager.data.exchangerate.mapper.toStoredSnapshot
 import com.atelbay.money_manager.data.exchangerate.remote.NbkExchangeRateRemoteDataSource
-import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
+import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRateSnapshot
 import com.atelbay.money_manager.domain.exchangerate.repository.ExchangeRateRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
@@ -18,30 +19,21 @@ class ExchangeRateRepositoryImpl @Inject constructor(
     private val userPreferences: UserPreferences,
 ) : ExchangeRateRepository {
 
-    override fun observeRate(): Flow<ExchangeRate?> =
-        userPreferences.exchangeRate.map { storedRate ->
+    override fun observeRates(): Flow<ExchangeRateSnapshot?> =
+        userPreferences.exchangeRateSnapshot.map { storedRate ->
             storedRate?.toCacheModel()?.toDomain()
         }
 
-    override suspend fun saveRate(rate: ExchangeRate) {
-        val cacheModel = rate.toCacheModel(source = SOURCE_NBK)
-        userPreferences.setExchangeRate(
-            usdToKzt = cacheModel.usdToKzt,
-            fetchedAt = cacheModel.fetchedAt,
-            source = cacheModel.source,
-        )
+    override suspend fun saveRates(snapshot: ExchangeRateSnapshot) {
+        userPreferences.setExchangeRateSnapshot(snapshot.toCacheModel().toStoredSnapshot())
     }
 
-    override suspend fun fetchAndStoreRate(): ExchangeRate {
+    override suspend fun fetchAndStoreRates(): ExchangeRateSnapshot {
         return try {
-            val cacheModel = remoteDataSource.fetchUsdKztRate()
+            val cacheModel = remoteDataSource.fetchRates()
                 .toCacheModel(fetchedAt = System.currentTimeMillis())
 
-            userPreferences.setExchangeRate(
-                usdToKzt = cacheModel.usdToKzt,
-                fetchedAt = cacheModel.fetchedAt,
-                source = cacheModel.source,
-            )
+            userPreferences.setExchangeRateSnapshot(cacheModel.toStoredSnapshot())
 
             cacheModel.toDomain()
         } catch (error: Exception) {
@@ -49,14 +41,10 @@ class ExchangeRateRepositoryImpl @Inject constructor(
                 throw error
             }
 
-            userPreferences.getExchangeRate()
+            userPreferences.getExchangeRateSnapshot()
                 ?.toCacheModel()
                 ?.toDomain()
                 ?: throw error
         }
-    }
-
-    private companion object {
-        const val SOURCE_NBK = "NBK"
     }
 }

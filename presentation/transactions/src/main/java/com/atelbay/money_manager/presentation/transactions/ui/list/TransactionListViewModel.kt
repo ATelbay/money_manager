@@ -7,10 +7,9 @@ import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
-import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
-import com.atelbay.money_manager.domain.exchangerate.usecase.ConversionDirection
+import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRateSnapshot
 import com.atelbay.money_manager.domain.exchangerate.usecase.ConvertAmountUseCase
-import com.atelbay.money_manager.domain.exchangerate.usecase.GetUsdKztRateUseCase
+import com.atelbay.money_manager.domain.exchangerate.usecase.GetExchangeRateSnapshotUseCase
 import com.atelbay.money_manager.domain.transactions.usecase.DeleteTransactionUseCase
 import com.atelbay.money_manager.domain.transactions.usecase.GetTransactionsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -41,7 +40,7 @@ private data class DataParams(
     val accounts: List<Account>,
     val selectedAccountId: Long?,
     val baseCurrency: String,
-    val exchangeRate: ExchangeRate?,
+    val exchangeRateSnapshot: ExchangeRateSnapshot?,
 )
 
 private data class SummaryMetrics(
@@ -64,7 +63,7 @@ class TransactionListViewModel @Inject constructor(
     getTransactionsUseCase: GetTransactionsUseCase,
     private val deleteTransactionUseCase: DeleteTransactionUseCase,
     getAccountsUseCase: GetAccountsUseCase,
-    getUsdKztRateUseCase: GetUsdKztRateUseCase,
+    getExchangeRateSnapshotUseCase: GetExchangeRateSnapshotUseCase,
     private val convertAmountUseCase: ConvertAmountUseCase,
     userPreferences: UserPreferences,
 ) : ViewModel() {
@@ -83,14 +82,14 @@ class TransactionListViewModel @Inject constructor(
             getAccountsUseCase(),
             userPreferences.selectedAccountId,
             userPreferences.baseCurrency,
-            getUsdKztRateUseCase(),
-        ) { transactions, accounts, selectedAccountId, baseCurrency, exchangeRate ->
+            getExchangeRateSnapshotUseCase(),
+        ) { transactions, accounts, selectedAccountId, baseCurrency, exchangeRateSnapshot ->
             DataParams(
                 transactions = transactions,
                 accounts = accounts,
                 selectedAccountId = selectedAccountId,
                 baseCurrency = baseCurrency,
-                exchangeRate = exchangeRate,
+                exchangeRateSnapshot = exchangeRateSnapshot,
             )
         }
 
@@ -152,7 +151,7 @@ class TransactionListViewModel @Inject constructor(
                 transactions = searchFiltered,
                 accounts = data.accounts,
                 baseCurrency = data.baseCurrency,
-                exchangeRate = data.exchangeRate,
+                exchangeRateSnapshot = data.exchangeRateSnapshot,
             )
             val summaryMetrics = resolveSummaryMetrics(
                 selectedAccount = selectedAccount,
@@ -160,7 +159,7 @@ class TransactionListViewModel @Inject constructor(
                 periodTransactions = periodFiltered,
                 accountCurrencyFallback = currency,
                 baseCurrency = data.baseCurrency,
-                exchangeRate = data.exchangeRate,
+                exchangeRateSnapshot = data.exchangeRateSnapshot,
             )
 
             _state.update {
@@ -212,7 +211,7 @@ class TransactionListViewModel @Inject constructor(
         transactions: List<Transaction>,
         accounts: List<Account>,
         baseCurrency: String,
-        exchangeRate: ExchangeRate?,
+        exchangeRateSnapshot: ExchangeRateSnapshot?,
     ): ImmutableList<TransactionRowState> {
         val currenciesByAccountId = accounts.associateBy(Account::id)
         val normalizedBaseCurrency = normalizeCurrency(baseCurrency)
@@ -225,7 +224,7 @@ class TransactionListViewModel @Inject constructor(
                     amount = transaction.amount,
                     sourceCurrency = it,
                     baseCurrency = normalizedBaseCurrency,
-                    exchangeRate = exchangeRate,
+                    exchangeRateSnapshot = exchangeRateSnapshot,
                 )
             }
             val hasConvertedAmount = convertedResult?.let {
@@ -270,7 +269,7 @@ class TransactionListViewModel @Inject constructor(
         periodTransactions: List<Transaction>,
         accountCurrencyFallback: String,
         baseCurrency: String,
-        exchangeRate: ExchangeRate?,
+        exchangeRateSnapshot: ExchangeRateSnapshot?,
     ): SummaryMetrics {
         val normalizedBaseCurrency = normalizeCurrency(baseCurrency)
         val canDisplayInBaseCurrency = canDisplayInBaseCurrency(
@@ -278,7 +277,7 @@ class TransactionListViewModel @Inject constructor(
             accounts = accounts,
             transactions = periodTransactions,
             baseCurrency = normalizedBaseCurrency,
-            exchangeRate = exchangeRate,
+            exchangeRateSnapshot = exchangeRateSnapshot,
         )
 
         if (!canDisplayInBaseCurrency) {
@@ -296,7 +295,7 @@ class TransactionListViewModel @Inject constructor(
                 balance = fallbackBalance,
                 income = fallbackIncome,
                 expense = fallbackExpense,
-                displayCurrency = normalizedBaseCurrency,
+                displayCurrency = normalizeCurrency(accountCurrencyFallback),
                 isUsingConvertedTotals = false,
                 isUsingFallbackCurrency = true,
             )
@@ -309,7 +308,7 @@ class TransactionListViewModel @Inject constructor(
                 amount = it.balance,
                 sourceCurrency = it.currency,
                 baseCurrency = normalizedBaseCurrency,
-                exchangeRate = exchangeRate,
+                exchangeRateSnapshot = exchangeRateSnapshot,
             )
         }
         val convertedTransactions = periodTransactions.mapNotNull { transaction ->
@@ -320,7 +319,7 @@ class TransactionListViewModel @Inject constructor(
                 amount = transaction.amount,
                 sourceCurrency = sourceCurrency,
                 baseCurrency = normalizedBaseCurrency,
-                exchangeRate = exchangeRate,
+                exchangeRateSnapshot = exchangeRateSnapshot,
             ) to transaction.type
         }
 
@@ -347,7 +346,7 @@ class TransactionListViewModel @Inject constructor(
         accounts: List<Account>,
         transactions: List<Transaction>,
         baseCurrency: String,
-        exchangeRate: ExchangeRate?,
+        exchangeRateSnapshot: ExchangeRateSnapshot?,
     ): Boolean {
         val scopedAccounts = if (selectedAccount != null) listOf(selectedAccount) else accounts
         if (scopedAccounts.any {
@@ -355,7 +354,7 @@ class TransactionListViewModel @Inject constructor(
                     amount = it.balance,
                     sourceCurrency = it.currency,
                     baseCurrency = baseCurrency,
-                    exchangeRate = exchangeRate,
+                    exchangeRateSnapshot = exchangeRateSnapshot,
                 ).canDisplayInBaseCurrency
             }
         ) {
@@ -369,7 +368,7 @@ class TransactionListViewModel @Inject constructor(
                 amount = transaction.amount,
                 sourceCurrency = sourceCurrency,
                 baseCurrency = baseCurrency,
-                exchangeRate = exchangeRate,
+                exchangeRateSnapshot = exchangeRateSnapshot,
             ).canDisplayInBaseCurrency
         }
     }
@@ -378,7 +377,7 @@ class TransactionListViewModel @Inject constructor(
         amount: Double,
         sourceCurrency: String,
         baseCurrency: String,
-        exchangeRate: ExchangeRate?,
+        exchangeRateSnapshot: ExchangeRateSnapshot?,
     ): ConvertedAmount {
         val normalizedSourceCurrency = normalizeCurrency(sourceCurrency)
         if (normalizedSourceCurrency == baseCurrency) {
@@ -389,36 +388,30 @@ class TransactionListViewModel @Inject constructor(
             )
         }
 
-        val rate = exchangeRate?.usdToKzt
-        return when {
-            normalizedSourceCurrency == KZT && baseCurrency == USD && rate != null && rate > 0.0 ->
-                ConvertedAmount(
-                    amount = convertAmountUseCase(
-                        amount = amount,
-                        rate = rate,
-                        direction = ConversionDirection.KZT_TO_USD,
-                    ),
-                    wasConverted = true,
-                    canDisplayInBaseCurrency = true,
-                )
+        val snapshot = exchangeRateSnapshot
+        val convertedAmount = if (snapshot != null) {
+            convertAmountUseCase(
+                amount = amount,
+                sourceCurrency = normalizedSourceCurrency,
+                targetCurrency = baseCurrency,
+                snapshot = snapshot,
+            )
+        } else {
+            null
+        }
 
-            normalizedSourceCurrency == USD && baseCurrency == KZT && rate != null && rate > 0.0 ->
-                ConvertedAmount(
-                    amount = convertAmountUseCase(
-                        amount = amount,
-                        rate = rate,
-                        direction = ConversionDirection.USD_TO_KZT,
-                    ),
-                    wasConverted = true,
-                    canDisplayInBaseCurrency = true,
-                )
-
-            else ->
-                ConvertedAmount(
-                    amount = amount,
-                    wasConverted = false,
-                    canDisplayInBaseCurrency = false,
-                )
+        return if (convertedAmount != null) {
+            ConvertedAmount(
+                amount = convertedAmount,
+                wasConverted = true,
+                canDisplayInBaseCurrency = true,
+            )
+        } else {
+            ConvertedAmount(
+                amount = amount,
+                wasConverted = false,
+                canDisplayInBaseCurrency = false,
+            )
         }
     }
 
@@ -428,6 +421,5 @@ class TransactionListViewModel @Inject constructor(
 
     private companion object {
         const val KZT = "KZT"
-        const val USD = "USD"
     }
 }

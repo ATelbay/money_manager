@@ -5,9 +5,10 @@ import android.content.pm.PackageManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atelbay.money_manager.core.datastore.UserPreferences
-import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
 import com.atelbay.money_manager.domain.exchangerate.repository.ExchangeRateRepository
-import com.atelbay.money_manager.domain.exchangerate.usecase.GetUsdKztRateUseCase
+import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRateSnapshot
+import com.atelbay.money_manager.domain.exchangerate.usecase.ConvertAmountUseCase
+import com.atelbay.money_manager.domain.exchangerate.usecase.GetExchangeRateSnapshotUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,8 +29,9 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
-    private val getUsdKztRateUseCase: GetUsdKztRateUseCase,
+    private val getExchangeRateSnapshotUseCase: GetExchangeRateSnapshotUseCase,
     private val exchangeRateRepository: ExchangeRateRepository,
+    private val convertAmountUseCase: ConvertAmountUseCase,
     application: Application,
 ) : ViewModel() {
 
@@ -68,22 +70,22 @@ class SettingsViewModel @Inject constructor(
         combine(
             userPreferences.baseCurrency,
             userPreferences.targetCurrency,
-            getUsdKztRateUseCase(),
-        ) { baseCurrencyCode, targetCurrencyCode, rate ->
+            getExchangeRateSnapshotUseCase(),
+        ) { baseCurrencyCode, targetCurrencyCode, snapshot ->
             Triple(
                 SupportedCurrencies.fromCode(baseCurrencyCode, SupportedCurrencies.defaultBase),
                 SupportedCurrencies.fromCode(targetCurrencyCode, SupportedCurrencies.defaultTarget),
-                rate,
+                snapshot,
             )
         }
-            .onEach { (base, target, rate) ->
+            .onEach { (base, target, snapshot) ->
                 _state.update { current ->
                     current.copy(
                         baseCurrency = base,
                         targetCurrency = target,
-                        rateDisplay = buildRateDisplay(base, target, rate),
-                        lastUpdatedDisplay = rate?.let(::formatLastUpdated).orEmpty(),
-                        rateErrorMessage = if (rate != null) null else current.rateErrorMessage,
+                        rateDisplay = buildRateDisplay(base, target, snapshot),
+                        lastUpdatedDisplay = snapshot?.let(::formatLastUpdated).orEmpty(),
+                        rateErrorMessage = if (snapshot != null) null else current.rateErrorMessage,
                     )
                 }
             }
@@ -128,7 +130,7 @@ class SettingsViewModel @Inject constructor(
 
             var refreshError: Throwable? = null
             try {
-                exchangeRateRepository.fetchAndStoreRate()
+                exchangeRateRepository.fetchAndStoreRates()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -138,7 +140,7 @@ class SettingsViewModel @Inject constructor(
             _state.update {
                 it.copy(
                     isRefreshingRate = false,
-                    rateErrorMessage = refreshError?.let { "Не удалось обновить курс USD/KZT" },
+                    rateErrorMessage = refreshError?.let { "Не удалось обновить курсы валют" },
                 )
             }
         }
@@ -147,17 +149,25 @@ class SettingsViewModel @Inject constructor(
     private fun buildRateDisplay(
         base: SupportedCurrency,
         target: SupportedCurrency,
-        rate: ExchangeRate?,
+        snapshot: ExchangeRateSnapshot?,
     ): String {
-        if (rate == null) return ""
-        return when (base.code) {
-            "KZT" -> "1 KZT = ${numberFormatter.format(1.0 / rate.usdToKzt)} USD"
-            else  -> "1 USD = ${numberFormatter.format(rate.usdToKzt)} KZT"
+        if (base.code == target.code) {
+            return "1 ${base.code} = ${numberFormatter.format(1.0)} ${target.code}"
         }
+        if (snapshot == null) return ""
+
+        val converted = convertAmountUseCase(
+            amount = 1.0,
+            sourceCurrency = base.code,
+            targetCurrency = target.code,
+            snapshot = snapshot,
+        ) ?: return ""
+
+        return "1 ${base.code} = ${numberFormatter.format(converted)} ${target.code}"
     }
 
-    private fun formatLastUpdated(rate: ExchangeRate): String {
-        return Instant.ofEpochMilli(rate.fetchedAt)
+    private fun formatLastUpdated(snapshot: ExchangeRateSnapshot): String {
+        return Instant.ofEpochMilli(snapshot.fetchedAt)
             .atZone(ZoneId.systemDefault())
             .format(timeFormatter)
     }

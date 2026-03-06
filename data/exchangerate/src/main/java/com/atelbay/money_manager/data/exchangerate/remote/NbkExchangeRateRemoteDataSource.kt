@@ -10,7 +10,7 @@ import javax.inject.Inject
 
 class NbkExchangeRateRemoteDataSource @Inject constructor() {
 
-    suspend fun fetchUsdKztRate(): NbkExchangeRateRemoteModel =
+    suspend fun fetchRates(): NbkExchangeRateRemoteModel =
         withContext(Dispatchers.IO) {
             val connection = (URL(NBK_RATES_URL).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
@@ -26,22 +26,35 @@ class NbkExchangeRateRemoteDataSource @Inject constructor() {
                 }
 
                 val body = connection.inputStream.bufferedReader().use { it.readText() }
-                val usdToKzt = USD_RATE_REGEX.find(body)
-                    ?.groupValues
-                    ?.getOrNull(1)
-                    ?.replace(",", ".")
-                    ?.toDoubleOrNull()
-                    ?: throw IOException("Failed to parse USD/KZT rate from NBK response")
-
-                if (usdToKzt <= 0.0) {
-                    throw IOException("Parsed USD/KZT rate is invalid: $usdToKzt")
-                }
-
-                NbkExchangeRateRemoteModel(usdToKzt = usdToKzt)
+                NbkExchangeRateRemoteModel(rates = parseRates(body))
             } finally {
                 connection.disconnect()
             }
         }
+
+    internal fun parseRates(body: String): Map<String, Double> {
+        val parsedRates = RATE_ROW_REGEX.findAll(body)
+            .mapNotNull { match ->
+                val nominal = match.groupValues[1].toIntOrNull()
+                val code = match.groupValues[2].trim().uppercase()
+                val quotedValue = match.groupValues[3].replace(",", ".").toDoubleOrNull()
+                if (nominal == null || nominal <= 0 || code.isBlank() || quotedValue == null || quotedValue <= 0.0) {
+                    null
+                } else {
+                    code to (quotedValue / nominal)
+                }
+            }
+            .toMap()
+
+        if (parsedRates.isEmpty()) {
+            throw IOException("Failed to parse exchange rates from NBK response")
+        }
+
+        return buildMap {
+            put(KZT_CODE, 1.0)
+            putAll(parsedRates)
+        }
+    }
 
     private companion object {
         const val NBK_RATES_URL =
@@ -50,8 +63,9 @@ class NbkExchangeRateRemoteDataSource @Inject constructor() {
         const val READ_TIMEOUT_MILLIS = 15_000
         const val HTTP_OK = 200
         const val HTTP_MULTIPLE_CHOICES = 299
-        val USD_RATE_REGEX = Regex(
-            pattern = """<td class="text-start">\s*1 US DOLLAR\s*</td>\s*<td>\s*USD / KZT\s*</td>\s*<td>\s*([0-9]+(?:[.,][0-9]+)?)\s*</td>""",
+        const val KZT_CODE = "KZT"
+        val RATE_ROW_REGEX = Regex(
+            pattern = """<td class="text-start">\s*([0-9]+)\s+[^<]+?\s*</td>\s*<td>\s*([A-Z]{3})\s*/\s*KZT\s*</td>\s*<td>\s*([0-9]+(?:[.,][0-9]+)?)\s*</td>""",
             options = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
         )
     }

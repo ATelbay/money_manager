@@ -1,31 +1,31 @@
 package com.atelbay.money_manager.domain.exchangerate.repository
 
-import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
+import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRateSnapshot
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Contract for loading and storing the USD-KZT exchange rate.
+ * Contract for loading and storing multi-currency exchange-rate snapshots.
  *
- * Implementations are expected to use remote-first strategy with
+ * Implementations are expected to use a remote-first strategy with
  * a local cache fallback when the network is unavailable.
  */
 interface ExchangeRateRepository {
 
     /**
-     * Observes the locally cached rate. Emits null if no cached rate exists yet.
+     * Observes the locally cached snapshot. Emits null if no cached snapshot exists yet.
      */
-    fun observeRate(): Flow<ExchangeRate?>
+    fun observeRates(): Flow<ExchangeRateSnapshot?>
 
     /**
-     * Persists the provided rate into the local cache.
+     * Persists the provided snapshot into the local cache.
      */
-    suspend fun saveRate(rate: ExchangeRate)
+    suspend fun saveRates(snapshot: ExchangeRateSnapshot)
 
     /**
-     * Fetches the latest rate from the remote source (NBK) and persists it locally.
+     * Fetches the latest snapshot from the remote source (NBK) and persists it locally.
      *
-     * @return The freshly fetched [ExchangeRate].
-     * @throws Exception if the network request fails and no cached rate is available.
+     * @return The freshly fetched [ExchangeRateSnapshot].
+     * @throws Exception if the network request fails and no cached snapshot is available.
      */
-    suspend fun fetchAndStoreRate(): ExchangeRate
+    suspend fun fetchAndStoreRates(): ExchangeRateSnapshot
 }
