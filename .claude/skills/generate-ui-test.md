@@ -9,9 +9,10 @@ description: "Генерация UI-тестов для Money Manager: Compose T
 Money Manager — база для магистерской диссертации по UI-автоматизации тестирования. Каждый экран должен быть покрыт UI-тестами. Тесты располагаются в `androidTest` source set соответствующего feature-модуля.
 
 **Ключевые файлы:**
-- `feature/*/src/androidTest/` — UI-тесты
-- `feature/*/src/.../ui/*Screen.kt` — экраны (источник testTag'ов)
-- `feature/*/src/.../ui/*State.kt` — стейты (источник тестовых данных)
+- `presentation/*/src/androidTest/` — UI-тесты (instrumented, с Compose)
+- `presentation/*/src/test/` — Unit-тесты (ViewModel, UseCase — без Android)
+- `presentation/*/src/.../ui/*Screen.kt` — экраны (источник testTag'ов)
+- `presentation/*/src/.../ui/*State.kt` — стейты (источник тестовых данных)
 
 ## Process
 

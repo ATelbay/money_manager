@@ -1,53 +1,44 @@
 ---
-description: "Генератор новой фичи в Money Manager: создание feature-модуля с Clean Architecture (domain/data/ui/di), Repository, UseCase, ViewModel, Screen, Route, Hilt DI, навигация"
+description: "Генератор новой фичи в Money Manager: создание 3 Gradle-модулей (domain/data/presentation) с Clean Architecture — Repository, UseCase, ViewModel, Screen, Route, Hilt DI, навигация"
 ---
 
 # Clean Architecture Feature Scaffold
 
 ## Context
 
-Каждая фича в проекте — отдельный Gradle-модуль в `feature/` с паттерном Clean Architecture. Этот скилл описывает полный алгоритм создания новой фичи от нуля.
+Каждая фича в проекте — **3 отдельных Gradle-модуля** в layer-centric структуре:
+- `domain/{name}/` — repository interface + use cases
+- `data/{name}/` — repository impl + mapper + DI
+- `presentation/{name}/` — State, ViewModel, Screen, Route
 
-**Эталонный модуль для копирования паттернов:** `feature/transactions/` (наиболее полная фича с domain/data/ui/di).
+**Директории `feature/` не существует** — не используй её как образец.
+
+**Эталонные модули для копирования паттернов:**
+- `domain/transactions/` — TransactionRepository + UseCases
+- `data/transactions/` — TransactionRepositoryImpl + mapper + DI
+- `presentation/transactions/` — полный UI стек (State, ViewModel, Screen, Route)
 
 ## Process
 
-### Шаг 1: Создать Gradle-модуль
+### Шаг 1: Создать `domain/{name}/`
 
-1. Создать директорию `feature/{name}/`
-2. Создать `feature/{name}/build.gradle.kts`:
+Создать `domain/{name}/build.gradle.kts`:
 ```kotlin
 plugins {
-    alias(libs.plugins.moneymanager.android.feature)
+    alias(libs.plugins.moneymanager.android.library)
+    // alias(libs.plugins.moneymanager.android.hilt)  // добавь только если UseCase требует @Inject deps
 }
 
 android {
-    namespace = "com.atelbay.money_manager.feature.{name}"
+    namespace = "com.atelbay.money_manager.domain.{name}"
 }
 
 dependencies {
     implementation(project(":core:model"))
-    implementation(project(":core:database"))
-    // другие core-зависимости по необходимости
 }
 ```
-3. Добавить в `settings.gradle.kts`:
-```kotlin
-include(":feature:{name}")
-```
-4. Добавить зависимость в `app/build.gradle.kts`:
-```kotlin
-implementation(project(":feature:{name}"))
-```
 
-### Шаг 2: Domain Layer
-
-Создать пакет `feature/{name}/src/main/java/com/atelbay/money_manager/feature/{name}/domain/`
-
-**Repository interface:**
-```
-domain/repository/{Entity}Repository.kt
-```
+**Repository interface** (`domain/{name}/src/main/java/com/atelbay/money_manager/domain/{name}/repository/{Entity}Repository.kt`):
 ```kotlin
 interface {Entity}Repository {
     fun get{Entities}(): Flow<List<{Entity}>>
@@ -57,55 +48,70 @@ interface {Entity}Repository {
 }
 ```
 
-**Use Cases** (по одному на операцию):
-```
-domain/usecase/Get{Entities}UseCase.kt
-domain/usecase/Get{Entity}ByIdUseCase.kt
-domain/usecase/Save{Entity}UseCase.kt
-domain/usecase/Delete{Entity}UseCase.kt
-```
+**Use Cases** (один UseCase = одна операция, в `domain/{name}/.../usecase/`):
 ```kotlin
 class Get{Entities}UseCase @Inject constructor(
     private val repository: {Entity}Repository,
 ) {
     operator fun invoke(): Flow<List<{Entity}>> = repository.get{Entities}()
 }
+
+class Save{Entity}UseCase @Inject constructor(
+    private val repository: {Entity}Repository,
+) {
+    suspend operator fun invoke(entity: {Entity}) = repository.save{Entity}(entity)
+}
 ```
 
-### Шаг 3: Data Layer
+### Шаг 2: Создать `data/{name}/`
 
-Создать пакет `data/`
-
-**Mapper:**
-```
-data/mapper/{Entity}Mapper.kt
-```
+Создать `data/{name}/build.gradle.kts`:
 ```kotlin
-fun {Entity}Entity.toDomain(): {Entity} = ...
-fun {Entity}.toEntity(): {Entity}Entity = ...
+plugins {
+    alias(libs.plugins.moneymanager.android.library)
+    alias(libs.plugins.moneymanager.android.hilt)
+}
+
+android {
+    namespace = "com.atelbay.money_manager.data.{name}"
+}
+
+dependencies {
+    implementation(project(":domain:{name}"))
+    implementation(project(":core:database"))
+    implementation(project(":core:model"))
+}
 ```
 
-**Repository Implementation:**
+**Mapper** (`data/{name}/.../mapper/{Entity}Mapper.kt`):
+```kotlin
+fun {Entity}Entity.toDomain(): {Entity} = {Entity}(
+    id = id,
+    // map fields...
+)
+
+fun {Entity}.toEntity(): {Entity}Entity = {Entity}Entity(
+    id = id ?: 0,
+    // map fields...
+)
 ```
-data/repository/{Entity}RepositoryImpl.kt
-```
+
+**Repository Implementation** (`data/{name}/.../repository/{Entity}RepositoryImpl.kt`):
 ```kotlin
 class {Entity}RepositoryImpl @Inject constructor(
     private val dao: {Entity}Dao,
 ) : {Entity}Repository {
     override fun get{Entities}() = dao.getAll().map { list -> list.map { it.toDomain() } }
-    // ...
+    override fun get{Entity}ById(id: Long) = dao.getById(id).map { it?.toDomain() }
+    override suspend fun save{Entity}(entity: {Entity}) = dao.insert(entity.toEntity())
+    override suspend fun delete{Entity}(id: Long) = dao.deleteById(id)
 }
 ```
 
-### Шаг 4: DI Module
-
-```
-di/{Feature}Module.kt
-```
+**Hilt DI Module** (`data/{name}/.../di/{Feature}Module.kt`):
 ```kotlin
 @Module
-@InstallIn(ViewModelComponent::class)
+@InstallIn(SingletonComponent::class)
 abstract class {Feature}Module {
     @Binds
     abstract fun bind{Entity}Repository(
@@ -114,12 +120,26 @@ abstract class {Feature}Module {
 }
 ```
 
-### Шаг 5: UI Layer
+### Шаг 3: Создать `presentation/{name}/`
 
-**State:**
+Создать `presentation/{name}/build.gradle.kts`:
+```kotlin
+plugins {
+    alias(libs.plugins.moneymanager.android.feature)
+}
+
+android {
+    namespace = "com.atelbay.money_manager.presentation.{name}"
+}
+
+dependencies {
+    implementation(project(":domain:{name}"))
+    implementation(project(":core:model"))
+    // НЕ добавляй core:database — presentation не зависит от DB напрямую
+}
 ```
-ui/{subscreen}/{Feature}State.kt
-```
+
+**State** (`presentation/{name}/.../ui/{subscreen}/{Feature}State.kt`):
 ```kotlin
 data class {Feature}State(
     val items: ImmutableList<{Entity}> = persistentListOf(),
@@ -128,10 +148,7 @@ data class {Feature}State(
 )
 ```
 
-**ViewModel:**
-```
-ui/{subscreen}/{Feature}ViewModel.kt
-```
+**ViewModel** (`presentation/{name}/.../ui/{subscreen}/{Feature}ViewModel.kt`):
 ```kotlin
 @HiltViewModel
 class {Feature}ViewModel @Inject constructor(
@@ -144,16 +161,15 @@ class {Feature}ViewModel @Inject constructor(
 
     private fun load{Entities}() {
         get{Entities}UseCase()
-            .onEach { items -> _state.update { it.copy(items = items.toImmutableList(), isLoading = false) } }
+            .onEach { items ->
+                _state.update { it.copy(items = items.toImmutableList(), isLoading = false) }
+            }
             .launchIn(viewModelScope)
     }
 }
 ```
 
-**Screen (stateless):**
-```
-ui/{subscreen}/{Feature}Screen.kt
-```
+**Screen (stateless)** (`presentation/{name}/.../ui/{subscreen}/{Feature}Screen.kt`):
 ```kotlin
 @Composable
 fun {Feature}Screen(
@@ -161,14 +177,19 @@ fun {Feature}Screen(
     onItemClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // UI с testTag на каждом интерактивном элементе
+    LazyColumn(modifier = modifier.testTag("{feature}List:list")) {
+        items(state.items, key = { it.id }) { item ->
+            Item(
+                item = item,
+                onClick = { onItemClick(item.id) },
+                modifier = Modifier.testTag("{feature}List:item_${item.id}"),
+            )
+        }
+    }
 }
 ```
 
-**Route (stateful):**
-```
-ui/{subscreen}/{Feature}Route.kt
-```
+**Route (stateful)** (`presentation/{name}/.../ui/{subscreen}/{Feature}Route.kt`):
 ```kotlin
 @Composable
 fun {Feature}Route(
@@ -176,8 +197,26 @@ fun {Feature}Route(
     viewModel: {Feature}ViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    {Feature}Screen(state = state, ...)
+    {Feature}Screen(
+        state = state,
+        onItemClick = { /* navigate */ },
+    )
 }
+```
+
+### Шаг 4: Зарегистрировать в `settings.gradle.kts`
+
+```kotlin
+include(":domain:{name}")
+include(":data:{name}")
+include(":presentation:{name}")
+```
+
+### Шаг 5: Добавить в `app/build.gradle.kts`
+
+```kotlin
+// Только presentation-модуль
+implementation(project(":presentation:{name}"))
 ```
 
 ### Шаг 6: Навигация
@@ -200,32 +239,38 @@ composable<{Feature}> {
 
 ### Шаг 7: testTag
 
-Добавить testTag на все интерактивные элементы по конвенции `"featureName:element"`:
+Конвенция: `"featureName:element"` (camelCase):
 - FAB: `"{feature}List:fab"`
 - List items: `"{feature}List:item_{id}"`
 - Form fields: `"{feature}Edit:nameField"`, `"{feature}Edit:saveButton"`
 
 ## Чек-лист
 
-- [ ] `build.gradle.kts` с `moneymanager.android.feature` plugin
-- [ ] Модуль в `settings.gradle.kts`
-- [ ] Зависимость в `app/build.gradle.kts`
-- [ ] Repository interface в `domain/repository/`
-- [ ] Use Cases в `domain/usecase/`
-- [ ] Mapper в `data/mapper/`
-- [ ] RepositoryImpl в `data/repository/`
-- [ ] Hilt module в `di/`
+- [ ] `domain/{name}/build.gradle.kts` с `moneymanager.android.library`
+- [ ] `data/{name}/build.gradle.kts` с library + hilt
+- [ ] `presentation/{name}/build.gradle.kts` с `moneymanager.android.feature`
+- [ ] Все 3 модуля в `settings.gradle.kts`
+- [ ] Только `:presentation:{name}` в `app/build.gradle.kts`
+- [ ] Repository interface в `domain/{name}/.../repository/`
+- [ ] Use Cases в `domain/{name}/.../usecase/`
+- [ ] Mapper в `data/{name}/.../mapper/`
+- [ ] RepositoryImpl в `data/{name}/.../repository/`
+- [ ] Hilt DI module в `data/{name}/.../di/`
 - [ ] State data class с `ImmutableList`
 - [ ] ViewModel с `StateFlow`
-- [ ] Screen (stateless) с `testTag`
+- [ ] Screen (stateless) с `testTag` на всех интерактивных элементах
 - [ ] Route (stateful) с `hiltViewModel()`
 - [ ] Destination в `Destinations.kt`
 - [ ] Route в `MoneyManagerNavHost.kt`
 
 ## Anti-patterns
 
-- НЕ пропускай domain layer — даже для простых CRUD всегда делай Repository + UseCase
-- НЕ делай ViewModel зависимым от Android-фреймворка (Context, Resources) — используй domain-модели
-- НЕ забывай `ImmutableList` в State — обычный `List` вызывает лишние рекомпозиции
-- НЕ создавай God-UseCase — один UseCase = одна операция
-- НЕ забывай зарегистрировать модуль в `settings.gradle.kts` и `app/build.gradle.kts`
+- НЕ создавай единый `feature/{name}/` модуль — всегда 3 слоя: domain + data + presentation
+- НЕ добавляй `core:database` в presentation-модуль
+- НЕ пропускай domain layer — даже для простых CRUD всегда Repository + UseCase
+- НЕ делай God-UseCase — один UseCase = одна операция
+- НЕ используй `ViewModelComponent` для репозиториев — используй `SingletonComponent`
+- НЕ создавай `@Module` без `@InstallIn`
+- НЕ используй `kapt` — проект на KSP
+- НЕ хардкодь версии в build.gradle.kts — используй `libs.versions.toml`
+- НЕ забывай регистрировать все 3 модуля в `settings.gradle.kts`
