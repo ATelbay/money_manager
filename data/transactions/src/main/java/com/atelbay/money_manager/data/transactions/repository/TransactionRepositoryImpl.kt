@@ -75,4 +75,7 @@ class TransactionRepositoryImpl @Inject constructor(
         accountDao.updateBalance(entity.accountId, delta)
         transactionDao.deleteById(id)
     }
+
+    override suspend fun getTopCurrenciesByUsage(): List<String> =
+        transactionDao.getCurrencyTransactionCounts().map { it.currency }
 }

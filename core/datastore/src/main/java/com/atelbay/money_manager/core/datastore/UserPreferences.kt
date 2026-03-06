@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -19,6 +20,8 @@ data class StoredExchangeRate(
     val usdToKzt: Double,
     val fetchedAt: Long,
     val source: String?,
+    /** Full multi-currency quotes (code → KZT per 1 unit). Null when read from legacy storage. */
+    val quotes: Map<String, Double>? = null,
 )
 
 @Singleton
@@ -85,6 +88,31 @@ class UserPreferences @Inject constructor(
         }
     }
 
+    val quoteRefreshFailureCount: Flow<Int> =
+        context.dataStore.data.map { prefs ->
+            prefs[KEY_QUOTE_REFRESH_FAILURE_COUNT] ?: 0
+        }
+
+    /**
+     * Increments the consecutive quote-refresh failure counter.
+     * @return the new failure count after incrementing.
+     */
+    suspend fun incrementQuoteRefreshFailureCount(): Int {
+        var newCount = 0
+        context.dataStore.edit { prefs ->
+            val current = prefs[KEY_QUOTE_REFRESH_FAILURE_COUNT] ?: 0
+            newCount = current + 1
+            prefs[KEY_QUOTE_REFRESH_FAILURE_COUNT] = newCount
+        }
+        return newCount
+    }
+
+    suspend fun resetQuoteRefreshFailureCount() {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_QUOTE_REFRESH_FAILURE_COUNT] = 0
+        }
+    }
+
     val exchangeRate: Flow<StoredExchangeRate?> =
         context.dataStore.data.map { prefs ->
             prefs.toStoredExchangeRate()
@@ -98,9 +126,29 @@ class UserPreferences @Inject constructor(
         fetchedAt: Long,
         source: String? = null,
     ) {
+        setExchangeRate(
+            quotes = mapOf("KZT" to 1.0, "USD" to usdToKzt),
+            fetchedAt = fetchedAt,
+            source = source,
+        )
+    }
+
+    suspend fun setExchangeRate(
+        quotes: Map<String, Double>,
+        fetchedAt: Long,
+        source: String? = null,
+    ) {
+        val normalizedQuotes = if (quotes.containsKey("KZT")) quotes else quotes + ("KZT" to 1.0)
         context.dataStore.edit { prefs ->
-            prefs[KEY_USD_KZT_RATE] = usdToKzt
+            // Persist full quotes map as JSON
+            prefs[KEY_EXCHANGE_QUOTES_JSON] = quotesToJson(normalizedQuotes)
             prefs[KEY_USD_KZT_RATE_FETCHED_AT] = fetchedAt
+
+            // Legacy backward-compat: keep writing USD scalar for older code paths
+            val usdRate = normalizedQuotes["USD"]
+            if (usdRate != null) {
+                prefs[KEY_USD_KZT_RATE] = usdRate
+            }
 
             if (source != null) {
                 prefs[KEY_USD_KZT_RATE_SOURCE] = source
@@ -111,13 +159,20 @@ class UserPreferences @Inject constructor(
     }
 
     private fun androidx.datastore.preferences.core.Preferences.toStoredExchangeRate(): StoredExchangeRate? {
-        val usdToKzt = this[KEY_USD_KZT_RATE] ?: return null
         val fetchedAt = this[KEY_USD_KZT_RATE_FETCHED_AT] ?: return null
+
+        // Prefer full quotes JSON; fall back to legacy single-value USD key
+        val quotesJson = this[KEY_EXCHANGE_QUOTES_JSON]
+        val quotes = quotesJson?.let { jsonToQuotes(it) }
+        val usdToKzt = quotes?.get("USD")
+            ?: this[KEY_USD_KZT_RATE]
+            ?: return null
 
         return StoredExchangeRate(
             usdToKzt = usdToKzt,
             fetchedAt = fetchedAt,
             source = this[KEY_USD_KZT_RATE_SOURCE],
+            quotes = quotes,
         )
     }
 
@@ -130,5 +185,30 @@ class UserPreferences @Inject constructor(
         val KEY_USD_KZT_RATE = doublePreferencesKey("usd_kzt_rate")
         val KEY_USD_KZT_RATE_FETCHED_AT = longPreferencesKey("usd_kzt_rate_fetched_at")
         val KEY_USD_KZT_RATE_SOURCE = stringPreferencesKey("usd_kzt_rate_source")
+        val KEY_EXCHANGE_QUOTES_JSON = stringPreferencesKey("exchange_quotes_json")
+        val KEY_QUOTE_REFRESH_FAILURE_COUNT = intPreferencesKey("quote_refresh_failure_count")
+
+        /**
+         * Simple JSON serializer for quotes map. Avoids adding org.json / Gson dependency.
+         * Format: {"USD":475.0,"EUR":520.0}
+         */
+        fun quotesToJson(quotes: Map<String, Double>): String =
+            quotes.entries.joinToString(",", "{", "}") { (code, rate) ->
+                "\"$code\":$rate"
+            }
+
+        fun jsonToQuotes(json: String): Map<String, Double>? {
+            if (json.isBlank()) return null
+            return try {
+                val content = json.trim().removeSurrounding("{", "}")
+                if (content.isBlank()) return emptyMap()
+                content.split(",").associate { entry ->
+                    val (key, value) = entry.split(":")
+                    key.trim().removeSurrounding("\"") to value.trim().toDouble()
+                }
+            } catch (_: Exception) {
+                null
+            }
+        }
     }
 }

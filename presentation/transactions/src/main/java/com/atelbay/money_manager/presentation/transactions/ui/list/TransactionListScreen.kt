@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -40,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -78,13 +81,16 @@ fun TransactionListScreen(
     onCustomDateRange: (LocalDate, LocalDate) -> Unit,
     onSearchQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
+    contentWindowInsets: WindowInsets = ScaffoldDefaults.contentWindowInsets,
 ) {
     val colors = MoneyManagerTheme.colors
     var showDateRangePicker by remember { mutableStateOf(false) }
+    val layoutDirection = LocalLayoutDirection.current
 
     Scaffold(
         modifier = modifier.testTag("transactionList:screen"),
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = contentWindowInsets,
         topBar = {
             TopAppBar(
                 title = {
@@ -135,6 +141,8 @@ fun TransactionListScreen(
                 .fillMaxSize()
                 .testTag("transactionList:list"),
             contentPadding = PaddingValues(
+                start = padding.calculateLeftPadding(layoutDirection),
+                end = padding.calculateRightPadding(layoutDirection),
                 top = padding.calculateTopPadding(),
                 bottom = padding.calculateBottomPadding() + TransactionListBottomGutter,
             ),
@@ -143,8 +151,9 @@ fun TransactionListScreen(
             item(key = "balance") {
                 BalanceCard(
                     accountName = state.selectedAccountName ?: "Все счета",
-                    balance = state.balance,
-                    currency = state.displayCurrency.ifBlank { state.currency },
+                    balance = state.balance ?: 0.0,
+                    currency = state.displayCurrency.orEmpty(),
+                    isUnavailable = state.summaryDisplayMode == SummaryDisplayMode.UNAVAILABLE,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -155,9 +164,10 @@ fun TransactionListScreen(
             // Income/Expense summary
             item(key = "summary") {
                 IncomeExpenseCard(
-                    income = state.periodIncome,
-                    expense = state.periodExpense,
-                    currency = state.displayCurrency.ifBlank { state.currency },
+                    income = state.periodIncome ?: 0.0,
+                    expense = state.periodExpense ?: 0.0,
+                    currency = state.displayCurrency.orEmpty(),
+                    isUnavailable = state.summaryDisplayMode == SummaryDisplayMode.UNAVAILABLE,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
@@ -463,7 +473,8 @@ private fun TransactionListScreenPreview() {
         TransactionListScreen(
             state = TransactionListState(
                 balance = 1_250_000.50,
-                currency = "KZT",
+                displayCurrency = "KZT",
+                summaryDisplayMode = SummaryDisplayMode.ORIGINAL_SINGLE_CURRENCY,
                 isLoading = false,
                 selectedAccountName = "Kaspi Gold",
                 periodIncome = 450_000.0,
@@ -544,9 +555,12 @@ private fun TransactionListScreenEmptyPreview() {
         TransactionListScreen(
             state = TransactionListState(
                 balance = 0.0,
-                currency = "KZT",
+                displayCurrency = "KZT",
+                summaryDisplayMode = SummaryDisplayMode.ORIGINAL_SINGLE_CURRENCY,
                 isLoading = false,
                 selectedAccountName = "Kaspi Gold",
+                periodIncome = 0.0,
+                periodExpense = 0.0,
             ),
             onTransactionClick = {},
             onAddClick = {},

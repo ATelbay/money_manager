@@ -5,44 +5,58 @@ import java.math.RoundingMode
 import javax.inject.Inject
 
 /**
- * Converts a monetary amount between KZT and USD using a provided USD-KZT rate.
+ * Converts a monetary amount between any two currencies using KZT as the pivot.
+ *
+ * [quotes] maps each currency code to its KZT-per-1-unit rate (e.g. "USD" → 475.0).
+ * Snapshots normally include KZT with a rate of 1.0, but the use case still treats it as
+ * an implicit pivot so legacy inputs without an explicit KZT entry remain valid.
+ *
+ * Conversion path: source → KZT → target.
+ * Same-currency passthrough returns [amount] unchanged (no rounding applied).
  *
  * Rounding strategy: HALF_UP, scaled to 2 decimal places (deterministic).
  *
- * Usage:
- * ```
- * val usd = convertAmountUseCase(50_000.0, rate = 475.0, ConversionDirection.KZT_TO_USD) // ≈ 105.26
- * val kzt = convertAmountUseCase(100.0, rate = 475.0, ConversionDirection.USD_TO_KZT)     // 47 500.00
- * ```
+ * @throws IllegalArgumentException if a required quote is missing or non-positive.
  */
 class ConvertAmountUseCase @Inject constructor() {
 
     /**
-     * @param amount   The source amount to convert.
-     * @param rate     USD-KZT rate (how many KZT per 1 USD).
-     * @param direction The direction of conversion.
+     * @param amount         The source amount to convert.
+     * @param sourceCurrency ISO currency code of the source amount.
+     * @param targetCurrency ISO currency code of the desired result.
+     * @param quotes         Currency code → KZT per 1 unit.
      * @return Converted amount rounded to 2 decimal places using HALF_UP.
      */
     operator fun invoke(
         amount: Double,
-        rate: Double,
-        direction: ConversionDirection,
+        sourceCurrency: String,
+        targetCurrency: String,
+        quotes: Map<String, Double>,
     ): Double {
-        require(rate > 0.0) { "USD-KZT rate must be greater than zero." }
+        if (sourceCurrency == targetCurrency) return amount
+
+        val sourceToKzt = kztRate(sourceCurrency, quotes)
+        val targetToKzt = kztRate(targetCurrency, quotes)
 
         val bd = BigDecimal(amount.toString())
-        val rateBd = BigDecimal(rate.toString())
-        return when (direction) {
-            ConversionDirection.KZT_TO_USD ->
-                bd.divide(rateBd, 2, RoundingMode.HALF_UP).toDouble()
+        val sourceRate = BigDecimal(sourceToKzt.toString())
+        val targetRate = BigDecimal(targetToKzt.toString())
 
-            ConversionDirection.USD_TO_KZT ->
-                bd.multiply(rateBd).setScale(2, RoundingMode.HALF_UP).toDouble()
-        }
+        return bd.multiply(sourceRate)
+            .divide(targetRate, SCALE, RoundingMode.HALF_UP)
+            .toDouble()
     }
-}
 
-enum class ConversionDirection {
-    KZT_TO_USD,
-    USD_TO_KZT,
+    private fun kztRate(currency: String, quotes: Map<String, Double>): Double {
+        if (currency == KZT) return 1.0
+        val rate = quotes[currency]
+            ?: throw IllegalArgumentException("No quote available for $currency")
+        require(rate > 0.0) { "Quote for $currency must be positive, got $rate" }
+        return rate
+    }
+
+    private companion object {
+        const val KZT = "KZT"
+        const val SCALE = 2
+    }
 }

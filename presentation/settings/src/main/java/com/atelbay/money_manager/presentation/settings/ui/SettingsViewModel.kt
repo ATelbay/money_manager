@@ -7,7 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
 import com.atelbay.money_manager.domain.exchangerate.repository.ExchangeRateRepository
-import com.atelbay.money_manager.domain.exchangerate.usecase.GetUsdKztRateUseCase
+import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
+import com.atelbay.money_manager.domain.transactions.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,8 +29,9 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
-    private val getUsdKztRateUseCase: GetUsdKztRateUseCase,
+    private val observeExchangeRateUseCase: ObserveExchangeRateUseCase,
     private val exchangeRateRepository: ExchangeRateRepository,
+    private val transactionRepository: TransactionRepository,
     application: Application,
 ) : ViewModel() {
 
@@ -68,20 +70,27 @@ class SettingsViewModel @Inject constructor(
         combine(
             userPreferences.baseCurrency,
             userPreferences.targetCurrency,
-            getUsdKztRateUseCase(),
+            observeExchangeRateUseCase(),
         ) { baseCurrencyCode, targetCurrencyCode, rate ->
-            Triple(
-                SupportedCurrencies.fromCode(baseCurrencyCode, SupportedCurrencies.defaultBase),
-                SupportedCurrencies.fromCode(targetCurrencyCode, SupportedCurrencies.defaultTarget),
-                rate,
-            )
+            Triple(baseCurrencyCode, targetCurrencyCode, rate)
         }
-            .onEach { (base, target, rate) ->
+            .onEach { (baseCurrencyCode, targetCurrencyCode, rate) ->
+                val base = sanitizeCurrency(
+                    code = baseCurrencyCode,
+                    fallback = SupportedCurrencies.defaultBase,
+                    persist = userPreferences::setBaseCurrency,
+                )
+                val target = sanitizeCurrency(
+                    code = targetCurrencyCode,
+                    fallback = SupportedCurrencies.defaultTarget,
+                    persist = userPreferences::setTargetCurrency,
+                )
                 _state.update { current ->
                     current.copy(
                         baseCurrency = base,
                         targetCurrency = target,
                         rateDisplay = buildRateDisplay(base, target, rate),
+                        hasRateSnapshot = rate != null,
                         lastUpdatedDisplay = rate?.let(::formatLastUpdated).orEmpty(),
                         rateErrorMessage = if (rate != null) null else current.rateErrorMessage,
                     )
@@ -128,31 +137,82 @@ class SettingsViewModel @Inject constructor(
 
             var refreshError: Throwable? = null
             try {
-                exchangeRateRepository.fetchAndStoreRate()
+                exchangeRateRepository.fetchAndStoreQuotes()
+                userPreferences.resetQuoteRefreshFailureCount()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 refreshError = e
+                val failureCount = userPreferences.incrementQuoteRefreshFailureCount()
+                if (failureCount >= FAILURE_THRESHOLD_FOR_AUTO_SWITCH) {
+                    autoSwitchCurrencyPair()
+                    userPreferences.resetQuoteRefreshFailureCount()
+                }
             }
 
             _state.update {
                 it.copy(
                     isRefreshingRate = false,
-                    rateErrorMessage = refreshError?.let { "Не удалось обновить курс USD/KZT" },
+                    rateErrorMessage = refreshError?.let { "Не удалось обновить курс" },
                 )
             }
         }
+    }
+
+    /**
+     * Auto-selects base/target currency pair from all-time transaction frequency.
+     *
+     * - base = top-1 currency by transaction count (fallback: USD)
+     * - target = top-2 currency by transaction count (fallback: EUR)
+     *
+     * Tie-breaking: when multiple currencies have equal transaction counts,
+     * alphabetical order by currency code is used (enforced by DAO ORDER BY).
+     */
+    private suspend fun autoSwitchCurrencyPair() {
+        val topCurrencies = try {
+            transactionRepository.getTopCurrenciesByUsage()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+        val base = topCurrencies.getOrNull(0) ?: DEFAULT_FALLBACK_BASE
+        val rawTarget = topCurrencies.getOrNull(1) ?: DEFAULT_FALLBACK_TARGET
+        val target = if (rawTarget == base) {
+            if (base == DEFAULT_FALLBACK_TARGET) DEFAULT_FALLBACK_BASE else DEFAULT_FALLBACK_TARGET
+        } else {
+            rawTarget
+        }
+
+        userPreferences.setBaseCurrency(base)
+        userPreferences.setTargetCurrency(target)
     }
 
     private fun buildRateDisplay(
         base: SupportedCurrency,
         target: SupportedCurrency,
         rate: ExchangeRate?,
-    ): String {
-        if (rate == null) return ""
-        return when (base.code) {
-            "KZT" -> "1 KZT = ${numberFormatter.format(1.0 / rate.usdToKzt)} USD"
-            else  -> "1 USD = ${numberFormatter.format(rate.usdToKzt)} KZT"
+    ): String? {
+        if (rate == null) return null
+        if (base.code == target.code) return "1 ${base.code} = 1.00 ${target.code}"
+        val baseToKzt = rate.quotes[base.code] ?: return null
+        val targetToKzt = rate.quotes[target.code] ?: return null
+        val convertedRate = baseToKzt / targetToKzt
+        return "1 ${base.code} = ${numberFormatter.format(convertedRate)} ${target.code}"
+    }
+
+    private suspend fun sanitizeCurrency(
+        code: String,
+        fallback: SupportedCurrency,
+        persist: suspend (String) -> Unit,
+    ): SupportedCurrency {
+        val normalized = code.trim().uppercase()
+        return if (SupportedCurrencies.isSupported(normalized)) {
+            SupportedCurrencies.fromCode(normalized, fallback)
+        } else {
+            persist(fallback.code)
+            fallback
         }
     }
 
@@ -160,5 +220,11 @@ class SettingsViewModel @Inject constructor(
         return Instant.ofEpochMilli(rate.fetchedAt)
             .atZone(ZoneId.systemDefault())
             .format(timeFormatter)
+    }
+
+    private companion object {
+        const val FAILURE_THRESHOLD_FOR_AUTO_SWITCH = 3
+        const val DEFAULT_FALLBACK_BASE = "USD"
+        const val DEFAULT_FALLBACK_TARGET = "EUR"
     }
 }

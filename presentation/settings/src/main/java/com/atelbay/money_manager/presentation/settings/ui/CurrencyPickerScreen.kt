@@ -3,10 +3,12 @@ package com.atelbay.money_manager.presentation.settings.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,6 +21,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -34,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.atelbay.money_manager.core.ui.components.GlassCard
 import com.atelbay.money_manager.core.ui.components.MoneyManagerTextField
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.theme.Teal
@@ -41,7 +46,10 @@ import com.atelbay.money_manager.core.ui.theme.Teal
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CurrencyPickerScreen(
-    selected: SupportedCurrency,
+    baseCurrency: SupportedCurrency,
+    targetCurrency: SupportedCurrency,
+    activeSide: CurrencyPickerSide,
+    onSideChange: (CurrencyPickerSide) -> Unit,
     onSelect: (SupportedCurrency) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -52,11 +60,12 @@ fun CurrencyPickerScreen(
     var searchQuery by remember { mutableStateOf("") }
     val filteredOptions = remember(searchQuery) {
         val q = searchQuery.trim().lowercase()
-        if (q.isEmpty()) SupportedCurrencies.supportedBase
-        else SupportedCurrencies.supportedBase.filter { c ->
+        if (q.isEmpty()) SupportedCurrencies.all
+        else SupportedCurrencies.all.filter { c ->
             c.code.lowercase().contains(q) || c.name.lowercase().contains(q)
         }
     }
+    val selected = if (activeSide == CurrencyPickerSide.BASE) baseCurrency else targetCurrency
 
     Scaffold(
         modifier = modifier.testTag("currencyPicker:screen"),
@@ -65,7 +74,7 @@ fun CurrencyPickerScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Базовая валюта",
+                        text = "Валютная пара",
                         style = typography.sectionHeader,
                         color = colors.textPrimary,
                     )
@@ -94,6 +103,45 @@ fun CurrencyPickerScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp),
         ) {
+            GlassCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+                    .testTag("currencyPicker:pairSummary"),
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Текущая пара",
+                        style = typography.caption,
+                        color = colors.textSecondary,
+                    )
+                    Text(
+                        text = "${baseCurrency.code} -> ${targetCurrency.code}",
+                        style = typography.cardTitle,
+                        color = colors.textPrimary,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+
+                    Row(
+                        modifier = Modifier.padding(top = 12.dp),
+                    ) {
+                        SideChip(
+                            label = "Базовая",
+                            selected = activeSide == CurrencyPickerSide.BASE,
+                            onClick = { onSideChange(CurrencyPickerSide.BASE) },
+                            modifier = Modifier.testTag("currencyPicker:sideBase"),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        SideChip(
+                            label = "Целевая",
+                            selected = activeSide == CurrencyPickerSide.TARGET,
+                            onClick = { onSideChange(CurrencyPickerSide.TARGET) },
+                            modifier = Modifier.testTag("currencyPicker:sideTarget"),
+                        )
+                    }
+                }
+            }
+
             MoneyManagerTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -161,5 +209,30 @@ fun CurrencyPickerScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SideChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MoneyManagerTheme.colors
+    val typography = MoneyManagerTheme.typography
+
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(999.dp),
+        color = if (selected) Teal.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surface,
+        contentColor = if (selected) Teal else colors.textSecondary,
+        onClick = onClick,
+    ) {
+        Text(
+            text = label,
+            style = typography.caption,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+        )
     }
 }

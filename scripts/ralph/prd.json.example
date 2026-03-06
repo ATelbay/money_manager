@@ -13,8 +13,9 @@
         "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 1,
+      "status": "todo",
       "passes": false,
-      "notes": "For --remote-run mode, CI is the pass gate; leave passes=false during the coding iteration and let Ralph shell flip it after green CI."
+      "notes": "For --remote-run mode, leave status='todo' and passes=false during the coding iteration. Ralph shell flips status to passed after green CI in ci-first mode, or to implemented in deferred mode until the final PR gate."
     },
     {
       "id": "US-002",
@@ -26,6 +27,7 @@
         "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 2,
+      "status": "todo",
       "passes": false,
       "notes": ""
     },
@@ -40,6 +42,7 @@
         "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 3,
+      "status": "todo",
       "passes": false,
       "notes": ""
     },
@@ -54,6 +57,7 @@
         "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 4,
+      "status": "todo",
       "passes": false,
       "notes": ""
     }

@@ -52,10 +52,6 @@ object SupportedCurrencies {
     private val byCode = all.associateBy { it.code }
     val defaultBase: SupportedCurrency = requireCurrency("KZT")
     val defaultTarget: SupportedCurrency = requireCurrency("USD")
-    val supportedBase: List<SupportedCurrency> = listOf(
-        requireCurrency("KZT"),
-        requireCurrency("USD"),
-    )
 
     fun fromCode(
         code: String,
@@ -63,6 +59,8 @@ object SupportedCurrencies {
     ): SupportedCurrency {
         return byCode[code.uppercase()] ?: fallback
     }
+
+    fun isSupported(code: String): Boolean = byCode.containsKey(code.uppercase())
 
     private fun requireCurrency(code: String): SupportedCurrency {
         return checkNotNull(byCode[code]) {

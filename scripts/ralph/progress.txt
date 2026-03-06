@@ -1,125 +1,147 @@
 # Ralph Progress Log
-## Codebase Patterns
-- In `core:ui`, shared cross-screen components should read semantic colors from `MoneyManagerTheme.colors` instead of hardcoding palette constants, so light/dark variants can diverge safely in one place.
-- In `presentation:settings`, persist lightweight selector state in `UserPreferences` as raw string codes and map those codes to richer UI labels through a feature-local catalog.
-- Long in-place Compose pickers should cap `DropdownMenu` height to avoid overflow and clipped popups on smaller devices.
-- When multiple persisted selectors share one catalog, resolve unknown codes with a field-specific fallback instead of a single global default.
-- In `presentation:settings`, when an option set grows beyond a compact inline control, prefer a `TopAppBar` action that opens a `ModalBottomSheet` with search, and keep the screen body to a concise summary row.
-- Compose layout helpers such as `weight` and `matchParentSize()` come from the active `Row`/`Column`/`Box` scope in this codebase; after UI refactors, verify both the scope and the import block before assuming unresolved references are missing imports.
-- In this Compose setup, `Modifier.weight(...)` and `matchParentSize()` should be used from the surrounding `Row`/`Column`/`Box` scope; importing them explicitly can bind the wrong symbol and break compilation.
-- For top-level screens under the shared bottom navigation, avoid stacking an inner `Scaffold`'s bottom content padding with a manual trailing spacer; use explicit list `contentPadding` for the FAB clearance instead.
-- For top-level `Scaffold` screens with a FAB, prefer `LazyColumn` bottom padding derived from `padding.calculateBottomPadding()` plus a small gutter instead of hardcoding the FAB clearance; it tracks insets while keeping spacing aligned with neighboring screens.
-- In the app-level `Scaffold`, keep the shared bottom bar mounted and animate its visibility instead of removing the slot immediately on route changes; that lets the bottom inset collapse smoothly and avoids abrupt FAB repositioning on the outgoing top-level screen.
+Started: Thu Mar  5 14:49:29 UTC 2026
 
-Started: Tue Mar  3 20:19:14 UTC 2026
+## Codebase Patterns
+- Convention Plugins in build-logic/convention/ for shared build config
+- Type-Safe Navigation for routes in app module
+- Room entities live in core:database, domain models in core:model
+- ExchangeRate domain model now uses `quotes: Map<String, Double>` (code → KZT per 1 unit) with KZT as implicit pivot (rate 1.0)
+- ExchangeRateRepository uses `observeQuotes()`, `saveQuotes()`, `fetchAndStoreQuotes()` method names
+- ConvertAmountUseCase accepts `sourceCurrency`, `targetCurrency`, `quotes` (not direction enum)
+- ObserveExchangeRateUseCase replaces GetUsdKztRateUseCase
+- UserPreferences stores full quotes as JSON in `exchange_quotes_json` key; legacy `usd_kzt_rate` key kept for backward compat
+- StoredExchangeRate has both `usdToKzt: Double` and `quotes: Map<String, Double>?` — mapper uses `quotes ?: mapOf("USD" to usdToKzt)`
+- NbkExchangeRateRemoteDataSource.parseAllQuotes() extracts all currency rows; normalizes nominal (divides by 10/100)
+- UserPreferences.quotesToJson/jsonToQuotes: simple hand-rolled JSON serializer (no Gson/org.json dependency)
+- Data layer ExchangeRateCacheModel and NbkExchangeRateRemoteModel use `quotes: Map<String, Double>`
+- TransactionListViewModel.convertToBaseCurrency() catches IllegalArgumentException from ConvertAmountUseCase for unsupported pairs
+- SettingsViewModel uses `combine(baseCurrency, targetCurrency, observeExchangeRateUseCase())` pattern for atomic state updates
+- Main added CurrencyPickerRoute/CurrencyPickerScreen for currency selection via navigation (not bottom sheet)
+- UserPreferences has `quoteRefreshFailureCount` Flow and `incrementQuoteRefreshFailureCount()`/`resetQuoteRefreshFailureCount()` for tracking consecutive failures
+- TransactionDao.getCurrencyTransactionCounts() joins transactions+accounts for currency frequency; returns CurrencyTransactionCount POJO
+- TransactionRepository.getTopCurrenciesByUsage() returns currency codes ranked by all-time transaction count (ties broken alphabetically)
+- SettingsViewModel auto-switches base/target pair after 3 consecutive refresh failures using transaction frequency data
+- presentation:settings depends on domain:transactions for accessing TransactionRepository
+- Full fallback policy: `canConvertAll` flag computed once from period scope, shared by mapTransactionRows() and resolveSummaryMetrics() — prevents partial mixed conversion
+
 ---
-## [2026-03-03 20:25:25 UTC] - US-001
-- Expanded the settings currency picker from a hardcoded KZT/USD enum into a feature-local NBK currency catalog with code + Russian display name entries, based on the current NBK daily-rates list.
-- Added persisted `target_currency` support in `UserPreferences`, then wired `SettingsViewModel` and `SettingsRoute` so both base and target selections are restored and saved as raw currency codes.
-- Replaced the old two-tile selector with reusable dropdown-backed selectors for base and target currencies, including scroll-safe popup height limits and item test tags for the expanded list.
-- Files changed: `core/datastore/src/main/java/com/atelbay/money_manager/core/datastore/UserPreferences.kt`, `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SupportedCurrency.kt`, `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsState.kt`, `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsViewModel.kt`, `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsRoute.kt`, `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsScreen.kt`, `scripts/ralph/progress.txt`
+
+## 2026-03-05 - US-001
+- What was implemented: Generalized exchange-rate domain contracts from USD/KZT-only to multi-currency quotes support
+- Files changed:
+  - domain/exchangerate/.../model/ExchangeRate.kt — `usdToKzt: Double` → `quotes: Map<String, Double>`
+  - domain/exchangerate/.../repository/ExchangeRateRepository.kt — renamed methods: observeQuotes, saveQuotes, fetchAndStoreQuotes
+  - domain/exchangerate/.../usecase/ConvertAmountUseCase.kt — new signature: sourceCurrency, targetCurrency, quotes; KZT pivot conversion; removed ConversionDirection enum
+  - domain/exchangerate/.../usecase/ObserveExchangeRateUseCase.kt — renamed from GetUsdKztRateUseCase (old file deleted)
+  - data/exchangerate/.../model/ExchangeRateCacheModel.kt — `usdToKzt` → `quotes: Map<String, Double>`
+  - data/exchangerate/.../model/NbkExchangeRateRemoteModel.kt — `usdToKzt` → `quotes: Map<String, Double>`
+  - data/exchangerate/.../mapper/ExchangeRateMapper.kt — bridges legacy StoredExchangeRate.usdToKzt to quotes map
+  - data/exchangerate/.../remote/NbkExchangeRateRemoteDataSource.kt — fetchUsdKztRate → fetchQuotes, returns single-entry map
+  - data/exchangerate/.../repository/ExchangeRateRepositoryImpl.kt — uses new method names, extracts USD for legacy prefs storage
+  - presentation/settings/.../SettingsViewModel.kt — uses ObserveExchangeRateUseCase + fetchAndStoreQuotes + rate.quotes["USD"]
+  - presentation/transactions/.../TransactionListViewModel.kt — uses new ConvertAmountUseCase API, removed hardcoded USD/KZT direction logic
+  - Tests: ConvertAmountUseCaseTest, ExchangeRateRepositoryImplTest, TransactionListViewModelTest — all updated
 - **Learnings for future iterations:**
-  - Patterns discovered (e.g., "this codebase uses X for Y"): feature-local lookup catalogs are a good fit when the app only needs display metadata in one screen and persisted storage can stay as stable string codes.
-  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): adding a second persisted selector requires updating both the DataStore defaults and the `SettingsRoute` callback wiring, otherwise the UI silently renders but one picker never saves.
-  - Useful context (e.g., "the evaluation panel is in component X"): the settings screen now exposes `settings:baseCurrencySelector` and `settings:targetCurrencySelector`, and menu item tags follow the pattern `settings:{base|target}CurrencyXxx`.
+  - StoredExchangeRate in UserPreferences still uses single usdToKzt value — US-002 should change this to persist full quotes map
+  - The mapper layer bridges old/new: `mapOf("USD" to usdToKzt)` in StoredExchangeRate.toCacheModel()
+  - ConvertAmountUseCase throws IllegalArgumentException for missing quotes — callers should catch it
+  - SettingsViewModel.formatRate() still shows "1 USD = X KZT" — US-004 will make it dynamic
+  - The error message "Не удалось обновить курс USD/KZT" in SettingsViewModel is still hardcoded — US-004 territory
 ---
-## [2026-03-03 20:58:30 UTC] - US-001
-- Hardened the shared settings currency catalog so invalid persisted codes no longer force the target selector back to `KZT`; base and target now recover with their own defaults.
-- Replaced recursive default lookup initialization with explicit required-currency resolution, which keeps the catalog bootstrap deterministic.
-- Files changed: `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SupportedCurrency.kt`, `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsViewModel.kt`, `scripts/ralph/progress.txt`
+
+## 2026-03-05 - US-001 (merge conflict repair)
+- What was implemented: Resolved merge conflict between US-001 generalized API and main branch's refactored combine pattern in SettingsViewModel
+- Files changed:
+  - presentation/settings/.../SettingsViewModel.kt — adopted main's `combine(baseCurrency, targetCurrency, rate)` pattern with US-001's `observeExchangeRateUseCase()` and `rate.quotes` API; renamed `formatRate()` → `buildRateDisplay(base, target, rate)` from main
 - **Learnings for future iterations:**
-  - Patterns discovered (e.g., "this codebase uses X for Y"): shared UI catalogs can expose a generic lookup API, but callers should still supply the default that matches their own persisted field semantics.
-  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): using one global fallback for multiple selectors creates silent state drift after bad persisted values, even when the screen still renders.
-  - Useful context (e.g., "the evaluation panel is in component X"): `SettingsViewModel` is the right place to normalize persisted selector codes before they hit `SettingsState`, so the composables can stay dumb.
+  - Main branch refactored SettingsViewModel to use `combine` for baseCurrency, targetCurrency, and rate flows (avoids state tearing vs separate `.onEach` flows)
+  - Main added CurrencyPickerRoute/Screen and navigation for currency selection — these auto-merged cleanly
+  - When resolving conflicts, adopt structural improvements from main while preserving US-001 API changes
 ---
-## [2026-03-03 21:05:41 UTC] - US-002
-- Merged the separate exchange-rate timestamp and refresh rows on the settings screen into one compact row that shows `Курс на ...` and keeps a dedicated trailing refresh action.
-- Preserved the refresh affordance with the existing refresh icon, including disabled styling while a refresh is already in progress, without changing the underlying refresh callback.
-- Files changed: `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsScreen.kt`, `scripts/ralph/progress.txt`
+
+## 2026-03-05 - US-001 (unit test repair, attempt 1)
+- What was implemented: Fixed fallback displayCurrency in TransactionListViewModel.resolveSummaryMetrics()
+- Root cause: When exchange rate is null and conversion is unavailable, `displayCurrency` was set to `normalizedBaseCurrency` (e.g. "USD") instead of `accountCurrencyFallback` (e.g. "KZT"). The `accountCurrencyFallback` parameter was passed but unused in the fallback branch.
+- Files changed:
+  - presentation/transactions/.../TransactionListViewModel.kt — line 298: `displayCurrency = normalizedBaseCurrency` → `displayCurrency = normalizeCurrency(accountCurrencyFallback)`
 - **Learnings for future iterations:**
-  - Patterns discovered (e.g., "this codebase uses X for Y"): when one settings item needs both status text and an inline action, a feature-local row composable fits better than forcing the generic `SettingRow` API.
-  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): in remote-run mode, leave `scripts/ralph/prd.json` unchanged even after the story implementation is complete; Ralph shell flips `passes` after CI.
-  - Useful context (e.g., "the evaluation panel is in component X"): the exchange-rate summary block lives in `SettingsScreen` under the first `GlassCard`, and the new refresh tap target is tagged as `settings:refreshRateAction`.
+  - When conversion is unavailable (no exchange rate), UI must fall back to source/account currency for displayCurrency, not the selected base currency
+  - Always verify unused function parameters aren't actually supposed to be used in some branch
 ---
-## [2026-03-03 21:14:32 UTC] - US-003
-- Removed the large inline base/target currency selectors from the settings content and replaced them with a compact summary row that shows the currently selected pair.
-- Added a `TopAppBar` currency action that opens a `ModalBottomSheet` with a search field filtering by both currency code and localized name, plus target toggles for base vs target selection.
-- Wired bottom-sheet selections back through the existing callbacks so both base and target currencies update immediately and the summary row reflects the new values.
-- Files changed: `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsScreen.kt`, `scripts/ralph/progress.txt`
+
+## 2026-03-05 - US-002
+- What was implemented: Fetch and cache full NBK quotes instead of USD-only
+- Files changed:
+  - data/exchangerate/.../remote/NbkExchangeRateRemoteDataSource.kt — replaced single USD regex with `parseAllQuotes()` using `CURRENCY_ROW_REGEX` that matches all currency rows; normalizes nominal-based rates (e.g., 100 JPY) to per-1-unit
+  - core/datastore/.../UserPreferences.kt — added `KEY_EXCHANGE_QUOTES_JSON` for full quotes map storage; `StoredExchangeRate` gained `quotes: Map<String, Double>?` field; new `setExchangeRate(quotes, fetchedAt, source)` overload; read path falls back from JSON to legacy `usd_kzt_rate` key; added `quotesToJson()`/`jsonToQuotes()` helpers
+  - data/exchangerate/.../mapper/ExchangeRateMapper.kt — `StoredExchangeRate.toCacheModel()` now uses `quotes ?: mapOf("USD" to usdToKzt)` for legacy compat
+  - data/exchangerate/.../repository/ExchangeRateRepositoryImpl.kt — `saveQuotes()` and `fetchAndStoreQuotes()` now persist full quotes map via `setExchangeRate(quotes=...)` instead of extracting USD only
+  - data/exchangerate/.../repository/ExchangeRateRepositoryImplTest.kt — updated to verify multi-currency quotes storage (USD + EUR)
 - **Learnings for future iterations:**
-  - Patterns discovered (e.g., "this codebase uses X for Y"): for expanded settings choices, keep persisted state in the existing ViewModel flow and hold only transient sheet/search UI state locally in the stateless screen composable.
-  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): in `RALPH_REMOTE_RUN=true`, skip local Gradle checks entirely even for compile verification and rely on careful source inspection plus the upcoming CI pass.
-  - Useful context (e.g., "the evaluation panel is in component X"): the new currency picker entry points are tagged `settings:currencySheetAction` in the top bar and `settings:currencySummary` in the content, while the searchable sheet root is `settings:currencySheet`.
+  - UserPreferences uses hand-rolled JSON serializer for quotes map to avoid adding org.json dependency
+  - Legacy backward-compat: `setExchangeRate(quotes=...)` still writes `KEY_USD_KZT_RATE` scalar alongside JSON for old code paths
+  - Read path: JSON key preferred; if absent, falls back to legacy `usd_kzt_rate` — transparent to callers
+  - `parseAllQuotes()` is `internal` visibility for testability from test module
+  - The regex `CURRENCY_ROW_REGEX` uses `[^>]*` for td attributes and `[^<]+` for currency name to be flexible with NBK HTML changes
 ---
-## [2026-03-03 21:20:11 UTC] - US-003
-- Repaired the US-003 implementation by restoring the missing `matchParentSize` layout import in `SettingsScreen`, which the new `ThemeSelector` code path references.
-- This keeps the bottom-sheet currency picker UI unchanged while resolving the Kotlin compile break that likely cascaded into the lint and unit-test job failures.
-- Files changed: `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsScreen.kt`, `scripts/ralph/progress.txt`
+
+## 2026-03-05 - US-003
+- What was implemented: Auto-switch currency pair after 3 consecutive quote-refresh failures
+- Files changed:
+  - core/datastore/.../UserPreferences.kt — added `KEY_QUOTE_REFRESH_FAILURE_COUNT` (intPreferencesKey), `quoteRefreshFailureCount` Flow, `incrementQuoteRefreshFailureCount()` (returns new count), `resetQuoteRefreshFailureCount()`
+  - core/database/.../dao/CurrencyTransactionCount.kt — new Room POJO for currency frequency query results
+  - core/database/.../dao/TransactionDao.kt — added `getCurrencyTransactionCounts()` query joining transactions+accounts, ordered by count DESC then currency ASC for deterministic tie-breaking
+  - domain/transactions/.../repository/TransactionRepository.kt — added `getTopCurrenciesByUsage(): List<String>` method
+  - data/transactions/.../repository/TransactionRepositoryImpl.kt — implemented `getTopCurrenciesByUsage()` using DAO
+  - presentation/settings/build.gradle.kts — added `domain:transactions` dependency
+  - presentation/settings/.../SettingsViewModel.kt — injected `TransactionRepository`; on success: reset counter; on failure: increment counter, if ≥3 auto-switch pair (base=top-1, target=top-2, fallbacks USD/EUR) and reset counter
+  - presentation/transactions/.../TransactionListViewModelTest.kt — added `getTopCurrenciesByUsage()` stub to FakeTransactionRepository
 - **Learnings for future iterations:**
-  - Patterns discovered (e.g., "this codebase uses X for Y"): when Compose UI refactors introduce new layout modifiers, verify the import list explicitly because extension functions like `matchParentSize` do not auto-resolve.
-  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): a single missing Compose import can fail `compileDebugKotlin` and make the downstream `lint` and `test` CI jobs fail even when their logic is otherwise unaffected.
-  - Useful context (e.g., "the evaluation panel is in component X"): the only source change in this repair iteration is the import block of `SettingsScreen.kt`; no behavior or test-tag contract changed.
+  - CurrencyTransactionCount lives in dao package (not entity) since it's a query result POJO, not a Room entity
+  - The auto-switch logic is in SettingsViewModel (not repository) because it needs cross-domain access (exchange rate + transactions)
+  - presentation:settings now depends on domain:transactions — this was necessary for accessing transaction frequency data
+  - FakeTransactionRepository in TransactionListViewModelTest must be updated when new methods are added to the interface
+  - Tie-breaking for currency frequency is alphabetical by currency code (SQL ORDER BY ... a.currency ASC)
+- buildRateDisplay() uses KZT pivot: baseToKzt / targetToKzt; KZT implicit rate = 1.0; same-currency returns "1 X = 1.00 X"
 ---
-## [2026-03-03 21:25:16 UTC] - US-003
-- Repaired the remaining `US-003` compile issue by importing `androidx.compose.foundation.layout.weight`, which the new currency summary, target buttons, and sheet rows already call via `Modifier.weight(...)`.
-- This is a no-behavior-change fix aimed at the CI compile path that also unblocks the downstream lint and unit-test jobs from failing on source compilation.
-- Files changed: `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsScreen.kt`, `scripts/ralph/progress.txt`
+
+## 2026-03-05 - US-004
+- What was implemented: Generalized settings exchange-rate display to work with any base/target currency pair
+- Files changed:
+  - presentation/settings/.../SettingsViewModel.kt — rewrote `buildRateDisplay()` from hardcoded USD/KZT to generic KZT-pivot conversion for any pair; handles same-currency, KZT-as-base, KZT-as-target, and cross-currency (e.g., EUR/USD) cases
 - **Learnings for future iterations:**
-  - Patterns discovered (e.g., "this codebase uses X for Y"): Compose scope and layout helpers like `weight` are regular extension functions and need explicit imports even when the syntax reads like a built-in modifier.
-  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): after a partial import-only repair, re-scan the whole file for other extension modifiers in use before assuming the compile issue is fully resolved.
-  - Useful context (e.g., "the evaluation panel is in component X"): `SettingsScreen.kt` currently uses `Modifier.weight(...)` in `CurrencyPairSummaryRow`, `CurrencyTargetButton`, `CurrencySheetItem`, and `ThemeSelector`.
+  - SettingsScreen title was already dynamic via `${state.baseCurrency.code}/${state.targetCurrency.code}` — no UI changes needed
+  - Error message was already pair-agnostic ("Не удалось обновить курс") — no changes needed
+  - Auto-switch after 3 failures works automatically because it updates UserPreferences base/target which triggers the combine flow and rebuilds state including rateDisplay
+  - The KZT pivot conversion formula: rate = quotes[base] / quotes[target]; KZT has implicit rate 1.0 since all NBK quotes are in KZT per unit
+  - Preview in SettingsScreen still shows "1 USD = 512.34 KZT" as example — acceptable for preview
 ---
-## [2026-03-03 21:34:30 UTC] - US-003
-- Repaired the actual CI break for `US-003` after reading the GitHub Actions logs: removed the incorrect explicit `weight` and `matchParentSize` imports, and replaced `rememberSaveable` with plain `remember` for the transient sheet/search state.
-- Simplified the bottom-sheet selection logic from `when` expressions to `if/else`, which removes the false non-exhaustive compiler error that was cascading from the bad state type resolution.
-- Files changed: `presentation/settings/src/main/java/com/atelbay/money_manager/presentation/settings/ui/SettingsScreen.kt`, `scripts/ralph/progress.txt`
+
+## 2026-03-05 - US-005
+- What was implemented: Enforced full-scope fallback rule for multi-currency conversion in TransactionListViewModel
+- Files changed:
+  - presentation/transactions/.../TransactionListViewModel.kt — extracted `canDisplayInBaseCurrency` computation to shared `canConvertAll` flag; passed to both `mapTransactionRows()` and `resolveSummaryMetrics()` so that when ANY account or transaction in the period scope lacks a required quote, ALL conversion is disabled (rows + totals); prevents partial mixed conversion where some rows show base currency and others show original
 - **Learnings for future iterations:**
-  - Patterns discovered (e.g., "this codebase uses X for Y"): for transient Compose-only UI state in this project, `remember` is enough unless the screen explicitly needs save/restore across recreation.
-  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): `Modifier.weight(...)` and `matchParentSize()` compile inside their scope blocks without imports here; importing them directly can resolve to the wrong API surface and produce misleading Kotlin errors.
-  - Useful context (e.g., "the evaluation panel is in component X"): `gh run view <run-id> --job <job-id> --log` works for one-off CI diagnostics in this repo and exposed the exact `presentation:settings:compileDebugKotlin` errors when the check annotations did not.
+  - Full fallback scope is period-filtered transactions + scoped accounts (not search/tab-filtered) — this ensures consistent behavior regardless of active filters
+  - `canConvertAll` is the single source of truth for conversion availability across the entire UI: balance card, income/expense summary, and individual transaction rows
+  - No UI changes needed — TransactionListScreen already handles converted/unconverted row display with secondary amount + "Исх." label
+  - ConvertAmountUseCase already supports any NBK-supported pair via KZT pivot — no domain changes needed
+  - Same-currency passthrough (`wasConverted = false`) works correctly even when `canConvertAll = true`
 ---
-## [2026-03-03 21:42:25 UTC] - US-004
-- Removed the transaction list's duplicated bottom gap by replacing the trailing spacer item with explicit `LazyColumn` content padding that keeps the top app bar inset and uses one fixed FAB clearance.
-- This keeps the list scrollable above the FAB while avoiding the extra bottom inset that was stacking on top of the shared bottom-navigation layout.
-- Files changed: `presentation/transactions/src/main/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListScreen.kt`, `scripts/ralph/progress.txt`
+
+## 2026-03-05 - US-006
+- What was implemented: Regression tests for multi-currency policy covering domain, data, failure-streak, and ViewModel layers
+- Files changed:
+  - domain/exchangerate/src/test/.../ConvertAmountUseCaseTest.kt — added 5 tests: inverse pair (EUR→USD via KZT pivot), nominal-based currency (JPY), KZT as source/target with implicit rate, missing source/target quote throws IllegalArgumentException
+  - data/exchangerate/src/test/.../NbkExchangeRateRemoteDataSourceTest.kt — new test class: multi-currency parsing (3 currencies), nominal normalization (100 JPY, 10 KRW), comma decimal separator, empty HTML, zero nominal skip, uppercase normalization
+  - data/exchangerate/src/test/.../ExchangeRateRepositoryImplTest.kt — added 2 tests: multi-currency cached fallback on failure (3 currencies preserved), full remote quotes persistence (not just USD)
+  - presentation/settings/build.gradle.kts — added testImplementation(libs.bundles.testing)
+  - presentation/settings/src/test/.../SettingsViewModelTest.kt — new test class: successful refresh resets counter, failed refresh increments counter, 3 failures trigger auto-switch to top-1/top-2, USD/EUR defaults when no transactions, single currency fallback (base=KZT target=EUR default), 2 failures do not trigger auto-switch
+  - presentation/transactions/src/test/.../TransactionListViewModelTest.kt — added 2 tests: EUR base converts KZT transactions (non-USD base scenario), full fallback when one account currency quote is missing (GBP missing, all conversion disabled)
 - **Learnings for future iterations:**
-  - Patterns discovered (e.g., "this codebase uses X for Y"): on list-heavy Compose screens, `contentPadding` is a cleaner way to reserve space for overlays like a FAB than adding a dedicated spacer row.
-  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): when a screen already lives inside the app-level bottom-nav scaffold, applying the inner scaffold's bottom padding to the list can create a visible double gap near the bottom edge.
-  - Useful context (e.g., "the evaluation panel is in component X"): the home transaction feed spacing is controlled in `TransactionListScreen.kt`; there is no separate home-specific bottom-bar padding in the feature module.
----
-## [2026-03-03 21:54:01 UTC] - US-004
-- Replaced the fixed `96.dp` transaction list bottom padding with `padding.calculateBottomPadding() + 16.dp`, so the FAB clearance now follows the `Scaffold`'s actual inset instead of relying on a hardcoded value.
-- This keeps the earlier double-gap fix intact while better matching neighboring screens and preserving safe spacing on devices with different inset sizes.
-- Files changed: `presentation/transactions/src/main/java/com/atelbay/money_manager/presentation/transactions/ui/list/TransactionListScreen.kt`, `scripts/ralph/progress.txt`
-- **Learnings for future iterations:**
-  - Patterns discovered (e.g., "this codebase uses X for Y"): when a `LazyColumn` sits inside a `Scaffold` with a FAB, using the provided bottom content padding as the base clearance is more robust than pinning a magic number.
-  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): replacing a duplicated spacer with a fixed constant can still look off on devices with different system/FAB insets, so prefer deriving spacing from `padding`.
-  - Useful context (e.g., "the evaluation panel is in component X"): `TransactionListScreen.kt` now computes its bottom list inset directly in `contentPadding`; there is no trailing spacer item or separate hardcoded FAB padding constant.
----
-## [2026-03-03 22:01:24 UTC] - US-005
-- Replaced the shared `MoneyManagerFAB` hardcoded teal/white colors with dedicated semantic FAB tokens, then mapped those tokens to the existing tertiary palette so the button reads as an intentional accent instead of the default primary teal.
-- Assigned separate light and dark FAB container/content pairs, which keeps the icon legible across themes while preserving the same shared component used by transactions, categories, and accounts screens.
-- Files changed: `core/ui/src/main/java/com/atelbay/money_manager/core/ui/theme/Color.kt`, `core/ui/src/main/java/com/atelbay/money_manager/core/ui/components/MoneyManagerFAB.kt`, `scripts/ralph/progress.txt`
-- **Learnings for future iterations:**
-  - Patterns discovered (e.g., "this codebase uses X for Y"): shared UI primitives in `core:ui` should expose their own semantic theme tokens when a component needs different light/dark styling than the base accent color.
-  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): expanding `MoneyManagerColors` requires updating both `LightMoneyManagerColors` and `DarkMoneyManagerColors` immediately, or the theme stops compiling.
-  - Useful context (e.g., "the evaluation panel is in component X"): `MoneyManagerFAB.kt` is the single shared FAB used by the list screens in transactions, categories, and accounts, so color changes there apply app-wide.
----
-## [2026-03-03 22:14:26 UTC] - US-005
-- Tightened the shared FAB accent from the softer tertiary container pair to the stronger tertiary role pair, so the button reads as a clearly contrasty primary action in both light and dark themes.
-- Kept the shared semantic FAB tokens and `MoneyManagerFAB` component contract unchanged, so the transactions, categories, and accounts screens all inherit the stronger accent without any screen-level edits.
-- Files changed: `core/ui/src/main/java/com/atelbay/money_manager/core/ui/theme/Color.kt`, `scripts/ralph/progress.txt`
-- **Learnings for future iterations:**
-  - Patterns discovered (e.g., "this codebase uses X for Y"): for shared high-emphasis actions, semantic component tokens can still map to full Material color roles instead of container roles when the UI needs a stronger contrast target.
-  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): using a container tone for a global primary affordance may technically work but still undershoot the visual emphasis required by product acceptance criteria.
-  - Useful context (e.g., "the evaluation panel is in component X"): `fabContainer`/`fabContent` remain the only knobs for app-wide FAB color, so future polish work should adjust those theme tokens first.
----
-## [2026-03-03 22:22:10 UTC] - US-006
-- Replaced the app-level instant bottom-bar removal with an `AnimatedVisibility` transition that slides and fades the shared bottom navigation in and out over a single tuned duration.
-- Preserved the last selected top-level destination during the exit animation, so the bar keeps a stable selected state while the scaffold bottom inset collapses smoothly instead of snapping away on FAB-driven navigation.
-- Files changed: `app/src/main/java/com/atelbay/money_manager/MainActivity.kt`, `scripts/ralph/progress.txt`
-- **Learnings for future iterations:**
-  - Patterns discovered (e.g., "this codebase uses X for Y"): shared route-level chrome transitions belong in `MainActivity`'s app scaffold, not in individual feature screens, when the behavior should stay consistent across all bottom-tab destinations.
-  - Gotchas encountered (e.g., "don't forget to update Z when changing W"): if the bottom bar animates out after leaving a top-level route, keep the last non-null `TopLevelDestination` around for the exit frame or the selected tab can clear before the animation completes.
-  - Useful context (e.g., "the evaluation panel is in component X"): the bottom-nav visibility rule still comes from `currentDestination?.hasRoute(dest.route::class)` inside `MoneyManagerApp`; only the presentation changed.
+  - NbkExchangeRateRemoteDataSource.parseAllQuotes() is `internal` — testable from same module's test directory
+  - SettingsViewModel needs mockk<Application>(relaxed = true) — avoids PackageInfo Android stub issues in JVM tests
+  - presentation:settings didn't have testImplementation for testing bundle — feature convention plugin doesn't include it automatically
+  - TransactionListViewModelTest transaction() helper needs accountId param for multi-account test scenarios
+  - Full fallback test needs two accounts with different currencies where one currency's quote is missing from ExchangeRate
 ---

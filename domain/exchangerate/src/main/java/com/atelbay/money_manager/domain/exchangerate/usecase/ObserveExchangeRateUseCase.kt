@@ -6,11 +6,11 @@ import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
 /**
- * Returns an observable stream of the cached USD-KZT exchange rate.
- * Emits null if no rate has been fetched yet.
+ * Returns an observable stream of the cached exchange-rate quotes.
+ * Emits null if no quotes have been fetched yet.
  */
-class GetUsdKztRateUseCase @Inject constructor(
+class ObserveExchangeRateUseCase @Inject constructor(
     private val repository: ExchangeRateRepository,
 ) {
-    operator fun invoke(): Flow<ExchangeRate?> = repository.observeRate()
+    operator fun invoke(): Flow<ExchangeRate?> = repository.observeQuotes()
 }

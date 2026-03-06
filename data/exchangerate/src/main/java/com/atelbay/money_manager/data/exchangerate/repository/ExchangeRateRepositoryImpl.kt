@@ -18,27 +18,27 @@ class ExchangeRateRepositoryImpl @Inject constructor(
     private val userPreferences: UserPreferences,
 ) : ExchangeRateRepository {
 
-    override fun observeRate(): Flow<ExchangeRate?> =
+    override fun observeQuotes(): Flow<ExchangeRate?> =
         userPreferences.exchangeRate.map { storedRate ->
             storedRate?.toCacheModel()?.toDomain()
         }
 
-    override suspend fun saveRate(rate: ExchangeRate) {
+    override suspend fun saveQuotes(rate: ExchangeRate) {
         val cacheModel = rate.toCacheModel(source = SOURCE_NBK)
         userPreferences.setExchangeRate(
-            usdToKzt = cacheModel.usdToKzt,
+            quotes = cacheModel.quotes,
             fetchedAt = cacheModel.fetchedAt,
             source = cacheModel.source,
         )
     }
 
-    override suspend fun fetchAndStoreRate(): ExchangeRate {
+    override suspend fun fetchAndStoreQuotes(): ExchangeRate {
         return try {
-            val cacheModel = remoteDataSource.fetchUsdKztRate()
+            val cacheModel = remoteDataSource.fetchQuotes()
                 .toCacheModel(fetchedAt = System.currentTimeMillis())
 
             userPreferences.setExchangeRate(
-                usdToKzt = cacheModel.usdToKzt,
+                quotes = cacheModel.quotes,
                 fetchedAt = cacheModel.fetchedAt,
                 source = cacheModel.source,
             )

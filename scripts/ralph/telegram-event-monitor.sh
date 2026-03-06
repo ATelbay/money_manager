@@ -20,6 +20,7 @@ for arg in "$@"; do
 done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/ralph_prd.sh"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PRD_FILE="$SCRIPT_DIR/prd.json"
 PROGRESS_FILE="$SCRIPT_DIR/progress.txt"
@@ -100,12 +101,36 @@ story_total() {
   jq -r '.userStories | length' "$PRD_FILE" 2>/dev/null || echo "0"
 }
 
+todo_count() {
+  ralph_count_todo_stories "$PRD_FILE"
+}
+
+implemented_ids_json() {
+  jq -c '
+    [
+      .userStories[]?
+      | select((.status // (if .passes == true then "passed" else "todo" end)) == "implemented")
+      | .id
+    ]
+  ' "$PRD_FILE" 2>/dev/null || echo '[]'
+}
+
+implemented_count() {
+  ralph_count_implemented_stories "$PRD_FILE"
+}
+
 passed_ids_json() {
-  jq -c '[.userStories[]? | select(.passes == true) | .id]' "$PRD_FILE" 2>/dev/null || echo '[]'
+  jq -c '
+    [
+      .userStories[]?
+      | select((.status // (if .passes == true then "passed" else "todo" end)) == "passed")
+      | .id
+    ]
+  ' "$PRD_FILE" 2>/dev/null || echo '[]'
 }
 
 passed_count() {
-  jq -r '[.userStories[]? | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo "0"
+  ralph_count_passed_stories "$PRD_FILE"
 }
 
 story_label() {
@@ -117,7 +142,7 @@ story_label() {
   ' "$PRD_FILE" 2>/dev/null | head -n 1
 }
 
-format_new_passed_labels() {
+format_story_labels() {
   local ids_json="$1"
   local labels=()
   local story_id label
@@ -231,19 +256,21 @@ load_prev_state() {
 save_state() {
   local seen_alive="$1"
   local alive="$2"
-  local passed_ids="$3"
-  local ci_failed="$4"
-  local failing_checks="$5"
-  local review_fix_sha="$6"
-  local qa_run_id="$7"
-  local qa_status="$8"
-  local qa_conclusion="$9"
-  local qa_delivered="${10}"
-  local terminal="${11}"
+  local implemented_ids="$3"
+  local passed_ids="$4"
+  local ci_failed="$5"
+  local failing_checks="$6"
+  local review_fix_sha="$7"
+  local qa_run_id="$8"
+  local qa_status="$9"
+  local qa_conclusion="${10}"
+  local qa_delivered="${11}"
+  local terminal="${12}"
 
   jq -n \
     --argjson seenAlive "$seen_alive" \
     --argjson alive "$alive" \
+    --argjson implementedIds "$implemented_ids" \
     --argjson passedIds "$passed_ids" \
     --argjson ciFailed "$ci_failed" \
     --arg failingChecks "$failing_checks" \
@@ -257,6 +284,7 @@ save_state() {
     '{
       seenAlive: $seenAlive,
       alive: $alive,
+      implementedIds: $implementedIds,
       passedIds: $passedIds,
       ciFailed: $ciFailed,
       failingChecks: $failingChecks,
@@ -271,16 +299,17 @@ save_state() {
 }
 
 check_once() {
-  local prev_json prev_seen_alive prev_alive prev_passed_ids prev_ci_failed prev_failing_checks
+  local prev_json prev_seen_alive prev_alive prev_implemented_ids prev_passed_ids prev_ci_failed prev_failing_checks
   local prev_review_fix_sha prev_qa_run_id prev_qa_status prev_qa_conclusion prev_qa_delivered prev_terminal
   local branch pr_json pr_number pr_url checks_summary ci_failed
-  local alive total passed_ids passed_count_value latest_line review_fix_sha qa_run_id
+  local alive total todo_count_value implemented_ids implemented_count_value passed_ids passed_count_value latest_line review_fix_sha qa_run_id
   local qa_json qa_status qa_conclusion qa_url qa_completed qa_delivered_now
-  local new_passed_ids new_labels terminal="" should_exit=false qa_apk_path qa_caption
+  local new_implemented_ids new_passed_ids new_labels terminal="" should_exit=false qa_apk_path qa_caption
 
   prev_json=$(load_prev_state)
   prev_seen_alive=$(jq -r '.seenAlive // false' <<<"$prev_json")
   prev_alive=$(jq -r '.alive // false' <<<"$prev_json")
+  prev_implemented_ids=$(jq -c '.implementedIds // []' <<<"$prev_json")
   prev_passed_ids=$(jq -c '.passedIds // []' <<<"$prev_json")
   prev_ci_failed=$(jq -r '.ciFailed // false' <<<"$prev_json")
   prev_failing_checks=$(jq -r '.failingChecks // "- none"' <<<"$prev_json")
@@ -299,6 +328,9 @@ check_once() {
   fi
 
   total=$(story_total)
+  todo_count_value=$(todo_count)
+  implemented_ids=$(implemented_ids_json)
+  implemented_count_value=$(implemented_count)
   passed_ids=$(passed_ids_json)
   passed_count_value=$(passed_count)
   latest_line=$(latest_non_empty_line)
@@ -332,20 +364,28 @@ check_once() {
 
   if [[ "$prev_seen_alive" != "true" ]]; then
     if [[ "$alive" == "true" ]]; then
-      send_message "Ralph запущен. Ветка: ${branch:-unknown}. Прогресс: ${passed_count_value}/${total}."
-      save_state "true" "$alive" "$passed_ids" "$ci_failed" "$checks_summary" "$review_fix_sha" "$qa_run_id" "$qa_status" "$qa_conclusion" "false" ""
+      send_message "Ralph запущен. Ветка: ${branch:-unknown}. Stories: todo=${todo_count_value}, implemented=${implemented_count_value}, passed=${passed_count_value}/${total}."
+      save_state "true" "$alive" "$implemented_ids" "$passed_ids" "$ci_failed" "$checks_summary" "$review_fix_sha" "$qa_run_id" "$qa_status" "$qa_conclusion" "false" ""
     else
-      save_state "false" "$alive" "$passed_ids" "$ci_failed" "$checks_summary" "$review_fix_sha" "$qa_run_id" "$qa_status" "$qa_conclusion" "false" ""
+      save_state "false" "$alive" "$implemented_ids" "$passed_ids" "$ci_failed" "$checks_summary" "$review_fix_sha" "$qa_run_id" "$qa_status" "$qa_conclusion" "false" ""
     fi
     return 0
+  fi
+
+  new_implemented_ids=$(jq -c --argjson prev "$prev_implemented_ids" '
+    [.[] | select(($prev | index(.)) | not)]
+  ' <<<"$implemented_ids")
+  if [[ "$new_implemented_ids" != "[]" ]]; then
+    new_labels=$(format_story_labels "$new_implemented_ids")
+    send_message "Ralph реализовал story: ${new_labels}. Stories: todo=${todo_count_value}, implemented=${implemented_count_value}, passed=${passed_count_value}/${total}."
   fi
 
   new_passed_ids=$(jq -c --argjson prev "$prev_passed_ids" '
     [.[] | select(($prev | index(.)) | not)]
   ' <<<"$passed_ids")
   if [[ "$new_passed_ids" != "[]" ]]; then
-    new_labels=$(format_new_passed_labels "$new_passed_ids")
-    send_message "Ralph завершил story: ${new_labels}. Прогресс: ${passed_count_value}/${total}."
+    new_labels=$(format_story_labels "$new_passed_ids")
+    send_message "CI подтвердил story: ${new_labels}. Stories: todo=${todo_count_value}, implemented=${implemented_count_value}, passed=${passed_count_value}/${total}."
   fi
 
   if [[ "$ci_failed" == "true" && ( "$prev_ci_failed" != "true" || "$checks_summary" != "$prev_failing_checks" ) ]]; then
@@ -411,13 +451,13 @@ check_once() {
         pr_url=$(jq -r '.pr_url // empty' "$RUN_SUMMARY_FILE" 2>/dev/null || echo "$pr_url")
       fi
       if [[ -n "$pr_url" ]]; then
-        send_message "Ralph завершил run. Выполнено ${passed_count_value}/${total}. PR: ${pr_url}${qa_run_id:+. QA Build: ${qa_run_id}}"
+        send_message "Ralph завершил run. Stories: todo=${todo_count_value}, implemented=${implemented_count_value}, passed=${passed_count_value}/${total}. PR: ${pr_url}${qa_run_id:+. QA Build: ${qa_run_id}}"
       else
-        send_message "Ralph завершил run. Выполнено ${passed_count_value}/${total}.${qa_run_id:+ QA Build: ${qa_run_id}}"
+        send_message "Ralph завершил run. Stories: todo=${todo_count_value}, implemented=${implemented_count_value}, passed=${passed_count_value}/${total}.${qa_run_id:+ QA Build: ${qa_run_id}}"
       fi
     elif [[ "$prev_terminal" != "crashed" ]]; then
       terminal="crashed"
-      send_message "Ralph остановился раньше времени. Прогресс: ${passed_count_value}/${total}. Последнее: ${latest_line:-нет данных}."
+      send_message "Ralph остановился раньше времени. Stories: todo=${todo_count_value}, implemented=${implemented_count_value}, passed=${passed_count_value}/${total}. Последнее: ${latest_line:-нет данных}."
     fi
   fi
 
@@ -446,7 +486,7 @@ check_once() {
     terminal="completed"
   fi
 
-  save_state "$prev_seen_alive" "$alive" "$passed_ids" "$ci_failed" "$checks_summary" "$review_fix_sha" "$qa_run_id" "$qa_status" "$qa_conclusion" "$qa_delivered_now" "$terminal"
+  save_state "$prev_seen_alive" "$alive" "$implemented_ids" "$passed_ids" "$ci_failed" "$checks_summary" "$review_fix_sha" "$qa_run_id" "$qa_status" "$qa_conclusion" "$qa_delivered_now" "$terminal"
 
   if [[ "$should_exit" == "true" ]]; then
     return 10

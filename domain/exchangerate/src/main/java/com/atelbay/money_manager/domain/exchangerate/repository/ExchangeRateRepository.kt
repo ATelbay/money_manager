@@ -4,7 +4,7 @@ import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Contract for loading and storing the USD-KZT exchange rate.
+ * Contract for loading and storing multi-currency exchange-rate quotes.
  *
  * Implementations are expected to use remote-first strategy with
  * a local cache fallback when the network is unavailable.
@@ -12,20 +12,20 @@ import kotlinx.coroutines.flow.Flow
 interface ExchangeRateRepository {
 
     /**
-     * Observes the locally cached rate. Emits null if no cached rate exists yet.
+     * Observes the locally cached quote set. Emits null if no quotes exist yet.
      */
-    fun observeRate(): Flow<ExchangeRate?>
+    fun observeQuotes(): Flow<ExchangeRate?>
 
     /**
-     * Persists the provided rate into the local cache.
+     * Persists the provided quote set into the local cache.
      */
-    suspend fun saveRate(rate: ExchangeRate)
+    suspend fun saveQuotes(rate: ExchangeRate)
 
     /**
-     * Fetches the latest rate from the remote source (NBK) and persists it locally.
+     * Fetches the latest quotes from the remote source (NBK) and persists them locally.
      *
      * @return The freshly fetched [ExchangeRate].
-     * @throws Exception if the network request fails and no cached rate is available.
+     * @throws Exception if the network request fails and no cached quotes are available.
      */
-    suspend fun fetchAndStoreRate(): ExchangeRate
+    suspend fun fetchAndStoreQuotes(): ExchangeRate
 }

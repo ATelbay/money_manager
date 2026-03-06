@@ -1,90 +1,101 @@
 {
   "project": "MoneyManager",
-  "branchName": "ralph/currency-settings-and-home-ui-polish",
-  "description": "Currency settings UX expansion + main screen spacing/FAB/bottom-nav animation polish",
+  "branchName": "ralph/nbk-all-currency-pairs",
+  "description": "Support all NBK currency pairs across settings, transaction rows, and balances with full-source fallback and auto pair reset after repeated fetch failures.",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Расширить список валют в настройках",
-      "description": "As a user, I want to pick from a broader NBK currency list so I can configure conversion pairs beyond basic options.",
+      "title": "Generalize exchange-rate domain contracts",
+      "description": "As a developer, I want exchange-rate domain contracts to support full NBK quote sets so the app can convert between any supported currencies instead of only USD/KZT.",
       "acceptanceCriteria": [
-        "В настройках доступен расширенный список валют НБК (коды + названия)",
-        "Список используется для выбора базовой и целевой валют",
-        "Валюта выбирается без падений и визуальных артефактов",
-        "Typecheck/compile для затронутых модулей проходит"
+        "Domain exchange-rate model stores normalized multi-currency quotes (code -> KZT per 1 unit) with fetchedAt metadata, not only usdToKzt",
+        "ExchangeRateRepository contract exposes observe/fetch APIs for the full quote set and no longer forces USD/KZT-only naming",
+        "Conversion use case accepts source currency, target currency, and amount, and supports deterministic same-currency passthrough",
+        "All call sites compile against the new domain API without temporary TODO stubs",
+        "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 1,
       "passes": true,
-      "notes": ""
+      "notes": "Primary files: domain/exchangerate/src/main/java/com/atelbay/money_manager/domain/exchangerate/model/ExchangeRate.kt, .../repository/ExchangeRateRepository.kt, .../usecase/*. Keep conversion deterministic via KZT pivot (source->KZT->target) and preserve rounding strategy already used in ConvertAmountUseCase tests."
     },
     {
       "id": "US-002",
-      "title": "Объединить блоки курса в один",
-      "description": "As a user, I want one compact exchange-rate row so the settings screen is cleaner and easier to read.",
+      "title": "Fetch and cache full NBK quotes",
+      "description": "As a user, I want the app to download all daily NBK currency quotes so every supported pair can be converted with current rates.",
       "acceptanceCriteria": [
-        "Блоки 'Последнее обновление курса' и 'Обновить курс' объединены в одну сущность",
-        "Сохранена иконка обновления",
-        "Текст содержит 'Курс на ...' с датой/временем",
-        "Нажатие на действие обновления работает как раньше"
+        "NBK remote data source parses all available currency rows (code + nominal + KZT value), not only USD",
+        "Parser normalizes nominal-based rows (e.g., 10/100 units) to per-1-unit KZT rates before storing",
+        "Repository persists the full quote set in UserPreferences and returns cached quotes if refresh fails",
+        "Quote metadata (source and fetchedAt) remains available for Settings UI",
+        "Backward-compatible read path exists for legacy usd_kzt cache values during migration window",
+        "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 2,
       "passes": true,
-      "notes": ""
+      "notes": "Primary files: data/exchangerate/.../remote/NbkExchangeRateRemoteDataSource.kt, data/exchangerate/.../repository/ExchangeRateRepositoryImpl.kt, data/exchangerate/.../mapper/*.kt, core/datastore/src/main/java/com/atelbay/money_manager/core/datastore/UserPreferences.kt."
     },
     {
       "id": "US-003",
-      "title": "Вынести выбор валют в верхнее меню + bottom sheet с поиском",
-      "description": "As a user, I want to open a searchable currency picker from top bar so large buttons do not clutter the settings content.",
+      "title": "Auto-switch pair after 3 fetch failures",
+      "description": "As a user, I want the app to recover from repeated quote refresh failures by resetting the selected pair to the most used transaction currencies.",
       "acceptanceCriteria": [
-        "Большие кнопки выбора валют удалены из основного контента экрана",
-        "В TopBar добавлено действие для открытия currency bottom sheet",
-        "Bottom sheet содержит поиск по коду и названию валюты",
-        "Можно выбрать базовую и целевую валюту из bottom sheet",
-        "Выбранные значения корректно отображаются в настройках"
+        "Consecutive quote-refresh failures are tracked in persistent preferences",
+        "Failure counter increments on each failed refresh and resets to 0 after any successful refresh",
+        "When counter reaches 3, app auto-selects settings pair from all-time transactions: base=top-1 currency by transaction count, target=top-2 currency by transaction count",
+        "If top-1 is unavailable fallback base is USD; if top-2 is unavailable fallback target is EUR",
+        "Tie handling for top-1/top-2 is deterministic and documented in code comments",
+        "Auto-switch updates persisted base/target settings without crash",
+        "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 3,
       "passes": true,
-      "notes": ""
+      "notes": "Use all transactions history (no period filter) for frequency ranking. Likely touchpoints: exchange-rate refresh flow + preferences + transaction repository/use case access for counts."
     },
     {
       "id": "US-004",
-      "title": "Убрать лишний зазор в списке транзакций",
-      "description": "As a user, I want consistent spacing between transaction list content and bottom navigation so the main screen feels polished.",
+      "title": "Display dynamic pair rate in settings",
+      "description": "As a user, I want the Settings exchange-rate block to reflect my selected base/target currencies so pair info is correct beyond USD/KZT.",
       "acceptanceCriteria": [
-        "На главном экране исправлен зазор между списком транзакций и bottom nav",
-        "Список не перекрывается FAB и остаётся удобным для прокрутки",
-        "Визуально отступы соответствуют соседним экранам"
+        "Settings rate title/subtitle no longer hardcode USD/KZT and are derived from currently selected base and target currencies",
+        "Rate display is calculated from the generalized quote set for any selected pair (including non-USD and non-KZT pairs)",
+        "After auto-switch on 3 failures, settings currency summary updates to the new persisted pair",
+        "Refresh action and error state remain pair-agnostic and do not break manual currency selection",
+        "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 4,
       "passes": true,
-      "notes": ""
+      "notes": "Primary files: presentation/settings/.../SettingsViewModel.kt, SettingsState.kt, SettingsScreen.kt. Keep existing test tags stable where possible (settings:exchangeRate, settings:refreshRateAction, settings:currencySummary)."
     },
     {
       "id": "US-005",
-      "title": "Обновить цвет FAB",
-      "description": "As a user, I want a non-default FAB color that matches app style so the primary action looks intentional.",
+      "title": "Apply all-pair conversion with full fallback",
+      "description": "As a user, I want transaction rows and balance/summary cards to convert correctly for any selected currency while safely falling back to source values when rates are insufficient.",
       "acceptanceCriteria": [
-        "Цвет FAB изменён на недефолтный и контрастный",
-        "Иконка FAB читаема в светлой и тёмной теме",
-        "Изменение не ломает другие экраны, где используется общий FAB компонент"
+        "TransactionListViewModel converts account balances, income, expense, and row amounts for any NBK-supported source/base combination",
+        "When conversion is applied, row primary amount uses selected display currency and secondary line keeps original amount + original currency with 'Исх.' label",
+        "Full fallback rule is enforced: if required quotes are missing for current scope, UI falls back to source values/currencies instead of partial mixed conversion",
+        "Same-currency rows and totals keep current behavior without redundant conversion rendering",
+        "Selected currency is displayed consistently in balance widgets and transaction list where conversion is available",
+        "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 5,
       "passes": true,
-      "notes": ""
+      "notes": "Primary files: presentation/transactions/.../TransactionListViewModel.kt, TransactionListState.kt, TransactionListScreen.kt, core/ui/.../TransactionListItem.kt. Reuse current row-level conversion UX added in branch history; expand conversion matrix and fallback policy."
     },
     {
       "id": "US-006",
-      "title": "Сгладить скрытие bottom nav после нажатия FAB",
-      "description": "As a user, I want smooth bottom-nav/FAB transition so opening add-flow does not cause jerky UI movement.",
+      "title": "Add regression tests for multi-currency policy",
+      "description": "As a developer, I want automated coverage for generalized conversion, full fallback, and auto-reset policy so USD/KZT-only regressions do not return.",
       "acceptanceCriteria": [
-        "После нажатия FAB bottom nav скрывается плавно, без резкого исчезновения",
-        "FAB не дёргается вниз при переходе",
-        "Анимация согласована по времени и ощущается стабильной",
-        "Регрессии навигации между bottom-tab экранами отсутствуют"
+        "Domain conversion tests cover same-currency passthrough, inverse pair conversion, and nominal-based currencies",
+        "Repository/data tests cover parsing multiple NBK quotes, nominal normalization, and cached fallback on remote failure",
+        "Failure-streak tests cover increment/reset behavior and the 3-failure auto-switch to top-1/top-2 (with USD/EUR defaults)",
+        "TransactionListViewModel tests cover at least one non-USD base scenario and full-source fallback when quotes are missing",
+        "CI checks for this story commit pass on GitHub Actions"
       ],
       "priority": 6,
       "passes": true,
-      "notes": ""
+      "notes": "Primary files: domain/exchangerate/src/test/... , data/exchangerate/src/test/... , presentation/transactions/src/test/... . Follow existing fake-repository and coroutine-test style used in TransactionListViewModelTest and ConvertAmountUseCaseTest."
     }
   ]
 }

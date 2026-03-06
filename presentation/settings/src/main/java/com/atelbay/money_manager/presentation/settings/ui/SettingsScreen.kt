@@ -113,7 +113,11 @@ fun SettingsScreen(
                         icon = Icons.Default.AttachMoney,
                         iconColor = Color(0xFFFBBF24),
                         title = "Курс ${state.baseCurrency.code}/${state.targetCurrency.code}",
-                        subtitle = state.rateDisplay.ifEmpty { "Курс ещё не загружен" },
+                        subtitle = when {
+                            !state.hasRateSnapshot -> "Курс ещё не загружен"
+                            !state.rateDisplay.isNullOrBlank() -> state.rateDisplay
+                            else -> null
+                        },
                         hasChevron = true,
                         onClick = onCurrencyPickerClick,
                         modifier = Modifier.testTag("settings:exchangeRate"),
