@@ -61,14 +61,15 @@ fun MoneyManagerNavHost(
                     navController.navigate(TransactionEdit())
                 },
                 onImportClick = {
-                    navController.navigate(Import)
+                    navController.navigate(Import())
                 },
             )
         }
 
-        composable<Import> {
+        composable<Import> { backStackEntry ->
             ImportRoute(
                 onBack = { navController.popBackStack() },
+                initialPdfUri = backStackEntry.toRoute<Import>().pdfUri,
             )
         }
 

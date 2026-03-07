@@ -1,5 +1,7 @@
 package com.atelbay.money_manager
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -39,9 +41,12 @@ import com.atelbay.money_manager.core.ui.theme.LocalStrings
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.theme.appStringsFor
 import com.atelbay.money_manager.navigation.Home
+import com.atelbay.money_manager.navigation.Import
 import com.atelbay.money_manager.navigation.MoneyManagerBottomBar
 import com.atelbay.money_manager.navigation.MoneyManagerNavHost
+import com.atelbay.money_manager.navigation.NavigationAction
 import com.atelbay.money_manager.navigation.Onboarding
+import com.atelbay.money_manager.navigation.PendingNavigationManager
 import com.atelbay.money_manager.navigation.TopLevelDestination
 import com.atelbay.money_manager.navigation.TransactionEdit
 import dagger.hilt.android.AndroidEntryPoint
@@ -56,8 +61,12 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var userPreferences: UserPreferences
 
+    @Inject
+    lateinit var pendingNavigationManager: PendingNavigationManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        extractPdfUri(intent)?.let { pendingNavigationManager.enqueue(NavigationAction.OpenImport(it)) }
         enableEdgeToEdge()
         setContent {
             val themeMode by userPreferences.themeMode
@@ -97,10 +106,42 @@ class MainActivity : ComponentActivity() {
                         MoneyManagerApp(
                             navController = navController,
                             startDestination = if (completed) Home else Onboarding,
+                            onboardingCompleted = completed,
+                            pendingNavigationManager = pendingNavigationManager,
                         )
                     }
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        extractPdfUri(intent)?.let { pendingNavigationManager.enqueue(NavigationAction.OpenImport(it)) }
+    }
+
+    private fun extractPdfUri(intent: Intent): String? = when (intent.action) {
+        Intent.ACTION_SEND -> {
+            // Manifest filter already guarantees mimeType=application/pdf;
+            // fall back to ClipData for apps that don't set EXTRA_STREAM
+            @Suppress("DEPRECATION")
+            val streamUri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+            val clipUri = intent.clipData?.getItemAt(0)?.uri
+            (streamUri ?: clipUri)?.also { takePersistablePermission(it) }?.toString()
+        }
+        Intent.ACTION_VIEW -> {
+            // Manifest filter already guarantees mimeType=application/pdf;
+            // intent.type is often null for ACTION_VIEW — trust the filter, not the field
+            intent.data?.also { takePersistablePermission(it) }?.toString()
+        }
+        else -> null
+    }
+
+    private fun takePersistablePermission(uri: Uri) {
+        try {
+            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } catch (_: SecurityException) {
+            // file:// URIs don't support persistable permissions — safe to ignore
         }
     }
 }
@@ -109,6 +150,8 @@ class MainActivity : ComponentActivity() {
 private fun MoneyManagerApp(
     navController: NavHostController,
     startDestination: Any,
+    onboardingCompleted: Boolean,
+    pendingNavigationManager: PendingNavigationManager,
 ) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
@@ -143,6 +186,23 @@ private fun MoneyManagerApp(
         action()
         forceHideBottomBar = false
         pendingNavAction = null
+    }
+
+    // Observe pending action as Compose state so this LaunchedEffect re-runs when
+    // either the back stack settles (backStackEntry becomes non-null) or a new action arrives.
+    val pendingAction by pendingNavigationManager.pendingAction.collectAsStateWithLifecycle()
+    LaunchedEffect(backStackEntry?.id, pendingAction) {
+        val action = pendingAction ?: return@LaunchedEffect
+        if (!onboardingCompleted) return@LaunchedEffect
+        backStackEntry ?: return@LaunchedEffect // NavHost not yet settled
+        when (action) {
+            is NavigationAction.OpenImport -> {
+                navController.navigate(Import(pdfUri = action.pdfUri)) {
+                    launchSingleTop = true
+                }
+                pendingNavigationManager.consume()
+            }
+        }
     }
 
     Scaffold(
