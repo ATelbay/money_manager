@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Smartphone
@@ -58,6 +59,7 @@ import com.atelbay.money_manager.data.sync.SyncStatus
 fun SettingsScreen(
     state: SettingsState,
     onThemeModeChange: (ThemeMode) -> Unit,
+    onLanguageChange: (AppLanguage) -> Unit,
     onRefreshRateClick: () -> Unit,
     onCategoriesClick: () -> Unit,
     onCurrencyPickerClick: () -> Unit,
@@ -67,6 +69,7 @@ fun SettingsScreen(
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
+    val s = MoneyManagerTheme.strings
 
     Scaffold(
         modifier = modifier.testTag("settings:screen"),
@@ -75,7 +78,7 @@ fun SettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Настройки",
+                        text = s.settingsTitle,
                         style = typography.sectionHeader,
                         color = colors.textPrimary,
                     )
@@ -95,17 +98,17 @@ fun SettingsScreen(
         ) {
             Spacer(modifier = Modifier.height(4.dp))
 
-            SectionHeader("Аккаунт")
+            SectionHeader(s.sectionAccount)
 
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column {
                     val accountTitle = state.currentUser?.displayName
                         ?: state.currentUser?.email
-                        ?: "Войти через Google"
+                        ?: s.signInWithGoogle
                     val accountSubtitle = if (state.currentUser != null) {
                         state.currentUser.email
                     } else {
-                        "Синхронизация данных"
+                        s.syncData
                     }
                     SettingRow(
                         icon = Icons.Default.AccountCircle,
@@ -127,14 +130,14 @@ fun SettingsScreen(
                             is SyncStatus.Idle -> colors.textSecondary
                         }
                         val syncTitle = when (state.syncStatus) {
-                            is SyncStatus.Syncing -> "Синхронизация..."
-                            is SyncStatus.Synced -> "Синхронизировано"
-                            is SyncStatus.Failed -> "Ошибка синхронизации"
-                            is SyncStatus.Idle -> "Синхронизация данных"
+                            is SyncStatus.Syncing -> s.syncing
+                            is SyncStatus.Synced -> s.synced
+                            is SyncStatus.Failed -> s.syncError
+                            is SyncStatus.Idle -> s.syncData
                         }
                         val syncSubtitle = when {
-                            state.lastSyncDisplay.isNotEmpty() -> "Обновлено ${state.lastSyncDisplay}"
-                            state.syncStatus is SyncStatus.Failed -> "Нажмите для повтора"
+                            state.lastSyncDisplay.isNotEmpty() -> s.updatedAt(state.lastSyncDisplay)
+                            state.syncStatus is SyncStatus.Failed -> s.syncRetryHint
                             else -> null
                         }
                         val syncIcon = if (state.syncStatus is SyncStatus.Failed) {
@@ -162,15 +165,15 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            SectionHeader("Общее")
+            SectionHeader(s.sectionGeneral)
 
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column {
                     SettingRow(
                         icon = Icons.Default.GridView,
                         iconColor = Teal,
-                        title = "Категории",
-                        subtitle = "Управление категориями",
+                        title = s.categoriesManagement,
+                        subtitle = s.categoriesSubtitle,
                         hasChevron = true,
                         onClick = onCategoriesClick,
                         modifier = Modifier.testTag("settings:categories"),
@@ -185,9 +188,9 @@ fun SettingsScreen(
                     SettingRow(
                         icon = Icons.Default.AttachMoney,
                         iconColor = Color(0xFFFBBF24),
-                        title = "Курс ${state.baseCurrency.code}/${state.targetCurrency.code}",
+                        title = s.rateLabel(state.baseCurrency.code, state.targetCurrency.code),
                         subtitle = when {
-                            !state.hasRateSnapshot -> "Курс ещё не загружен"
+                            !state.hasRateSnapshot -> s.rateNotLoaded
                             !state.rateDisplay.isNullOrBlank() -> state.rateDisplay
                             else -> null
                         },
@@ -203,18 +206,18 @@ fun SettingsScreen(
                     )
 
                     val refreshTitle = if (state.lastUpdatedDisplay.isNotEmpty()) {
-                        "Курс на ${state.lastUpdatedDisplay}"
+                        s.rateAsOf(state.lastUpdatedDisplay)
                     } else {
-                        "Загрузить курс НБК"
+                        s.loadRate
                     }
                     SettingRow(
                         icon = Icons.Default.Refresh,
                         iconColor = Teal,
                         title = refreshTitle,
                         subtitle = if (state.isRefreshingRate) {
-                            "Выполняется обновление"
+                            s.updatingRate
                         } else {
-                            "Загрузить актуальный курс НБК"
+                            s.loadRateSubtitle
                         },
                         onClick = onRefreshRateClick,
                         modifier = Modifier.testTag("settings:refreshRate"),
@@ -222,7 +225,7 @@ fun SettingsScreen(
 
                     if (state.rateErrorMessage != null) {
                         Text(
-                            text = state.rateErrorMessage,
+                            text = s.rateError,
                             style = typography.caption,
                             color = Color(0xFFFCA5A5),
                             modifier = Modifier
@@ -235,12 +238,12 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            SectionHeader("Оформление")
+            SectionHeader(s.sectionAppearance)
 
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Тема",
+                        text = s.themeLabel,
                         style = typography.caption,
                         color = colors.textSecondary,
                         modifier = Modifier.padding(bottom = 12.dp),
@@ -253,19 +256,36 @@ fun SettingsScreen(
                             .fillMaxWidth()
                             .testTag("settings:themeSelector"),
                     )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = s.languageLabel,
+                        style = typography.caption,
+                        color = colors.textSecondary,
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+
+                    LanguageSelector(
+                        selected = state.appLanguage,
+                        onSelect = onLanguageChange,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("settings:languageSelector"),
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            SectionHeader("О приложении")
+            SectionHeader(s.sectionAbout)
 
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column {
                     SettingRow(
                         icon = Icons.Default.Info,
                         iconColor = Color(0xFFA78BFA),
-                        title = "Версия",
+                        title = s.versionLabel,
                         rightText = state.appVersion.ifEmpty { "1.0.0" },
                         modifier = Modifier.testTag("settings:version"),
                     )
@@ -279,7 +299,7 @@ fun SettingsScreen(
                     SettingRow(
                         icon = Icons.Default.Code,
                         iconColor = Teal,
-                        title = "Разработчик",
+                        title = s.developerLabel,
                         rightText = "ATelbay",
                     )
                 }
@@ -405,10 +425,11 @@ private fun ThemeSelector(
         val icon: ImageVector,
     )
 
+    val s = MoneyManagerTheme.strings
     val options = listOf(
-        ThemeOption(ThemeMode.SYSTEM, "Система", Icons.Default.Smartphone),
-        ThemeOption(ThemeMode.LIGHT, "Светлая", Icons.Default.LightMode),
-        ThemeOption(ThemeMode.DARK, "Тёмная", Icons.Default.DarkMode),
+        ThemeOption(ThemeMode.SYSTEM, s.themeSystem, Icons.Default.Smartphone),
+        ThemeOption(ThemeMode.LIGHT, s.themeLight, Icons.Default.LightMode),
+        ThemeOption(ThemeMode.DARK, s.themeDark, Icons.Default.DarkMode),
     )
 
     Row(
@@ -459,6 +480,65 @@ private fun ThemeSelector(
     }
 }
 
+// ── Language Selector ──
+
+@Composable
+private fun LanguageSelector(
+    selected: AppLanguage,
+    onSelect: (AppLanguage) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MoneyManagerTheme.colors
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        AppLanguage.entries.forEach { language ->
+            val isSelected = selected == language
+
+            val bgColor by animateColorAsState(
+                targetValue = if (isSelected) Teal else Color.Transparent,
+                animationSpec = tween(250),
+                label = "langBg",
+            )
+            val contentColor by animateColorAsState(
+                targetValue = if (isSelected) Color.White else colors.textSecondary,
+                animationSpec = tween(250),
+                label = "langContent",
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(40.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(bgColor)
+                    .clickable { onSelect(language) }
+                    .testTag("settings:language_${language.code}"),
+                contentAlignment = Alignment.Center,
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Language,
+                        contentDescription = null,
+                        tint = contentColor,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = language.displayName,
+                        style = MoneyManagerTheme.typography.caption,
+                        color = contentColor,
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Preview(showBackground = true, backgroundColor = 0xFF0D0D0D)
 @Composable
 private fun SettingsScreenPreview() {
@@ -472,6 +552,7 @@ private fun SettingsScreenPreview() {
                 appVersion = "1.0.0",
             ),
             onThemeModeChange = {},
+            onLanguageChange = {},
             onRefreshRateClick = {},
             onCategoriesClick = {},
             onCurrencyPickerClick = {},

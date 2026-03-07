@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -34,7 +35,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.atelbay.money_manager.core.datastore.UserPreferences
+import com.atelbay.money_manager.core.ui.theme.LocalStrings
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
+import com.atelbay.money_manager.core.ui.theme.appStringsFor
 import com.atelbay.money_manager.navigation.Home
 import com.atelbay.money_manager.navigation.MoneyManagerBottomBar
 import com.atelbay.money_manager.navigation.MoneyManagerNavHost
@@ -60,6 +63,9 @@ class MainActivity : ComponentActivity() {
             val themeMode by userPreferences.themeMode
                 .collectAsStateWithLifecycle(initialValue = "system")
 
+            val languageCode by userPreferences.languageCode
+                .collectAsStateWithLifecycle(initialValue = "ru")
+
             val darkTheme = when (themeMode) {
                 "dark" -> true
                 "light" -> false
@@ -80,17 +86,19 @@ class MainActivity : ComponentActivity() {
                 onDispose {}
             }
 
-            MoneyManagerTheme(themeMode = themeMode) {
-                val onboardingCompleted by userPreferences.isOnboardingCompleted
-                    .collectAsStateWithLifecycle(initialValue = null)
+            CompositionLocalProvider(LocalStrings provides appStringsFor(languageCode)) {
+                MoneyManagerTheme(themeMode = themeMode) {
+                    val onboardingCompleted by userPreferences.isOnboardingCompleted
+                        .collectAsStateWithLifecycle(initialValue = null)
 
-                val completed = onboardingCompleted
-                if (completed != null) {
-                    val navController = rememberNavController()
-                    MoneyManagerApp(
-                        navController = navController,
-                        startDestination = if (completed) Home else Onboarding,
-                    )
+                    val completed = onboardingCompleted
+                    if (completed != null) {
+                        val navController = rememberNavController()
+                        MoneyManagerApp(
+                            navController = navController,
+                            startDestination = if (completed) Home else Onboarding,
+                        )
+                    }
                 }
             }
         }

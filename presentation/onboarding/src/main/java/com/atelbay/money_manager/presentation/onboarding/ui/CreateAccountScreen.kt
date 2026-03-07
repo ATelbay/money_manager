@@ -41,6 +41,7 @@ fun CreateAccountScreen(
     onCreateClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val s = MoneyManagerTheme.strings
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -52,14 +53,14 @@ fun CreateAccountScreen(
         Spacer(modifier = Modifier.height(48.dp))
 
         Text(
-            text = "Создайте первый счёт",
+            text = s.createFirstAccount,
             style = MaterialTheme.typography.headlineMedium,
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Укажите название, валюту и начальный баланс",
+            text = s.createFirstAccountSubtitle,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -69,8 +70,8 @@ fun CreateAccountScreen(
         MoneyManagerTextField(
             value = state.accountName,
             onValueChange = onAccountNameChange,
-            label = "Название счёта",
-            placeholder = "Основной",
+            label = s.accountNameHint,
+            placeholder = s.accountMain,
             errorMessage = state.accountNameError,
             modifier = Modifier.fillMaxWidth(),
             tag = "createAccount:nameField",
@@ -88,7 +89,7 @@ fun CreateAccountScreen(
             MoneyManagerTextField(
                 value = state.currency,
                 onValueChange = {},
-                label = "Валюта",
+                label = s.currency,
                 readOnly = true,
                 trailingIcon = {
                     ExposedDropdownMenuDefaults.TrailingIcon(expanded = currencyExpanded)
@@ -121,7 +122,7 @@ fun CreateAccountScreen(
         MoneyManagerTextField(
             value = state.initialBalance,
             onValueChange = onBalanceChange,
-            label = "Начальный баланс",
+            label = s.initialBalance,
             placeholder = "0",
             errorMessage = state.balanceError,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -138,7 +139,7 @@ fun CreateAccountScreen(
                 .fillMaxWidth()
                 .testTag("createAccount:createButton"),
         ) {
-            Text(if (state.isCreating) "Создание..." else "Создать счёт")
+            Text(if (state.isCreating) s.creating else s.createAccount)
         }
     }
 }

@@ -116,4 +116,9 @@ object MoneyManagerTheme {
         @Composable
         @ReadOnlyComposable
         get() = LocalMoneyManagerTypography.current
+
+    val strings: AppStrings
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalStrings.current
 }

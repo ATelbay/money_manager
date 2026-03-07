@@ -94,6 +94,7 @@ fun TransactionEditScreen(
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
+    val s = MoneyManagerTheme.strings
 
     Scaffold(
         modifier = modifier.testTag("transactionEdit:screen"),
@@ -102,7 +103,7 @@ fun TransactionEditScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = if (state.isEditing) "Редактирование" else "Новая транзакция",
+                        text = if (state.isEditing) s.editTransaction else s.newTransaction,
                         style = typography.sectionHeader,
                         color = colors.textPrimary,
                     )
@@ -111,7 +112,7 @@ fun TransactionEditScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
+                            contentDescription = s.back,
                             tint = colors.textPrimary,
                         )
                     }
@@ -124,7 +125,7 @@ fun TransactionEditScreen(
                         ) {
                             Icon(
                                 Icons.Default.Delete,
-                                contentDescription = "Удалить",
+                                contentDescription = s.delete,
                                 tint = colors.expenseForeground,
                             )
                         }
@@ -179,7 +180,7 @@ fun TransactionEditScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 MoneyManagerChip(
-                    label = "Расход",
+                    label = s.expense,
                     selected = state.type == TransactionType.EXPENSE,
                     onClick = { onTypeChange(TransactionType.EXPENSE) },
                     type = ChipType.EXPENSE,
@@ -187,7 +188,7 @@ fun TransactionEditScreen(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 MoneyManagerChip(
-                    label = "Доход",
+                    label = s.income,
                     selected = state.type == TransactionType.INCOME,
                     onClick = { onTypeChange(TransactionType.INCOME) },
                     type = ChipType.INCOME,
@@ -199,7 +200,7 @@ fun TransactionEditScreen(
 
             // ── Category Selector ──
             Text(
-                text = "Категория",
+                text = s.category,
                 style = typography.caption,
                 color = colors.textSecondary,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -217,7 +218,7 @@ fun TransactionEditScreen(
 
             // ── Date Field ──
             Text(
-                text = "Дата",
+                text = s.date,
                 style = typography.caption,
                 color = colors.textSecondary,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -255,8 +256,8 @@ fun TransactionEditScreen(
             MoneyManagerTextField(
                 value = state.note,
                 onValueChange = onNoteChange,
-                label = "Заметка",
-                placeholder = "Описание транзакции",
+                label = s.note,
+                placeholder = s.noteHint,
                 singleLine = false,
                 maxLines = 3,
                 modifier = Modifier.fillMaxWidth(),
@@ -275,7 +276,7 @@ fun TransactionEditScreen(
                     .testTag("transactionEdit:saveButton"),
             ) {
                 Text(
-                    text = if (state.isSaving) "Сохранение..." else "Сохранить",
+                    text = if (state.isSaving) s.saving else s.save,
                     style = typography.cardTitle,
                 )
             }
@@ -425,7 +426,7 @@ private fun CategorySelector(
                     )
                 } else {
                     Text(
-                        text = "Выберите категорию",
+                        text = MoneyManagerTheme.strings.chooseCategory,
                         style = typography.cardTitle,
                         color = colors.textTertiary,
                         modifier = Modifier.weight(1f),
@@ -472,7 +473,7 @@ private fun CategoryBottomSheet(
         modifier = Modifier.testTag("transactionEdit:categorySheet"),
     ) {
         Text(
-            text = "Выберите категорию",
+            text = MoneyManagerTheme.strings.chooseCategory,
             style = typography.sectionHeader,
             color = colors.textPrimary,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -583,12 +584,12 @@ private fun MoneyManagerDatePickerDialog(
                 },
                 modifier = Modifier.testTag("transactionEdit:dateConfirm"),
             ) {
-                Text("OK", color = Teal)
+                Text(MoneyManagerTheme.strings.ok, color = Teal)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Отмена")
+                Text(MoneyManagerTheme.strings.cancel)
             }
         },
         modifier = Modifier.testTag("transactionEdit:datePicker"),

@@ -56,6 +56,7 @@ fun CurrencyPickerScreen(
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
+    val s = MoneyManagerTheme.strings
 
     var searchQuery by remember { mutableStateOf("") }
     val filteredOptions = remember(searchQuery) {
@@ -74,7 +75,7 @@ fun CurrencyPickerScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Валютная пара",
+                        text = s.currencyPair,
                         style = typography.sectionHeader,
                         color = colors.textPrimary,
                     )
@@ -86,7 +87,7 @@ fun CurrencyPickerScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
+                            contentDescription = s.back,
                             tint = colors.textPrimary,
                         )
                     }
@@ -111,7 +112,7 @@ fun CurrencyPickerScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Текущая пара",
+                        text = s.currentPair,
                         style = typography.caption,
                         color = colors.textSecondary,
                     )
@@ -126,14 +127,14 @@ fun CurrencyPickerScreen(
                         modifier = Modifier.padding(top = 12.dp),
                     ) {
                         SideChip(
-                            label = "Базовая",
+                            label = s.baseCurrency,
                             selected = activeSide == CurrencyPickerSide.BASE,
                             onClick = { onSideChange(CurrencyPickerSide.BASE) },
                             modifier = Modifier.testTag("currencyPicker:sideBase"),
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         SideChip(
-                            label = "Целевая",
+                            label = s.targetCurrency,
                             selected = activeSide == CurrencyPickerSide.TARGET,
                             onClick = { onSideChange(CurrencyPickerSide.TARGET) },
                             modifier = Modifier.testTag("currencyPicker:sideTarget"),
@@ -145,7 +146,7 @@ fun CurrencyPickerScreen(
             MoneyManagerTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = "Поиск валюты",
+                placeholder = s.searchCurrency,
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,

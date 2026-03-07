@@ -63,9 +63,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Date
-import java.util.Locale
 
-private const val ORIGINAL_AMOUNT_LABEL = "Исх."
 private val TransactionListBottomGutter = 16.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,6 +82,10 @@ fun TransactionListScreen(
     contentWindowInsets: WindowInsets = ScaffoldDefaults.contentWindowInsets,
 ) {
     val colors = MoneyManagerTheme.colors
+    val s = MoneyManagerTheme.strings
+    val locale = s.locale
+    val dateHeaderFormat = remember(locale) { SimpleDateFormat("dd MMMM", locale) }
+    val timeFormat = remember(locale) { SimpleDateFormat("HH:mm", locale) }
     var showDateRangePicker by remember { mutableStateOf(false) }
     val layoutDirection = LocalLayoutDirection.current
 
@@ -95,7 +97,7 @@ fun TransactionListScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Money Manager",
+                        text = s.appName,
                         style = MoneyManagerTheme.typography.sectionHeader,
                     )
                 },
@@ -106,7 +108,7 @@ fun TransactionListScreen(
                     ) {
                         Icon(
                             Icons.Default.UploadFile,
-                            contentDescription = "Импорт выписки",
+                            contentDescription = s.importStatement,
                             tint = colors.textSecondary,
                         )
                     }
@@ -150,7 +152,7 @@ fun TransactionListScreen(
             // Balance card
             item(key = "balance") {
                 BalanceCard(
-                    accountName = state.selectedAccountName ?: "Все счета",
+                    accountName = state.selectedAccountName ?: s.allAccounts,
                     balance = state.balance ?: 0.0,
                     currency = state.displayCurrency.orEmpty(),
                     isUnavailable = state.summaryDisplayMode == SummaryDisplayMode.UNAVAILABLE,
@@ -180,7 +182,7 @@ fun TransactionListScreen(
                 MoneyManagerTextField(
                     value = state.searchQuery,
                     onValueChange = onSearchQueryChange,
-                    placeholder = "Поиск",
+                    placeholder = s.search,
                     maxLines = 1,
                     leadingIcon = {
                         Icon(
@@ -194,7 +196,7 @@ fun TransactionListScreen(
                             IconButton(onClick = { onSearchQueryChange("") }) {
                                 Icon(
                                     Icons.Default.Clear,
-                                    contentDescription = "Очистить",
+                                    contentDescription = s.clearSearch,
                                     tint = colors.textSecondary,
                                 )
                             }
@@ -220,18 +222,18 @@ fun TransactionListScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     MoneyManagerChip(
-                        label = "Все",
+                        label = s.filterAll,
                         selected = state.selectedTab == null,
                         onClick = { onTabSelected(null) },
                     )
                     MoneyManagerChip(
-                        label = "Расходы",
+                        label = s.filterExpenses,
                         selected = state.selectedTab == TransactionType.EXPENSE,
                         onClick = { onTabSelected(TransactionType.EXPENSE) },
                         type = ChipType.EXPENSE,
                     )
                     MoneyManagerChip(
-                        label = "Доходы",
+                        label = s.filterIncome,
                         selected = state.selectedTab == TransactionType.INCOME,
                         onClick = { onTabSelected(TransactionType.INCOME) },
                         type = ChipType.INCOME,
@@ -250,11 +252,11 @@ fun TransactionListScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     val periods = listOf(
-                        Period.ALL to "Все",
-                        Period.TODAY to "Сегодня",
-                        Period.WEEK to "Неделя",
-                        Period.MONTH to "Месяц",
-                        Period.YEAR to "Год",
+                        Period.ALL to s.filterAll,
+                        Period.TODAY to s.periodToday,
+                        Period.WEEK to s.periodWeek,
+                        Period.MONTH to s.periodMonth,
+                        Period.YEAR to s.periodYear,
                     )
                     periods.forEach { (period, label) ->
                         MoneyManagerChip(
@@ -264,7 +266,7 @@ fun TransactionListScreen(
                         )
                     }
                     MoneyManagerChip(
-                        label = "Период",
+                        label = s.periodCustom,
                         selected = state.selectedPeriod == Period.CUSTOM,
                         onClick = { showDateRangePicker = true },
                     )
@@ -283,7 +285,7 @@ fun TransactionListScreen(
                 }
             } else {
                 // Group transactions by date
-                val grouped = state.transactionRows.groupBy { formatDateHeader(it.transaction.date) }
+                val grouped = state.transactionRows.groupBy { formatDateHeader(it.transaction.date, s.periodToday, s.periodYesterday, dateHeaderFormat) }
 
                 grouped.forEach { (dateHeader, transactionRows) ->
                     // Date section header
@@ -316,12 +318,12 @@ fun TransactionListScreen(
                             categoryIcon = categoryIconFromName(transaction.categoryIcon),
                             categoryColor = Color(transaction.categoryColor),
                             amount = row.displayAmount,
-                            date = formatTime(transaction.date),
+                            date = formatTime(transaction.date, timeFormat),
                             isIncome = !isExpense,
                             currency = row.displayCurrency,
                             secondaryAmount = row.originalAmount.takeIf { isShowingConvertedAmount },
                             secondaryCurrency = row.originalCurrency.takeIf { isShowingConvertedAmount },
-                            secondaryAmountLabel = ORIGINAL_AMOUNT_LABEL.takeIf {
+                            secondaryAmountLabel = s.originalAmount.takeIf {
                                 isShowingConvertedAmount
                             },
                             onClick = { onTransactionClick(transaction.id) },
@@ -358,6 +360,7 @@ private fun EmptyState(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            val s = MoneyManagerTheme.strings
             if (isSearchActive) {
                 Icon(
                     Icons.Default.Search,
@@ -367,13 +370,13 @@ private fun EmptyState(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Ничего не найдено",
+                    text = s.nothingFound,
                     style = MoneyManagerTheme.typography.cardTitle,
                     color = colors.textPrimary,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Попробуйте изменить запрос",
+                    text = s.tryChangingQuery,
                     style = MaterialTheme.typography.bodyMedium,
                     color = colors.textSecondary,
                 )
@@ -386,13 +389,13 @@ private fun EmptyState(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Нет транзакций",
+                    text = s.noTransactions,
                     style = MoneyManagerTheme.typography.cardTitle,
                     color = colors.textPrimary,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Добавьте первую транзакцию",
+                    text = s.addFirstTransaction,
                     style = MaterialTheme.typography.bodyMedium,
                     color = colors.textSecondary,
                 )
@@ -408,6 +411,7 @@ private fun DateRangePickerDialog(
     onConfirm: (LocalDate, LocalDate) -> Unit,
 ) {
     val dateRangePickerState = rememberDateRangePickerState()
+    val s = MoneyManagerTheme.strings
 
     DatePickerDialog(
         onDismissRequest = onDismiss,
@@ -427,12 +431,12 @@ private fun DateRangePickerDialog(
                     }
                 },
             ) {
-                Text("OK")
+                Text(s.ok)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Отмена")
+                Text(s.cancel)
             }
         },
     ) {
@@ -440,7 +444,7 @@ private fun DateRangePickerDialog(
             state = dateRangePickerState,
             title = {
                 Text(
-                    "Выберите период",
+                    s.choosePeriod,
                     modifier = Modifier.padding(start = 24.dp, top = 16.dp)
                 )
             },
@@ -449,22 +453,19 @@ private fun DateRangePickerDialog(
     }
 }
 
-private val dateHeaderFormat = SimpleDateFormat("dd MMMM", Locale.forLanguageTag("ru"))
-private val timeFormat = SimpleDateFormat("HH:mm", Locale.forLanguageTag("ru"))
-
-private fun formatDateHeader(timestamp: Long): String {
+private fun formatDateHeader(timestamp: Long, todayStr: String, yesterdayStr: String, formatter: SimpleDateFormat): String {
     val txDate = Instant.ofEpochMilli(timestamp)
         .atZone(ZoneId.systemDefault())
         .toLocalDate()
     val today = LocalDate.now()
     return when (txDate) {
-        today -> "Сегодня"
-        today.minusDays(1) -> "Вчера"
-        else -> dateHeaderFormat.format(Date(timestamp))
+        today -> todayStr
+        today.minusDays(1) -> yesterdayStr
+        else -> formatter.format(Date(timestamp))
     }
 }
 
-private fun formatTime(timestamp: Long): String = timeFormat.format(Date(timestamp))
+private fun formatTime(timestamp: Long, formatter: SimpleDateFormat): String = formatter.format(Date(timestamp))
 
 @Preview(showBackground = true)
 @Composable

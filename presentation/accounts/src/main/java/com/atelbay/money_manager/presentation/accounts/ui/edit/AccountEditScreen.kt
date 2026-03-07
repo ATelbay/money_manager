@@ -47,14 +47,15 @@ fun AccountEditScreen(
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val s = MoneyManagerTheme.strings
     Scaffold(
         modifier = modifier.testTag("accountEdit:screen"),
         topBar = {
             TopAppBar(
-                title = { Text(if (state.isEditing) "Редактирование" else "Новый счёт") },
+                title = { Text(if (state.isEditing) s.editAccount else s.newAccount) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = s.back)
                     }
                 },
             )
@@ -82,8 +83,8 @@ fun AccountEditScreen(
             MoneyManagerTextField(
                 value = state.name,
                 onValueChange = onNameChange,
-                label = "Название",
-                placeholder = "Название счёта",
+                label = s.name,
+                placeholder = s.accountNameHint,
                 errorMessage = state.nameError,
                 modifier = Modifier.fillMaxWidth(),
                 tag = "accountEdit:nameField",
@@ -110,7 +111,7 @@ fun AccountEditScreen(
                     .fillMaxWidth()
                     .testTag("accountEdit:saveButton"),
             ) {
-                Text(if (state.isSaving) "Сохранение..." else "Сохранить")
+                Text(if (state.isSaving) s.saving else s.save)
             }
         }
     }
@@ -134,7 +135,7 @@ private fun CurrencyDropdown(
         MoneyManagerTextField(
             value = selectedCurrency,
             onValueChange = {},
-            label = "Валюта",
+            label = MoneyManagerTheme.strings.currency,
             readOnly = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier

@@ -68,14 +68,15 @@ fun CategoryListScreen(
         TransactionType.INCOME -> state.incomeCategories
     }
 
+    val s = MoneyManagerTheme.strings
     Scaffold(
         modifier = modifier.testTag("categoryList:screen"),
         topBar = {
             TopAppBar(
-                title = { Text("Категории") },
+                title = { Text(s.categoriesTitle) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = s.back)
                     }
                 },
             )
@@ -119,7 +120,7 @@ fun CategoryListScreen(
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                         modifier = Modifier.testTag("categoryList:typeExpense"),
                     ) {
-                        Text("Расходы")
+                        Text(s.filterExpenses)
                     }
                     SegmentedButton(
                         selected = state.selectedType == TransactionType.INCOME,
@@ -127,7 +128,7 @@ fun CategoryListScreen(
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                         modifier = Modifier.testTag("categoryList:typeIncome"),
                     ) {
-                        Text("Доходы")
+                        Text(s.filterIncome)
                     }
                 }
             }
@@ -141,7 +142,7 @@ fun CategoryListScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = "Нет категорий",
+                            text = s.noCategories,
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -248,7 +249,7 @@ private fun SwipeToDeleteItem(
             ) {
                 Icon(
                     Icons.Default.Delete,
-                    contentDescription = "Удалить",
+                    contentDescription = MoneyManagerTheme.strings.delete,
                     tint = MaterialTheme.colorScheme.onError,
                 )
             }

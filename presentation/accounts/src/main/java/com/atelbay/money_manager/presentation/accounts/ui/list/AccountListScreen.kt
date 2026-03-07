@@ -57,11 +57,12 @@ fun AccountListScreen(
     onDeleteAccount: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val s = MoneyManagerTheme.strings
     Scaffold(
         modifier = modifier.testTag("accountList:screen"),
         topBar = {
             TopAppBar(
-                title = { Text("Счета") },
+                title = { Text(s.accountsTitle) },
             )
         },
         floatingActionButton = {
@@ -100,7 +101,7 @@ fun AccountListScreen(
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text(
-                            text = "Общий баланс",
+                            text = s.totalBalance,
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -120,7 +121,7 @@ fun AccountListScreen(
                 FilterChip(
                     selected = state.selectedAccountId == null,
                     onClick = { onSelectAccount(null) },
-                    label = { Text("Все счета") },
+                    label = { Text(s.allAccounts) },
                     leadingIcon = if (state.selectedAccountId == null) {
                         { Icon(Icons.Default.Check, contentDescription = null) }
                     } else {
@@ -141,7 +142,7 @@ fun AccountListScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = "Нет счетов",
+                            text = s.noAccounts,
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -227,7 +228,7 @@ private fun AccountItem(
             FilterChip(
                 selected = isSelected,
                 onClick = onSelect,
-                label = { Text(if (isSelected) "Активный" else "Выбрать") },
+                label = { Text(if (isSelected) MoneyManagerTheme.strings.active else MoneyManagerTheme.strings.selectAccount) },
                 modifier = Modifier.testTag("accountList:select_${account.id}"),
             )
         }
@@ -268,7 +269,7 @@ private fun SwipeToDeleteItem(
             ) {
                 Icon(
                     Icons.Default.Delete,
-                    contentDescription = "Удалить",
+                    contentDescription = MoneyManagerTheme.strings.delete,
                     tint = MaterialTheme.colorScheme.onError,
                 )
             }
