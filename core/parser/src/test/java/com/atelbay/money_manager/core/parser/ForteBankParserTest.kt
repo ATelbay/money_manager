@@ -32,7 +32,13 @@ class ForteBankParserTest {
                 "Комиссия" to "expense",
                 "Списание" to "expense",
             ),
-            skipPatterns = listOf("Дата Сумма", "Задолженность на", "Сервисные Комиссии"),
+            skipPatterns = listOf(
+                "Дата Сумма",
+                "Задолженность на",
+                "Сервисные Комиссии",
+                "Реквизиты:",
+                "Сформировано в Интернет Банкинге",
+            ),
             joinLines = true,
             negativeSignMeansExpense = true,
         )
@@ -189,6 +195,31 @@ class ForteBankParserTest {
 
         assertEquals(2, result.size)
         assertTrue(result[0].uniqueHash != result[1].uniqueHash)
+    }
+
+    @Test
+    fun `parse expense withdrawal (Списание)`() {
+        val text = "05.03.2026 -20000.00 KZT Списание Комиссия за обслуживание карты"
+
+        val result = parser.parse(text, forteConfig)
+
+        assertEquals(1, result.size)
+        assertEquals(20000.0, result[0].amount, 0.01)
+        assertEquals(TransactionType.EXPENSE, result[0].type)
+        assertEquals("Списание", result[0].operationType)
+    }
+
+    @Test
+    fun `skip footer lines (Реквизиты and Сформировано)`() {
+        val text = """
+04.03.2026 -55000.00 KZT Перевод Получатель: 521700*******7777
+Реквизиты: БИН 123456789012 БИК IRTYKZKA
+Сформировано в Интернет Банкинге fortebank.kz
+        """.trimIndent()
+
+        val result = parser.parse(text, forteConfig)
+
+        assertEquals(1, result.size)
     }
 
     @Test

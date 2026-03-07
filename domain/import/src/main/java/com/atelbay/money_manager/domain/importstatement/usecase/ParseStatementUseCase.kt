@@ -126,10 +126,10 @@ class ParseStatementUseCase @Inject constructor(
         // Forte Bank
         "Покупка бонусами" to "Покупки",
         "Пополнение счета" to "Пополнение",
-        "Перевод" to "Перевод",
         "Платеж" to "Перевод",
         "Платёж" to "Перевод",
         "Списание средств в рамках сервиса быстрых платежей" to "Перевод",
+        "Снятие" to "Другое",
         "Комиссия" to "Другое",
         // Bereke Bank (English) — full names
         "Payment for goods and services" to "Покупки",
@@ -141,6 +141,12 @@ class ParseStatementUseCase @Inject constructor(
         "Payment for goods and" to "Покупки",
         "Card replenishment through" to "Пополнение",
         "Transfer from a card" to "Перевод",
+        // Eurasian Bank — map to nearest default categories
+        "Продукты" to "Еда",
+        "Кафе и рестораны" to "Еда",
+        "Здоровье и красота" to "Здоровье",
+        "Государственные услуги" to "Другое",
+        "Услуги" to "Другое",
     )
 
     private suspend fun assignCategories(

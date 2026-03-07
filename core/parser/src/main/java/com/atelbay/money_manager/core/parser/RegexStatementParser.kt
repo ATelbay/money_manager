@@ -49,7 +49,7 @@ class RegexStatementParser @Inject constructor() {
      */
     private fun deduplicateByMaxAmount(transactions: List<ParsedTransaction>): List<ParsedTransaction> {
         val result = transactions
-            .groupBy { "${it.date}_${it.details}" }
+            .groupBy { Pair(it.date, it.details) }
             .map { (_, group) -> group.maxBy { it.amount } }
         Timber.d("Dedup reduced %d → %d transactions", transactions.size, result.size)
         return result
