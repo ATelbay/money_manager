@@ -34,7 +34,7 @@ data class AccountEdit(val id: Long? = null)
 data object Settings
 
 @Serializable
-data object Import
+data class Import(val pdfUri: String? = null)
 
 @Serializable
 data class CurrencyPicker(

@@ -1,5 +1,7 @@
 package com.atelbay.money_manager
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -39,6 +41,7 @@ import com.atelbay.money_manager.core.ui.theme.LocalStrings
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.theme.appStringsFor
 import com.atelbay.money_manager.navigation.Home
+import com.atelbay.money_manager.navigation.Import
 import com.atelbay.money_manager.navigation.MoneyManagerBottomBar
 import com.atelbay.money_manager.navigation.MoneyManagerNavHost
 import com.atelbay.money_manager.navigation.Onboarding
@@ -46,6 +49,7 @@ import com.atelbay.money_manager.navigation.TopLevelDestination
 import com.atelbay.money_manager.navigation.TransactionEdit
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import javax.inject.Inject
 
 private const val BottomBarAnimationDurationMs = 150
@@ -56,8 +60,11 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var userPreferences: UserPreferences
 
+    private val pendingImportUri = MutableStateFlow<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val initialImportUri = extractPdfUri(intent)
         enableEdgeToEdge()
         setContent {
             val themeMode by userPreferences.themeMode
@@ -96,12 +103,35 @@ class MainActivity : ComponentActivity() {
                         val navController = rememberNavController()
                         MoneyManagerApp(
                             navController = navController,
-                            startDestination = if (completed) Home else Onboarding,
+                            startDestination = when {
+                                !completed -> Onboarding
+                                initialImportUri != null -> Import(pdfUri = initialImportUri)
+                                else -> Home
+                            },
+                            pendingImportUri = pendingImportUri,
                         )
                     }
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        extractPdfUri(intent)?.let { pendingImportUri.value = it }
+    }
+
+    private fun extractPdfUri(intent: Intent): String? = when (intent.action) {
+        Intent.ACTION_SEND -> {
+            if (intent.type == "application/pdf") {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)?.toString()
+            } else null
+        }
+        Intent.ACTION_VIEW -> {
+            if (intent.type == "application/pdf") intent.data?.toString() else null
+        }
+        else -> null
     }
 }
 
@@ -109,6 +139,7 @@ class MainActivity : ComponentActivity() {
 private fun MoneyManagerApp(
     navController: NavHostController,
     startDestination: Any,
+    pendingImportUri: MutableStateFlow<String?>,
 ) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
@@ -143,6 +174,14 @@ private fun MoneyManagerApp(
         action()
         forceHideBottomBar = false
         pendingNavAction = null
+    }
+
+    // Handle PDF shared via onNewIntent while app is already running
+    val pendingUri by pendingImportUri.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingUri) {
+        val uri = pendingUri ?: return@LaunchedEffect
+        navController.navigate(Import(pdfUri = uri))
+        pendingImportUri.value = null
     }
 
     Scaffold(

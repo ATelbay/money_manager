@@ -1,9 +1,11 @@
 package com.atelbay.money_manager.presentation.importstatement.ui
 
 import android.graphics.Bitmap
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -14,6 +16,7 @@ import java.io.ByteArrayOutputStream
 @Composable
 fun ImportRoute(
     onBack: () -> Unit,
+    initialPdfUri: String? = null,
     modifier: Modifier = Modifier,
     viewModel: ImportViewModel = hiltViewModel(),
 ) {
@@ -23,6 +26,17 @@ fun ImportRoute(
     val selectedAccountId by viewModel.selectedAccountId.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
+
+    LaunchedEffect(initialPdfUri) {
+        if (initialPdfUri != null) {
+            val uri = Uri.parse(initialPdfUri)
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            if (bytes != null && bytes.isNotEmpty()) {
+                viewModel.onPdfSelected(bytes)
+            }
+        }
+    }
+
     val pdfLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
