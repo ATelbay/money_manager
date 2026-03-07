@@ -83,6 +83,9 @@ fun TransactionListScreen(
 ) {
     val colors = MoneyManagerTheme.colors
     val s = MoneyManagerTheme.strings
+    val locale = s.locale
+    val dateHeaderFormat = remember(locale) { SimpleDateFormat("dd MMMM", locale) }
+    val timeFormat = remember(locale) { SimpleDateFormat("HH:mm", locale) }
     var showDateRangePicker by remember { mutableStateOf(false) }
     val layoutDirection = LocalLayoutDirection.current
 
@@ -281,10 +284,6 @@ fun TransactionListScreen(
                     )
                 }
             } else {
-                val locale = s.locale
-                val dateHeaderFormat = remember(locale) { SimpleDateFormat("dd MMMM", locale) }
-                val timeFormat = remember(locale) { SimpleDateFormat("HH:mm", locale) }
-
                 // Group transactions by date
                 val grouped = state.transactionRows.groupBy { formatDateHeader(it.transaction.date, s.periodToday, s.periodYesterday, dateHeaderFormat) }
 
