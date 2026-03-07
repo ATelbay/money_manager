@@ -115,12 +115,43 @@ class ParseStatementUseCase @Inject constructor(
     }
 
     // Maps raw operation names from bank statements to existing default category names.
-    // Handles both Russian and English variants.
+    // Handles both Russian and English variants across all supported banks.
+    // IMPORTANT: target names must exactly match DefaultCategories (e.g. "Перевод", not "Переводы").
+    // Operations NOT listed here fall back to their raw name; if it matches a default category
+    // exactly, it is reused — otherwise a new custom category is created on import.
     private val operationAliases = mapOf(
+        // Generic — covers Gemini-parsed results and future bank support
         "Покупка" to "Покупки",
         "Purchase" to "Покупки",
         "Оплата" to "Покупки",
         "Payment" to "Покупки",
+        // Forte Bank
+        "Покупка бонусами" to "Покупки",
+        "Пополнение счета" to "Пополнение",
+        "Платеж" to "Перевод",
+        "Платёж" to "Перевод",
+        "Списание средств в рамках сервиса быстрых платежей" to "Перевод",
+        "Снятие" to "Другое",
+        "Комиссия" to "Другое",
+        // Bereke Bank (English) — full names
+        "Payment for goods and services" to "Покупки",
+        "Card replenishment through Bereke Bank" to "Пополнение",
+        "Card replenishment through payment terminal" to "Пополнение",
+        "Transfer from a card through Bereke Bank" to "Перевод",
+        "Operation" to "Перевод",
+        // Bereke Bank (English) — truncated names captured when PDF line wraps (services/Bank/terminal on continuation)
+        "Payment for goods and" to "Покупки",
+        "Card replenishment through" to "Пополнение",
+        "Transfer from a card" to "Перевод",
+        // Eurasian Bank — map to nearest default categories.
+        // "Транспорт", "Связь", "Развлечения" match DefaultCategories exactly → no alias needed.
+        "Продукты" to "Еда",
+        "Кафе и рестораны" to "Еда",
+        "Здоровье и красота" to "Здоровье",
+        "Государственные услуги" to "Другое",
+        "Услуги" to "Другое",
+        "Путешествия" to "Другое",
+        "Финансы" to "Пополнение",
     )
 
     private suspend fun assignCategories(

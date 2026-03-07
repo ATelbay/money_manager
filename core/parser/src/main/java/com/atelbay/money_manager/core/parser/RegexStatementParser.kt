@@ -35,7 +35,24 @@ class RegexStatementParser @Inject constructor() {
         }
 
         Timber.d("RegEx parsed %d transactions from %d lines", transactions.size, processedText.lines().size)
-        return transactions
+
+        return if (config.deduplicateMaxAmount) deduplicateByMaxAmount(transactions) else transactions
+    }
+
+    /**
+     * Removes duplicate transaction rows by keeping the entry with the largest amount for each
+     * (date, details) group. Used for banks like Eurasian that emit multiple rows per transaction
+     * (e.g. card debit + account mirror + actual KZT debit).
+     *
+     * Known limitation: two separate charges to the same merchant on the same date will be
+     * collapsed into one. Users should review and add the second transaction manually.
+     */
+    private fun deduplicateByMaxAmount(transactions: List<ParsedTransaction>): List<ParsedTransaction> {
+        val result = transactions
+            .groupBy { Pair(it.date, it.details) }
+            .map { (_, group) -> group.maxBy { it.amount } }
+        Timber.d("Dedup reduced %d → %d transactions", transactions.size, result.size)
+        return result
     }
 
     private fun matchToTransaction(
@@ -43,18 +60,38 @@ class RegexStatementParser @Inject constructor() {
         dateFormatter: DateTimeFormatter,
         config: ParserConfig,
     ): ParsedTransaction {
-        val (dateStr, sign, amountStr, operation, details) = match.destructured
+        val dateStr: String
+        val sign: String
+        val amountStr: String
+        val operation: String
+        val details: String
 
-        val javaParsed = java.time.LocalDate.parse(dateStr, dateFormatter)
+        if (config.useNamedGroups) {
+            dateStr = match.groups["date"]?.value ?: error("Named group 'date' not found in match")
+            sign = match.groups["sign"]?.value ?: ""
+            amountStr = match.groups["amount"]?.value ?: error("Named group 'amount' not found in match")
+            operation = match.groups["operation"]?.value ?: ""
+            details = match.groups["details"]?.value ?: ""
+        } else {
+            val (d, s, a, op, det) = match.destructured
+            dateStr = d; sign = s; amountStr = a; operation = op; details = det
+        }
+
+        val javaParsed = java.time.LocalDate.parse(dateStr.trim(), dateFormatter)
         val date = LocalDate(javaParsed.year, javaParsed.monthValue, javaParsed.dayOfMonth)
 
         val amount = parseAmount(amountStr, config.amountFormat)
 
-        val type = if (config.useSignForType) {
-            if (sign == "+") TransactionType.INCOME else TransactionType.EXPENSE
-        } else {
-            val typeValue = config.operationTypeMap[operation] ?: "expense"
-            if (typeValue == "income") TransactionType.INCOME else TransactionType.EXPENSE
+        // NOTE: operationTypeMap is only consulted in the else branch.
+        // When useSignForType=true or negativeSignMeansExpense=true, the sign drives type
+        // classification and operationTypeMap entries have no effect.
+        val type = when {
+            config.useSignForType -> if (sign == "+") TransactionType.INCOME else TransactionType.EXPENSE
+            config.negativeSignMeansExpense -> if (sign == "-") TransactionType.EXPENSE else TransactionType.INCOME
+            else -> {
+                val typeValue = config.operationTypeMap[operation] ?: "expense"
+                if (typeValue == "income") TransactionType.INCOME else TransactionType.EXPENSE
+            }
         }
 
         val hash = generateTransactionHash(date, amount, type.value, details.trim())

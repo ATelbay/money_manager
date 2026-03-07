@@ -73,9 +73,26 @@ Home → Import icon → Import screen
 
 ## Поддерживаемые банки (RegEx)
 
-| Банк | bank_id | Формат строки | Операции |
-|------|---------|---------------|----------|
-| Kaspi Gold | `kaspi` | `DD.MM.YY  [+-] сумма ₸  Операция  Детали` | Покупка, Перевод, Пополнение |
+| Банк | bank_id | Формат строки | Ключевые флаги |
+|------|---------|---------------|----------------|
+| Kaspi Gold | `kaspi` | `DD.MM.YY [+-] сумма ₸ Операция Детали` | positional groups |
+| Freedom Bank | `freedom` | `DD.MM.YYYY [+-] сумма ₸ CURR Операция Детали` | `use_sign_for_type`, `join_lines`, `comma_dot` |
+| Forte Bank | `forte` | `DD.MM.YYYY [-]сумма KZT Операция Детали` | `negative_sign_means_expense`, `join_lines` |
+| Bereke Bank | `bereke` | `DD.MM.YYYY TransactionType Description amount CURR [-]amount [**** XXXX]` | `use_named_groups`, `negative_sign_means_expense`, `comma_dot` |
+| Eurasian Bank | `eurasian` | `DD.MM.YYYY [HH:mm:ss] ТипОперации Детали txAmt CURR [+-]accAmt [Карта/Счёт]` | `use_named_groups`, `negative_sign_means_expense`, `deduplicate_max_amount` |
+
+### ParserConfig — новые поля (Forte/Bereke/Eurasian)
+
+| Поле | Тип | Назначение |
+|------|-----|------------|
+| `negative_sign_means_expense` | Boolean | sign="-" → EXPENSE, иначе → INCOME |
+| `use_named_groups` | Boolean | Regex использует именованные группы: `date`, `sign`, `amount`, `operation`, `details` |
+| `deduplicate_max_amount` | Boolean | После парсинга: для каждой группы (date, details) оставить только строку с max amount. Используется для Eurasian, где каждая транзакция генерирует 2-3 строки |
+
+### Eurasian — особенности
+- Каждая транзакция в иностранной валюте даёт 3 строки (дебет карты, зеркальная кредитовая, фактический KZT дебет)
+- `deduplicate_max_amount` оставляет только строку с наибольшим amount (= фактический KZT расход)
+- Известное ограничение: 2 покупки у одного мерчанта в один день → схлопываются в одну транзакцию
 
 ## Process
 
