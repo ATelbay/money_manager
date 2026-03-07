@@ -64,7 +64,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val initialImportUri = extractPdfUri(intent)
+        extractPdfUri(intent)?.let { pendingImportUri.value = it }
         enableEdgeToEdge()
         setContent {
             val themeMode by userPreferences.themeMode
@@ -103,11 +103,7 @@ class MainActivity : ComponentActivity() {
                         val navController = rememberNavController()
                         MoneyManagerApp(
                             navController = navController,
-                            startDestination = when {
-                                !completed -> Onboarding
-                                initialImportUri != null -> Import(pdfUri = initialImportUri)
-                                else -> Home
-                            },
+                            startDestination = if (completed) Home else Onboarding,
                             pendingImportUri = pendingImportUri,
                         )
                     }
