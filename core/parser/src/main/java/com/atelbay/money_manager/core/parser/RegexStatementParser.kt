@@ -82,6 +82,9 @@ class RegexStatementParser @Inject constructor() {
 
         val amount = parseAmount(amountStr, config.amountFormat)
 
+        // NOTE: operationTypeMap is only consulted in the else branch.
+        // When useSignForType=true or negativeSignMeansExpense=true, the sign drives type
+        // classification and operationTypeMap entries have no effect.
         val type = when {
             config.useSignForType -> if (sign == "+") TransactionType.INCOME else TransactionType.EXPENSE
             config.negativeSignMeansExpense -> if (sign == "-") TransactionType.EXPENSE else TransactionType.INCOME

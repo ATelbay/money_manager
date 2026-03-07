@@ -16,6 +16,7 @@ data class ParserConfig(
     @SerialName("bank_markers") val bankMarkers: List<String>,
     @SerialName("transaction_pattern") val transactionPattern: String,
     @SerialName("date_format") val dateFormat: String,
+    /** Maps operation name → "income"|"expense". Only consulted when both [useSignForType] and [negativeSignMeansExpense] are false. */
     @SerialName("operation_type_map") val operationTypeMap: Map<String, String>,
     @SerialName("skip_patterns") val skipPatterns: List<String> = emptyList(),
     @SerialName("join_lines") val joinLines: Boolean = false,
