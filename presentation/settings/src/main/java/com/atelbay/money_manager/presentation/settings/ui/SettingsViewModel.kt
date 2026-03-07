@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.CancellationException
@@ -89,6 +90,11 @@ class SettingsViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
+        userPreferences.languageCode
+            .map { code -> AppLanguage.entries.firstOrNull { it.code == code } ?: AppLanguage.RUSSIAN }
+            .onEach { lang -> _state.update { it.copy(appLanguage = lang) } }
+            .launchIn(viewModelScope)
+
         combine(
             userPreferences.baseCurrency,
             userPreferences.targetCurrency,
@@ -133,6 +139,13 @@ class SettingsViewModel @Inject constructor(
                 ThemeMode.DARK -> "dark"
             }
             userPreferences.setThemeMode(value)
+        }
+    }
+
+    fun setLanguage(language: AppLanguage) {
+        viewModelScope.launch {
+            userPreferences.setLanguageCode(language.code)
+            _state.update { it.copy(appLanguage = language) }
         }
     }
 

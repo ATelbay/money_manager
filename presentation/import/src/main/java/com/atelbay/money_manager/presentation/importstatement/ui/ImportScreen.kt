@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.ImportState
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.presentation.importstatement.ui.components.ImportPreview
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,16 +57,17 @@ fun ImportScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val s = MoneyManagerTheme.strings
     Scaffold(
         modifier = modifier.testTag("import:screen"),
         topBar = {
             TopAppBar(
-                title = { Text("Импорт выписки") },
+                title = { Text(s.importTitle) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
+                            contentDescription = s.back,
                         )
                     }
                 },
@@ -98,7 +100,7 @@ fun ImportScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Анализ выписки...",
+                            text = s.analyzingStatement,
                             style = MaterialTheme.typography.bodyLarge,
                         )
                     }
@@ -136,7 +138,7 @@ fun ImportScreen(
                         CircularProgressIndicator()
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Импорт транзакций...",
+                            text = s.importingTransactions,
                             style = MaterialTheme.typography.bodyLarge,
                         )
                     }
@@ -162,13 +164,13 @@ fun ImportScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Импортировано: ${state.imported}",
+                            text = s.importedCount(state.imported),
                             style = MaterialTheme.typography.headlineSmall,
                             modifier = Modifier.testTag("import:successCount"),
                         )
                         Spacer(modifier = Modifier.height(24.dp))
                         Button(onClick = onBack) {
-                            Text("Готово")
+                            Text(s.done)
                         }
                     }
                 }
@@ -200,7 +202,7 @@ fun ImportScreen(
                         )
                         Spacer(modifier = Modifier.height(24.dp))
                         Button(onClick = onReset) {
-                            Text("Попробовать снова")
+                            Text(s.tryAgain)
                         }
                     }
                 }
@@ -225,7 +227,7 @@ private fun IdleContent(
             modifier = Modifier.padding(32.dp),
         ) {
             Text(
-                text = "Выберите способ импорта",
+                text = MoneyManagerTheme.strings.chooseImportMethod,
                 style = MaterialTheme.typography.headlineSmall,
                 textAlign = TextAlign.Center,
             )
@@ -242,7 +244,7 @@ private fun IdleContent(
                     modifier = Modifier.size(20.dp),
                 )
                 Spacer(modifier = Modifier.size(8.dp))
-                Text("Выбрать PDF")
+                Text(MoneyManagerTheme.strings.selectPdf)
             }
             OutlinedButton(
                 onClick = onTakePhoto,
@@ -256,7 +258,7 @@ private fun IdleContent(
                     modifier = Modifier.size(20.dp),
                 )
                 Spacer(modifier = Modifier.size(8.dp))
-                Text("Сделать фото")
+                Text(MoneyManagerTheme.strings.takePhoto)
             }
         }
     }

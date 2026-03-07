@@ -57,6 +57,7 @@ fun SignInScreen(
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
+    val s = MoneyManagerTheme.strings
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(state.errorMessage) {
@@ -74,7 +75,7 @@ fun SignInScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Аккаунт",
+                        text = s.accountSectionTitle,
                         style = typography.sectionHeader,
                         color = colors.textPrimary,
                     )
@@ -83,7 +84,7 @@ fun SignInScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
+                            contentDescription = s.back,
                             tint = colors.textPrimary,
                         )
                     }
@@ -149,7 +150,7 @@ private fun SignedOutContent(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Войдите, чтобы синхронизировать данные",
+            text = MoneyManagerTheme.strings.signInSubtitle,
             style = typography.cardTitle,
             color = colors.textSecondary,
         )
@@ -176,7 +177,7 @@ private fun SignedOutContent(
                 GoogleLogo()
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Войти через Google",
+                    text = MoneyManagerTheme.strings.signInWithGoogle,
                     style = typography.cardTitle,
                     color = Color(0xFF1F1F1F),
                 )
@@ -211,7 +212,7 @@ private fun SignedInContent(
                 if (photoUrl != null) {
                     AsyncImage(
                         model = photoUrl,
-                        contentDescription = "Аватар пользователя",
+                        contentDescription = MoneyManagerTheme.strings.userAvatar,
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape),
@@ -262,7 +263,7 @@ private fun SignedInContent(
                 .testTag("signIn:signOutButton"),
         ) {
             Text(
-                text = "Выйти",
+                text = MoneyManagerTheme.strings.signOut,
                 style = typography.cardTitle,
                 color = colors.textSecondary,
             )

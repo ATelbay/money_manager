@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.ui.components.MoneyManagerButton
 import com.atelbay.money_manager.core.ui.components.MoneyManagerTextButton
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
+import com.atelbay.money_manager.core.ui.theme.AppStrings
 
 @Composable
 fun OnboardingScreen(
@@ -47,7 +49,7 @@ fun OnboardingScreen(
 ) {
     val pagerState = rememberPagerState(
         initialPage = state.currentPage,
-        pageCount = { OnboardingPages.size },
+        pageCount = { 3 },
     )
 
     LaunchedEffect(pagerState) {
@@ -71,6 +73,8 @@ fun OnboardingScreen(
     ) {
         Spacer(modifier = Modifier.weight(1f))
 
+        val s = MoneyManagerTheme.strings
+        val localizedPages = remember(s) { localizedOnboardingPages(s) }
         HorizontalPager(
             state = pagerState,
             modifier = Modifier
@@ -78,7 +82,7 @@ fun OnboardingScreen(
                 .testTag("onboarding:pager"),
         ) { page ->
             OnboardingPageContent(
-                page = OnboardingPages[page],
+                page = localizedPages[page],
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -86,14 +90,14 @@ fun OnboardingScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         PageIndicator(
-            pageCount = OnboardingPages.size,
+            pageCount = localizedPages.size,
             currentPage = pagerState.currentPage,
             modifier = Modifier.testTag("onboarding:indicator"),
         )
 
         Spacer(modifier = Modifier.weight(1f))
 
-        val isLastPage = pagerState.currentPage == OnboardingPages.size - 1
+        val isLastPage = pagerState.currentPage == localizedPages.size - 1
 
         MoneyManagerButton(
             onClick = onNextClick,
@@ -101,7 +105,7 @@ fun OnboardingScreen(
                 .fillMaxWidth()
                 .testTag("onboarding:nextButton"),
         ) {
-            Text(if (isLastPage) "Начать" else "Далее")
+            Text(if (isLastPage) s.start else s.next)
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -111,7 +115,7 @@ fun OnboardingScreen(
                 onClick = onSkipClick,
                 modifier = Modifier.testTag("onboarding:skipButton"),
             ) {
-                Text("Пропустить")
+                Text(s.skip)
             }
         }
     }
@@ -187,6 +191,12 @@ private fun iconForPage(name: String): ImageVector = when (name) {
     "insights" -> Icons.Default.Insights
     else -> Icons.Default.AccountBalanceWallet
 }
+
+private fun localizedOnboardingPages(s: AppStrings): List<OnboardingPage> = listOf(
+    OnboardingPage(title = s.onboardingPage1Title, description = s.onboardingPage1Desc, icon = "account_balance_wallet"),
+    OnboardingPage(title = s.onboardingPage2Title, description = s.onboardingPage2Desc, icon = "bar_chart"),
+    OnboardingPage(title = s.onboardingPage3Title, description = s.onboardingPage3Desc, icon = "insights"),
+)
 
 @Preview(showBackground = true)
 @Composable

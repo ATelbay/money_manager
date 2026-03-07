@@ -88,6 +88,7 @@ fun MoneyManagerTheme(
     CompositionLocalProvider(
         LocalMoneyManagerColors provides extendedColors,
         LocalMoneyManagerTypography provides MoneyManagerExtendedTypography(),
+        LocalStrings provides RussianStrings,
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
@@ -116,4 +117,9 @@ object MoneyManagerTheme {
         @Composable
         @ReadOnlyComposable
         get() = LocalMoneyManagerTypography.current
+
+    val strings: AppStrings
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalStrings.current
 }

@@ -58,14 +58,15 @@ fun CategoryEditScreen(
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val s = MoneyManagerTheme.strings
     Scaffold(
         modifier = modifier.testTag("categoryEdit:screen"),
         topBar = {
             TopAppBar(
-                title = { Text(if (state.isEditing) "Редактирование" else "Новая категория") },
+                title = { Text(if (state.isEditing) s.editCategory else s.newCategory) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = s.back)
                     }
                 },
             )
@@ -94,8 +95,8 @@ fun CategoryEditScreen(
             MoneyManagerTextField(
                 value = state.name,
                 onValueChange = onNameChange,
-                label = "Название",
-                placeholder = "Название категории",
+                label = s.name,
+                placeholder = s.categoryNameHint,
                 errorMessage = state.nameError,
                 modifier = Modifier.fillMaxWidth(),
                 tag = "categoryEdit:nameField",
@@ -113,7 +114,7 @@ fun CategoryEditScreen(
                 FilterChip(
                     selected = state.type == TransactionType.EXPENSE,
                     onClick = { onTypeChange(TransactionType.EXPENSE) },
-                    label = { Text("Расход") },
+                    label = { Text(s.expense) },
                     modifier = Modifier
                         .weight(1f)
                         .testTag("categoryEdit:typeExpense"),
@@ -121,7 +122,7 @@ fun CategoryEditScreen(
                 FilterChip(
                     selected = state.type == TransactionType.INCOME,
                     onClick = { onTypeChange(TransactionType.INCOME) },
-                    label = { Text("Доход") },
+                    label = { Text(s.income) },
                     modifier = Modifier
                         .weight(1f)
                         .testTag("categoryEdit:typeIncome"),
@@ -132,7 +133,7 @@ fun CategoryEditScreen(
 
             // Icon selector
             Text(
-                text = "Иконка",
+                text = s.icon,
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.padding(bottom = 8.dp),
             )
@@ -150,7 +151,7 @@ fun CategoryEditScreen(
 
             // Color selector
             Text(
-                text = "Цвет",
+                text = s.color,
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.padding(bottom = 8.dp),
             )
@@ -173,7 +174,7 @@ fun CategoryEditScreen(
                     .fillMaxWidth()
                     .testTag("categoryEdit:saveButton"),
             ) {
-                Text(if (state.isSaving) "Сохранение..." else "Сохранить")
+                Text(if (state.isSaving) s.saving else s.save)
             }
         }
     }

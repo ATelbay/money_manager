@@ -75,6 +75,7 @@ fun StatisticsScreen(
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
+    val s = MoneyManagerTheme.strings
 
     Scaffold(
         modifier = modifier.testTag("statistics:screen"),
@@ -83,7 +84,7 @@ fun StatisticsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Статистика",
+                        text = s.statisticsTitle,
                         style = typography.sectionHeader,
                         color = colors.textPrimary,
                     )
@@ -158,7 +159,7 @@ fun StatisticsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     SummaryStatCard(
-                        title = "РАСХОДЫ",
+                        title = s.expensesUpper,
                         value = state.totalExpenses,
                         icon = Icons.AutoMirrored.Filled.TrendingDown,
                         type = StatType.EXPENSE,
@@ -167,7 +168,7 @@ fun StatisticsScreen(
                             .testTag("statistics:totalExpenses"),
                     )
                     SummaryStatCard(
-                        title = "ДОХОДЫ",
+                        title = s.incomeUpper,
                         value = state.totalIncome,
                         icon = Icons.AutoMirrored.Filled.TrendingUp,
                         type = StatType.INCOME,
@@ -197,7 +198,7 @@ fun StatisticsScreen(
                 item(key = "bar") {
                     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                         Text(
-                            text = "РАСХОДЫ ПО ДНЯМ",
+                            text = s.expensesByDays,
                             style = typography.caption,
                             color = colors.textSecondary,
                             modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
@@ -221,7 +222,7 @@ fun StatisticsScreen(
                 item(key = "breakdown") {
                     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                         Text(
-                            text = "ПО КАТЕГОРИЯМ",
+                            text = s.byCategory,
                             style = typography.caption,
                             color = colors.textSecondary,
                             modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
@@ -254,13 +255,14 @@ private fun PeriodSelector(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        val strings = MoneyManagerTheme.strings
         StatsPeriod.entries.forEachIndexed { index, period ->
             if (index > 0) Spacer(modifier = Modifier.width(8.dp))
             MoneyManagerChip(
                 label = when (period) {
-                    StatsPeriod.WEEK -> "Неделя"
-                    StatsPeriod.MONTH -> "Месяц"
-                    StatsPeriod.YEAR -> "Год"
+                    StatsPeriod.WEEK -> strings.periodWeek
+                    StatsPeriod.MONTH -> strings.periodMonth
+                    StatsPeriod.YEAR -> strings.periodYear
                 },
                 selected = selected == period,
                 onClick = { onSelect(period) },
@@ -379,7 +381,7 @@ private fun DonutChart(
         // Center text
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "Расходы",
+                text = MoneyManagerTheme.strings.expensesLabel,
                 style = typography.caption,
                 color = colors.textSecondary,
             )
@@ -597,7 +599,7 @@ private fun EmptyState(modifier: Modifier = Modifier) {
             }
 
             Text(
-                text = "Нет данных за выбранный период",
+                text = MoneyManagerTheme.strings.noDataForPeriod,
                 style = MoneyManagerTheme.typography.cardTitle,
                 color = colors.textSecondary,
             )

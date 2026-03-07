@@ -7,6 +7,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 
 @Composable
 fun MoneyManagerBottomBar(
@@ -14,19 +15,26 @@ fun MoneyManagerBottomBar(
     onNavigate: (TopLevelDestination) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val s = MoneyManagerTheme.strings
     NavigationBar(modifier = modifier.testTag("bottomBar")) {
         TopLevelDestination.entries.forEach { destination ->
             val selected = currentDestination == destination
+            val localizedLabel = when (destination) {
+                TopLevelDestination.HOME -> s.navTransactions
+                TopLevelDestination.STATISTICS -> s.navStatistics
+                TopLevelDestination.ACCOUNTS -> s.navAccounts
+                TopLevelDestination.SETTINGS -> s.navSettings
+            }
             NavigationBarItem(
                 selected = selected,
                 onClick = { onNavigate(destination) },
                 icon = {
                     Icon(
                         imageVector = if (selected) destination.selectedIcon else destination.unselectedIcon,
-                        contentDescription = destination.label,
+                        contentDescription = localizedLabel,
                     )
                 },
-                label = { Text(destination.label) },
+                label = { Text(localizedLabel) },
                 modifier = Modifier.testTag("bottomBar:${destination.name}"),
             )
         }

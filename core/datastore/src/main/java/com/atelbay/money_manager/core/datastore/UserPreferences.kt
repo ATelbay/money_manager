@@ -66,6 +66,17 @@ class UserPreferences @Inject constructor(
         }
     }
 
+    val languageCode: Flow<String> =
+        context.dataStore.data.map { prefs ->
+            prefs[KEY_LANGUAGE_CODE] ?: "ru"
+        }
+
+    suspend fun setLanguageCode(code: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_LANGUAGE_CODE] = code
+        }
+    }
+
     val baseCurrency: Flow<String> =
         context.dataStore.data.map { prefs ->
             prefs[KEY_BASE_CURRENCY] ?: "KZT"
@@ -180,6 +191,7 @@ class UserPreferences @Inject constructor(
         val KEY_ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         val KEY_SELECTED_ACCOUNT_ID = longPreferencesKey("selected_account_id")
         val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
+        val KEY_LANGUAGE_CODE = stringPreferencesKey("language_code")
         val KEY_BASE_CURRENCY = stringPreferencesKey("base_currency")
         val KEY_TARGET_CURRENCY = stringPreferencesKey("target_currency")
         val KEY_USD_KZT_RATE = doublePreferencesKey("usd_kzt_rate")
