@@ -44,12 +44,13 @@ import com.atelbay.money_manager.navigation.Home
 import com.atelbay.money_manager.navigation.Import
 import com.atelbay.money_manager.navigation.MoneyManagerBottomBar
 import com.atelbay.money_manager.navigation.MoneyManagerNavHost
+import com.atelbay.money_manager.navigation.NavigationAction
 import com.atelbay.money_manager.navigation.Onboarding
+import com.atelbay.money_manager.navigation.PendingNavigationManager
 import com.atelbay.money_manager.navigation.TopLevelDestination
 import com.atelbay.money_manager.navigation.TransactionEdit
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
 import javax.inject.Inject
 
 private const val BottomBarAnimationDurationMs = 150
@@ -60,11 +61,12 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var userPreferences: UserPreferences
 
-    private val pendingImportUri = MutableStateFlow<String?>(null)
+    @Inject
+    lateinit var pendingNavigationManager: PendingNavigationManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        extractPdfUri(intent)?.let { pendingImportUri.value = it }
+        extractPdfUri(intent)?.let { pendingNavigationManager.enqueue(NavigationAction.OpenImport(it)) }
         enableEdgeToEdge()
         setContent {
             val themeMode by userPreferences.themeMode
@@ -104,7 +106,8 @@ class MainActivity : ComponentActivity() {
                         MoneyManagerApp(
                             navController = navController,
                             startDestination = if (completed) Home else Onboarding,
-                            pendingImportUri = pendingImportUri,
+                            onboardingCompleted = completed,
+                            pendingNavigationManager = pendingNavigationManager,
                         )
                     }
                 }
@@ -114,7 +117,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        extractPdfUri(intent)?.let { pendingImportUri.value = it }
+        extractPdfUri(intent)?.let { pendingNavigationManager.enqueue(NavigationAction.OpenImport(it)) }
     }
 
     private fun extractPdfUri(intent: Intent): String? = when (intent.action) {
@@ -135,7 +138,8 @@ class MainActivity : ComponentActivity() {
 private fun MoneyManagerApp(
     navController: NavHostController,
     startDestination: Any,
-    pendingImportUri: MutableStateFlow<String?>,
+    onboardingCompleted: Boolean,
+    pendingNavigationManager: PendingNavigationManager,
 ) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
@@ -172,12 +176,24 @@ private fun MoneyManagerApp(
         pendingNavAction = null
     }
 
-    // Handle PDF shared via onNewIntent while app is already running
-    val pendingUri by pendingImportUri.collectAsStateWithLifecycle()
-    LaunchedEffect(pendingUri) {
-        val uri = pendingUri ?: return@LaunchedEffect
-        navController.navigate(Import(pdfUri = uri))
-        pendingImportUri.value = null
+    // Gate: open the channel only after onboarding is complete
+    LaunchedEffect(onboardingCompleted) {
+        pendingNavigationManager.setReady(onboardingCompleted)
+    }
+    // Prevent a stale navController from receiving queued actions after config change
+    DisposableEffect(Unit) {
+        onDispose { pendingNavigationManager.setReady(false) }
+    }
+    // Long-lived collector: drains the channel as actions arrive
+    LaunchedEffect(Unit) {
+        pendingNavigationManager.readyActions.collect { action ->
+            when (action) {
+                is NavigationAction.OpenImport ->
+                    navController.navigate(Import(pdfUri = action.pdfUri)) {
+                        launchSingleTop = true
+                    }
+            }
+        }
     }
 
     Scaffold(
