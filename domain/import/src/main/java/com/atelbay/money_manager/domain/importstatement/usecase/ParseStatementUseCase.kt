@@ -116,6 +116,7 @@ class ParseStatementUseCase @Inject constructor(
 
     // Maps raw operation names from bank statements to existing default category names.
     // Handles both Russian and English variants across all supported banks.
+    // IMPORTANT: target names must exactly match DefaultCategories (e.g. "Перевод", not "Переводы").
     private val operationAliases = mapOf(
         // Generic
         "Покупка" to "Покупки",
@@ -124,22 +125,22 @@ class ParseStatementUseCase @Inject constructor(
         "Payment" to "Покупки",
         // Forte Bank
         "Покупка бонусами" to "Покупки",
-        "Пополнение счета" to "Пополнения",
-        "Перевод" to "Переводы",
-        "Платеж" to "Переводы",
-        "Платёж" to "Переводы",
-        "Списание средств в рамках сервиса быстрых платежей" to "Переводы",
-        "Комиссия" to "Комиссии",
+        "Пополнение счета" to "Пополнение",
+        "Перевод" to "Перевод",
+        "Платеж" to "Перевод",
+        "Платёж" to "Перевод",
+        "Списание средств в рамках сервиса быстрых платежей" to "Перевод",
+        "Комиссия" to "Другое",
         // Bereke Bank (English) — full names
         "Payment for goods and services" to "Покупки",
-        "Card replenishment through Bereke Bank" to "Пополнения",
-        "Card replenishment through payment terminal" to "Пополнения",
-        "Transfer from a card through Bereke Bank" to "Переводы",
-        "Operation" to "Переводы",
+        "Card replenishment through Bereke Bank" to "Пополнение",
+        "Card replenishment through payment terminal" to "Пополнение",
+        "Transfer from a card through Bereke Bank" to "Перевод",
+        "Operation" to "Перевод",
         // Bereke Bank (English) — truncated names captured when PDF line wraps (services/Bank/terminal on continuation)
         "Payment for goods and" to "Покупки",
-        "Card replenishment through" to "Пополнения",
-        "Transfer from a card" to "Переводы",
+        "Card replenishment through" to "Пополнение",
+        "Transfer from a card" to "Перевод",
     )
 
     private suspend fun assignCategories(
