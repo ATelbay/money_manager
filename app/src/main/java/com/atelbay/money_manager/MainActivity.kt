@@ -122,13 +122,17 @@ class MainActivity : ComponentActivity() {
 
     private fun extractPdfUri(intent: Intent): String? = when (intent.action) {
         Intent.ACTION_SEND -> {
-            if (intent.type == "application/pdf") {
-                @Suppress("DEPRECATION")
-                intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)?.toString()
-            } else null
+            // Manifest filter already guarantees mimeType=application/pdf;
+            // fall back to ClipData for apps that don't set EXTRA_STREAM
+            @Suppress("DEPRECATION")
+            val streamUri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+            val clipUri = intent.clipData?.getItemAt(0)?.uri
+            (streamUri ?: clipUri)?.toString()
         }
         Intent.ACTION_VIEW -> {
-            if (intent.type == "application/pdf") intent.data?.toString() else null
+            // Manifest filter already guarantees mimeType=application/pdf;
+            // intent.type is often null for ACTION_VIEW — trust the filter, not the field
+            intent.data?.toString()
         }
         else -> null
     }
