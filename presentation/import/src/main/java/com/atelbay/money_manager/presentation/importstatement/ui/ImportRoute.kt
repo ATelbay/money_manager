@@ -9,6 +9,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.io.ByteArrayOutputStream
@@ -30,7 +32,13 @@ fun ImportRoute(
     LaunchedEffect(initialPdfUri) {
         if (initialPdfUri != null) {
             val uri = Uri.parse(initialPdfUri)
-            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            val bytes = withContext(Dispatchers.IO) {
+                try {
+                    context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                } catch (e: SecurityException) {
+                    null // permission expired; user can pick manually
+                }
+            }
             if (bytes != null && bytes.isNotEmpty()) {
                 viewModel.onPdfSelected(bytes)
             }

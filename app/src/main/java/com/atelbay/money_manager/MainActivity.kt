@@ -127,14 +127,22 @@ class MainActivity : ComponentActivity() {
             @Suppress("DEPRECATION")
             val streamUri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
             val clipUri = intent.clipData?.getItemAt(0)?.uri
-            (streamUri ?: clipUri)?.toString()
+            (streamUri ?: clipUri)?.also { takePersistablePermission(it) }?.toString()
         }
         Intent.ACTION_VIEW -> {
             // Manifest filter already guarantees mimeType=application/pdf;
             // intent.type is often null for ACTION_VIEW — trust the filter, not the field
-            intent.data?.toString()
+            intent.data?.also { takePersistablePermission(it) }?.toString()
         }
         else -> null
+    }
+
+    private fun takePersistablePermission(uri: Uri) {
+        try {
+            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } catch (_: SecurityException) {
+            // file:// URIs don't support persistable permissions — safe to ignore
+        }
     }
 }
 
@@ -180,22 +188,19 @@ private fun MoneyManagerApp(
         pendingNavAction = null
     }
 
-    // Gate: open the channel only after onboarding is complete
-    LaunchedEffect(onboardingCompleted) {
-        pendingNavigationManager.setReady(onboardingCompleted)
-    }
-    // Prevent a stale navController from receiving queued actions after config change
-    DisposableEffect(Unit) {
-        onDispose { pendingNavigationManager.setReady(false) }
-    }
-    // Long-lived collector: drains the channel as actions arrive
-    LaunchedEffect(Unit) {
-        pendingNavigationManager.readyActions.collect { action ->
-            when (action) {
-                is NavigationAction.OpenImport ->
-                    navController.navigate(Import(pdfUri = action.pdfUri)) {
-                        launchSingleTop = true
-                    }
+    // Observe pending action as Compose state so this LaunchedEffect re-runs when
+    // either the back stack settles (backStackEntry becomes non-null) or a new action arrives.
+    val pendingAction by pendingNavigationManager.pendingAction.collectAsStateWithLifecycle()
+    LaunchedEffect(backStackEntry?.id, pendingAction) {
+        val action = pendingAction ?: return@LaunchedEffect
+        if (!onboardingCompleted) return@LaunchedEffect
+        backStackEntry ?: return@LaunchedEffect // NavHost not yet settled
+        when (action) {
+            is NavigationAction.OpenImport -> {
+                navController.navigate(Import(pdfUri = action.pdfUri)) {
+                    launchSingleTop = true
+                }
+                pendingNavigationManager.consume()
             }
         }
     }
