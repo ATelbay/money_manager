@@ -63,7 +63,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Date
-import java.util.Locale
 
 private val TransactionListBottomGutter = 16.dp
 
@@ -282,8 +281,12 @@ fun TransactionListScreen(
                     )
                 }
             } else {
+                val locale = s.locale
+                val dateHeaderFormat = remember(locale) { SimpleDateFormat("dd MMMM", locale) }
+                val timeFormat = remember(locale) { SimpleDateFormat("HH:mm", locale) }
+
                 // Group transactions by date
-                val grouped = state.transactionRows.groupBy { formatDateHeader(it.transaction.date, s.periodToday, s.periodYesterday) }
+                val grouped = state.transactionRows.groupBy { formatDateHeader(it.transaction.date, s.periodToday, s.periodYesterday, dateHeaderFormat) }
 
                 grouped.forEach { (dateHeader, transactionRows) ->
                     // Date section header
@@ -316,7 +319,7 @@ fun TransactionListScreen(
                             categoryIcon = categoryIconFromName(transaction.categoryIcon),
                             categoryColor = Color(transaction.categoryColor),
                             amount = row.displayAmount,
-                            date = formatTime(transaction.date),
+                            date = formatTime(transaction.date, timeFormat),
                             isIncome = !isExpense,
                             currency = row.displayCurrency,
                             secondaryAmount = row.originalAmount.takeIf { isShowingConvertedAmount },
@@ -451,10 +454,7 @@ private fun DateRangePickerDialog(
     }
 }
 
-private val dateHeaderFormat = SimpleDateFormat("dd MMMM", Locale.getDefault())
-private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-
-private fun formatDateHeader(timestamp: Long, todayStr: String, yesterdayStr: String): String {
+private fun formatDateHeader(timestamp: Long, todayStr: String, yesterdayStr: String, formatter: SimpleDateFormat): String {
     val txDate = Instant.ofEpochMilli(timestamp)
         .atZone(ZoneId.systemDefault())
         .toLocalDate()
@@ -462,11 +462,11 @@ private fun formatDateHeader(timestamp: Long, todayStr: String, yesterdayStr: St
     return when (txDate) {
         today -> todayStr
         today.minusDays(1) -> yesterdayStr
-        else -> dateHeaderFormat.format(Date(timestamp))
+        else -> formatter.format(Date(timestamp))
     }
 }
 
-private fun formatTime(timestamp: Long): String = timeFormat.format(Date(timestamp))
+private fun formatTime(timestamp: Long, formatter: SimpleDateFormat): String = formatter.format(Date(timestamp))
 
 @Preview(showBackground = true)
 @Composable

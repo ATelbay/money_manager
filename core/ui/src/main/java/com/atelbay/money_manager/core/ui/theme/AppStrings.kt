@@ -1,8 +1,10 @@
 package com.atelbay.money_manager.core.ui.theme
 
 import androidx.compose.runtime.staticCompositionLocalOf
+import java.util.Locale
 
 data class AppStrings(
+    val locale: Locale,
     // ── Common ──
     val ok: String,
     val cancel: String,
@@ -162,6 +164,7 @@ data class AppStrings(
 )
 
 val RussianStrings = AppStrings(
+    locale = Locale("ru"),
     ok = "OK",
     cancel = "Отмена",
     save = "Сохранить",
@@ -290,6 +293,7 @@ val RussianStrings = AppStrings(
 )
 
 val EnglishStrings = AppStrings(
+    locale = Locale.ENGLISH,
     ok = "OK",
     cancel = "Cancel",
     save = "Save",
@@ -418,6 +422,7 @@ val EnglishStrings = AppStrings(
 )
 
 val KazakhStrings = AppStrings(
+    locale = Locale("kk"),
     ok = "OK",
     cancel = "Болдырмау",
     save = "Сақтау",

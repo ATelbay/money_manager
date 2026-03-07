@@ -88,7 +88,6 @@ fun MoneyManagerTheme(
     CompositionLocalProvider(
         LocalMoneyManagerColors provides extendedColors,
         LocalMoneyManagerTypography provides MoneyManagerExtendedTypography(),
-        LocalStrings provides RussianStrings,
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

@@ -291,6 +291,7 @@ class SettingsViewModelTest {
         val targetFlow = MutableStateFlow(targetCurrency)
 
         every { preferences.themeMode } returns flowOf("system")
+        every { preferences.languageCode } returns flowOf("ru")
         every { preferences.baseCurrency } returns baseFlow
         every { preferences.targetCurrency } returns targetFlow
 
