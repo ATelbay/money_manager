@@ -48,6 +48,9 @@ vico = "2.4.3"
 timber = "5.0.1"
 leakcanary = "2.14"
 
+# Splash Screen
+splashscreen = "1.0.1"
+
 # PDF
 pdfboxAndroid = "2.0.27.0"
 
@@ -144,6 +147,9 @@ googleid = { group = "com.google.android.libraries.identity.googleid", name = "g
 # Image Loading
 coil3-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil3" }
 coil3-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil3" }
+
+# Splash Screen
+androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
 
 # PDF
 pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }

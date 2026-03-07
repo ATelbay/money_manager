@@ -45,6 +45,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +53,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
+import com.atelbay.money_manager.core.ui.components.LocalAnimatedVisibilityScope
+import com.atelbay.money_manager.core.ui.components.LocalSharedTransitionScope
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -74,7 +77,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun TransactionEditScreen(
     state: TransactionEditState,
@@ -96,8 +99,20 @@ fun TransactionEditScreen(
     val typography = MoneyManagerTheme.typography
     val s = MoneyManagerTheme.strings
 
+    val sharedTransitionScope = LocalSharedTransitionScope.current
+    val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
+    val txId = state.transactionId
+    val sharedModifier = if (txId != null && sharedTransitionScope != null && animatedVisibilityScope != null) {
+        with(sharedTransitionScope) {
+            Modifier.sharedBounds(
+                sharedContentState = rememberSharedContentState("tx_$txId"),
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+        }
+    } else Modifier
+
     Scaffold(
-        modifier = modifier.testTag("transactionEdit:screen"),
+        modifier = sharedModifier.then(modifier).testTag("transactionEdit:screen"),
         containerColor = colors.textPrimary.copy(alpha = 0f), // transparent — uses parent bg
         topBar = {
             TopAppBar(

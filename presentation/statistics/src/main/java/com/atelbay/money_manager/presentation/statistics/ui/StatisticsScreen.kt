@@ -34,6 +34,8 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -491,9 +493,15 @@ private fun CategoryBreakdownCard(
     GlassCard(modifier = modifier) {
         Column {
             categories.forEachIndexed { index, summary ->
+                val alpha = remember(summary.categoryId) { Animatable(0f) }
+                LaunchedEffect(summary.categoryId) {
+                    delay(index * 60L)
+                    alpha.animateTo(1f, tween(300))
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .graphicsLayer { this.alpha = alpha.value }
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                         .testTag("statistics:category_${summary.categoryId}"),
                     verticalAlignment = Alignment.CenterVertically,

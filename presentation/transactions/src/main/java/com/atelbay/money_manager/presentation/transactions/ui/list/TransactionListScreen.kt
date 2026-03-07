@@ -1,5 +1,9 @@
 package com.atelbay.money_manager.presentation.transactions.ui.list
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,6 +48,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
+import com.atelbay.money_manager.core.ui.components.LocalAnimatedVisibilityScope
+import com.atelbay.money_manager.core.ui.components.LocalSharedTransitionScope
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.model.Transaction
@@ -66,7 +72,7 @@ import java.util.Date
 
 private val TransactionListBottomGutter = 16.dp
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun TransactionListScreen(
     state: TransactionListState,
@@ -84,6 +90,8 @@ fun TransactionListScreen(
     val colors = MoneyManagerTheme.colors
     val s = MoneyManagerTheme.strings
     val locale = s.locale
+    val sharedTransitionScope = LocalSharedTransitionScope.current
+    val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
     val dateHeaderFormat = remember(locale) { SimpleDateFormat("dd MMMM", locale) }
     val timeFormat = remember(locale) { SimpleDateFormat("HH:mm", locale) }
     var showDateRangePicker by remember { mutableStateOf(false) }
@@ -295,6 +303,7 @@ fun TransactionListScreen(
                             style = MoneyManagerTheme.typography.caption,
                             color = colors.textSecondary,
                             modifier = Modifier
+                                .animateItem()
                                 .padding(horizontal = 16.dp)
                                 .padding(top = 16.dp, bottom = 8.dp),
                         )
@@ -310,6 +319,15 @@ fun TransactionListScreen(
                             row.conversionStatus == ConversionStatus.AVAILABLE &&
                                 row.convertedAmount != null &&
                                 row.convertedCurrency != null
+
+                        val sharedModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                            with(sharedTransitionScope) {
+                                Modifier.sharedBounds(
+                                    sharedContentState = rememberSharedContentState("tx_${transaction.id}"),
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                )
+                            }
+                        } else Modifier
 
                         TransactionListItem(
                             description = transaction.note?.ifBlank { transaction.categoryName }
@@ -327,7 +345,13 @@ fun TransactionListScreen(
                                 isShowingConvertedAmount
                             },
                             onClick = { onTransactionClick(transaction.id) },
-                            modifier = Modifier.testTag("transactionList:item_${transaction.id}"),
+                            modifier = sharedModifier
+                                .animateItem(
+                                    fadeInSpec = tween(200),
+                                    placementSpec = spring(stiffness = 380f, dampingRatio = 0.8f),
+                                    fadeOutSpec = tween(150),
+                                )
+                                .testTag("transactionList:item_${transaction.id}"),
                         )
                     }
                 }

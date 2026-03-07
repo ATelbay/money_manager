@@ -8,6 +8,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
@@ -17,6 +18,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -30,13 +32,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.atelbay.money_manager.core.datastore.UserPreferences
+import com.atelbay.money_manager.core.ui.components.CircleRevealShape
 import com.atelbay.money_manager.core.ui.theme.LocalStrings
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.theme.appStringsFor
@@ -51,6 +56,7 @@ import com.atelbay.money_manager.navigation.TopLevelDestination
 import com.atelbay.money_manager.navigation.TransactionEdit
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
+import kotlin.math.sqrt
 import javax.inject.Inject
 
 private const val BottomBarAnimationDurationMs = 150
@@ -64,8 +70,15 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var pendingNavigationManager: PendingNavigationManager
 
+    @Volatile
+    private var onboardingLoadCompleted: Boolean = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        splashScreen.setKeepOnScreenCondition { !onboardingLoadCompleted }
+
         extractPdfUri(intent)?.let { pendingNavigationManager.enqueue(NavigationAction.OpenImport(it)) }
         enableEdgeToEdge()
         setContent {
@@ -95,20 +108,71 @@ class MainActivity : ComponentActivity() {
                 onDispose {}
             }
 
-            CompositionLocalProvider(LocalStrings provides appStringsFor(languageCode)) {
-                MoneyManagerTheme(themeMode = themeMode) {
-                    val onboardingCompleted by userPreferences.isOnboardingCompleted
-                        .collectAsStateWithLifecycle(initialValue = null)
+            val onboardingCompleted by userPreferences.isOnboardingCompleted
+                .collectAsStateWithLifecycle(initialValue = null)
 
-                    val completed = onboardingCompleted
-                    if (completed != null) {
-                        val navController = rememberNavController()
-                        MoneyManagerApp(
-                            navController = navController,
-                            startDestination = if (completed) Home else Onboarding,
-                            onboardingCompleted = completed,
-                            pendingNavigationManager = pendingNavigationManager,
-                        )
+            SideEffect {
+                if (onboardingCompleted != null) {
+                    onboardingLoadCompleted = true
+                }
+            }
+
+            val completed = onboardingCompleted
+
+            CompositionLocalProvider(LocalStrings provides appStringsFor(languageCode)) {
+                if (completed != null) {
+                    val topNavController = rememberNavController()
+                    val bottomNavController = rememberNavController()
+
+                    var renderedTheme by remember { mutableStateOf(themeMode) }
+                    val revealRadius = remember { Animatable(0f) }
+                    var isRevealing by remember { mutableStateOf(false) }
+                    var skipInitial by remember { mutableStateOf(true) }
+
+                    LaunchedEffect(themeMode) {
+                        if (skipInitial) {
+                            skipInitial = false
+                            renderedTheme = themeMode
+                            return@LaunchedEffect
+                        }
+                        if (themeMode != renderedTheme) {
+                            val dm = resources.displayMetrics
+                            val screenW = resources.configuration.screenWidthDp * dm.density
+                            val screenH = resources.configuration.screenHeightDp * dm.density
+                            val maxRadius = sqrt(screenW * screenW + screenH * screenH)
+                            isRevealing = true
+                            revealRadius.snapTo(0f)
+                            revealRadius.animateTo(maxRadius, tween(500, easing = FastOutSlowInEasing))
+                            renderedTheme = themeMode
+                            isRevealing = false
+                        }
+                    }
+
+                    Box {
+                        if (isRevealing) {
+                            MoneyManagerTheme(themeMode = renderedTheme) {
+                                MoneyManagerApp(
+                                    navController = bottomNavController,
+                                    startDestination = if (completed) Home else Onboarding,
+                                    onboardingCompleted = completed,
+                                    pendingNavigationManager = pendingNavigationManager,
+                                )
+                            }
+                        }
+                        MoneyManagerTheme(themeMode = if (isRevealing) themeMode else renderedTheme) {
+                            Box(
+                                modifier = if (isRevealing)
+                                    Modifier.clip(CircleRevealShape(revealRadius.value))
+                                else Modifier,
+                            ) {
+                                MoneyManagerApp(
+                                    navController = topNavController,
+                                    startDestination = if (completed) Home else Onboarding,
+                                    onboardingCompleted = completed,
+                                    pendingNavigationManager = pendingNavigationManager,
+                                )
+                            }
+                        }
                     }
                 }
             }
