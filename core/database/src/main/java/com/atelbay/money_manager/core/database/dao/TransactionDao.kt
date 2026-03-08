@@ -24,7 +24,7 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE isDeleted = 0 AND categoryId = :categoryId ORDER BY date DESC")
     fun observeByCategory(categoryId: Long): Flow<List<TransactionEntity>>
 
-    @Query("SELECT * FROM transactions WHERE id = :id")
+    @Query("SELECT * FROM transactions WHERE id = :id AND isDeleted = 0")
     fun observeById(id: Long): Flow<TransactionEntity?>
 
     @Query("SELECT * FROM transactions WHERE id = :id")
@@ -46,7 +46,7 @@ interface TransactionDao {
     suspend fun softDeleteById(id: Long, updatedAt: Long)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertOrIgnore(transactions: List<TransactionEntity>)
+    suspend fun insertOrIgnore(transactions: List<TransactionEntity>): List<Long>
 
     @Query("SELECT EXISTS(SELECT 1 FROM transactions WHERE uniqueHash = :hash)")
     suspend fun existsByHash(hash: String): Boolean

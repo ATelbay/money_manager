@@ -14,6 +14,7 @@ class ActivityProviderImpl @Inject constructor(
     @ApplicationContext context: Context,
 ) : ActivityProvider {
 
+    @Volatile
     override var currentActivity: Activity? = null
         private set
 

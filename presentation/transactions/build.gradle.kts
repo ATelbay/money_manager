@@ -14,6 +14,7 @@ dependencies {
     implementation(projects.core.model)
     implementation(projects.core.ui)
     implementation(projects.core.datastore)
+    implementation(projects.core.common)
 
     testImplementation(libs.bundles.testing)
 }

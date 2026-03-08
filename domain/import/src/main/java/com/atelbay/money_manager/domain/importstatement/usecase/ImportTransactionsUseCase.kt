@@ -78,14 +78,20 @@ class ImportTransactionsUseCase @Inject constructor(
         val existingHashes = transactionDao.getExistingHashes(entities.mapNotNull { it.uniqueHash }).toSet()
         val toInsert = entities.filter { it.uniqueHash == null || it.uniqueHash !in existingHashes }
 
+        var actuallyInserted = 0
         database.withTransaction {
-            transactionDao.insertOrIgnore(toInsert)
-            toInsert.forEach { entity ->
-                val delta = if (entity.type == "income") entity.amount else -entity.amount
-                accountDao.updateBalance(entity.accountId, delta, System.currentTimeMillis())
+            val insertedIds = transactionDao.insertOrIgnore(toInsert)
+            val now = System.currentTimeMillis()
+            insertedIds.forEachIndexed { index, rowId ->
+                if (rowId != -1L) {
+                    val entity = toInsert[index]
+                    val delta = if (entity.type == "income") entity.amount else -entity.amount
+                    accountDao.updateBalance(entity.accountId, delta, now)
+                    actuallyInserted++
+                }
             }
         }
 
-        return toInsert.size
+        return actuallyInserted
     }
 }

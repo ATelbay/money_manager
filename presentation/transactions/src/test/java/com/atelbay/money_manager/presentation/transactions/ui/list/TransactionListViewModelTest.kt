@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -207,7 +208,7 @@ class TransactionListViewModelTest {
         assertEquals(SummaryDisplayMode.UNAVAILABLE, viewModel.state.value.summaryDisplayMode)
     }
 
-    private fun createViewModel(
+    private fun TestScope.createViewModel(
         transactions: List<Transaction>,
         accounts: List<Account>,
         baseCurrency: Flow<String>,
@@ -228,6 +229,7 @@ class TransactionListViewModelTest {
             ),
             convertAmountUseCase = ConvertAmountUseCase(),
             userPreferences = userPreferences,
+            defaultDispatcher = StandardTestDispatcher(testScheduler),
         )
     }
 

@@ -5,10 +5,12 @@ import com.atelbay.money_manager.core.common.generateTransactionHash
 import com.atelbay.money_manager.core.database.dao.CategoryDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
 import com.atelbay.money_manager.core.database.entity.CategoryEntity
+import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.ImportResult
 import com.atelbay.money_manager.core.model.ParsedTransaction
 import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.core.parser.StatementParser
+import com.atelbay.money_manager.domain.categories.usecase.SaveCategoryUseCase
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -37,25 +39,28 @@ class ParseStatementUseCase @Inject constructor(
     private val geminiService: GeminiService,
     private val categoryDao: CategoryDao,
     private val transactionDao: TransactionDao,
+    private val saveCategoryUseCase: SaveCategoryUseCase,
 ) {
 
     private val json = Json { ignoreUnknownKeys = true }
 
     suspend operator fun invoke(blobs: List<Pair<ByteArray, String>>): ImportResult {
+        val parseErrors = mutableListOf<String>()
         val pdfBlob = blobs.firstOrNull { it.second == "application/pdf" }
 
         val transactions = if (pdfBlob != null) {
-            tryRegexThenGemini(pdfBlob.first, blobs)
+            tryRegexThenGemini(pdfBlob.first, blobs, parseErrors)
         } else {
-            parseWithGemini(blobs)
+            parseWithGemini(blobs, parseErrors)
         }
 
-        return deduplicateAndBuildResult(transactions)
+        return deduplicateAndBuildResult(transactions, parseErrors)
     }
 
     private suspend fun tryRegexThenGemini(
         pdfBytes: ByteArray,
         blobs: List<Pair<ByteArray, String>>,
+        parseErrors: MutableList<String>,
     ): List<ParsedTransaction> {
         val regexResult = statementParser.tryParsePdf(pdfBytes)
 
@@ -69,10 +74,13 @@ class ParseStatementUseCase @Inject constructor(
         }
 
         Timber.d("RegEx parsing failed or empty, falling back to Gemini")
-        return parseWithGemini(blobs)
+        return parseWithGemini(blobs, parseErrors)
     }
 
-    private suspend fun parseWithGemini(blobs: List<Pair<ByteArray, String>>): List<ParsedTransaction> {
+    private suspend fun parseWithGemini(
+        blobs: List<Pair<ByteArray, String>>,
+        parseErrors: MutableList<String>,
+    ): List<ParsedTransaction> {
         val expenseCategories = categoryDao.getByType("expense")
         val incomeCategories = categoryDao.getByType("income")
 
@@ -84,11 +92,12 @@ class ParseStatementUseCase @Inject constructor(
             json.decodeFromString<GeminiResponse>(jsonString)
         } catch (e: Exception) {
             Timber.e(e, "Failed to parse Gemini response")
+            parseErrors.add("Gemini не смог распознать документ: ${e.message}")
             return emptyList()
         }
 
         val errors = mutableListOf<String>()
-        return parsed.transactions.mapNotNull { tx ->
+        val result = parsed.transactions.mapNotNull { tx ->
             try {
                 val date = LocalDate.parse(tx.date)
                 val type = when (tx.type) {
@@ -112,6 +121,8 @@ class ParseStatementUseCase @Inject constructor(
                 null
             }
         }
+        parseErrors.addAll(errors)
+        return result
     }
 
     // Maps raw operation names from bank statements to existing default category names.
@@ -178,7 +189,14 @@ class ParseStatementUseCase @Inject constructor(
                 type = dbType,
                 isDefault = false,
             )
-            val id = categoryDao.insert(newCategory)
+            val domainCategory = Category(
+                name = resolvedName,
+                icon = "label",
+                color = DEFAULT_IMPORT_CATEGORY_COLOR,
+                type = type,
+                isDefault = false,
+            )
+            val id = saveCategoryUseCase(domainCategory)
             val created = newCategory.copy(id = id)
             categories.add(created)
             Timber.d("Created category '%s' (%s) with id=%d", resolvedName, dbType, id)
@@ -204,6 +222,7 @@ class ParseStatementUseCase @Inject constructor(
 
     private suspend fun deduplicateAndBuildResult(
         transactions: List<ParsedTransaction>,
+        parseErrors: List<String> = emptyList(),
     ): ImportResult {
         val hashes = transactions.map { it.uniqueHash }
         val existingHashes = if (hashes.isNotEmpty()) {
@@ -219,7 +238,7 @@ class ParseStatementUseCase @Inject constructor(
             total = transactions.size,
             newTransactions = newTransactions,
             duplicates = duplicates,
-            errors = emptyList(),
+            errors = parseErrors,
         )
     }
 
