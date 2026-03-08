@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.moneymanager.android.library)
+    alias(libs.plugins.moneymanager.android.hilt)
 }
 
 android {

@@ -12,9 +12,11 @@ import com.atelbay.money_manager.domain.exchangerate.usecase.ConvertAmountUseCas
 import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
 import com.atelbay.money_manager.domain.transactions.usecase.DeleteTransactionUseCase
 import com.atelbay.money_manager.domain.transactions.usecase.GetTransactionsUseCase
+import com.atelbay.money_manager.core.common.di.DefaultDispatcher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,7 +25,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -67,6 +68,7 @@ class TransactionListViewModel @Inject constructor(
     observeExchangeRateUseCase: ObserveExchangeRateUseCase,
     private val convertAmountUseCase: ConvertAmountUseCase,
     userPreferences: UserPreferences,
+    @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TransactionListState())
@@ -188,7 +190,7 @@ class TransactionListViewModel @Inject constructor(
                 )
             }
         }
-            .flowOn(Dispatchers.Default)
+            .flowOn(defaultDispatcher)
             .launchIn(viewModelScope)
     }
 
