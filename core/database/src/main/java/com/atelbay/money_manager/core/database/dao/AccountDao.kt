@@ -27,6 +27,7 @@ interface AccountDao {
     @Update
     suspend fun update(account: AccountEntity)
 
+    @Deprecated("Use softDeleteById instead", ReplaceWith("softDeleteById(account.id, System.currentTimeMillis())"))
     @Delete
     suspend fun delete(account: AccountEntity)
 

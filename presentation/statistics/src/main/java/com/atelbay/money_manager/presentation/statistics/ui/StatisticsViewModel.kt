@@ -44,7 +44,13 @@ class StatisticsViewModel @Inject constructor(
                         totalExpenses = summary.totalExpenses,
                         totalIncome = summary.totalIncome,
                         expensesByCategory = summary.expensesByCategory.toImmutableList(),
-                        dailyExpenses = summary.dailyExpenses.takeLast(7).toImmutableList(),
+                        dailyExpenses = summary.dailyExpenses.takeLast(
+                            when (period) {
+                                StatsPeriod.WEEK -> 7
+                                StatsPeriod.MONTH -> 30
+                                StatsPeriod.YEAR -> 365
+                            }
+                        ).toImmutableList(),
                         isLoading = false,
                     )
                 }

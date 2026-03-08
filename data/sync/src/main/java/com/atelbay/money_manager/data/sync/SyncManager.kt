@@ -12,6 +12,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -29,7 +30,8 @@ class SyncManager @Inject constructor(
     private val accountDao: AccountDao,
     private val categoryDao: CategoryDao,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Volatile
+    private var scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val accountMutexes = ConcurrentHashMap<Long, Mutex>()
     private val categoryMutexes = ConcurrentHashMap<Long, Mutex>()
@@ -38,6 +40,7 @@ class SyncManager @Inject constructor(
     val syncStatus: StateFlow<SyncStatus> = _syncStatus.asStateFlow()
 
     /** Timestamp of the last successful bulk sync, preserved across Failed transitions. */
+    @Volatile
     private var _lastSuccessfulSyncAt: Long? = null
     val lastSuccessfulSyncAt: Long? get() = _lastSuccessfulSyncAt
 
@@ -105,10 +108,9 @@ class SyncManager @Inject constructor(
         val userId = authManager.currentUser.value?.userId ?: return
         Timber.d("pushAllPending: starting for userId=$userId")
         accountDao.getPendingSync().forEach { entity ->
-            val remoteId = UUID.randomUUID().toString()
-            accountDao.update(entity.copy(remoteId = remoteId))
+            val remoteId = ensureAccountRemoteId(entity.id) ?: return@forEach
             val updated = accountDao.getById(entity.id) ?: return@forEach
-            firestoreDataSource.pushAccount(userId, updated.toDto())
+            firestoreDataSource.pushAccount(userId, updated.copy(remoteId = remoteId).toDto())
         }
         categoryDao.getPendingSync().forEach { entity ->
             val remoteId = UUID.randomUUID().toString()
@@ -153,6 +155,8 @@ class SyncManager @Inject constructor(
      * sync session cannot accidentally push the previous user's data to their Firestore path.
      */
     suspend fun clearSyncMetadata() {
+        scope.coroutineContext[kotlinx.coroutines.Job]?.cancelAndJoin()
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         accountDao.clearRemoteIds()
         categoryDao.clearRemoteIds()
         transactionDao.clearRemoteIds()

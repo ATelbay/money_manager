@@ -162,22 +162,26 @@ class TransactionEditViewModel @Inject constructor(
         _state.update { it.copy(isSaving = true) }
 
         viewModelScope.launch {
-            saveTransactionUseCase(
-                Transaction(
-                    id = current.transactionId ?: 0,
-                    amount = amount!!,
-                    type = current.type,
-                    categoryId = current.selectedCategory!!.id,
-                    categoryName = current.selectedCategory.name,
-                    categoryIcon = current.selectedCategory.icon,
-                    categoryColor = current.selectedCategory.color,
-                    accountId = current.accountId,
-                    note = current.note.ifBlank { null },
-                    date = current.date,
-                    createdAt = System.currentTimeMillis(),
-                ),
-            )
-            onComplete()
+            try {
+                saveTransactionUseCase(
+                    Transaction(
+                        id = current.transactionId ?: 0,
+                        amount = amount!!,
+                        type = current.type,
+                        categoryId = current.selectedCategory!!.id,
+                        categoryName = current.selectedCategory.name,
+                        categoryIcon = current.selectedCategory.icon,
+                        categoryColor = current.selectedCategory.color,
+                        accountId = current.accountId,
+                        note = current.note.ifBlank { null },
+                        date = current.date,
+                        createdAt = if ((current.transactionId ?: 0L) == 0L) System.currentTimeMillis() else 0L,
+                    ),
+                )
+                onComplete()
+            } catch (e: Exception) {
+                _state.update { it.copy(isSaving = false) }
+            }
         }
     }
 }

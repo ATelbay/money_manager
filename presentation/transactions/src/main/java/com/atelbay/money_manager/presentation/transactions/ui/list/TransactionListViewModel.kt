@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
@@ -185,7 +187,9 @@ class TransactionListViewModel @Inject constructor(
                     periodExpense = summaryMetrics.expense,
                 )
             }
-        }.launchIn(viewModelScope)
+        }
+            .flowOn(Dispatchers.Default)
+            .launchIn(viewModelScope)
     }
 
     fun updateSearchQuery(query: String) {
