@@ -117,3 +117,10 @@ MoneyManager/
 - [ ] Мультивалютность с конвертацией
 - [ ] Облачная синхронизация
 - [ ] Widgets
+
+## Active Technologies
+- Kotlin 2.3.0 + Jetpack Compose (BOM 2026.01.01), Material 3, Navigation Compose 2.9.7 (001-animation-audit)
+- N/A (чисто UI-фича) (001-animation-audit)
+
+## Recent Changes
+- 001-animation-audit: Added Kotlin 2.3.0 + Jetpack Compose (BOM 2026.01.01), Material 3, Navigation Compose 2.9.7

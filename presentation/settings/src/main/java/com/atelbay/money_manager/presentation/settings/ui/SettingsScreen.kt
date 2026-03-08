@@ -1,7 +1,7 @@
 package com.atelbay.money_manager.presentation.settings.ui
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -441,12 +441,12 @@ private fun ThemeSelector(
 
             val bgColor by animateColorAsState(
                 targetValue = if (isSelected) Teal else Color.Transparent,
-                animationSpec = tween(250),
+                animationSpec = MoneyManagerMotion.ColorTransition,
                 label = "themeBg",
             )
             val contentColor by animateColorAsState(
                 targetValue = if (isSelected) Color.White else colors.textSecondary,
-                animationSpec = tween(250),
+                animationSpec = MoneyManagerMotion.ColorTransition,
                 label = "themeContent",
             )
             Box(
@@ -499,12 +499,12 @@ private fun LanguageSelector(
 
             val bgColor by animateColorAsState(
                 targetValue = if (isSelected) Teal else Color.Transparent,
-                animationSpec = tween(250),
+                animationSpec = MoneyManagerMotion.ColorTransition,
                 label = "langBg",
             )
             val contentColor by animateColorAsState(
                 targetValue = if (isSelected) Color.White else colors.textSecondary,
-                animationSpec = tween(250),
+                animationSpec = MoneyManagerMotion.ColorTransition,
                 label = "langContent",
             )
             Box(

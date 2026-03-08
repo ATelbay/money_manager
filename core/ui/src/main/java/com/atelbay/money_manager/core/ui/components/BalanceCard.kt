@@ -2,6 +2,8 @@ package com.atelbay.money_manager.core.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
+import com.atelbay.money_manager.core.ui.util.LocalReduceMotion
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,10 +33,11 @@ fun BalanceCard(
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
+    val reduceMotion = LocalReduceMotion.current
 
     val animatedBalance by animateFloatAsState(
         targetValue = balance.toFloat(),
-        animationSpec = tween(durationMillis = 800),
+        animationSpec = tween(durationMillis = MoneyManagerMotion.duration(MoneyManagerMotion.DurationExtraLong, reduceMotion)),
         label = "balance",
     )
 

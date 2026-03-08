@@ -1,7 +1,7 @@
 package com.atelbay.money_manager.core.ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.spring
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -40,7 +40,7 @@ fun MoneyManagerBottomNavBar(
         items.forEach { item ->
             val tint by animateColorAsState(
                 targetValue = if (item.selected) Teal else colors.textSecondary,
-                animationSpec = spring(stiffness = 400f),
+                animationSpec = MoneyManagerMotion.ColorTransition,
                 label = "navTint",
             )
 

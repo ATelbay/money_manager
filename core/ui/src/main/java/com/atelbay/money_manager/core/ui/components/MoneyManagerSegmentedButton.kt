@@ -1,7 +1,7 @@
 package com.atelbay.money_manager.core.ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -43,12 +43,12 @@ fun MoneyManagerSegmentedButton(
             val isSelected = option == selectedOption
             val bgColor by animateColorAsState(
                 targetValue = if (isSelected) Teal else Color.Transparent,
-                animationSpec = tween(200),
+                animationSpec = MoneyManagerMotion.ColorTransition,
                 label = "segmentBg",
             )
             val textColor by animateColorAsState(
                 targetValue = if (isSelected) Color.White else colors.textSecondary,
-                animationSpec = tween(200),
+                animationSpec = MoneyManagerMotion.ColorTransition,
                 label = "segmentText",
             )
 
