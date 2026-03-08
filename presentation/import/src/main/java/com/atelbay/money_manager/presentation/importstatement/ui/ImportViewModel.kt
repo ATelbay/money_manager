@@ -82,9 +82,11 @@ class ImportViewModel @Inject constructor(
 
     private suspend fun parseAndPreview(blobs: List<Pair<ByteArray, String>>) {
         val result = parseStatementUseCase(blobs)
-        if (result.newTransactions.isEmpty()) {
+        if (result.newTransactions.isEmpty() && result.total == 0) {
             val errorMessage = result.errors.firstOrNull() ?: "Не удалось найти транзакции в документе"
             _state.value = ImportState.Error(errorMessage)
+        } else if (result.newTransactions.isEmpty() && result.errors.isNotEmpty()) {
+            _state.value = ImportState.Error(result.errors.first())
         } else {
             val expenseCategories = getCategoriesUseCase(TransactionType.EXPENSE).first()
             val incomeCategories = getCategoriesUseCase(TransactionType.INCOME).first()

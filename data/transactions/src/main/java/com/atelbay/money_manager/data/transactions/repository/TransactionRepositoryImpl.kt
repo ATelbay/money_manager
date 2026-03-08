@@ -63,6 +63,7 @@ class TransactionRepositoryImpl @Inject constructor(
             syncManager.syncAccount(newEntity.accountId)
             id
         } else {
+            val oldAccountId = transactionDao.getById(baseEntity.id)?.accountId
             database.withTransaction {
                 val existing = transactionDao.getById(baseEntity.id)
                 val updatedEntity = baseEntity.copy(
@@ -83,9 +84,8 @@ class TransactionRepositoryImpl @Inject constructor(
             }
             syncManager.syncTransaction(baseEntity.id)
             // Sync both accounts in case account changed
-            val existing = transactionDao.getById(baseEntity.id)
-            if (existing != null && existing.accountId != baseEntity.accountId) {
-                syncManager.syncAccount(existing.accountId)
+            if (oldAccountId != null && oldAccountId != baseEntity.accountId) {
+                syncManager.syncAccount(oldAccountId)
             }
             syncManager.syncAccount(baseEntity.accountId)
             baseEntity.id
