@@ -1,6 +1,7 @@
 package com.atelbay.money_manager.core.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -167,6 +168,7 @@ fun TransactionListItem(
                 SwipeToDismissBoxValue.EndToStart -> Color(0xFFEF4444)
                 else -> Color.Transparent
             },
+            animationSpec = MoneyManagerMotion.ColorTransition,
             label = "deleteBg",
         )
 

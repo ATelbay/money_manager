@@ -2,6 +2,8 @@ package com.atelbay.money_manager.core.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
+import com.atelbay.money_manager.core.ui.util.LocalReduceMotion
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +40,7 @@ fun IncomeExpenseCard(
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
+    val reduceMotion = LocalReduceMotion.current
     val formatter = NumberFormat.getNumberInstance(Locale.US).apply {
         minimumFractionDigits = 2
         maximumFractionDigits = 2
@@ -56,12 +59,12 @@ fun IncomeExpenseCard(
     // remember(savingsRate) ensures animation only fires when data changes, not on scroll recomposition
     val animatedSavings by animateFloatAsState(
         targetValue = savingsRate,
-        animationSpec = tween(1000),
+        animationSpec = tween(durationMillis = MoneyManagerMotion.duration(MoneyManagerMotion.DurationExtraLong, reduceMotion)),
         label = "savingsBar",
     )
     val animatedExpense by animateFloatAsState(
         targetValue = expenseRate,
-        animationSpec = tween(1000),
+        animationSpec = tween(durationMillis = MoneyManagerMotion.duration(MoneyManagerMotion.DurationExtraLong, reduceMotion)),
         label = "expenseBar",
     )
 

@@ -11,6 +11,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.platform.LocalContext
+import com.atelbay.money_manager.core.ui.util.LocalReduceMotion
+import com.atelbay.money_manager.core.ui.util.isReduceMotionEnabled
 
 private val LightColorScheme = lightColorScheme(
     primary = PrimaryLight,
@@ -88,6 +90,7 @@ fun MoneyManagerTheme(
     CompositionLocalProvider(
         LocalMoneyManagerColors provides extendedColors,
         LocalMoneyManagerTypography provides MoneyManagerExtendedTypography(),
+        LocalReduceMotion provides isReduceMotionEnabled(),
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

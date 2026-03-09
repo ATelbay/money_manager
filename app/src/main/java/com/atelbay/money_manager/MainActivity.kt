@@ -9,7 +9,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -33,6 +32,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -43,8 +46,10 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.ui.components.CircleRevealShape
 import com.atelbay.money_manager.core.ui.theme.LocalStrings
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.theme.appStringsFor
+import com.atelbay.money_manager.core.ui.util.LocalReduceMotion
 import com.atelbay.money_manager.navigation.Home
 import com.atelbay.money_manager.navigation.Import
 import com.atelbay.money_manager.navigation.MoneyManagerBottomBar
@@ -58,8 +63,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import kotlin.math.sqrt
 import javax.inject.Inject
-
-private const val BottomBarAnimationDurationMs = 150
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -121,8 +124,9 @@ class MainActivity : ComponentActivity() {
 
             CompositionLocalProvider(LocalStrings provides appStringsFor(languageCode)) {
                 if (completed != null) {
-                    val topNavController = rememberNavController()
-                    val bottomNavController = rememberNavController()
+                    val navController = rememberNavController()
+                    val snapshotLayer = rememberGraphicsLayer()
+                    val reduceMotion = LocalReduceMotion.current
 
                     var renderedTheme by remember { mutableStateOf(themeMode) }
                     val revealRadius = remember { Animatable(0f) }
@@ -136,42 +140,62 @@ class MainActivity : ComponentActivity() {
                             return@LaunchedEffect
                         }
                         if (themeMode != renderedTheme) {
+                            if (reduceMotion) {
+                                renderedTheme = themeMode
+                                return@LaunchedEffect
+                            }
                             val dm = resources.displayMetrics
                             val screenW = resources.configuration.screenWidthDp * dm.density
                             val screenH = resources.configuration.screenHeightDp * dm.density
                             val maxRadius = sqrt(screenW * screenW + screenH * screenH)
                             isRevealing = true
-                            revealRadius.snapTo(0f)
-                            revealRadius.animateTo(maxRadius, tween(500, easing = FastOutSlowInEasing))
+                            revealRadius.snapTo(maxRadius)
                             renderedTheme = themeMode
+                            revealRadius.animateTo(
+                                0f,
+                                tween(
+                                    MoneyManagerMotion.DurationLong,
+                                    easing = MoneyManagerMotion.StandardEasing,
+                                ),
+                            )
                             isRevealing = false
                         }
                     }
 
                     Box {
-                        if (isRevealing) {
-                            MoneyManagerTheme(themeMode = renderedTheme) {
+                        MoneyManagerTheme(themeMode = themeMode) {
+                            Box(
+                                modifier = Modifier.drawWithContent {
+                                    snapshotLayer.record(
+                                        IntSize(size.width.toInt(), size.height.toInt()),
+                                    ) {
+                                        this@drawWithContent.drawContent()
+                                    }
+                                    drawContent()
+                                },
+                            ) {
                                 MoneyManagerApp(
-                                    navController = bottomNavController,
+                                    navController = navController,
                                     startDestination = if (completed) Home else Onboarding,
                                     onboardingCompleted = completed,
                                     pendingNavigationManager = pendingNavigationManager,
                                 )
                             }
                         }
-                        MoneyManagerTheme(themeMode = if (isRevealing) themeMode else renderedTheme) {
+                        if (isRevealing) {
                             Box(
-                                modifier = if (isRevealing)
-                                    Modifier.clip(CircleRevealShape(revealRadius.value))
-                                else Modifier,
-                            ) {
-                                MoneyManagerApp(
-                                    navController = topNavController,
-                                    startDestination = if (completed) Home else Onboarding,
-                                    onboardingCompleted = completed,
-                                    pendingNavigationManager = pendingNavigationManager,
-                                )
-                            }
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(
+                                        CircleRevealShape(
+                                            radius = revealRadius.value,
+                                            inverted = true,
+                                        ),
+                                    )
+                                    .drawWithContent {
+                                        drawLayer(snapshotLayer)
+                                    },
+                            )
                         }
                     }
                 }
@@ -217,6 +241,7 @@ private fun MoneyManagerApp(
     onboardingCompleted: Boolean,
     pendingNavigationManager: PendingNavigationManager,
 ) {
+    val reduceMotion = LocalReduceMotion.current
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
 
@@ -243,10 +268,12 @@ private fun MoneyManagerApp(
     val bottomBarVisibility = remember { MutableTransitionState(effectiveShowBottomBar) }
     bottomBarVisibility.targetState = effectiveShowBottomBar
 
+    val bottomBarDuration = MoneyManagerMotion.duration(MoneyManagerMotion.DurationShort, reduceMotion)
+
     // Execute pending navigation after bottom bar has finished hiding
     LaunchedEffect(pendingNavAction) {
         val action = pendingNavAction ?: return@LaunchedEffect
-        delay(BottomBarAnimationDurationMs.toLong() + 10L)
+        delay(bottomBarDuration.toLong() + 10L)
         action()
         forceHideBottomBar = false
         pendingNavAction = null
@@ -276,19 +303,19 @@ private fun MoneyManagerApp(
                 visibleState = bottomBarVisibility,
                 enter = slideInVertically(
                     animationSpec = tween(
-                        durationMillis = BottomBarAnimationDurationMs,
-                        easing = FastOutSlowInEasing,
+                        durationMillis = bottomBarDuration,
+                        easing = MoneyManagerMotion.StandardEasing,
                     ),
                 ) { fullHeight -> fullHeight } + fadeIn(
-                    animationSpec = tween(durationMillis = BottomBarAnimationDurationMs),
+                    animationSpec = tween(durationMillis = bottomBarDuration),
                 ),
                 exit = slideOutVertically(
                     animationSpec = tween(
-                        durationMillis = BottomBarAnimationDurationMs,
-                        easing = FastOutSlowInEasing,
+                        durationMillis = bottomBarDuration,
+                        easing = MoneyManagerMotion.StandardEasing,
                     ),
                 ) { fullHeight -> fullHeight } + fadeOut(
-                    animationSpec = tween(durationMillis = BottomBarAnimationDurationMs),
+                    animationSpec = tween(durationMillis = bottomBarDuration),
                 ),
             ) {
                 MoneyManagerBottomBar(
@@ -309,8 +336,8 @@ private fun MoneyManagerApp(
         val animatedBottomPadding by animateDpAsState(
             targetValue = padding.calculateBottomPadding(),
             animationSpec = tween(
-                durationMillis = BottomBarAnimationDurationMs,
-                easing = FastOutSlowInEasing,
+                durationMillis = bottomBarDuration,
+                easing = MoneyManagerMotion.StandardEasing,
             ),
             label = "navHostBottomPadding",
         )

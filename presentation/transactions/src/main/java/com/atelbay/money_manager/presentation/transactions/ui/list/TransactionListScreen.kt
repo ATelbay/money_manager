@@ -1,8 +1,7 @@
 package com.atelbay.money_manager.presentation.transactions.ui.list
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -347,9 +346,9 @@ fun TransactionListScreen(
                             onClick = { onTransactionClick(transaction.id) },
                             modifier = sharedModifier
                                 .animateItem(
-                                    fadeInSpec = tween(200),
-                                    placementSpec = spring(stiffness = 380f, dampingRatio = 0.8f),
-                                    fadeOutSpec = tween(150),
+                                    fadeInSpec = MoneyManagerMotion.ItemFadeInSpec,
+                                    placementSpec = MoneyManagerMotion.ItemPlacementSpec,
+                                    fadeOutSpec = MoneyManagerMotion.ItemFadeOutSpec,
                                 )
                                 .testTag("transactionList:item_${transaction.id}"),
                         )

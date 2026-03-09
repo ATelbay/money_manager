@@ -1,7 +1,7 @@
 package com.atelbay.money_manager.core.ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -40,7 +40,7 @@ fun MoneyManagerChip(
             type == ChipType.EXPENSE -> colors.expenseBg
             else -> Color.Transparent
         },
-        animationSpec = tween(250),
+        animationSpec = MoneyManagerMotion.ColorTransition,
         label = "chipBg",
     )
     val contentColor by animateColorAsState(
@@ -50,7 +50,7 @@ fun MoneyManagerChip(
             type == ChipType.EXPENSE -> colors.expenseForeground
             else -> colors.textSecondary
         },
-        animationSpec = tween(250),
+        animationSpec = MoneyManagerMotion.ColorTransition,
         label = "chipContent",
     )
     val borderColor = when {

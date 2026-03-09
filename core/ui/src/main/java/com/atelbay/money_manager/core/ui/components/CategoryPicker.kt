@@ -1,7 +1,7 @@
 package com.atelbay.money_manager.core.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,7 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
@@ -104,13 +104,13 @@ fun CategoryPicker(
                         val isSelected = category.id == selectedCategoryId
                         val scale by animateFloatAsState(
                             targetValue = if (isSelected) 1.05f else 1f,
-                            animationSpec = spring(stiffness = 400f),
+                            animationSpec = MoneyManagerMotion.InteractionSpring,
                             label = "categoryScale",
                         )
 
                         Column(
                             modifier = Modifier
-                                .scale(scale)
+                                .graphicsLayer { scaleX = scale; scaleY = scale }
                                 .clickable {
                                     onCategorySelected(category)
                                 },

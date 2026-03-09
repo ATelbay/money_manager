@@ -55,8 +55,10 @@ import com.atelbay.money_manager.core.ui.components.GlassCard
 import com.atelbay.money_manager.core.ui.components.MoneyManagerChip
 import com.atelbay.money_manager.core.ui.components.StatType
 import com.atelbay.money_manager.core.ui.components.SummaryStatCard
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.theme.Teal
+import com.atelbay.money_manager.core.ui.util.LocalReduceMotion
 import com.atelbay.money_manager.domain.statistics.model.CategorySummary
 import com.atelbay.money_manager.domain.statistics.model.DailyTotal
 import com.atelbay.money_manager.domain.statistics.model.StatsPeriod
@@ -347,10 +349,16 @@ private fun DonutChart(
         }
     }
 
+    val reduceMotion = LocalReduceMotion.current
     val animProgress = remember { Animatable(0f) }
     LaunchedEffect(categories) {
         animProgress.snapTo(0f)
-        animProgress.animateTo(1f, animationSpec = tween(durationMillis = 800))
+        animProgress.animateTo(
+            1f,
+            animationSpec = tween(
+                durationMillis = MoneyManagerMotion.duration(MoneyManagerMotion.DurationExtraLong, reduceMotion),
+            ),
+        )
     }
 
     Box(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
@@ -418,10 +426,14 @@ private fun ExpenseBarChart(
         }
     }
 
+    val reduceMotion = LocalReduceMotion.current
     val animProgress = remember { Animatable(0f) }
     LaunchedEffect(dailyExpenses) {
         animProgress.snapTo(0f)
-        animProgress.animateTo(1f, animationSpec = tween(durationMillis = 600))
+        animProgress.animateTo(
+            1f,
+            animationSpec = tween(durationMillis = MoneyManagerMotion.duration(600, reduceMotion)),
+        )
     }
 
     Canvas(modifier = modifier) {
@@ -490,13 +502,18 @@ private fun CategoryBreakdownCard(
     val typography = MoneyManagerTheme.typography
     val amountFormatter = remember { DecimalFormat("#,##0") }
 
+    val reduceMotion = LocalReduceMotion.current
+
     GlassCard(modifier = modifier) {
         Column {
             categories.forEachIndexed { index, summary ->
                 val alpha = remember(summary.categoryId) { Animatable(0f) }
                 LaunchedEffect(summary.categoryId) {
-                    delay(index * 60L)
-                    alpha.animateTo(1f, tween(300))
+                    delay(MoneyManagerMotion.staggerDelay(index, reduceMotion))
+                    alpha.animateTo(
+                        1f,
+                        tween(MoneyManagerMotion.duration(MoneyManagerMotion.DurationMedium, reduceMotion)),
+                    )
                 }
                 Row(
                     modifier = Modifier

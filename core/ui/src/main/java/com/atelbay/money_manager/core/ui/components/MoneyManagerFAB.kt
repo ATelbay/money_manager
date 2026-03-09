@@ -1,7 +1,7 @@
 package com.atelbay.money_manager.core.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.size
@@ -15,7 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
@@ -34,7 +34,7 @@ fun MoneyManagerFAB(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.92f else 1f,
-        animationSpec = spring(stiffness = 400f, dampingRatio = 0.6f),
+        animationSpec = MoneyManagerMotion.InteractionSpring,
         label = "fabScale",
     )
 
@@ -42,7 +42,8 @@ fun MoneyManagerFAB(
         onClick = onClick,
         modifier = modifier
             .size(56.dp)
-            .scale(scale).then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
         shape = CircleShape,
         containerColor = MoneyManagerTheme.colors.fabContainer,
         contentColor = MoneyManagerTheme.colors.fabContent,
