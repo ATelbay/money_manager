@@ -24,18 +24,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.graphics.graphicsLayer
-import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,6 +49,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -61,25 +66,37 @@ import com.atelbay.money_manager.core.ui.theme.Teal
 import com.atelbay.money_manager.core.ui.util.LocalReduceMotion
 import com.atelbay.money_manager.domain.statistics.model.CategorySummary
 import com.atelbay.money_manager.domain.statistics.model.DailyTotal
+import com.atelbay.money_manager.domain.statistics.model.MonthlyTotal
 import com.atelbay.money_manager.domain.statistics.model.StatsPeriod
+import com.atelbay.money_manager.domain.statistics.model.TransactionType
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.delay
 import java.text.DecimalFormat
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private data class BarEntry(val label: String, val amount: Double)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatisticsScreen(
     state: StatisticsState,
     onPeriodChange: (StatsPeriod) -> Unit,
+    onTransactionTypeChange: (TransactionType) -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
     val s = MoneyManagerTheme.strings
+
+    val isExpense = state.transactionType == TransactionType.EXPENSE
+    val currentCategories = if (isExpense) state.expensesByCategory else state.incomesByCategory
+    val currentTotal = if (isExpense) state.totalExpenses else state.totalIncome
 
     Scaffold(
         modifier = modifier.testTag("statistics:screen"),
@@ -111,14 +128,13 @@ fun StatisticsScreen(
             return@Scaffold
         }
 
-        // Empty state
-        if (state.expensesByCategory.isEmpty() && state.totalIncome == 0.0) {
+        // Error state
+        if (state.error != null) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
             ) {
-                // Period selector even in empty state
                 PeriodSelector(
                     selected = state.period,
                     onSelect = onPeriodChange,
@@ -126,14 +142,104 @@ fun StatisticsScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                 )
+                TransactionTypeToggle(
+                    selected = state.transactionType,
+                    onSelect = onTransactionTypeChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .testTag("statistics:error"),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ErrorOutline,
+                        contentDescription = null,
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(48.dp),
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = state.error,
+                        style = typography.cardTitle,
+                        color = colors.textSecondary,
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedButton(
+                        onClick = onRetry,
+                        modifier = Modifier.testTag("statistics:retryButton"),
+                    ) {
+                        Text(text = s.retryButton)
+                    }
+                }
+            }
+            return@Scaffold
+        }
 
+        // Empty state
+        val isEmpty = if (isExpense) {
+            state.expensesByCategory.isEmpty()
+        } else {
+            state.incomesByCategory.isEmpty()
+        }
+        if (isEmpty) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+            ) {
+                PeriodSelector(
+                    selected = state.period,
+                    onSelect = onPeriodChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+                TransactionTypeToggle(
+                    selected = state.transactionType,
+                    onSelect = onTransactionTypeChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                )
                 EmptyState(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .testTag("statistics:emptyState"),
                 )
             }
             return@Scaffold
+        }
+
+        val barEntries = remember(state.period, state.transactionType, state.dailyExpenses, state.dailyIncome, state.monthlyExpenses, state.monthlyIncome) {
+            when (state.period) {
+                StatsPeriod.WEEK -> {
+                    val dailyData = if (isExpense) state.dailyExpenses else state.dailyIncome
+                    val weekFormat = SimpleDateFormat("EEE", Locale.getDefault())
+                    dailyData.map { BarEntry(weekFormat.format(Date(it.date)), it.amount) }.toImmutableList()
+                }
+                StatsPeriod.MONTH -> {
+                    val dailyData = if (isExpense) state.dailyExpenses else state.dailyIncome
+                    val dayFormat = SimpleDateFormat("d", Locale.getDefault())
+                    dailyData.map { BarEntry(dayFormat.format(Date(it.date)), it.amount) }.toImmutableList()
+                }
+                StatsPeriod.YEAR -> {
+                    val monthlyData = if (isExpense) state.monthlyExpenses else state.monthlyIncome
+                    monthlyData.map { BarEntry(it.label, it.amount) }.toImmutableList()
+                }
+            }
+        }
+
+        val barLabelInterval = when (state.period) {
+            StatsPeriod.WEEK -> 1
+            StatsPeriod.MONTH -> 5
+            StatsPeriod.YEAR -> 1
         }
 
         LazyColumn(
@@ -143,7 +249,6 @@ fun StatisticsScreen(
                 .testTag("statistics:content"),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Period selector
             item(key = "period") {
                 PeriodSelector(
                     selected = state.period,
@@ -154,7 +259,17 @@ fun StatisticsScreen(
                 )
             }
 
-            // Summary Cards — Bento Grid
+            item(key = "typeToggle") {
+                TransactionTypeToggle(
+                    selected = state.transactionType,
+                    onSelect = onTransactionTypeChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                )
+            }
+
+            // Summary Cards
             item(key = "totals") {
                 Row(
                     modifier = Modifier
@@ -184,11 +299,12 @@ fun StatisticsScreen(
             }
 
             // Donut Chart
-            if (state.expensesByCategory.isNotEmpty()) {
+            if (currentCategories.isNotEmpty()) {
                 item(key = "donut") {
                     DonutChartCard(
-                        categories = state.expensesByCategory,
-                        totalExpenses = state.totalExpenses,
+                        categories = currentCategories,
+                        totalAmount = currentTotal,
+                        centerLabel = if (isExpense) s.expensesLabel else s.incomeLabel,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
@@ -198,18 +314,24 @@ fun StatisticsScreen(
             }
 
             // Bar Chart
-            if (state.dailyExpenses.isNotEmpty()) {
+            if (barEntries.isNotEmpty()) {
                 item(key = "bar") {
                     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                         Text(
-                            text = s.expensesByDays,
+                            text = if (isExpense) s.expensesByDays else s.incomeByDays,
                             style = typography.caption,
                             color = colors.textSecondary,
                             modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
                         )
                         GlassCard(modifier = Modifier.fillMaxWidth()) {
-                            ExpenseBarChart(
-                                dailyExpenses = state.dailyExpenses,
+                            BarChart(
+                                entries = barEntries,
+                                barColor = if (isExpense) {
+                                    colors.expense.copy(alpha = 0.8f)
+                                } else {
+                                    colors.income.copy(alpha = 0.8f)
+                                },
+                                labelInterval = barLabelInterval,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(200.dp)
@@ -222,7 +344,7 @@ fun StatisticsScreen(
             }
 
             // Category Breakdown
-            if (state.expensesByCategory.isNotEmpty()) {
+            if (currentCategories.isNotEmpty()) {
                 item(key = "breakdown") {
                     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                         Text(
@@ -232,7 +354,7 @@ fun StatisticsScreen(
                             modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
                         )
                         CategoryBreakdownCard(
-                            categories = state.expensesByCategory,
+                            categories = currentCategories,
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -276,13 +398,44 @@ private fun PeriodSelector(
     }
 }
 
+// ── Transaction Type Toggle ──
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TransactionTypeToggle(
+    selected: TransactionType,
+    onSelect: (TransactionType) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val s = MoneyManagerTheme.strings
+    SingleChoiceSegmentedButtonRow(
+        modifier = modifier.testTag("statistics:typeToggle"),
+    ) {
+        SegmentedButton(
+            selected = selected == TransactionType.EXPENSE,
+            onClick = { onSelect(TransactionType.EXPENSE) },
+            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+        ) {
+            Text(text = s.expensesLabel)
+        }
+        SegmentedButton(
+            selected = selected == TransactionType.INCOME,
+            onClick = { onSelect(TransactionType.INCOME) },
+            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+        ) {
+            Text(text = s.incomeLabel)
+        }
+    }
+}
+
 // ── Donut Chart Card ──
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DonutChartCard(
     categories: ImmutableList<CategorySummary>,
-    totalExpenses: Double,
+    totalAmount: Double,
+    centerLabel: String,
     modifier: Modifier = Modifier,
 ) {
     val colors = MoneyManagerTheme.colors
@@ -293,10 +446,10 @@ private fun DonutChartCard(
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // Donut chart
             DonutChart(
                 categories = categories,
-                totalExpenses = totalExpenses,
+                totalAmount = totalAmount,
+                centerLabel = centerLabel,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 32.dp),
@@ -304,7 +457,6 @@ private fun DonutChartCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Legend
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -337,7 +489,8 @@ private fun DonutChartCard(
 @Composable
 private fun DonutChart(
     categories: ImmutableList<CategorySummary>,
-    totalExpenses: Double,
+    totalAmount: Double,
+    centerLabel: String,
     modifier: Modifier = Modifier,
 ) {
     val colors = MoneyManagerTheme.colors
@@ -351,7 +504,7 @@ private fun DonutChart(
 
     val reduceMotion = LocalReduceMotion.current
     val animProgress = remember { Animatable(0f) }
-    LaunchedEffect(categories) {
+    LaunchedEffect(categories.map { it.categoryId to it.totalAmount }) {
         animProgress.snapTo(0f)
         animProgress.animateTo(
             1f,
@@ -391,14 +544,16 @@ private fun DonutChart(
         // Center text
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = MoneyManagerTheme.strings.expensesLabel,
+                text = centerLabel,
                 style = typography.caption,
                 color = colors.textSecondary,
             )
             Text(
-                text = "\u20B8 ${formatter.format(totalExpenses)}",
+                text = "\u20B8 ${formatter.format(totalAmount)}",
                 style = typography.sectionHeader,
                 color = colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -407,28 +562,21 @@ private fun DonutChart(
 // ── Bar Chart ──
 
 @Composable
-private fun ExpenseBarChart(
-    dailyExpenses: ImmutableList<DailyTotal>,
+private fun BarChart(
+    entries: ImmutableList<BarEntry>,
+    barColor: Color,
+    labelInterval: Int = 1,
     modifier: Modifier = Modifier,
 ) {
     val colors = MoneyManagerTheme.colors
-    val barColor = colors.expense.copy(alpha = 0.8f)
     val gridColor = colors.borderSubtle
     val labelColor = colors.textTertiary
     val textMeasurer = rememberTextMeasurer()
     val labelStyle = MoneyManagerTheme.typography.caption.copy(color = labelColor)
 
-    val dateFormat = remember { SimpleDateFormat("dd.MM", Locale.getDefault()) }
-
-    val labels = remember(dailyExpenses) {
-        dailyExpenses.map { daily ->
-            dateFormat.format(Date(daily.date))
-        }
-    }
-
     val reduceMotion = LocalReduceMotion.current
     val animProgress = remember { Animatable(0f) }
-    LaunchedEffect(dailyExpenses) {
+    LaunchedEffect(entries.map { it.amount }) {
         animProgress.snapTo(0f)
         animProgress.animateTo(
             1f,
@@ -437,9 +585,9 @@ private fun ExpenseBarChart(
     }
 
     Canvas(modifier = modifier) {
-        if (dailyExpenses.isEmpty()) return@Canvas
+        if (entries.isEmpty()) return@Canvas
 
-        val maxAmount = dailyExpenses.maxOf { it.amount }
+        val maxAmount = entries.maxOf { it.amount }
         if (maxAmount <= 0.0) return@Canvas
 
         val topPadding = 8.dp.toPx()
@@ -448,12 +596,12 @@ private fun ExpenseBarChart(
         val barSpacing = 6.dp.toPx()
         val maxBarWidth = 40.dp.toPx()
         val naturalBarWidth =
-            (size.width - barSpacing * (dailyExpenses.size - 1)) / dailyExpenses.size
+            (size.width - barSpacing * (entries.size - 1)) / entries.size
         val barWidth = naturalBarWidth.coerceAtMost(maxBarWidth)
         val cornerRadius = 4.dp.toPx()
 
         val totalBarsWidth =
-            barWidth * dailyExpenses.size + barSpacing * (dailyExpenses.size - 1)
+            barWidth * entries.size + barSpacing * (entries.size - 1)
         val leftOffset = (size.width - totalBarsWidth) / 2f
 
         // Grid lines
@@ -468,9 +616,9 @@ private fun ExpenseBarChart(
         }
 
         // Bars + labels
-        dailyExpenses.forEachIndexed { index, daily ->
+        entries.forEachIndexed { index, entry ->
             val barHeight =
-                (daily.amount / maxAmount).toFloat() * chartHeight * animProgress.value
+                (entry.amount / maxAmount).toFloat() * chartHeight * animProgress.value
             val x = leftOffset + index * (barWidth + barSpacing)
             val y = topPadding + chartHeight - barHeight
 
@@ -482,11 +630,15 @@ private fun ExpenseBarChart(
             )
 
             // Label below bar
-            val label = labels[index]
-            val measuredText = textMeasurer.measure(label, labelStyle)
-            val labelX = x + (barWidth - measuredText.size.width) / 2f
-            val labelY = topPadding + chartHeight + 4.dp.toPx()
-            drawText(measuredText, topLeft = Offset(labelX, labelY))
+            if (index % labelInterval == 0) {
+                val label = entry.label
+                val measuredText = textMeasurer.measure(label, labelStyle)
+                val labelX = (x + (barWidth - measuredText.size.width) / 2f)
+                    .coerceAtLeast(0f)
+                    .coerceAtMost(size.width - measuredText.size.width)
+                val labelY = topPadding + chartHeight + 4.dp.toPx()
+                drawText(measuredText, topLeft = Offset(labelX, labelY))
+            }
         }
     }
 }
@@ -547,7 +699,7 @@ private fun CategoryBreakdownCard(
 
                     // Percentage badge
                     Text(
-                        text = "${summary.percentage.toInt()}%",
+                        text = "${summary.percentage}%",
                         style = typography.caption,
                         color = Color(summary.categoryColor),
                         modifier = Modifier
@@ -642,17 +794,10 @@ private fun StatisticsScreenPreview() {
                 totalExpenses = 85_000.0,
                 totalIncome = 200_000.0,
                 expensesByCategory = persistentListOf(
-                    CategorySummary(1, "Еда", "restaurant", 0xFFFF6B6B, 35_000.0, 41.2f),
-                    CategorySummary(2, "Транспорт", "directions_car", 0xFF4ECDC4, 20_000.0, 23.5f),
-                    CategorySummary(
-                        3,
-                        "Развлечения",
-                        "sports_esports",
-                        0xFF45B7D1,
-                        15_000.0,
-                        17.6f,
-                    ),
-                    CategorySummary(4, "Покупки", "shopping_bag", 0xFFF7B801, 15_000.0, 17.6f),
+                    CategorySummary(1, "Еда", "restaurant", 0xFFFF6B6B, 35_000.0, 41),
+                    CategorySummary(2, "Транспорт", "directions_car", 0xFF4ECDC4, 20_000.0, 24),
+                    CategorySummary(3, "Развлечения", "sports_esports", 0xFF45B7D1, 15_000.0, 18),
+                    CategorySummary(4, "Покупки", "shopping_bag", 0xFFF7B801, 15_000.0, 17),
                 ),
                 dailyExpenses = persistentListOf(
                     DailyTotal(1738800000000, 5000.0),
@@ -663,6 +808,8 @@ private fun StatisticsScreenPreview() {
                 ),
             ),
             onPeriodChange = {},
+            onTransactionTypeChange = {},
+            onRetry = {},
         )
     }
 }
@@ -674,6 +821,91 @@ private fun StatisticsScreenEmptyPreview() {
         StatisticsScreen(
             state = StatisticsState(isLoading = false),
             onPeriodChange = {},
+            onTransactionTypeChange = {},
+            onRetry = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0D0D0D)
+@Composable
+private fun StatisticsScreenErrorPreview() {
+    MoneyManagerTheme(themeMode = "dark", dynamicColor = false) {
+        StatisticsScreen(
+            state = StatisticsState(
+                isLoading = false,
+                error = "Не удалось загрузить данные",
+            ),
+            onPeriodChange = {},
+            onTransactionTypeChange = {},
+            onRetry = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0D0D0D)
+@Composable
+private fun StatisticsScreenIncomePreview() {
+    MoneyManagerTheme(themeMode = "dark", dynamicColor = false) {
+        StatisticsScreen(
+            state = StatisticsState(
+                isLoading = false,
+                transactionType = TransactionType.INCOME,
+                totalExpenses = 85_000.0,
+                totalIncome = 200_000.0,
+                incomesByCategory = persistentListOf(
+                    CategorySummary(1, "Зарплата", "payments", 0xFF4ECDC4, 150_000.0, 75),
+                    CategorySummary(2, "Фриланс", "work", 0xFF45B7D1, 50_000.0, 25),
+                ),
+                dailyIncome = persistentListOf(
+                    DailyTotal(1738800000000, 10000.0),
+                    DailyTotal(1738886400000, 5000.0),
+                    DailyTotal(1738972800000, 15000.0),
+                    DailyTotal(1739059200000, 0.0),
+                    DailyTotal(1739145600000, 20000.0),
+                ),
+            ),
+            onPeriodChange = {},
+            onTransactionTypeChange = {},
+            onRetry = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0D0D0D)
+@Composable
+private fun StatisticsScreenYearPreview() {
+    MoneyManagerTheme(themeMode = "dark", dynamicColor = false) {
+        StatisticsScreen(
+            state = StatisticsState(
+                isLoading = false,
+                period = StatsPeriod.YEAR,
+                totalExpenses = 1_200_000.0,
+                totalIncome = 2_400_000.0,
+                expensesByCategory = persistentListOf(
+                    CategorySummary(1, "Еда", "restaurant", 0xFFFF6B6B, 500_000.0, 42),
+                    CategorySummary(2, "Транспорт", "directions_car", 0xFF4ECDC4, 300_000.0, 25),
+                    CategorySummary(3, "Развлечения", "sports_esports", 0xFF45B7D1, 200_000.0, 17),
+                    CategorySummary(4, "Покупки", "shopping_bag", 0xFFF7B801, 200_000.0, 16),
+                ),
+                monthlyExpenses = persistentListOf(
+                    MonthlyTotal(2025, 1, 80_000.0, "Янв"),
+                    MonthlyTotal(2025, 2, 95_000.0, "Фев"),
+                    MonthlyTotal(2025, 3, 110_000.0, "Мар"),
+                    MonthlyTotal(2025, 4, 75_000.0, "Апр"),
+                    MonthlyTotal(2025, 5, 120_000.0, "Май"),
+                    MonthlyTotal(2025, 6, 90_000.0, "Июн"),
+                    MonthlyTotal(2025, 7, 100_000.0, "Июл"),
+                    MonthlyTotal(2025, 8, 85_000.0, "Авг"),
+                    MonthlyTotal(2025, 9, 105_000.0, "Сен"),
+                    MonthlyTotal(2025, 10, 95_000.0, "Окт"),
+                    MonthlyTotal(2025, 11, 115_000.0, "Ноя"),
+                    MonthlyTotal(2025, 12, 130_000.0, "Дек"),
+                ),
+            ),
+            onPeriodChange = {},
+            onTransactionTypeChange = {},
+            onRetry = {},
         )
     }
 }

@@ -16,6 +16,8 @@ fun StatisticsRoute(
     StatisticsScreen(
         state = state,
         onPeriodChange = viewModel::setPeriod,
+        onTransactionTypeChange = viewModel::setTransactionType,
+        onRetry = viewModel::retry,
         modifier = modifier,
     )
 }
