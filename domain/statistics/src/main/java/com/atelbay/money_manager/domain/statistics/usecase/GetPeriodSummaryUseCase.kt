@@ -93,7 +93,10 @@ class GetPeriodSummaryUseCase @Inject constructor(
         when (period) {
             StatsPeriod.WEEK -> cal.add(Calendar.DAY_OF_YEAR, -6)
             StatsPeriod.MONTH -> cal.add(Calendar.DAY_OF_YEAR, -29)
-            StatsPeriod.YEAR -> cal.add(Calendar.DAY_OF_YEAR, -364)
+            StatsPeriod.YEAR -> {
+                cal.set(Calendar.DAY_OF_MONTH, 1)  // snap to 1st of current month
+                cal.add(Calendar.MONTH, -11)        // go back 11 months → exactly 12 buckets
+            }
         }
         val start = cal.timeInMillis
 
@@ -221,14 +224,14 @@ class GetPeriodSummaryUseCase @Inject constructor(
         val nonZeroIds = items.filter { it.second > 0.0 }.map { it.first }
         for (id in nonZeroIds) {
             if (floors[id]!! < 1) {
-                floors[id] = 1
-                // Steal from the category with the largest percentage
                 val donor = floors.entries
                     .filter { it.key != id && it.value > 1 }
                     .maxByOrNull { it.value }
                 if (donor != null) {
+                    floors[id] = 1
                     floors[donor.key] = donor.value - 1
                 }
+                // If no donor, leave as-is (total integrity > UI guarantee)
             }
         }
 
