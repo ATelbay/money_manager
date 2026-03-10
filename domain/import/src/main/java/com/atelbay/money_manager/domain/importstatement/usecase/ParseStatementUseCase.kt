@@ -66,14 +66,18 @@ class ParseStatementUseCase @Inject constructor(
 
         if (regexResult != null && regexResult.transactions.isNotEmpty()) {
             Timber.d(
-                "RegEx parsed %d transactions for bank %s",
-                regexResult.transactions.size,
+                "PDF import: bank=%s parsed %d transactions via regex",
                 regexResult.bankId,
+                regexResult.transactions.size,
             )
             return assignCategories(regexResult.transactions)
         }
 
-        Timber.d("RegEx parsing failed or empty, falling back to Gemini")
+        if (regexResult == null) {
+            Timber.d("PDF import: bank not detected, using AI fallback")
+        } else {
+            Timber.d("PDF import: bank=%s detected but 0 transactions parsed, using AI fallback", regexResult.bankId)
+        }
         return parseWithGemini(blobs, parseErrors)
     }
 
