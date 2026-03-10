@@ -53,6 +53,7 @@ splashscreen = "1.0.1"
 
 # PDF
 pdfboxAndroid = "2.0.27.0"
+pdfbox = "2.0.32"
 
 # Testing
 junit = "4.13.2"
@@ -153,6 +154,7 @@ androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscree
 
 # PDF
 pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
+pdfbox = { group = "org.apache.pdfbox", name = "pdfbox", version.ref = "pdfbox" }
 
 # Detekt
 detekt-compose = { group = "io.nlopez.compose.rules", name = "detekt", version.ref = "detektCompose" }

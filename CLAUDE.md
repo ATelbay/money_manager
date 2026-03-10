@@ -123,6 +123,8 @@ MoneyManager/
 - N/A (чисто UI-фича) (001-animation-audit)
 - Kotlin 2.3.0 + Jetpack Compose (BOM 2026.01.01), Material 3, Hilt 2.58, Room 2.8.4, kotlinx-collections-immutable (002-statistics-audit)
 - Room (TransactionDao, CategoryDao) (002-statistics-audit)
+- Kotlin 2.3.0 + PdfBox-Android 2.0.27.0, Firebase Remote Config, kotlinx-serialization-json, kotlinx-datetime (003-audit-pdf-import)
+- Room (no changes); Firebase Remote Config (Bereke config update) (003-audit-pdf-import)
 
 ## Recent Changes
 - 001-animation-audit: Added Kotlin 2.3.0 + Jetpack Compose (BOM 2026.01.01), Material 3, Navigation Compose 2.9.7

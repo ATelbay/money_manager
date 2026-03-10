@@ -17,4 +17,6 @@ dependencies {
     implementation(libs.timber)
 
     testImplementation(libs.bundles.testing)
+    testImplementation(libs.kotlinx.serialization.json)
+    testImplementation(libs.pdfbox)
 }

@@ -36,7 +36,7 @@ class StatementParser @Inject constructor(
 
         if (transactions.isEmpty()) {
             Timber.d("RegEx parser returned 0 transactions for bank %s", config.bankId)
-            return null
+            return RegexParseResult(transactions = emptyList(), bankId = config.bankId)
         }
 
         return RegexParseResult(transactions = transactions, bankId = config.bankId)
