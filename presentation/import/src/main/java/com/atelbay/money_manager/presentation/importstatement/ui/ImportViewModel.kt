@@ -15,9 +15,12 @@ import com.atelbay.money_manager.domain.importstatement.usecase.ImportTransactio
 import com.atelbay.money_manager.domain.importstatement.usecase.ParseStatementUseCase
 import com.atelbay.money_manager.domain.importstatement.usecase.SubmitParserCandidateUseCase
 import com.atelbay.money_manager.core.remoteconfig.ParserConfig
+import com.atelbay.money_manager.domain.importstatement.usecase.AiMethod
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
@@ -46,6 +49,10 @@ class ImportViewModel @Inject constructor(
 
     private val _selectedAccountId = MutableStateFlow<Long?>(null)
     val selectedAccountId: StateFlow<Long?> = _selectedAccountId
+
+    /** Debug-only: emits a message when AI fallback is used. */
+    private val _debugAiEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val debugAiEvent = _debugAiEvent.asSharedFlow()
 
     /** Tracks the AI-generated config from the last parse, if any. */
     private var lastAiGeneratedConfig: ParserConfig? = null
@@ -95,6 +102,14 @@ class ImportViewModel @Inject constructor(
         val result = parseResult.importResult
         lastAiGeneratedConfig = parseResult.aiGeneratedConfig
         lastSampleRows = parseResult.sampleRows
+
+        when (parseResult.aiMethod) {
+            AiMethod.REGEX_GENERATED -> _debugAiEvent.tryEmit(
+                "AI regex generated for: ${parseResult.aiGeneratedConfig?.bankId}"
+            )
+            AiMethod.FULL_PARSE -> _debugAiEvent.tryEmit("AI full parse (Gemini)")
+            AiMethod.NONE -> { /* regex matched, no AI used */ }
+        }
 
         if (result.newTransactions.isEmpty() && result.total == 0) {
             val errorMessage = result.errors.firstOrNull() ?: "Не удалось найти транзакции в документе"

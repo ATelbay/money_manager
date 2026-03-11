@@ -14,6 +14,7 @@ import com.atelbay.money_manager.core.parser.RegexValidator
 import com.atelbay.money_manager.core.parser.StatementParser
 import com.atelbay.money_manager.core.remoteconfig.ParserConfig
 import com.atelbay.money_manager.core.remoteconfig.ParserConfigList
+import com.atelbay.money_manager.core.remoteconfig.ParserConfigProvider
 import com.atelbay.money_manager.domain.categories.usecase.SaveCategoryUseCase
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.firstOrNull
@@ -46,12 +47,16 @@ data class ParseResult(
     val importResult: ImportResult,
     val aiGeneratedConfig: ParserConfig? = null,
     val sampleRows: String? = null,
+    val aiMethod: AiMethod = AiMethod.NONE,
 )
+
+enum class AiMethod { NONE, REGEX_GENERATED, FULL_PARSE }
 
 private data class RegexThenGeminiResult(
     val transactions: List<ParsedTransaction>,
     val aiGeneratedConfig: ParserConfig? = null,
     val sampleRows: String? = null,
+    val aiMethod: AiMethod = AiMethod.NONE,
 )
 
 class ParseStatementUseCase @Inject constructor(
@@ -62,6 +67,7 @@ class ParseStatementUseCase @Inject constructor(
     private val saveCategoryUseCase: SaveCategoryUseCase,
     private val userPreferences: UserPreferences,
     private val regexValidator: RegexValidator,
+    private val parserConfigProvider: ParserConfigProvider,
 ) {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -72,20 +78,27 @@ class ParseStatementUseCase @Inject constructor(
 
         var aiGeneratedConfig: ParserConfig? = null
         var sampleRows: String? = null
+        var aiMethod = AiMethod.NONE
 
         val transactions = if (pdfBlob != null) {
             val result = tryRegexThenGemini(pdfBlob.first, blobs, parseErrors)
             aiGeneratedConfig = result.aiGeneratedConfig
             sampleRows = result.sampleRows
+            aiMethod = result.aiMethod
             result.transactions
-        } else {
+        } else if (parserConfigProvider.isAiFullParseEnabled()) {
+            aiMethod = AiMethod.FULL_PARSE
             parseWithGemini(blobs, parseErrors)
+        } else {
+            parseErrors.add("AI-парсинг отключён. Поддерживаются только PDF-выписки.")
+            emptyList()
         }
 
         return ParseResult(
             importResult = deduplicateAndBuildResult(transactions, parseErrors),
             aiGeneratedConfig = aiGeneratedConfig,
             sampleRows = sampleRows,
+            aiMethod = aiMethod,
         )
     }
 
@@ -157,6 +170,7 @@ class ParseStatementUseCase @Inject constructor(
                             transactions = assignCategories(aiResult.transactions),
                             aiGeneratedConfig = generatedConfig,
                             sampleRows = extractedSampleRows,
+                            aiMethod = AiMethod.REGEX_GENERATED,
                         )
                     } else {
                         Timber.d("AI-generated config parsed 0 transactions, falling back to full AI")
@@ -167,7 +181,13 @@ class ParseStatementUseCase @Inject constructor(
             }
         }
 
-        // Step 7: Fall back to existing full-AI parsing
+        // Step 7: Fall back to existing full-AI parsing (if enabled)
+        if (!parserConfigProvider.isAiFullParseEnabled()) {
+            Timber.d("PDF import: AI full parse disabled, returning empty")
+            parseErrors.add("Не удалось распознать формат выписки. AI-парсинг отключён.")
+            return RegexThenGeminiResult(transactions = emptyList())
+        }
+
         if (regexResult?.bankId == null) {
             Timber.d("PDF import: bank not detected, using AI fallback")
         } else {
@@ -176,7 +196,10 @@ class ParseStatementUseCase @Inject constructor(
                 regexResult.bankId,
             )
         }
-        return RegexThenGeminiResult(parseWithGemini(blobs, parseErrors))
+        return RegexThenGeminiResult(
+            transactions = parseWithGemini(blobs, parseErrors),
+            aiMethod = AiMethod.FULL_PARSE,
+        )
     }
 
     private fun isRegexValid(pattern: String): Boolean {

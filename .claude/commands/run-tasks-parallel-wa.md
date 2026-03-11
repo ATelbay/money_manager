@@ -1,5 +1,7 @@
 Execute all pending tasks from the status line task list in parallel using worktree agents.
 
+**Before starting:** Suggest the user to run `/clear` first to free up context. Tasks persist in TaskList and won't be lost. Show the current task count and ask: "Рекомендую очистить контекст (`/clear`) перед запуском — таски сохранятся. Очистить и перезапустить, или продолжить?" Wait for user confirmation before proceeding.
+
 1. Use TaskList to get all tasks. Filter to those with status `open` or `in_progress`.
    - If no pending tasks exist, inform the user and stop.
 

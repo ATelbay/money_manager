@@ -13,6 +13,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 private const val CONFIG_KEY = "parser_configs"
+private const val AI_FULL_PARSE_KEY = "ai_full_parse_enabled"
 private const val FETCH_INTERVAL_SECONDS = 3600L
 
 @Singleton
@@ -29,7 +30,7 @@ class FirebaseParserConfigProvider @Inject constructor(
                     minimumFetchIntervalInSeconds = FETCH_INTERVAL_SECONDS
                 },
             )
-            setDefaultsAsync(mapOf(CONFIG_KEY to loadDefaultJson()))
+            setDefaultsAsync(mapOf(CONFIG_KEY to loadDefaultJson(), AI_FULL_PARSE_KEY to false))
         }
     }
 
@@ -59,6 +60,10 @@ class FirebaseParserConfigProvider @Inject constructor(
                 cont.resume(null)
             }
         }
+    }
+
+    override fun isAiFullParseEnabled(): Boolean {
+        return remoteConfig.getBoolean(AI_FULL_PARSE_KEY)
     }
 
     private fun loadDefaultJson(): String {

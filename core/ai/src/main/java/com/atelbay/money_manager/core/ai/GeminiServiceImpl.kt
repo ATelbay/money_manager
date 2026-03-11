@@ -133,6 +133,7 @@ class GeminiServiceImpl @Inject constructor() : GeminiService {
         |
         |## Правила для transaction_pattern
         |Создай regex-паттерн для строк транзакций с группами: date, sign, amount, operation, details.
+        |ВАЖНО: используй Java/Kotlin синтаксис именованных групп (?<name>...), НЕ Python синтаксис (?P<name>...).
         |Если используешь именованные группы — установи use_named_groups=true.
         |
         |## Правила для amount_format
@@ -166,7 +167,9 @@ class GeminiServiceImpl @Inject constructor() : GeminiService {
         return ParserConfig(
             bankId = jsonObj.stringField("bank_id"),
             bankMarkers = jsonObj.stringListField("bank_markers"),
-            transactionPattern = jsonObj.stringField("transaction_pattern"),
+            // Convert Python-style named groups (?P<name>...) to Java/Kotlin (?<name>...)
+            transactionPattern = jsonObj.stringField("transaction_pattern")
+                .replace("(?P<", "(?<"),
             dateFormat = jsonObj.stringField("date_format"),
             operationTypeMap = operationTypeMap,
             skipPatterns = jsonObj.stringListField("skip_patterns"),

@@ -2,6 +2,7 @@ package com.atelbay.money_manager.presentation.importstatement.ui
 
 import android.graphics.Bitmap
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -28,6 +29,12 @@ fun ImportRoute(
     val selectedAccountId by viewModel.selectedAccountId.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.debugAiEvent.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        }
+    }
 
     LaunchedEffect(initialPdfUri) {
         if (initialPdfUri != null) {
