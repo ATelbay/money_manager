@@ -1,5 +1,6 @@
 package com.atelbay.money_manager.core.parser
 
+import com.atelbay.money_manager.core.remoteconfig.ParserConfig
 import com.atelbay.money_manager.core.model.ParsedTransaction
 import com.atelbay.money_manager.core.remoteconfig.ParserConfigProvider
 import timber.log.Timber
@@ -8,6 +9,7 @@ import javax.inject.Inject
 data class RegexParseResult(
     val transactions: List<ParsedTransaction>,
     val bankId: String?,
+    val extractedText: String = "",
 )
 
 class StatementParser @Inject constructor(
@@ -17,28 +19,46 @@ class StatementParser @Inject constructor(
     private val configProvider: ParserConfigProvider,
 ) {
 
-    suspend fun tryParsePdf(bytes: ByteArray): RegexParseResult? {
+    suspend fun tryParsePdf(
+        bytes: ByteArray,
+        additionalConfigs: List<ParserConfig> = emptyList(),
+    ): RegexParseResult? {
         val text = pdfTextExtractor.extract(bytes)
         if (text.isBlank()) {
             Timber.d("PDF text extraction returned empty result")
-            return null
+            return RegexParseResult(transactions = emptyList(), bankId = null, extractedText = text)
         }
 
-        val configs = configProvider.getConfigs()
-        val config = bankDetector.detect(text, configs)
-        if (config == null) {
+        val configs = configProvider.getConfigs() + additionalConfigs
+        val matchingConfigs = bankDetector.detectAll(text, configs)
+        if (matchingConfigs.isEmpty()) {
             Timber.d("No bank detected in PDF text")
-            return null
+            return RegexParseResult(transactions = emptyList(), bankId = null, extractedText = text)
         }
 
-        Timber.d("Detected bank: %s", config.bankId)
+        for (config in matchingConfigs) {
+            Timber.d("Trying config for bank: %s", config.bankId)
+            val transactions = regexParser.parse(text, config)
+            if (transactions.isNotEmpty()) {
+                Timber.d("Parsed %d transactions with config for bank %s", transactions.size, config.bankId)
+                return RegexParseResult(transactions = transactions, bankId = config.bankId, extractedText = text)
+            }
+        }
+
+        val firstBankId = matchingConfigs.first().bankId
+        Timber.d("All %d configs tried, 0 transactions for bank %s", matchingConfigs.size, firstBankId)
+        return RegexParseResult(transactions = emptyList(), bankId = firstBankId, extractedText = text)
+    }
+
+    fun tryParseWithConfig(bytes: ByteArray, config: ParserConfig): RegexParseResult {
+        val text = pdfTextExtractor.extract(bytes)
         val transactions = regexParser.parse(text, config)
-
-        if (transactions.isEmpty()) {
-            Timber.d("RegEx parser returned 0 transactions for bank %s", config.bankId)
-            return RegexParseResult(transactions = emptyList(), bankId = config.bankId)
-        }
-
         return RegexParseResult(transactions = transactions, bankId = config.bankId)
+    }
+
+    fun extractSampleRows(text: String): String {
+        val lines = text.lines()
+        val dataLines = lines.drop(10).filter { it.isNotBlank() }.take(10)
+        return if (dataLines.size < 5) "" else dataLines.joinToString("\n")
     }
 }

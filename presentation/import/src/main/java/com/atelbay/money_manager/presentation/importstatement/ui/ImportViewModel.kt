@@ -9,15 +9,19 @@ import com.atelbay.money_manager.core.model.ImportState
 import com.atelbay.money_manager.core.model.TransactionOverride
 import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
+import com.atelbay.money_manager.domain.auth.repository.AuthRepository
 import com.atelbay.money_manager.domain.categories.usecase.GetCategoriesUseCase
 import com.atelbay.money_manager.domain.importstatement.usecase.ImportTransactionsUseCase
 import com.atelbay.money_manager.domain.importstatement.usecase.ParseStatementUseCase
+import com.atelbay.money_manager.domain.importstatement.usecase.SubmitParserCandidateUseCase
+import com.atelbay.money_manager.core.remoteconfig.ParserConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -27,6 +31,8 @@ class ImportViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
     private val getCategoriesUseCase: GetCategoriesUseCase,
     private val getAccountsUseCase: GetAccountsUseCase,
+    private val submitParserCandidateUseCase: SubmitParserCandidateUseCase,
+    private val authRepository: AuthRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ImportState>(ImportState.Idle)
@@ -40,6 +46,10 @@ class ImportViewModel @Inject constructor(
 
     private val _selectedAccountId = MutableStateFlow<Long?>(null)
     val selectedAccountId: StateFlow<Long?> = _selectedAccountId
+
+    /** Tracks the AI-generated config from the last parse, if any. */
+    private var lastAiGeneratedConfig: ParserConfig? = null
+    private var lastSampleRows: String? = null
 
     init {
         viewModelScope.launch {
@@ -81,7 +91,11 @@ class ImportViewModel @Inject constructor(
     }
 
     private suspend fun parseAndPreview(blobs: List<Pair<ByteArray, String>>) {
-        val result = parseStatementUseCase(blobs)
+        val parseResult = parseStatementUseCase(blobs)
+        val result = parseResult.importResult
+        lastAiGeneratedConfig = parseResult.aiGeneratedConfig
+        lastSampleRows = parseResult.sampleRows
+
         if (result.newTransactions.isEmpty() && result.total == 0) {
             val errorMessage = result.errors.firstOrNull() ?: "Не удалось найти транзакции в документе"
             _state.value = ImportState.Error(errorMessage)
@@ -147,6 +161,20 @@ class ImportViewModel @Inject constructor(
                     overrides = current.overrides,
                 )
                 _state.value = ImportState.Success(imported)
+
+                // Submit AI-generated config as candidate (fire-and-forget)
+                val config = lastAiGeneratedConfig
+                val sample = lastSampleRows
+                if (config != null && sample != null) {
+                    launch {
+                        try {
+                            val userId = authRepository.observeCurrentUser().first()?.userId
+                            submitParserCandidateUseCase(config, sample, userId)
+                        } catch (e: Exception) {
+                            Timber.w(e, "Failed to submit parser candidate, ignoring")
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 _state.value = ImportState.Error(e.message ?: "Ошибка импорта")
             }
@@ -155,5 +183,7 @@ class ImportViewModel @Inject constructor(
 
     fun reset() {
         _state.value = ImportState.Idle
+        lastAiGeneratedConfig = null
+        lastSampleRows = null
     }
 }

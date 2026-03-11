@@ -5,12 +5,20 @@ import com.atelbay.money_manager.core.common.generateTransactionHash
 import com.atelbay.money_manager.core.database.dao.CategoryDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
 import com.atelbay.money_manager.core.database.entity.CategoryEntity
+import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.ImportResult
 import com.atelbay.money_manager.core.model.ParsedTransaction
 import com.atelbay.money_manager.core.model.TransactionType
+import com.atelbay.money_manager.core.parser.RegexValidator
 import com.atelbay.money_manager.core.parser.StatementParser
+import com.atelbay.money_manager.core.remoteconfig.ParserConfig
+import com.atelbay.money_manager.core.remoteconfig.ParserConfigList
 import com.atelbay.money_manager.domain.categories.usecase.SaveCategoryUseCase
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -34,51 +42,185 @@ private data class GeminiTransaction(
     @SerialName("conf") val confidence: Float,
 )
 
+data class ParseResult(
+    val importResult: ImportResult,
+    val aiGeneratedConfig: ParserConfig? = null,
+    val sampleRows: String? = null,
+)
+
+private data class RegexThenGeminiResult(
+    val transactions: List<ParsedTransaction>,
+    val aiGeneratedConfig: ParserConfig? = null,
+    val sampleRows: String? = null,
+)
+
 class ParseStatementUseCase @Inject constructor(
     private val statementParser: StatementParser,
     private val geminiService: GeminiService,
     private val categoryDao: CategoryDao,
     private val transactionDao: TransactionDao,
     private val saveCategoryUseCase: SaveCategoryUseCase,
+    private val userPreferences: UserPreferences,
+    private val regexValidator: RegexValidator,
 ) {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend operator fun invoke(blobs: List<Pair<ByteArray, String>>): ImportResult {
+    suspend operator fun invoke(blobs: List<Pair<ByteArray, String>>): ParseResult {
         val parseErrors = mutableListOf<String>()
         val pdfBlob = blobs.firstOrNull { it.second == "application/pdf" }
 
+        var aiGeneratedConfig: ParserConfig? = null
+        var sampleRows: String? = null
+
         val transactions = if (pdfBlob != null) {
-            tryRegexThenGemini(pdfBlob.first, blobs, parseErrors)
+            val result = tryRegexThenGemini(pdfBlob.first, blobs, parseErrors)
+            aiGeneratedConfig = result.aiGeneratedConfig
+            sampleRows = result.sampleRows
+            result.transactions
         } else {
             parseWithGemini(blobs, parseErrors)
         }
 
-        return deduplicateAndBuildResult(transactions, parseErrors)
+        return ParseResult(
+            importResult = deduplicateAndBuildResult(transactions, parseErrors),
+            aiGeneratedConfig = aiGeneratedConfig,
+            sampleRows = sampleRows,
+        )
     }
 
     private suspend fun tryRegexThenGemini(
         pdfBytes: ByteArray,
         blobs: List<Pair<ByteArray, String>>,
         parseErrors: MutableList<String>,
-    ): List<ParsedTransaction> {
+    ): RegexThenGeminiResult {
+        // Step 1: Try Remote Config regex (existing behavior)
         val regexResult = statementParser.tryParsePdf(pdfBytes)
-
         if (regexResult != null && regexResult.transactions.isNotEmpty()) {
             Timber.d(
                 "PDF import: bank=%s parsed %d transactions via regex",
                 regexResult.bankId,
                 regexResult.transactions.size,
             )
-            return assignCategories(regexResult.transactions)
+            return RegexThenGeminiResult(assignCategories(regexResult.transactions))
         }
 
-        if (regexResult == null) {
+        // Reuse extracted text from step 1 to avoid double PDF extraction
+        val pdfText = regexResult?.extractedText.orEmpty()
+
+        // Step 2: Try cached AI configs from DataStore
+        val cachedConfigs = loadCachedAiConfigs()
+        if (cachedConfigs.isNotEmpty()) {
+            val cachedResult = statementParser.tryParsePdf(pdfBytes, additionalConfigs = cachedConfigs)
+            if (cachedResult != null && cachedResult.transactions.isNotEmpty()) {
+                Timber.d(
+                    "PDF import: bank=%s parsed %d transactions via cached AI config",
+                    cachedResult.bankId,
+                    cachedResult.transactions.size,
+                )
+                return RegexThenGeminiResult(assignCategories(cachedResult.transactions))
+            }
+        }
+
+        // Step 3: Extract sample rows + call Gemini to generate ParserConfig
+        val extractedSampleRows = statementParser.extractSampleRows(pdfText)
+        if (extractedSampleRows.isNotEmpty()) {
+            try {
+                val generatedConfig = geminiService.generateParserConfig(extractedSampleRows)
+                Timber.d("AI generated config for bank: %s", generatedConfig.bankId)
+
+                // Step 4: Validate — ReDoS check + regex syntax + dateFormat
+                if (!regexValidator.isReDoSSafe(generatedConfig.transactionPattern)) {
+                    Timber.w("AI-generated regex failed ReDoS check, falling back to full AI")
+                } else if (!isRegexValid(generatedConfig.transactionPattern)) {
+                    Timber.w("AI-generated regex has invalid syntax, falling back to full AI")
+                } else if (!isDateFormatValid(generatedConfig.dateFormat)) {
+                    Timber.w("AI-generated dateFormat is invalid, falling back to full AI")
+                } else {
+                    // Step 5: Parse with generated config (with timeout + runInterruptible guard)
+                    val aiResult = try {
+                        withTimeout(AI_REGEX_TIMEOUT_MS) {
+                            runInterruptible {
+                                statementParser.tryParseWithConfig(pdfBytes, generatedConfig)
+                            }
+                        }
+                    } catch (_: TimeoutCancellationException) {
+                        Timber.w("AI-generated regex timed out (possible ReDoS), falling back to full AI")
+                        null
+                    }
+
+                    if (aiResult != null && aiResult.transactions.isNotEmpty()) {
+                        Timber.d("AI-generated config parsed %d transactions", aiResult.transactions.size)
+                        // Step 6: Cache config in DataStore
+                        cacheAiConfig(generatedConfig)
+                        return RegexThenGeminiResult(
+                            transactions = assignCategories(aiResult.transactions),
+                            aiGeneratedConfig = generatedConfig,
+                            sampleRows = extractedSampleRows,
+                        )
+                    } else {
+                        Timber.d("AI-generated config parsed 0 transactions, falling back to full AI")
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "AI config generation failed, falling back to full AI")
+            }
+        }
+
+        // Step 7: Fall back to existing full-AI parsing
+        if (regexResult?.bankId == null) {
             Timber.d("PDF import: bank not detected, using AI fallback")
         } else {
-            Timber.d("PDF import: bank=%s detected but 0 transactions parsed, using AI fallback", regexResult.bankId)
+            Timber.d(
+                "PDF import: bank=%s detected but 0 transactions parsed, using AI fallback",
+                regexResult.bankId,
+            )
         }
-        return parseWithGemini(blobs, parseErrors)
+        return RegexThenGeminiResult(parseWithGemini(blobs, parseErrors))
+    }
+
+    private fun isRegexValid(pattern: String): Boolean {
+        return try {
+            Regex(pattern)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun isDateFormatValid(dateFormat: String): Boolean {
+        return try {
+            java.time.format.DateTimeFormatter.ofPattern(dateFormat)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private suspend fun loadCachedAiConfigs(): List<ParserConfig> {
+        val cachedJson = userPreferences.cachedAiParserConfigs.firstOrNull()
+        if (cachedJson.isNullOrBlank()) return emptyList()
+        return try {
+            json.decodeFromString<ParserConfigList>(cachedJson).banks
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to parse cached AI configs")
+            emptyList()
+        }
+    }
+
+    private suspend fun cacheAiConfig(config: ParserConfig) {
+        try {
+            val existing = loadCachedAiConfigs().toMutableList()
+            // Replace if same bankId exists, otherwise add
+            existing.removeAll { it.bankId == config.bankId }
+            existing.add(config)
+            val configList = ParserConfigList(banks = existing)
+            val jsonStr = json.encodeToString(ParserConfigList.serializer(), configList)
+            userPreferences.setCachedAiParserConfigs(jsonStr)
+            Timber.d("Cached AI config for bank %s", config.bankId)
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to cache AI config")
+        }
     }
 
     private suspend fun parseWithGemini(
@@ -222,6 +364,7 @@ class ParseStatementUseCase @Inject constructor(
 
     companion object {
         private const val DEFAULT_IMPORT_CATEGORY_COLOR = 0xFFB0BEC5
+        private const val AI_REGEX_TIMEOUT_MS = 5_000L
     }
 
     private suspend fun deduplicateAndBuildResult(

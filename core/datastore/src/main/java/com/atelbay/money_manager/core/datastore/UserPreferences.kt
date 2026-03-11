@@ -169,6 +169,23 @@ class UserPreferences @Inject constructor(
         }
     }
 
+    val cachedAiParserConfigs: Flow<String?> =
+        context.dataStore.data.map { prefs ->
+            prefs[KEY_AI_PARSER_CONFIGS]
+        }
+
+    suspend fun setCachedAiParserConfigs(json: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_AI_PARSER_CONFIGS] = json
+        }
+    }
+
+    suspend fun clearCachedAiParserConfigs() {
+        context.dataStore.edit { prefs ->
+            prefs.remove(KEY_AI_PARSER_CONFIGS)
+        }
+    }
+
     private fun androidx.datastore.preferences.core.Preferences.toStoredExchangeRate(): StoredExchangeRate? {
         val fetchedAt = this[KEY_USD_KZT_RATE_FETCHED_AT] ?: return null
 
@@ -199,6 +216,7 @@ class UserPreferences @Inject constructor(
         val KEY_USD_KZT_RATE_SOURCE = stringPreferencesKey("usd_kzt_rate_source")
         val KEY_EXCHANGE_QUOTES_JSON = stringPreferencesKey("exchange_quotes_json")
         val KEY_QUOTE_REFRESH_FAILURE_COUNT = intPreferencesKey("quote_refresh_failure_count")
+        val KEY_AI_PARSER_CONFIGS = stringPreferencesKey("ai_parser_configs")
 
         /**
          * Simple JSON serializer for quotes map. Avoids adding org.json / Gson dependency.
