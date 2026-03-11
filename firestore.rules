@@ -11,14 +11,17 @@ service cloud.firestore {
     match /parser_candidates/{candidateId} {
       // Any authenticated user can create a new candidate
       allow create: if request.auth != null
-                    && request.resource.data.keys().hasAll(['bankId', 'transactionPattern', 'parserConfigJson', 'anonymizedSample', 'userIdHash', 'successCount', 'status', 'createdAt', 'updatedAt'])
+                    && request.resource.data.keys().hasAll(['bankId', 'transactionPattern', 'parserConfigJson', 'anonymizedSample', 'userIdHash', 'successCount', 'status', 'createdAt', 'updatedAt', 'contributors'])
                     && request.resource.data.successCount == 1
-                    && request.resource.data.status == 'candidate';
+                    && request.resource.data.status == 'candidate'
+                    && request.resource.data.contributors == [request.auth.uid];
 
-      // Any authenticated user can increment successCount
+      // Any authenticated user can increment successCount (once per user)
       allow update: if request.auth != null
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['successCount', 'updatedAt'])
-                    && request.resource.data.successCount == resource.data.successCount + 1;
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['successCount', 'updatedAt', 'contributors'])
+                    && request.resource.data.successCount == resource.data.successCount + 1
+                    && !(request.auth.uid in resource.data.contributors)
+                    && request.resource.data.contributors == resource.data.contributors.concat([request.auth.uid]);
 
       // Any authenticated user can read (for matching bankId + transactionPattern)
       allow read: if request.auth != null;

@@ -53,12 +53,17 @@ async function promoteCandidate(candidateId: string, candidate: ParserCandidate)
   const template = await remoteConfig.getTemplate();
   const parserConfigsParam = template.parameters["parser_configs"];
 
+  const db = admin.firestore();
+  const candidateRef = db.collection("parser_candidates").doc(candidateId);
+
   let configList: ParserConfigList = { banks: [] };
   if (parserConfigsParam?.defaultValue && "value" in parserConfigsParam.defaultValue) {
     try {
       configList = JSON.parse(parserConfigsParam.defaultValue.value);
     } catch (e) {
-      logger.error("Failed to parse existing parser_configs", e);
+      logger.error("Failed to parse existing parser_configs — aborting to prevent config loss", e);
+      await candidateRef.update({ status: "error", updatedAt: Date.now() });
+      return;
     }
   }
 
@@ -68,9 +73,6 @@ async function promoteCandidate(candidateId: string, candidate: ParserCandidate)
       bank["bank_id"] === candidate.bankId &&
       bank["transaction_pattern"] === candidate.transactionPattern
   );
-
-  const db = admin.firestore();
-  const candidateRef = db.collection("parser_candidates").doc(candidateId);
 
   if (isDuplicate) {
     logger.warn(`Candidate ${candidateId} conflicts with existing config, rejecting`);
@@ -84,8 +86,52 @@ async function promoteCandidate(candidateId: string, candidate: ParserCandidate)
     newConfig = JSON.parse(candidate.parserConfigJson);
   } catch (e) {
     logger.error(`Failed to parse parserConfigJson for candidate ${candidateId}`, e);
+    await candidateRef.update({ status: "rejected", updatedAt: Date.now() });
     return;
   }
+
+  // --- Server-side validation before Remote Config publish ---
+
+  // 1. Schema validation — required ParserConfig fields must exist
+  const requiredFields = ["bank_id", "bank_markers", "transaction_pattern", "date_format", "amount_format"];
+  const missingFields = requiredFields.filter((f) => !(f in newConfig));
+  if (missingFields.length > 0) {
+    logger.error(`Candidate ${candidateId} missing required fields: ${missingFields.join(", ")}`);
+    await candidateRef.update({ status: "rejected", updatedAt: Date.now() });
+    return;
+  }
+
+  // 2. Field consistency — bank_id and transaction_pattern must be non-empty strings
+  if (typeof newConfig["bank_id"] !== "string" || (newConfig["bank_id"] as string).trim() === "") {
+    logger.error(`Candidate ${candidateId} has empty or non-string bank_id`);
+    await candidateRef.update({ status: "rejected", updatedAt: Date.now() });
+    return;
+  }
+  if (typeof newConfig["transaction_pattern"] !== "string" || (newConfig["transaction_pattern"] as string).trim() === "") {
+    logger.error(`Candidate ${candidateId} has empty or non-string transaction_pattern`);
+    await candidateRef.update({ status: "rejected", updatedAt: Date.now() });
+    return;
+  }
+
+  // 3. Regex syntax validation — pattern must be a valid RegExp
+  const txPattern = newConfig["transaction_pattern"] as string;
+  try {
+    new RegExp(txPattern);
+  } catch (e) {
+    logger.error(`Candidate ${candidateId} has invalid regex in transaction_pattern: ${txPattern}`, e);
+    await candidateRef.update({ status: "rejected", updatedAt: Date.now() });
+    return;
+  }
+
+  // 4. ReDoS safety — reject patterns with nested quantifiers like (a+)+, (a*)*,  (a+)*, (a*)+
+  const nestedQuantifierPattern = /(\((?:[^()]*[+*])[^()]*\))[+*{]/;
+  if (nestedQuantifierPattern.test(txPattern)) {
+    logger.error(`Candidate ${candidateId} rejected: transaction_pattern contains nested quantifiers (ReDoS risk): ${txPattern}`);
+    await candidateRef.update({ status: "rejected", updatedAt: Date.now() });
+    return;
+  }
+
+  // --- End validation ---
 
   configList.banks.push(newConfig);
 
