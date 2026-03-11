@@ -10,6 +10,8 @@ import com.atelbay.money_manager.core.parser.RegexParseResult
 import com.atelbay.money_manager.core.parser.RegexValidator
 import com.atelbay.money_manager.core.parser.StatementParser
 import com.atelbay.money_manager.core.remoteconfig.ParserConfig
+import com.atelbay.money_manager.core.remoteconfig.ParserConfigList
+import com.atelbay.money_manager.core.remoteconfig.ParserConfigProvider
 import com.atelbay.money_manager.domain.categories.usecase.SaveCategoryUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -18,6 +20,9 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -34,8 +39,10 @@ class ParseStatementUseCaseTest {
     private lateinit var saveCategoryUseCase: SaveCategoryUseCase
     private lateinit var userPreferences: UserPreferences
     private lateinit var regexValidator: RegexValidator
+    private lateinit var parserConfigProvider: ParserConfigProvider
 
     private lateinit var useCase: ParseStatementUseCase
+    private val json = Json { ignoreUnknownKeys = true }
 
     private val testConfig = ParserConfig(
         bankId = "test_bank",
@@ -62,6 +69,8 @@ class ParseStatementUseCaseTest {
 
     // Enough lines so extractSampleRows returns non-empty
     private val pdfTextWithEnoughLines = (1..20).joinToString("\n") { "Line $it with data" }
+    private val headerSnippet = "Test Bank statement\nBIN 123456789"
+    private val sampleRows = "01.01.2026 Purchase Store A\n02.01.2026 Purchase Store B"
 
     private val emptyRegexResult = RegexParseResult(
         transactions = emptyList(),
@@ -81,13 +90,18 @@ class ParseStatementUseCaseTest {
         saveCategoryUseCase = mockk()
         userPreferences = mockk()
         regexValidator = mockk()
+        parserConfigProvider = mockk()
 
         // Common default stubs
         every { userPreferences.cachedAiParserConfigs } returns flowOf(null)
+        coEvery { userPreferences.setCachedAiParserConfigs(any()) } returns Unit
         coEvery { categoryDao.getByType(any()) } returns emptyList()
         coEvery { transactionDao.getExistingHashes(any()) } returns emptyList()
         coEvery { statementParser.tryParsePdf(any(), any()) } returns emptyRegexResult
         coEvery { saveCategoryUseCase(any()) } returns 1L
+        every { statementParser.extractHeaderSnippet(pdfTextWithEnoughLines) } returns headerSnippet
+        every { statementParser.extractSampleRows(pdfTextWithEnoughLines) } returns sampleRows
+        every { parserConfigProvider.isAiFullParseEnabled() } returns true
 
         useCase = ParseStatementUseCase(
             statementParser = statementParser,
@@ -97,6 +111,7 @@ class ParseStatementUseCaseTest {
             saveCategoryUseCase = saveCategoryUseCase,
             userPreferences = userPreferences,
             regexValidator = regexValidator,
+            parserConfigProvider = parserConfigProvider,
         )
     }
 
@@ -108,11 +123,10 @@ class ParseStatementUseCaseTest {
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
         coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
 
-        // Step 2: Sample rows extracted from text already in regexResult
-        every { statementParser.extractSampleRows(pdfTextWithEnoughLines) } returns "sample row data"
-
         // Step 3: Gemini generates a valid config
-        coEvery { geminiService.generateParserConfig("sample row data") } returns testConfig
+        coEvery {
+            geminiService.generateParserConfig(headerSnippet, sampleRows)
+        } returns testConfig
 
         // Step 4: Regex is safe
         every { regexValidator.isReDoSSafe(testConfig.transactionPattern) } returns true
@@ -132,6 +146,7 @@ class ParseStatementUseCaseTest {
         assertNotNull(result.aiGeneratedConfig)
         assertEquals("test_bank", result.aiGeneratedConfig?.bankId)
         assertNotNull(result.sampleRows)
+        coVerify { geminiService.generateParserConfig(headerSnippet, sampleRows) }
     }
 
     @Test
@@ -140,11 +155,10 @@ class ParseStatementUseCaseTest {
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
         coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
 
-        // Sample rows
-        every { statementParser.extractSampleRows(pdfTextWithEnoughLines) } returns "sample row data"
-
         // Gemini config generation fails
-        coEvery { geminiService.generateParserConfig("sample row data") } throws RuntimeException("AI error")
+        coEvery {
+            geminiService.generateParserConfig(headerSnippet, sampleRows)
+        } throws RuntimeException("AI error")
 
         // Fallback: full AI parsing
         coEvery { geminiService.parseContent(pdfBlobs, any()) } returns geminiJsonResponse
@@ -163,11 +177,10 @@ class ParseStatementUseCaseTest {
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
         coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
 
-        // Sample rows
-        every { statementParser.extractSampleRows(pdfTextWithEnoughLines) } returns "sample row data"
-
         // Gemini generates config
-        coEvery { geminiService.generateParserConfig("sample row data") } returns testConfig
+        coEvery {
+            geminiService.generateParserConfig(headerSnippet, sampleRows)
+        } returns testConfig
 
         // ReDoS check fails
         every { regexValidator.isReDoSSafe(testConfig.transactionPattern) } returns false
@@ -189,11 +202,10 @@ class ParseStatementUseCaseTest {
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
         coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
 
-        // Sample rows
-        every { statementParser.extractSampleRows(pdfTextWithEnoughLines) } returns "sample row data"
-
         // Gemini generates config
-        coEvery { geminiService.generateParserConfig("sample row data") } returns testConfig
+        coEvery {
+            geminiService.generateParserConfig(headerSnippet, sampleRows)
+        } returns testConfig
 
         // Regex is safe
         every { regexValidator.isReDoSSafe(testConfig.transactionPattern) } returns true
@@ -235,7 +247,7 @@ class ParseStatementUseCaseTest {
         val result = useCase(pdfBlobs)
 
         // AI should NOT be called
-        coVerify(exactly = 0) { geminiService.generateParserConfig(any()) }
+        coVerify(exactly = 0) { geminiService.generateParserConfig(any(), any()) }
         coVerify(exactly = 0) { geminiService.parseContent(any(), any()) }
 
         assertEquals(1, result.importResult.newTransactions.size)
@@ -250,11 +262,10 @@ class ParseStatementUseCaseTest {
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
         coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
 
-        // Sample rows
-        every { statementParser.extractSampleRows(pdfTextWithEnoughLines) } returns "sample row data"
-
         // Gemini generates config
-        coEvery { geminiService.generateParserConfig("sample row data") } returns testConfig
+        coEvery {
+            geminiService.generateParserConfig(headerSnippet, sampleRows)
+        } returns testConfig
 
         // Regex is safe (passes heuristic but will hang at runtime)
         every { regexValidator.isReDoSSafe(testConfig.transactionPattern) } returns true
@@ -274,5 +285,39 @@ class ParseStatementUseCaseTest {
         coVerify { geminiService.parseContent(pdfBlobs, any()) }
         assertNull(result.aiGeneratedConfig)
         assertTrue(result.importResult.newTransactions.isNotEmpty())
+    }
+
+    @Test
+    fun `generated config is cached alongside existing variant for same bank`() = runTest {
+        val existingVariant = testConfig.copy(transactionPattern = "existing-pattern")
+        every { userPreferences.cachedAiParserConfigs } returns flowOf(
+            json.encodeToString(ParserConfigList(banks = listOf(existingVariant))),
+        )
+        coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
+        coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
+
+        val generatedVariant = testConfig.copy(transactionPattern = "new-pattern")
+        coEvery {
+            geminiService.generateParserConfig(headerSnippet, sampleRows)
+        } returns generatedVariant
+        every { regexValidator.isReDoSSafe(generatedVariant.transactionPattern) } returns true
+        every { statementParser.tryParseWithConfig(pdfBytes, generatedVariant) } returns RegexParseResult(
+            transactions = listOf(testTransaction),
+            bankId = generatedVariant.bankId,
+        )
+
+        var cachedJson: String? = null
+        coEvery { userPreferences.setCachedAiParserConfigs(any()) } answers {
+            cachedJson = invocation.args[0] as String
+            Unit
+        }
+
+        val result = useCase(pdfBlobs)
+
+        val storedConfigs = json.decodeFromString<ParserConfigList>(cachedJson.orEmpty()).banks
+        assertEquals(1, result.importResult.newTransactions.size)
+        assertEquals(2, storedConfigs.size)
+        assertTrue(storedConfigs.any { it.transactionPattern == "existing-pattern" })
+        assertTrue(storedConfigs.any { it.transactionPattern == "new-pattern" })
     }
 }

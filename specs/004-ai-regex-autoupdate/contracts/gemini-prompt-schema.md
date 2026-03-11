@@ -31,15 +31,15 @@ val parserConfigSchema = Schema.obj(
 ## Prompt Template
 
 ```
-Ты — эксперт по парсингу банковских выписок. Проанализируй образец строк из PDF-выписки и сгенерируй конфигурацию парсера.
+Ты — эксперт по парсингу банковских выписок. Проанализируй заголовок и образец строк из PDF-выписки и сгенерируй конфигурацию парсера.
 
 ## Правила для bank_id
-Определи банк из заголовка/текста. Используй lowercase latin slug:
+Определи банк в первую очередь по заголовку и идентифицирующим строкам. Используй lowercase latin slug:
 - Известные банки: kaspi, freedom, forte, bereke, eurasian
 - Для неизвестных: транслитерация + lowercase + подчёркивания (например: "Народный банк" → "narodniy_bank", "Jusan Bank" → "jusan_bank")
 
 ## Правила для bank_markers
-Укажи 2-3 уникальные строки-маркера, которые однозначно идентифицируют этот банк в тексте PDF.
+Укажи 2-3 уникальные строки-маркера, которые однозначно идентифицируют этот банк в заголовке или тексте PDF.
 
 ## Правила для transaction_pattern
 Создай regex-паттерн, который извлекает из каждой строки транзакции:
@@ -60,6 +60,9 @@ val parserConfigSchema = Schema.obj(
 Маппинг названий операций на тип: "income" или "expense".
 Например: {"Покупка": "expense", "Пополнение": "income"}
 
+## Заголовок / идентифицирующие строки:
+{headerSnippet}
+
 ## Образец строк из выписки:
 {sampleRows}
 ```
@@ -68,8 +71,9 @@ val parserConfigSchema = Schema.obj(
 
 From `PdfTextExtractor.extract(bytes)` output:
 1. Split text into lines
-2. Skip first 10 lines (header area)
-3. Take next 10 non-empty lines (transaction area sample)
-4. If fewer than 5 lines found, use all available lines after header
+2. Build `headerSnippet` from the first 10 lines, keeping only non-empty lines
+3. Skip first 10 lines (header area)
+4. Take next 10 non-empty lines (transaction area sample)
+5. If fewer than 5 lines found, use all available lines after header
 
-This sample is sent as text in the prompt (not as blob), since the text is already extracted.
+Both `headerSnippet` and `sampleRows` are sent as text in the prompt (not as blobs), since the text is already extracted.

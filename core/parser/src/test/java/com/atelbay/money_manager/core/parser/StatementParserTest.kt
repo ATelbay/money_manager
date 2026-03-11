@@ -141,14 +141,16 @@ class StatementParserTest {
     }
 
     @Test
-    fun `extractSampleRows returns empty when fewer than 5 data lines`() {
+    fun `extractSampleRows returns all available data lines when fewer than 5 exist`() {
         val headerLines = (1..10).map { "Header line $it" }
         val dataLines = listOf("Data 1", "Data 2", "Data 3", "Data 4")
         val text = (headerLines + dataLines).joinToString("\n")
 
         val result = statementParser.extractSampleRows(text)
 
-        assertEquals("", result)
+        assertEquals(4, result.lines().size)
+        assertEquals("Data 1", result.lines().first())
+        assertEquals("Data 4", result.lines().last())
     }
 
     @Test
@@ -162,5 +164,16 @@ class StatementParserTest {
         val text = (1..10).joinToString("\n") { "Header $it" }
         val result = statementParser.extractSampleRows(text)
         assertEquals("", result)
+    }
+
+    @Test
+    fun `extractHeaderSnippet keeps non blank header lines from the first 10 rows`() {
+        val headerLines = listOf("Bank statement", "", "АО Test Bank", "BIN 123456", "  ")
+        val paddingLines = List(6) { "" }
+        val text = (headerLines + paddingLines + listOf("Data 1")).joinToString("\n")
+
+        val result = statementParser.extractHeaderSnippet(text)
+
+        assertEquals(listOf("Bank statement", "АО Test Bank", "BIN 123456"), result.lines())
     }
 }

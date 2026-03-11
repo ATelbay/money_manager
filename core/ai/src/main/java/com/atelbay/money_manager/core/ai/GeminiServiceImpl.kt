@@ -100,8 +100,11 @@ class GeminiServiceImpl @Inject constructor() : GeminiService {
         }
     }
 
-    override suspend fun generateParserConfig(sampleRows: String): ParserConfig {
-        val prompt = buildParserConfigPrompt(sampleRows)
+    override suspend fun generateParserConfig(
+        headerSnippet: String,
+        sampleRows: String,
+    ): ParserConfig {
+        val prompt = buildParserConfigPrompt(headerSnippet, sampleRows)
         Timber.d(">>> Gemini generateParserConfig prompt length=%d", prompt.length)
         Timber.d(">>> Gemini prompt:\n%s", prompt)
 
@@ -120,16 +123,19 @@ class GeminiServiceImpl @Inject constructor() : GeminiService {
         }
     }
 
-    private fun buildParserConfigPrompt(sampleRows: String): String = """
-        |Ты — эксперт по парсингу банковских выписок. Проанализируй образец строк из PDF-выписки и сгенерируй конфигурацию парсера.
+    private fun buildParserConfigPrompt(
+        headerSnippet: String,
+        sampleRows: String,
+    ): String = """
+        |Ты — эксперт по парсингу банковских выписок. Проанализируй заголовок и образец строк из PDF-выписки и сгенерируй конфигурацию парсера.
         |
         |## Правила для bank_id
-        |Определи банк из заголовка/текста. Используй lowercase latin slug:
+        |Определи банк в первую очередь по заголовку и идентифицирующим строкам. Используй lowercase latin slug:
         |— Известные банки: kaspi, freedom, forte, bereke, eurasian
         |— Для неизвестных: транслитерация + lowercase + подчёркивания
         |
         |## Правила для bank_markers
-        |Укажи 2-3 уникальные строки-маркера из текста PDF.
+        |Укажи 2-3 уникальные строки-маркера из заголовка или текста PDF.
         |
         |## Правила для transaction_pattern
         |Создай regex-паттерн для строк транзакций с группами: date, sign, amount, operation, details.
@@ -144,8 +150,11 @@ class GeminiServiceImpl @Inject constructor() : GeminiService {
         |## Правила для operation_type_map
         |JSON строка с маппингом операций: {"Покупка": "expense", "Пополнение": "income"}
         |
+        |## Заголовок / идентифицирующие строки:
+        |${headerSnippet.ifBlank { "(нет данных)" }}
+        |
         |## Образец строк:
-        |$sampleRows
+        |${sampleRows.ifBlank { "(нет данных)" }}
     """.trimMargin()
 
     private fun parseParserConfigResponse(responseText: String): ParserConfig {

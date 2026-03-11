@@ -8,5 +8,8 @@ interface GeminiService {
         prompt: String,
     ): String
 
-    suspend fun generateParserConfig(sampleRows: String): ParserConfig
+    suspend fun generateParserConfig(
+        headerSnippet: String,
+        sampleRows: String,
+    ): ParserConfig
 }

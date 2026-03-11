@@ -19,6 +19,11 @@ class StatementParser @Inject constructor(
     private val configProvider: ParserConfigProvider,
 ) {
 
+    private companion object {
+        const val HEADER_LINE_COUNT = 10
+        const val SAMPLE_LINE_COUNT = 10
+    }
+
     suspend fun tryParsePdf(
         bytes: ByteArray,
         additionalConfigs: List<ParserConfig> = emptyList(),
@@ -56,9 +61,17 @@ class StatementParser @Inject constructor(
         return RegexParseResult(transactions = transactions, bankId = config.bankId)
     }
 
+    fun extractHeaderSnippet(text: String): String =
+        text.lines()
+            .take(HEADER_LINE_COUNT)
+            .filter { it.isNotBlank() }
+            .joinToString("\n")
+
     fun extractSampleRows(text: String): String {
-        val lines = text.lines()
-        val dataLines = lines.drop(10).filter { it.isNotBlank() }.take(10)
-        return if (dataLines.size < 5) "" else dataLines.joinToString("\n")
+        return text.lines()
+            .drop(HEADER_LINE_COUNT)
+            .filter { it.isNotBlank() }
+            .take(SAMPLE_LINE_COUNT)
+            .joinToString("\n")
     }
 }

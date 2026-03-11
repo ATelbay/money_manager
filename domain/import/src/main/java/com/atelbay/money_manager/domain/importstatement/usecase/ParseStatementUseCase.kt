@@ -136,10 +136,14 @@ class ParseStatementUseCase @Inject constructor(
         }
 
         // Step 3: Extract sample rows + call Gemini to generate ParserConfig
+        val headerSnippet = statementParser.extractHeaderSnippet(pdfText)
         val extractedSampleRows = statementParser.extractSampleRows(pdfText)
         if (extractedSampleRows.isNotEmpty()) {
             try {
-                val generatedConfig = geminiService.generateParserConfig(extractedSampleRows)
+                val generatedConfig = geminiService.generateParserConfig(
+                    headerSnippet = headerSnippet,
+                    sampleRows = extractedSampleRows,
+                )
                 Timber.d("AI generated config for bank: %s", generatedConfig.bankId)
 
                 // Step 4: Validate — ReDoS check + regex syntax + dateFormat
@@ -234,8 +238,11 @@ class ParseStatementUseCase @Inject constructor(
     private suspend fun cacheAiConfig(config: ParserConfig) {
         try {
             val existing = loadCachedAiConfigs().toMutableList()
-            // Replace if same bankId exists, otherwise add
-            existing.removeAll { it.bankId == config.bankId }
+            // Replace only the exact same variant; keep other configs for the same bank.
+            existing.removeAll {
+                it.bankId == config.bankId &&
+                    it.transactionPattern == config.transactionPattern
+            }
             existing.add(config)
             val configList = ParserConfigList(banks = existing)
             val jsonStr = json.encodeToString(ParserConfigList.serializer(), configList)
