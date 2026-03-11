@@ -257,8 +257,8 @@ class ParseStatementUseCase @Inject constructor(
         blobs: List<Pair<ByteArray, String>>,
         parseErrors: MutableList<String>,
     ): List<ParsedTransaction> {
-        val expenseCategories = categoryDao.getByType("expense")
-        val incomeCategories = categoryDao.getByType("income")
+        val expenseCategories = categoryDao.getByType(TYPE_EXPENSE)
+        val incomeCategories = categoryDao.getByType(TYPE_INCOME)
 
         val prompt = buildPrompt(expenseCategories, incomeCategories)
         val responseText = geminiService.parseContent(blobs, prompt)
@@ -344,8 +344,8 @@ class ParseStatementUseCase @Inject constructor(
     private suspend fun assignCategories(
         transactions: List<ParsedTransaction>,
     ): List<ParsedTransaction> {
-        val expenseCategories = categoryDao.getByType("expense").toMutableList()
-        val incomeCategories = categoryDao.getByType("income").toMutableList()
+        val expenseCategories = categoryDao.getByType(TYPE_EXPENSE).toMutableList()
+        val incomeCategories = categoryDao.getByType(TYPE_INCOME).toMutableList()
 
         val neededOperations = transactions
             .filter { it.categoryId == null }
@@ -357,7 +357,7 @@ class ParseStatementUseCase @Inject constructor(
             val resolvedName = operationAliases[operation] ?: operation
             if (categories.any { it.name == resolvedName }) continue
 
-            val dbType = if (type == TransactionType.EXPENSE) "expense" else "income"
+            val dbType = if (type == TransactionType.EXPENSE) TYPE_EXPENSE else TYPE_INCOME
             val newCategory = CategoryEntity(
                 name = resolvedName,
                 icon = "label",
@@ -395,6 +395,8 @@ class ParseStatementUseCase @Inject constructor(
     companion object {
         private const val DEFAULT_IMPORT_CATEGORY_COLOR = 0xFFB0BEC5
         private const val AI_REGEX_TIMEOUT_MS = 5_000L
+        private const val TYPE_EXPENSE = "expense"
+        private const val TYPE_INCOME = "income"
     }
 
     private suspend fun deduplicateAndBuildResult(

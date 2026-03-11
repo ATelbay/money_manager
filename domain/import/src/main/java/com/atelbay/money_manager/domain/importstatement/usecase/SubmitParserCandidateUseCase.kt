@@ -1,5 +1,6 @@
 package com.atelbay.money_manager.domain.importstatement.usecase
 
+import com.atelbay.money_manager.domain.importstatement.BuildConfig
 import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
 import com.atelbay.money_manager.core.firestore.dto.ParserCandidateDto
 import com.atelbay.money_manager.core.parser.RegexValidator
@@ -76,7 +77,7 @@ class SubmitParserCandidateUseCase @Inject constructor(
     }
 
     private fun hmacHash(input: String): String {
-        val key = "money_manager_candidate_v1"
+        val key = BuildConfig.HMAC_KEY
         val mac = Mac.getInstance("HmacSHA256")
         mac.init(SecretKeySpec(key.toByteArray(), "HmacSHA256"))
         return mac.doFinal(input.toByteArray()).joinToString("") { "%02x".format(it) }

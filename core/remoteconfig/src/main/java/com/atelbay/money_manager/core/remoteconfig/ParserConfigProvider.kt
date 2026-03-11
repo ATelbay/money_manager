@@ -4,4 +4,5 @@ interface ParserConfigProvider {
     suspend fun getConfigs(): List<ParserConfig>
     suspend fun getConfigForBank(bankId: String): ParserConfig?
     fun isAiFullParseEnabled(): Boolean
+    fun getGeminiModelName(): String
 }

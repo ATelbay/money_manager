@@ -1,5 +1,6 @@
 package com.atelbay.money_manager.presentation.importstatement.ui
 
+import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
 import android.net.Uri
 import android.widget.Toast
@@ -8,9 +9,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -31,8 +34,11 @@ fun ImportRoute(
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-        viewModel.debugAiEvent.collect { message ->
-            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        val isDebug = 0 != (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE)
+        if (isDebug) {
+            viewModel.debugAiEvent.collect { message ->
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -52,13 +58,19 @@ fun ImportRoute(
         }
     }
 
+    val coroutineScope = rememberCoroutineScope()
+
     val pdfLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
         if (uri != null) {
-            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-            if (bytes != null && bytes.isNotEmpty()) {
-                viewModel.onPdfSelected(bytes)
+            coroutineScope.launch {
+                val bytes = withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                }
+                if (bytes != null && bytes.isNotEmpty()) {
+                    viewModel.onPdfSelected(bytes)
+                }
             }
         }
     }

@@ -71,19 +71,14 @@ class FirestoreDataSourceImpl @Inject constructor(
         bankId: String,
         transactionPattern: String,
     ): ParserCandidateDto? {
-        return try {
-            val snapshot = parserCandidates
-                .whereEqualTo("bankId", bankId)
-                .whereEqualTo("transactionPattern", transactionPattern)
-                .whereEqualTo("status", "candidate")
-                .limit(1)
-                .get()
-                .await()
-            snapshot.documents.firstOrNull()?.toObject(ParserCandidateDto::class.java)
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to find parser candidate for bank %s", bankId)
-            null
-        }
+        val snapshot = parserCandidates
+            .whereEqualTo("bankId", bankId)
+            .whereEqualTo("transactionPattern", transactionPattern)
+            .whereEqualTo("status", "candidate")
+            .limit(1)
+            .get()
+            .await()
+        return snapshot.documents.firstOrNull()?.toObject(ParserCandidateDto::class.java)
     }
 
     override suspend fun pushParserCandidate(dto: ParserCandidateDto) {

@@ -6,6 +6,18 @@ plugins {
 
 android {
     namespace = "com.atelbay.money_manager.domain.importstatement"
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    defaultConfig {
+        buildConfigField(
+            "String",
+            "HMAC_KEY",
+            "\"${findProperty("hmac.key") ?: "money_manager_candidate_v1"}\""
+        )
+    }
 }
 
 dependencies {
