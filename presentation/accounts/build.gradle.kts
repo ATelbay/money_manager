@@ -8,7 +8,9 @@ android {
 
 dependencies {
     implementation(projects.domain.accounts)
+    implementation(projects.domain.exchangerate)
     implementation(projects.core.model)
+    implementation(projects.core.common)
     implementation(projects.core.ui)
     implementation(projects.core.datastore)
 }

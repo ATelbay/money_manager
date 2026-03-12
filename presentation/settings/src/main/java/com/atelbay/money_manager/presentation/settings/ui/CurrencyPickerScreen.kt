@@ -70,7 +70,7 @@ fun CurrencyPickerScreen(
 
     Scaffold(
         modifier = modifier.testTag("currencyPicker:screen"),
-        containerColor = Color.Transparent,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {

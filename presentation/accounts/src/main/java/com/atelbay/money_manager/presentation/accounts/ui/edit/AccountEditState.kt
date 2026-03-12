@@ -10,9 +10,7 @@ data class AccountEditState(
     val nameError: String? = null,
     val isSaving: Boolean = false,
     val isLoading: Boolean = true,
-    val availableCurrencies: ImmutableList<String> = persistentListOf(
-        "KZT", "RUB", "USD", "EUR", "GBP", "TRY", "CNY", "JPY",
-    ),
+    val availableCurrencies: ImmutableList<String> = persistentListOf("KZT"),
 ) {
     val isEditing: Boolean get() = accountId != null
 }

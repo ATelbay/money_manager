@@ -3,10 +3,13 @@ package com.atelbay.money_manager.presentation.accounts.ui.edit
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.atelbay.money_manager.core.common.buildSortedCurrencyList
 import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountByIdUseCase
 import com.atelbay.money_manager.domain.accounts.usecase.SaveAccountUseCase
+import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +23,7 @@ class AccountEditViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val getAccountByIdUseCase: GetAccountByIdUseCase,
     private val saveAccountUseCase: SaveAccountUseCase,
+    observeExchangeRateUseCase: ObserveExchangeRateUseCase,
 ) : ViewModel() {
 
     private val accountId: Long? = savedStateHandle.get<Long>("id")
@@ -29,6 +33,12 @@ class AccountEditViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            val rate = observeExchangeRateUseCase().first()
+            if (rate != null) {
+                val sorted = buildSortedCurrencyList(rate.quotes.keys).toImmutableList()
+                _state.update { it.copy(availableCurrencies = sorted) }
+            }
+
             if (accountId != null) {
                 val account = getAccountByIdUseCase(accountId).first()
                 if (account != null) {

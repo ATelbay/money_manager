@@ -13,6 +13,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -91,20 +93,20 @@ fun MoneyManagerNavHost(
 
                 composable<Home>(
                     enterTransition = {
-                        if (reduceMotion) fadeIn(tween(MoneyManagerMotion.ReducedDuration))
-                        else MoneyManagerMotion.tabEnter()
+                        if (initialState.isTopLevel()) tabEnterOrNone(reduceMotion)
+                        else EnterTransition.None
                     },
                     exitTransition = {
-                        if (reduceMotion) fadeOut(tween(MoneyManagerMotion.ReducedDuration))
-                        else MoneyManagerMotion.tabExit()
+                        if (targetState.isTopLevel()) tabExitOrNone(reduceMotion)
+                        else ExitTransition.None
                     },
                     popEnterTransition = {
-                        if (reduceMotion) fadeIn(tween(MoneyManagerMotion.ReducedDuration))
-                        else MoneyManagerMotion.tabEnter()
+                        if (initialState.isTopLevel()) tabEnterOrNone(reduceMotion)
+                        else EnterTransition.None
                     },
                     popExitTransition = {
-                        if (reduceMotion) fadeOut(tween(MoneyManagerMotion.ReducedDuration))
-                        else MoneyManagerMotion.tabExit()
+                        if (targetState.isTopLevel()) tabExitOrNone(reduceMotion)
+                        else ExitTransition.None
                     },
                 ) {
                     CompositionLocalProvider(LocalAnimatedVisibilityScope provides this) {
@@ -163,20 +165,20 @@ fun MoneyManagerNavHost(
 
                 composable<Statistics>(
                     enterTransition = {
-                        if (reduceMotion) fadeIn(tween(MoneyManagerMotion.ReducedDuration))
-                        else MoneyManagerMotion.tabEnter()
+                        if (initialState.isTopLevel()) tabEnterOrNone(reduceMotion)
+                        else EnterTransition.None
                     },
                     exitTransition = {
-                        if (reduceMotion) fadeOut(tween(MoneyManagerMotion.ReducedDuration))
-                        else MoneyManagerMotion.tabExit()
+                        if (targetState.isTopLevel()) tabExitOrNone(reduceMotion)
+                        else ExitTransition.None
                     },
                     popEnterTransition = {
-                        if (reduceMotion) fadeIn(tween(MoneyManagerMotion.ReducedDuration))
-                        else MoneyManagerMotion.tabEnter()
+                        if (initialState.isTopLevel()) tabEnterOrNone(reduceMotion)
+                        else EnterTransition.None
                     },
                     popExitTransition = {
-                        if (reduceMotion) fadeOut(tween(MoneyManagerMotion.ReducedDuration))
-                        else MoneyManagerMotion.tabExit()
+                        if (targetState.isTopLevel()) tabExitOrNone(reduceMotion)
+                        else ExitTransition.None
                     },
                 ) {
                     StatisticsRoute(
@@ -186,20 +188,20 @@ fun MoneyManagerNavHost(
 
                 composable<AccountList>(
                     enterTransition = {
-                        if (reduceMotion) fadeIn(tween(MoneyManagerMotion.ReducedDuration))
-                        else MoneyManagerMotion.tabEnter()
+                        if (initialState.isTopLevel()) tabEnterOrNone(reduceMotion)
+                        else EnterTransition.None
                     },
                     exitTransition = {
-                        if (reduceMotion) fadeOut(tween(MoneyManagerMotion.ReducedDuration))
-                        else MoneyManagerMotion.tabExit()
+                        if (targetState.isTopLevel()) tabExitOrNone(reduceMotion)
+                        else ExitTransition.None
                     },
                     popEnterTransition = {
-                        if (reduceMotion) fadeIn(tween(MoneyManagerMotion.ReducedDuration))
-                        else MoneyManagerMotion.tabEnter()
+                        if (initialState.isTopLevel()) tabEnterOrNone(reduceMotion)
+                        else EnterTransition.None
                     },
                     popExitTransition = {
-                        if (reduceMotion) fadeOut(tween(MoneyManagerMotion.ReducedDuration))
-                        else MoneyManagerMotion.tabExit()
+                        if (targetState.isTopLevel()) tabExitOrNone(reduceMotion)
+                        else ExitTransition.None
                     },
                 ) {
                     AccountListRoute(
@@ -221,20 +223,20 @@ fun MoneyManagerNavHost(
 
                 composable<Settings>(
                     enterTransition = {
-                        if (reduceMotion) fadeIn(tween(MoneyManagerMotion.ReducedDuration))
-                        else MoneyManagerMotion.tabEnter()
+                        if (initialState.isTopLevel()) tabEnterOrNone(reduceMotion)
+                        else EnterTransition.None
                     },
                     exitTransition = {
-                        if (reduceMotion) fadeOut(tween(MoneyManagerMotion.ReducedDuration))
-                        else MoneyManagerMotion.tabExit()
+                        if (targetState.isTopLevel()) tabExitOrNone(reduceMotion)
+                        else ExitTransition.None
                     },
                     popEnterTransition = {
-                        if (reduceMotion) fadeIn(tween(MoneyManagerMotion.ReducedDuration))
-                        else MoneyManagerMotion.tabEnter()
+                        if (initialState.isTopLevel()) tabEnterOrNone(reduceMotion)
+                        else EnterTransition.None
                     },
                     popExitTransition = {
-                        if (reduceMotion) fadeOut(tween(MoneyManagerMotion.ReducedDuration))
-                        else MoneyManagerMotion.tabExit()
+                        if (targetState.isTopLevel()) tabExitOrNone(reduceMotion)
+                        else ExitTransition.None
                     },
                 ) {
                     SettingsRoute(
@@ -267,3 +269,16 @@ fun MoneyManagerNavHost(
         }
     }
 }
+
+private val topLevelRoutes = TopLevelDestination.entries.map { it.route::class }
+
+private fun NavBackStackEntry.isTopLevel(): Boolean =
+    topLevelRoutes.any { destination.hasRoute(it) }
+
+private fun tabEnterOrNone(reduceMotion: Boolean): EnterTransition =
+    if (reduceMotion) fadeIn(tween(MoneyManagerMotion.ReducedDuration))
+    else MoneyManagerMotion.tabEnter()
+
+private fun tabExitOrNone(reduceMotion: Boolean): ExitTransition =
+    if (reduceMotion) fadeOut(tween(MoneyManagerMotion.ReducedDuration))
+    else MoneyManagerMotion.tabExit()

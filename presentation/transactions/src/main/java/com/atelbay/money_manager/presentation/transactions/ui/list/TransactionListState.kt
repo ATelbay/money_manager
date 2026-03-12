@@ -14,7 +14,7 @@ data class TransactionListState(
     val isLoading: Boolean = true,
     val selectedAccountName: String? = null,
     val selectedTab: TransactionType? = null,
-    val selectedPeriod: Period = Period.ALL,
+    val selectedPeriod: Period = Period.MONTH,
     val customDateRange: Pair<LocalDate, LocalDate>? = null,
     val periodIncome: Double? = null,
     val periodExpense: Double? = null,
