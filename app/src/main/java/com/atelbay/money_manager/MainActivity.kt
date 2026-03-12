@@ -265,7 +265,7 @@ private fun MoneyManagerApp(
             navController = navController,
             startDestination = startDestination,
             modifier = Modifier.fillMaxSize(),
-            bottomBarPadding = if (showBottomBar) MoneyManagerBottomBarDefaults.Height else 0.dp,
+            bottomBarPadding = MoneyManagerBottomBarDefaults.Height,
             onFabNavigate = { navController.navigate(TransactionEdit()) },
         )
         if (showBottomBar) {
