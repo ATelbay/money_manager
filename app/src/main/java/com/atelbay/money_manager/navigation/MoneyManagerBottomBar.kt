@@ -6,6 +6,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.testTag
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 
@@ -39,4 +40,8 @@ fun MoneyManagerBottomBar(
             )
         }
     }
+}
+
+object MoneyManagerBottomBarDefaults {
+    val Height = 80.dp
 }

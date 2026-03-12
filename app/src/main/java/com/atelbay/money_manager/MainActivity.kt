@@ -7,20 +7,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -30,12 +21,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -53,6 +46,7 @@ import com.atelbay.money_manager.core.ui.util.LocalReduceMotion
 import com.atelbay.money_manager.navigation.Home
 import com.atelbay.money_manager.navigation.Import
 import com.atelbay.money_manager.navigation.MoneyManagerBottomBar
+import com.atelbay.money_manager.navigation.MoneyManagerBottomBarDefaults
 import com.atelbay.money_manager.navigation.MoneyManagerNavHost
 import com.atelbay.money_manager.navigation.NavigationAction
 import com.atelbay.money_manager.navigation.Onboarding
@@ -60,7 +54,6 @@ import com.atelbay.money_manager.navigation.PendingNavigationManager
 import com.atelbay.money_manager.navigation.TopLevelDestination
 import com.atelbay.money_manager.navigation.TransactionEdit
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.delay
 import kotlin.math.sqrt
 import javax.inject.Inject
 
@@ -241,7 +234,6 @@ private fun MoneyManagerApp(
     onboardingCompleted: Boolean,
     pendingNavigationManager: PendingNavigationManager,
 ) {
-    val reduceMotion = LocalReduceMotion.current
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
 
@@ -250,34 +242,6 @@ private fun MoneyManagerApp(
     }
 
     val showBottomBar = currentTopLevel != null
-
-    // Keep last known destination so bottom bar shows correctly during exit animation
-    var lastTopLevel by remember { mutableStateOf(currentTopLevel) }
-    SideEffect {
-        if (currentTopLevel != null) {
-            lastTopLevel = currentTopLevel
-        }
-    }
-    val bottomBarDestination = currentTopLevel ?: lastTopLevel
-
-    // Force-hide state for delayed FAB navigation
-    var forceHideBottomBar by remember { mutableStateOf(false) }
-    var pendingNavAction by remember { mutableStateOf<(() -> Unit)?>(null) }
-
-    val effectiveShowBottomBar = showBottomBar && !forceHideBottomBar
-    val bottomBarVisibility = remember { MutableTransitionState(effectiveShowBottomBar) }
-    bottomBarVisibility.targetState = effectiveShowBottomBar
-
-    val bottomBarDuration = MoneyManagerMotion.duration(MoneyManagerMotion.DurationShort, reduceMotion)
-
-    // Execute pending navigation after bottom bar has finished hiding
-    LaunchedEffect(pendingNavAction) {
-        val action = pendingNavAction ?: return@LaunchedEffect
-        delay(bottomBarDuration.toLong() + 10L)
-        action()
-        forceHideBottomBar = false
-        pendingNavAction = null
-    }
 
     // Observe pending action as Compose state so this LaunchedEffect re-runs when
     // either the back stack settles (backStackEntry becomes non-null) or a new action arrives.
@@ -296,59 +260,28 @@ private fun MoneyManagerApp(
         }
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        bottomBar = {
-            AnimatedVisibility(
-                visibleState = bottomBarVisibility,
-                enter = slideInVertically(
-                    animationSpec = tween(
-                        durationMillis = bottomBarDuration,
-                        easing = MoneyManagerMotion.StandardEasing,
-                    ),
-                ) { fullHeight -> fullHeight } + fadeIn(
-                    animationSpec = tween(durationMillis = bottomBarDuration),
-                ),
-                exit = slideOutVertically(
-                    animationSpec = tween(
-                        durationMillis = bottomBarDuration,
-                        easing = MoneyManagerMotion.StandardEasing,
-                    ),
-                ) { fullHeight -> fullHeight } + fadeOut(
-                    animationSpec = tween(durationMillis = bottomBarDuration),
-                ),
-            ) {
-                MoneyManagerBottomBar(
-                    currentDestination = bottomBarDestination,
-                    onNavigate = { destination ->
-                        navController.navigate(destination.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                )
-            }
-        },
-    ) { padding ->
-        val animatedBottomPadding by animateDpAsState(
-            targetValue = padding.calculateBottomPadding(),
-            animationSpec = tween(
-                durationMillis = bottomBarDuration,
-                easing = MoneyManagerMotion.StandardEasing,
-            ),
-            label = "navHostBottomPadding",
-        )
+    Box(Modifier.fillMaxSize()) {
         MoneyManagerNavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.padding(bottom = animatedBottomPadding),
-            onFabNavigate = {
-                forceHideBottomBar = true
-                pendingNavAction = { navController.navigate(TransactionEdit()) }
-            },
+            modifier = Modifier.fillMaxSize(),
+            bottomBarPadding = MoneyManagerBottomBarDefaults.Height,
+            onFabNavigate = { navController.navigate(TransactionEdit()) },
         )
+        if (showBottomBar) {
+            MoneyManagerBottomBar(
+                currentDestination = currentTopLevel,
+                onNavigate = { destination ->
+                    navController.navigate(destination.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
     }
 }
