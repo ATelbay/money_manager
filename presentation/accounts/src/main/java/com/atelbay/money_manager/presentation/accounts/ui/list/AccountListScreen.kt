@@ -38,8 +38,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.TextAutoSize
 import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.ui.components.MoneyManagerCard
 import com.atelbay.money_manager.core.ui.components.MoneyManagerFAB
@@ -110,6 +113,9 @@ fun AccountListScreen(
                             text = formatAmount(state.totalBalance),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = 20.sp, stepSize = 1.sp),
                             modifier = Modifier.testTag("accountList:totalBalance"),
                         )
                     }
@@ -221,6 +227,13 @@ private fun AccountItem(
                 text = formatAmount(account.balance),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                autoSize = TextAutoSize.StepBased(
+                    minFontSize = 12.sp,
+                    maxFontSize = 20.sp,
+                    stepSize = 1.sp,
+                ),
             )
 
             Spacer(modifier = Modifier.width(8.dp))

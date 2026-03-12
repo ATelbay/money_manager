@@ -127,6 +127,8 @@ MoneyManager/
 - Room (no changes); Firebase Remote Config (Bereke config update) (003-audit-pdf-import)
 - Kotlin 2.3.0 (Android), TypeScript (Cloud Function) + Firebase AI SDK (Gemini 2.5 Flash), Firestore, Remote Config, PdfBox-Android 2.0.27.0, kotlinx-serialization 1.10.0 (004-ai-regex-autoupdate)
 - Room (existing transactions/categories), Firestore (parser_candidates collection), DataStore (cached AI configs), Remote Config (promoted configs) (004-ai-regex-autoupdate)
+- Kotlin 2.3.0 + Jetpack Compose BOM 2026.01.01, Material 3, `TextAutoSize` (Foundation 1.8+, built-in) (005-ui-overflow-audit)
+- N/A (no data changes) (005-ui-overflow-audit)
 
 ## Recent Changes
 - 001-animation-audit: Added Kotlin 2.3.0 + Jetpack Compose (BOM 2026.01.01), Material 3, Navigation Compose 2.9.7

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -32,9 +33,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import java.text.NumberFormat
 import java.util.Locale
@@ -121,6 +124,7 @@ fun TransactionListItem(
 
                 // Amount and date
                 Column(
+                    modifier = Modifier.widthIn(max = 140.dp),
                     horizontalAlignment = Alignment.End,
                 ) {
                     Text(
@@ -129,6 +133,7 @@ fun TransactionListItem(
                         color = if (isIncome) colors.incomeForeground else colors.expenseForeground,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 16.sp, stepSize = 1.sp),
                     )
                     if (secondaryAmountText != null) {
                         Text(
@@ -137,6 +142,7 @@ fun TransactionListItem(
                             color = colors.textSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
+                            autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 16.sp, stepSize = 1.sp),
                         )
                     }
                     Text(
@@ -212,6 +218,26 @@ private fun TransactionListItemPreview() {
             amount = 15_480.00,
             date = "Сегодня",
             isIncome = false,
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun TransactionListItemExtremePreview() {
+    MoneyManagerTheme(dynamicColor = false) {
+        TransactionListItem(
+            description = "Оплата за долгосрочную аренду офисного помещения в бизнес-центре",
+            category = "Аренда",
+            categoryIcon = Icons.Default.ShoppingCart,
+            categoryColor = Color(0xFF4ECDC4),
+            amount = 9_999_999_999_999.99,
+            date = "Сегодня",
+            isIncome = false,
+            currency = "KZT",
+            secondaryAmount = 9_999_999_999_999.99,
+            secondaryCurrency = "USD",
+            secondaryAmountLabel = "≈",
         )
     }
 }

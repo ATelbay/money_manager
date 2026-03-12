@@ -4,6 +4,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
 import com.atelbay.money_manager.core.ui.util.LocalReduceMotion
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import java.text.NumberFormat
 import java.util.Locale
@@ -75,7 +78,7 @@ fun IncomeExpenseCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 // Income
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -96,12 +99,18 @@ fun IncomeExpenseCard(
                         text = if (isUnavailable) "-" else "+$currency ${formatter.format(income)}",
                         style = typography.amount,
                         color = colors.incomeForeground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 16.sp, stepSize = 1.sp),
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }
 
                 // Expense
-                Column(horizontalAlignment = Alignment.End) {
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    modifier = Modifier.weight(1f),
+                ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -122,6 +131,9 @@ fun IncomeExpenseCard(
                         text = if (isUnavailable) "-" else "\u2212$currency ${formatter.format(expense)}",
                         style = typography.amount,
                         color = colors.expenseForeground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 16.sp, stepSize = 1.sp),
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }
@@ -152,6 +164,9 @@ fun IncomeExpenseCard(
                     style = typography.cardTitle,
                     color = if (isPositive) colors.incomeForeground else colors.expenseForeground,
                     fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 16.sp, stepSize = 1.sp),
                 )
             }
 
@@ -195,6 +210,7 @@ fun IncomeExpenseCard(
                     text = "Сохранено ${(savingsRate * 100).toInt()}%",
                     style = typography.caption,
                     color = if (isPositive) colors.incomeForeground else colors.expenseForeground,
+                    maxLines = 1,
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
@@ -209,6 +225,19 @@ private fun IncomeExpenseCardPreview() {
         IncomeExpenseCard(
             income = 450_000.00,
             expense = 358_400.00,
+            modifier = Modifier.padding(16.dp),
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0D0D0D, name = "Extreme values")
+@Composable
+private fun IncomeExpenseCardExtremePreview() {
+    MoneyManagerTheme(themeMode = "dark", dynamicColor = false) {
+        IncomeExpenseCard(
+            income = 9_999_999_999_999.99,
+            expense = 9_999_999_999_999.99,
+            currency = "KZT",
             modifier = Modifier.padding(16.dp),
         )
     }
