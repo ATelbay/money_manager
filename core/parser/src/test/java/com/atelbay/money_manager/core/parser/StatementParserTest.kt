@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -90,21 +91,89 @@ class StatementParserTest {
     // ==================== NEGATIVE TEST ====================
 
     @Test
-    fun `tryParsePdf returns null when PDF text is empty`() = runTest {
+    fun `tryParsePdf returns empty transactions when PDF text is empty`() = runTest {
         every { pdfTextExtractor.extract(any()) } returns ""
 
         val result = statementParser.tryParsePdf(byteArrayOf(1))
 
-        assertNull(result)
+        assertNotNull(result)
+        assertTrue(result!!.transactions.isEmpty())
+        assertNull(result.bankId)
     }
 
     @Test
-    fun `tryParsePdf returns null for unknown bank`() = runTest {
+    fun `tryParsePdf returns empty transactions for unknown bank`() = runTest {
         every { pdfTextExtractor.extract(any()) } returns "Some random Forte Bank statement"
         coEvery { configProvider.getConfigs() } returns listOf(kaspiConfig)
 
         val result = statementParser.tryParsePdf(byteArrayOf(1))
 
-        assertNull(result)
+        assertNotNull(result)
+        assertTrue(result!!.transactions.isEmpty())
+        assertNull(result.bankId)
+    }
+
+    // ==================== extractSampleRows TESTS ====================
+
+    @Test
+    fun `extractSampleRows returns 10 data lines after skipping 10 header lines`() {
+        val headerLines = (1..10).map { "Header line $it" }
+        val dataLines = (1..15).map { "Data line $it" }
+        val text = (headerLines + dataLines).joinToString("\n")
+
+        val result = statementParser.extractSampleRows(text)
+
+        assertEquals(10, result.lines().size)
+        assertEquals("Data line 1", result.lines().first())
+        assertEquals("Data line 10", result.lines().last())
+    }
+
+    @Test
+    fun `extractSampleRows skips blank lines in data section`() {
+        val headerLines = (1..10).map { "Header line $it" }
+        val dataLines = listOf("Data 1", "", "Data 2", "  ", "Data 3", "Data 4", "Data 5", "Data 6", "Data 7")
+        val text = (headerLines + dataLines).joinToString("\n")
+
+        val result = statementParser.extractSampleRows(text)
+
+        assertEquals(7, result.lines().size)
+        assertTrue(result.lines().none { it.isBlank() })
+    }
+
+    @Test
+    fun `extractSampleRows returns all available data lines when fewer than 5 exist`() {
+        val headerLines = (1..10).map { "Header line $it" }
+        val dataLines = listOf("Data 1", "Data 2", "Data 3", "Data 4")
+        val text = (headerLines + dataLines).joinToString("\n")
+
+        val result = statementParser.extractSampleRows(text)
+
+        assertEquals(4, result.lines().size)
+        assertEquals("Data 1", result.lines().first())
+        assertEquals("Data 4", result.lines().last())
+    }
+
+    @Test
+    fun `extractSampleRows returns empty for empty text`() {
+        val result = statementParser.extractSampleRows("")
+        assertEquals("", result)
+    }
+
+    @Test
+    fun `extractSampleRows returns empty for header-only PDF`() {
+        val text = (1..10).joinToString("\n") { "Header $it" }
+        val result = statementParser.extractSampleRows(text)
+        assertEquals("", result)
+    }
+
+    @Test
+    fun `extractHeaderSnippet keeps non blank header lines from the first 10 rows`() {
+        val headerLines = listOf("Bank statement", "", "АО Test Bank", "BIN 123456", "  ")
+        val paddingLines = List(6) { "" }
+        val text = (headerLines + paddingLines + listOf("Data 1")).joinToString("\n")
+
+        val result = statementParser.extractHeaderSnippet(text)
+
+        assertEquals(listOf("Bank statement", "АО Test Bank", "BIN 123456"), result.lines())
     }
 }

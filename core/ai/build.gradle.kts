@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.moneymanager.android.library)
     alias(libs.plugins.moneymanager.android.hilt)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -12,4 +13,6 @@ dependencies {
     implementation(libs.firebase.ai)
     implementation(libs.bundles.coroutines)
     implementation(libs.timber)
+    implementation(projects.core.remoteconfig)
+    implementation(libs.kotlinx.serialization.json)
 }

@@ -2,6 +2,7 @@ package com.atelbay.money_manager.core.firestore.datasource
 
 import com.atelbay.money_manager.core.firestore.dto.AccountDto
 import com.atelbay.money_manager.core.firestore.dto.CategoryDto
+import com.atelbay.money_manager.core.firestore.dto.ParserCandidateDto
 import com.atelbay.money_manager.core.firestore.dto.TransactionDto
 
 interface FirestoreDataSource {
@@ -13,4 +14,8 @@ interface FirestoreDataSource {
     suspend fun pullTransactions(userId: String): List<TransactionDto>
     suspend fun pullAccounts(userId: String): List<AccountDto>
     suspend fun pullCategories(userId: String): List<CategoryDto>
+
+    suspend fun findParserCandidate(bankId: String, transactionPattern: String): ParserCandidateDto?
+    suspend fun pushParserCandidate(dto: ParserCandidateDto)
+    suspend fun incrementCandidateSuccessCount(candidateId: String)
 }
