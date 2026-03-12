@@ -7,9 +7,12 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -38,6 +41,7 @@ fun MoneyManagerNavHost(
     navController: NavHostController,
     startDestination: Any,
     modifier: Modifier = Modifier,
+    bottomBarPadding: Dp = 0.dp,
     onFabNavigate: (() -> Unit)? = null,
 ) {
     val reduceMotion = LocalReduceMotion.current
@@ -105,6 +109,7 @@ fun MoneyManagerNavHost(
                 ) {
                     CompositionLocalProvider(LocalAnimatedVisibilityScope provides this) {
                         TransactionListRoute(
+                            modifier = Modifier.padding(bottom = bottomBarPadding),
                             onTransactionClick = { id ->
                                 navController.navigate(TransactionEdit(id = id))
                             },
@@ -174,7 +179,9 @@ fun MoneyManagerNavHost(
                         else MoneyManagerMotion.tabExit()
                     },
                 ) {
-                    StatisticsRoute()
+                    StatisticsRoute(
+                        modifier = Modifier.padding(bottom = bottomBarPadding),
+                    )
                 }
 
                 composable<AccountList>(
@@ -196,6 +203,7 @@ fun MoneyManagerNavHost(
                     },
                 ) {
                     AccountListRoute(
+                        modifier = Modifier.padding(bottom = bottomBarPadding),
                         onAccountClick = { id ->
                             navController.navigate(AccountEdit(id = id))
                         },
@@ -230,6 +238,7 @@ fun MoneyManagerNavHost(
                     },
                 ) {
                     SettingsRoute(
+                        modifier = Modifier.padding(bottom = bottomBarPadding),
                         onCategoriesClick = {
                             navController.navigate(CategoryList)
                         },

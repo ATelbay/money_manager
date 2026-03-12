@@ -45,11 +45,11 @@ All changes are in `app/src/main/java/com/atelbay/money_manager/`:
 
 ### Implementation
 
-- [ ] T001 [US1] Remove animation hack state variables (`forceHideBottomBar`, `pendingNavAction`, `bottomBarVisibility`, `bottomBarDuration`, `lastTopLevel`, `animatedBottomPadding`) and their associated `LaunchedEffect`/`SideEffect` blocks from `MoneyManagerApp` in `app/src/main/java/com/atelbay/money_manager/MainActivity.kt`
-- [ ] T002 [US1] Replace `Scaffold` with `Box(Modifier.fillMaxSize())` in `MoneyManagerApp`. Place `MoneyManagerNavHost` as first child (fills entire Box) and `MoneyManagerBottomBar` as second child with `Modifier.align(Alignment.BottomCenter)`, conditionally composed when `showBottomBar` is true, in `app/src/main/java/com/atelbay/money_manager/MainActivity.kt`
-- [ ] T003 [US2] Add `bottomBarPadding: Dp` parameter (default 0.dp) to `MoneyManagerNavHost` in `app/src/main/java/com/atelbay/money_manager/navigation/MoneyManagerNavHost.kt`
-- [ ] T004 [US2] Apply `Modifier.padding(bottom = bottomBarPadding)` to the 4 top-level Route composables (TransactionListRoute, StatisticsRoute, AccountListRoute, SettingsRoute) via their existing `modifier` parameter in `app/src/main/java/com/atelbay/money_manager/navigation/MoneyManagerNavHost.kt`
-- [ ] T005 [US1] Pass `bottomBarPadding = 80.dp` (Material 3 NavigationBar height) from `MoneyManagerApp` to `MoneyManagerNavHost` in `app/src/main/java/com/atelbay/money_manager/MainActivity.kt`
+- [x] T001 [US1] Remove animation hack state variables (`forceHideBottomBar`, `pendingNavAction`, `bottomBarVisibility`, `bottomBarDuration`, `lastTopLevel`, `animatedBottomPadding`) and their associated `LaunchedEffect`/`SideEffect` blocks from `MoneyManagerApp` in `app/src/main/java/com/atelbay/money_manager/MainActivity.kt`
+- [x] T002 [US1] Replace `Scaffold` with `Box(Modifier.fillMaxSize())` in `MoneyManagerApp`. Place `MoneyManagerNavHost` as first child (fills entire Box) and `MoneyManagerBottomBar` as second child with `Modifier.align(Alignment.BottomCenter)`, conditionally composed when `showBottomBar` is true, in `app/src/main/java/com/atelbay/money_manager/MainActivity.kt`
+- [x] T003 [US2] Add `bottomBarPadding: Dp` parameter (default 0.dp) to `MoneyManagerNavHost` in `app/src/main/java/com/atelbay/money_manager/navigation/MoneyManagerNavHost.kt`
+- [x] T004 [US2] Apply `Modifier.padding(bottom = bottomBarPadding)` to the 4 top-level Route composables (TransactionListRoute, StatisticsRoute, AccountListRoute, SettingsRoute) via their existing `modifier` parameter in `app/src/main/java/com/atelbay/money_manager/navigation/MoneyManagerNavHost.kt`
+- [x] T005 [US1] Pass `bottomBarPadding = 80.dp` (Material 3 NavigationBar height) from `MoneyManagerApp` to `MoneyManagerNavHost` in `app/src/main/java/com/atelbay/money_manager/MainActivity.kt`
 
 **Checkpoint**: Tab navigation is seamless, bottom bar is stationary, top-level content is not obscured by the bar overlay.
 
@@ -63,7 +63,7 @@ All changes are in `app/src/main/java/com/atelbay/money_manager/`:
 
 ### Implementation
 
-- [ ] T006 [US3] Verify that detail route composables in `MoneyManagerNavHost` do NOT receive `bottomBarPadding` — they should use their default `modifier` (no bottom padding), allowing them to render over the bottom bar area, in `app/src/main/java/com/atelbay/money_manager/navigation/MoneyManagerNavHost.kt`
+- [x] T006 [US3] Verify that detail route composables in `MoneyManagerNavHost` do NOT receive `bottomBarPadding` — they should use their default `modifier` (no bottom padding), allowing them to render over the bottom bar area, in `app/src/main/java/com/atelbay/money_manager/navigation/MoneyManagerNavHost.kt`
 
 **Checkpoint**: Detail screens fill entire screen. Bottom bar is not composed on detail screens (`showBottomBar` = false when `currentTopLevel` = null), so no touch-through or z-order concerns.
 
@@ -77,7 +77,7 @@ All changes are in `app/src/main/java/com/atelbay/money_manager/`:
 
 ### Implementation
 
-- [ ] T007 [US4] Simplify `onFabNavigate` callback to directly call `navController.navigate(TransactionEdit())` — remove the two-phase `forceHideBottomBar`/`pendingNavAction` pattern in `app/src/main/java/com/atelbay/money_manager/MainActivity.kt`
+- [x] T007 [US4] Simplify `onFabNavigate` callback to directly call `navController.navigate(TransactionEdit())` — remove the two-phase `forceHideBottomBar`/`pendingNavAction` pattern in `app/src/main/java/com/atelbay/money_manager/MainActivity.kt`
 
 **Checkpoint**: FAB tap navigates instantly. No bottom bar exit animation precedes the navigation.
 
@@ -87,8 +87,8 @@ All changes are in `app/src/main/java/com/atelbay/money_manager/`:
 
 **Purpose**: Clean up imports, verify build, validate all scenarios.
 
-- [ ] T008 [P] Remove unused imports (`AnimatedVisibility`, `animateDpAsState`, `MutableTransitionState`, `slideInVertically`, `slideOutVertically`, `fadeIn`, `fadeOut`, `tween` if no longer used, `delay`) from `app/src/main/java/com/atelbay/money_manager/MainActivity.kt`
-- [ ] T009 [P] Verify `MoneyManagerNavHost` imports are clean — add `androidx.compose.ui.unit.Dp` import if needed, remove any unused imports, in `app/src/main/java/com/atelbay/money_manager/navigation/MoneyManagerNavHost.kt`
+- [x] T008 [P] Remove unused imports (`AnimatedVisibility`, `animateDpAsState`, `MutableTransitionState`, `slideInVertically`, `slideOutVertically`, `fadeIn`, `fadeOut`, `tween` if no longer used, `delay`) from `app/src/main/java/com/atelbay/money_manager/MainActivity.kt`
+- [x] T009 [P] Verify `MoneyManagerNavHost` imports are clean — add `androidx.compose.ui.unit.Dp` import if needed, remove any unused imports, in `app/src/main/java/com/atelbay/money_manager/navigation/MoneyManagerNavHost.kt`
 - [ ] T010 Build verification: run `./gradlew assembleDebug` and fix any compile errors
 - [ ] T011 Run `./gradlew test` to verify existing unit tests pass
 - [ ] T012 Run manual verification per `specs/006-nav-box-overlay/quickstart.md` and edge cases from spec.md: (1) tab navigation — bottom bar stationary, no layout shifts; (2) detail navigation — bar hidden, no layout shift on back; (3) FAB — instant navigation; (4) theme switch — circle-reveal animation works with Box layout; (5) onboarding flow — bottom bar not visible during Onboarding/CreateAccount; (6) shared element transitions — TransactionEdit shared elements animate correctly; (7) rapid tab switching — overlay stable; (8) system insets — bottom bar padding correct on gesture-navigation devices
