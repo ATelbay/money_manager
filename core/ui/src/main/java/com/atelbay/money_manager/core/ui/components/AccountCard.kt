@@ -16,8 +16,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.TextAutoSize
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.theme.Teal
 import java.text.NumberFormat
@@ -70,6 +73,9 @@ fun AccountCard(
                     style = typography.cardTitle,
                     color = colors.textPrimary,
                     fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
                 Text(
                     text = currency,
@@ -87,6 +93,9 @@ fun AccountCard(
                 style = typography.sectionHeader,
                 color = colors.textPrimary,
                 fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = 28.sp, stepSize = 1.sp),
                 modifier = Modifier.padding(top = 16.dp),
             )
         }
@@ -101,6 +110,19 @@ private fun AccountCardPreview() {
             accountName = "Kaspi Gold",
             currency = "KZT",
             balance = 1_250_000.50,
+            modifier = Modifier.padding(16.dp),
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0D0D0D)
+@Composable
+private fun AccountCardExtremePreview() {
+    MoneyManagerTheme(themeMode = "dark", dynamicColor = false) {
+        AccountCard(
+            accountName = "Мой долгосрочный сберегательный депозит в Каспи Банке",
+            currency = "KZT",
+            balance = 9_999_999_999_999.99,
             modifier = Modifier.padding(16.dp),
         )
     }

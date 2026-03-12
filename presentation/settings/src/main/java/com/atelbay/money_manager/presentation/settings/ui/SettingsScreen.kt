@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.ui.components.GlassCard
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
@@ -378,12 +379,16 @@ private fun SettingRow(
                 text = title,
                 style = typography.cardTitle,
                 color = colors.textPrimary.copy(alpha = alpha),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             if (subtitle != null) {
                 Text(
                     text = subtitle,
                     style = typography.caption,
                     color = colors.textSecondary.copy(alpha = alpha),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }

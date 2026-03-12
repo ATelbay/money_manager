@@ -34,7 +34,16 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.LocalHospital
+import androidx.compose.material.icons.filled.School
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 
 data class CategoryItem(
@@ -142,6 +151,8 @@ fun CategoryPicker(
                                 style = typography.caption,
                                 color = colors.textPrimary,
                                 textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.padding(top = 8.dp),
                             )
                         }
@@ -149,5 +160,57 @@ fun CategoryPicker(
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun CategoryPickerExtremePreview() {
+    val extremeCategories = listOf(
+        CategoryItem(
+            id = 1L,
+            name = "Ежемесячные коммунальные платежи и услуги ЖКХ",
+            icon = Icons.Filled.Home,
+            color = Color(0xFF4CAF50),
+        ),
+        CategoryItem(
+            id = 2L,
+            name = "Рестораны, кафе и доставка еды на дом",
+            icon = Icons.Filled.Restaurant,
+            color = Color(0xFFFF9800),
+        ),
+        CategoryItem(
+            id = 3L,
+            name = "Автомобиль: бензин, ремонт, страховка, парковка",
+            icon = Icons.Filled.DirectionsCar,
+            color = Color(0xFF2196F3),
+        ),
+        CategoryItem(
+            id = 4L,
+            name = "Одежда, обувь и аксессуары для всей семьи",
+            icon = Icons.Filled.ShoppingBag,
+            color = Color(0xFFE91E63),
+        ),
+        CategoryItem(
+            id = 5L,
+            name = "Медицинские услуги, лекарства и анализы",
+            icon = Icons.Filled.LocalHospital,
+            color = Color(0xFFF44336),
+        ),
+        CategoryItem(
+            id = 6L,
+            name = "Образование: курсы, репетиторы, учебники",
+            icon = Icons.Filled.School,
+            color = Color(0xFF9C27B0),
+        ),
+    )
+
+    MoneyManagerTheme(dynamicColor = false) {
+        CategoryPicker(
+            categories = extremeCategories,
+            selectedCategoryId = 1L,
+            onCategorySelected = {},
+            onDismiss = {},
+        )
     }
 }

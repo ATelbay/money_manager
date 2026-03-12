@@ -22,6 +22,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.text.style.TextOverflow
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import java.text.NumberFormat
 import java.util.Locale
@@ -111,6 +114,9 @@ fun SummaryStatCard(
                 text = "$currency ${formatter.format(value)}",
                 style = typography.amount,
                 color = colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 16.sp, stepSize = 1.sp),
                 modifier = Modifier.padding(top = 4.dp),
             )
         }
@@ -127,6 +133,21 @@ private fun SummaryStatCardPreview() {
             icon = Icons.AutoMirrored.Filled.TrendingDown,
             type = StatType.EXPENSE,
             change = -8f,
+            modifier = Modifier.padding(16.dp),
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0D0D0D)
+@Composable
+private fun SummaryStatCardExtremePreview() {
+    MoneyManagerTheme(themeMode = "dark", dynamicColor = false) {
+        SummaryStatCard(
+            title = "TOTAL EXPENSES",
+            value = 9_999_999_999_999.99,
+            icon = Icons.AutoMirrored.Filled.TrendingDown,
+            type = StatType.EXPENSE,
+            currency = "KZT",
             modifier = Modifier.padding(16.dp),
         )
     }
