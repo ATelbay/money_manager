@@ -114,7 +114,7 @@ fun TransactionEditScreen(
 
     Scaffold(
         modifier = sharedModifier.then(modifier).testTag("transactionEdit:screen"),
-        containerColor = colors.textPrimary.copy(alpha = 0f), // transparent — uses parent bg
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -157,7 +157,7 @@ fun TransactionEditScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MoneyManagerTheme.colors.textPrimary.copy(alpha = 0f))
+                    .background(MaterialTheme.colorScheme.background)
                     .padding(padding),
                 contentAlignment = Alignment.Center,
             ) {

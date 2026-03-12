@@ -2,13 +2,16 @@ package com.atelbay.money_manager.presentation.onboarding.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.atelbay.money_manager.core.common.buildSortedCurrencyList
 import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.domain.accounts.usecase.SaveAccountUseCase
+import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -17,10 +20,21 @@ import javax.inject.Inject
 class CreateAccountViewModel @Inject constructor(
     private val saveAccountUseCase: SaveAccountUseCase,
     private val userPreferences: UserPreferences,
+    observeExchangeRateUseCase: ObserveExchangeRateUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CreateAccountState())
     val state: StateFlow<CreateAccountState> = _state.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            val rate = observeExchangeRateUseCase().first()
+            if (rate != null) {
+                val sorted = buildSortedCurrencyList(rate.quotes.keys)
+                _state.update { it.copy(availableCurrencies = sorted) }
+            }
+        }
+    }
 
     fun setAccountName(name: String) {
         _state.update { it.copy(accountName = name, accountNameError = null) }
