@@ -9,9 +9,12 @@ android {
 
 dependencies {
     implementation(projects.core.database)
+    implementation(projects.core.crypto)
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.firestore)
     implementation(libs.bundles.coroutines)
     implementation(libs.timber)
+
+    testImplementation(libs.bundles.testing)
 }

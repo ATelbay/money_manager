@@ -57,15 +57,61 @@ class FirestoreDataSourceImpl @Inject constructor(
 
     override suspend fun pullTransactions(userId: String): List<TransactionDto> =
         transactions(userId).get().await()
-            .documents.mapNotNull { it.toObject(TransactionDto::class.java) }
+            .documents.mapNotNull { doc ->
+                val data = doc.data ?: return@mapNotNull null
+                TransactionDto(
+                    remoteId = doc.id,
+                    amount = (data["amount"] as? String)
+                        ?: (data["amount"] as? Number)?.toDouble()?.toString()
+                        ?: "",
+                    type = data["type"] as? String ?: "",
+                    categoryRemoteId = data["categoryRemoteId"] as? String ?: "",
+                    accountRemoteId = data["accountRemoteId"] as? String ?: "",
+                    note = data["note"] as? String,
+                    date = (data["date"] as? Number)?.toLong() ?: 0,
+                    createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0,
+                    updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0,
+                    isDeleted = data["isDeleted"] as? Boolean ?: false,
+                    uniqueHash = data["uniqueHash"] as? String,
+                    encryptionVersion = (data["encryptionVersion"] as? Number)?.toInt() ?: 0,
+                )
+            }
 
     override suspend fun pullAccounts(userId: String): List<AccountDto> =
         accounts(userId).get().await()
-            .documents.mapNotNull { it.toObject(AccountDto::class.java) }
+            .documents.mapNotNull { doc ->
+                val data = doc.data ?: return@mapNotNull null
+                AccountDto(
+                    remoteId = doc.id,
+                    name = data["name"] as? String ?: "",
+                    currency = data["currency"] as? String ?: "",
+                    balance = (data["balance"] as? String)
+                        ?: (data["balance"] as? Number)?.toDouble()?.toString()
+                        ?: "",
+                    createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0,
+                    updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0,
+                    isDeleted = data["isDeleted"] as? Boolean ?: false,
+                    encryptionVersion = (data["encryptionVersion"] as? Number)?.toInt() ?: 0,
+                )
+            }
 
     override suspend fun pullCategories(userId: String): List<CategoryDto> =
         categories(userId).get().await()
-            .documents.mapNotNull { it.toObject(CategoryDto::class.java) }
+            .documents.mapNotNull { doc ->
+                val data = doc.data ?: return@mapNotNull null
+                CategoryDto(
+                    remoteId = doc.id,
+                    name = data["name"] as? String ?: "",
+                    icon = data["icon"] as? String ?: "",
+                    color = (data["color"] as? String)
+                        ?: (data["color"] as? Number)?.toLong()?.toString()
+                        ?: "",
+                    type = data["type"] as? String ?: "",
+                    updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0,
+                    isDeleted = data["isDeleted"] as? Boolean ?: false,
+                    encryptionVersion = (data["encryptionVersion"] as? Number)?.toInt() ?: 0,
+                )
+            }
 
     override suspend fun findParserCandidate(
         bankId: String,

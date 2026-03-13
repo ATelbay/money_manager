@@ -1,6 +1,7 @@
 package com.atelbay.money_manager.data.sync
 
 import com.atelbay.money_manager.core.auth.AuthManager
+import com.atelbay.money_manager.core.crypto.FieldCipherHolder
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +19,7 @@ import javax.inject.Singleton
 @Singleton
 class LoginSyncOrchestrator @Inject constructor(
     private val authManager: AuthManager,
+    private val fieldCipherHolder: FieldCipherHolder,
     private val pullSyncUseCase: PullSyncUseCase,
     private val syncManager: SyncManager,
 ) {
@@ -30,9 +32,11 @@ class LoginSyncOrchestrator @Inject constructor(
                 .collect { user ->
                     if (user != null) {
                         Timber.d("LoginSyncOrchestrator: user signed in (${user.userId}), starting sync")
+                        fieldCipherHolder.init(user.userId)
                         runSync(user.userId)
                     } else {
                         Timber.d("LoginSyncOrchestrator: user signed out, clearing sync metadata")
+                        fieldCipherHolder.clear()
                         syncManager.clearSyncMetadata()
                     }
                 }
@@ -42,6 +46,7 @@ class LoginSyncOrchestrator @Inject constructor(
     fun retrySync() {
         scope.launch {
             val userId = authManager.currentUser.value?.userId ?: return@launch
+            if (fieldCipherHolder.cipher == null) fieldCipherHolder.init(userId)
             runSync(userId)
         }
     }

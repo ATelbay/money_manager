@@ -1,6 +1,7 @@
 package com.atelbay.money_manager.data.sync
 
 import com.atelbay.money_manager.core.auth.AuthManager
+import com.atelbay.money_manager.core.crypto.FieldCipherHolder
 import com.atelbay.money_manager.core.database.dao.AccountDao
 import com.atelbay.money_manager.core.database.dao.CategoryDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
@@ -25,6 +26,7 @@ import javax.inject.Singleton
 @Singleton
 class SyncManager @Inject constructor(
     private val authManager: AuthManager,
+    private val fieldCipherHolder: FieldCipherHolder,
     private val firestoreDataSource: FirestoreDataSource,
     private val transactionDao: TransactionDao,
     private val accountDao: AccountDao,
@@ -61,7 +63,7 @@ class SyncManager @Inject constructor(
                 transactionDao.update(entity.copy(remoteId = remoteId))
                 entity.copy(remoteId = remoteId)
             } else entity
-            firestoreDataSource.pushTransaction(userId, finalEntity.toDto(categoryRemoteId, accountRemoteId))
+            firestoreDataSource.pushTransaction(userId, finalEntity.toDto(categoryRemoteId, accountRemoteId, fieldCipherHolder))
         } catch (e: Exception) {
             Timber.e(e, "syncTransaction($id) failed")
         }
@@ -72,7 +74,7 @@ class SyncManager @Inject constructor(
         try {
             val remoteId = ensureAccountRemoteId(id) ?: return@launch
             val entity = accountDao.getById(id) ?: return@launch
-            firestoreDataSource.pushAccount(userId, entity.copy(remoteId = remoteId).toDto())
+            firestoreDataSource.pushAccount(userId, entity.copy(remoteId = remoteId).toDto(fieldCipherHolder))
         } catch (e: Exception) {
             Timber.e(e, "syncAccount($id) failed")
         }
@@ -84,7 +86,7 @@ class SyncManager @Inject constructor(
             val entity = categoryDao.getById(id) ?: return@launch
             if (entity.isDefault) return@launch
             val remoteId = ensureCategoryRemoteId(id) ?: return@launch
-            firestoreDataSource.pushCategory(userId, entity.copy(remoteId = remoteId).toDto())
+            firestoreDataSource.pushCategory(userId, entity.copy(remoteId = remoteId).toDto(fieldCipherHolder))
         } catch (e: Exception) {
             Timber.e(e, "syncCategory($id) failed")
         }
@@ -100,7 +102,7 @@ class SyncManager @Inject constructor(
             .filter { it.remoteId != null }
             .forEach { entity ->
                 val updated = accountDao.getById(entity.id) ?: return@forEach
-                firestoreDataSource.pushAccount(userId, updated.toDto())
+                firestoreDataSource.pushAccount(userId, updated.toDto(fieldCipherHolder))
             }
     }
 
@@ -110,19 +112,19 @@ class SyncManager @Inject constructor(
         accountDao.getPendingSync().forEach { entity ->
             val remoteId = ensureAccountRemoteId(entity.id) ?: return@forEach
             val updated = accountDao.getById(entity.id) ?: return@forEach
-            firestoreDataSource.pushAccount(userId, updated.copy(remoteId = remoteId).toDto())
+            firestoreDataSource.pushAccount(userId, updated.copy(remoteId = remoteId).toDto(fieldCipherHolder))
         }
         categoryDao.getPendingSync().forEach { entity ->
             val remoteId = UUID.randomUUID().toString()
             categoryDao.update(entity.copy(remoteId = remoteId))
-            firestoreDataSource.pushCategory(userId, entity.copy(remoteId = remoteId).toDto())
+            firestoreDataSource.pushCategory(userId, entity.copy(remoteId = remoteId).toDto(fieldCipherHolder))
         }
         transactionDao.getPendingSync().forEach { entity ->
             val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@forEach
             val accountRemoteId = ensureAccountRemoteId(entity.accountId) ?: return@forEach
             val remoteId = UUID.randomUUID().toString()
             transactionDao.update(entity.copy(remoteId = remoteId, updatedAt = System.currentTimeMillis()))
-            firestoreDataSource.pushTransaction(userId, entity.copy(remoteId = remoteId).toDto(categoryRemoteId, accountRemoteId))
+            firestoreDataSource.pushTransaction(userId, entity.copy(remoteId = remoteId).toDto(categoryRemoteId, accountRemoteId, fieldCipherHolder))
         }
         Timber.d("pushAllPending: done")
     }
