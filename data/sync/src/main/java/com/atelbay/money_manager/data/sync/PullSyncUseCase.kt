@@ -1,5 +1,6 @@
 package com.atelbay.money_manager.data.sync
 
+import com.atelbay.money_manager.core.crypto.FieldCipherHolder
 import com.atelbay.money_manager.core.database.dao.AccountDao
 import com.atelbay.money_manager.core.database.dao.CategoryDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
@@ -17,6 +18,7 @@ import javax.inject.Singleton
 @Singleton
 class PullSyncUseCase @Inject constructor(
     private val firestoreDataSource: FirestoreDataSource,
+    private val fieldCipherHolder: FieldCipherHolder,
     private val transactionDao: TransactionDao,
     private val accountDao: AccountDao,
     private val categoryDao: CategoryDao,
@@ -38,7 +40,8 @@ class PullSyncUseCase @Inject constructor(
                 continue
             }
             if (local != null && local.updatedAt >= dto.updatedAt) continue
-            val entity = dto.toEntity(localId = local?.id ?: 0)
+            val entity = dto.toEntity(localId = local?.id ?: 0, fieldCipherHolder = fieldCipherHolder)
+                ?: continue
             if (local == null) {
                 accountDao.insert(entity)
             } else {
@@ -56,7 +59,8 @@ class PullSyncUseCase @Inject constructor(
                 continue
             }
             if (local != null && local.updatedAt >= dto.updatedAt) continue
-            val entity = dto.toEntity(localId = local?.id ?: 0)
+            val entity = dto.toEntity(localId = local?.id ?: 0, fieldCipherHolder = fieldCipherHolder)
+                ?: continue
             if (local == null) {
                 categoryDao.insert(entity)
             } else {
@@ -101,7 +105,8 @@ class PullSyncUseCase @Inject constructor(
                 localId = local?.id ?: 0,
                 categoryLocalId = categoryLocalId,
                 accountLocalId = accountLocalId,
-            )
+                fieldCipherHolder = fieldCipherHolder,
+            ) ?: continue
             transactionDao.upsertSync(listOf(entity))
         }
     }

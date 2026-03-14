@@ -6,8 +6,9 @@ data class CategoryDto(
     @DocumentId val remoteId: String = "",
     val name: String = "",
     val icon: String = "",
-    val color: Long = 0,
+    val color: String = "",
     val type: String = "",
     val updatedAt: Long = 0,
     val isDeleted: Boolean = false,
+    val encryptionVersion: Int = 0,
 )

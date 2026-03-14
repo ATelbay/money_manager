@@ -38,6 +38,7 @@ include(":core:model")
 include(":core:ai")
 include(":core:remoteconfig")
 include(":core:parser")
+include(":core:crypto")
 
 // Domain
 include(":domain:auth")

@@ -34,6 +34,9 @@ kotlinxImmutable = "0.4.0"
 # Firebase
 firebaseBom = "34.8.0"
 
+# Crypto
+tinkAndroid = "1.8.0"
+
 # Auth
 credentials = "1.3.0"
 googleid = "1.1.1"
@@ -139,6 +142,9 @@ firebase-ai = { group = "com.google.firebase", name = "firebase-ai" }
 firebase-config = { group = "com.google.firebase", name = "firebase-config" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
+
+# Crypto
+tink-android = { group = "com.google.crypto.tink", name = "tink-android", version.ref = "tinkAndroid" }
 
 # Auth / Credentials
 androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }

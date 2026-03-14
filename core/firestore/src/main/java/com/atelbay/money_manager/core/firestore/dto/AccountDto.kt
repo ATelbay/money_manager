@@ -6,8 +6,9 @@ data class AccountDto(
     @DocumentId val remoteId: String = "",
     val name: String = "",
     val currency: String = "",
-    val balance: Double = 0.0,
+    val balance: String = "",
     val createdAt: Long = 0,
     val updatedAt: Long = 0,
     val isDeleted: Boolean = false,
+    val encryptionVersion: Int = 0,
 )

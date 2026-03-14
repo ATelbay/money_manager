@@ -4,7 +4,7 @@ import com.google.firebase.firestore.DocumentId
 
 data class TransactionDto(
     @DocumentId val remoteId: String = "",
-    val amount: Double = 0.0,
+    val amount: String = "",
     val type: String = "",
     val categoryRemoteId: String = "",
     val accountRemoteId: String = "",
@@ -14,4 +14,5 @@ data class TransactionDto(
     val updatedAt: Long = 0,
     val isDeleted: Boolean = false,
     val uniqueHash: String? = null,
+    val encryptionVersion: Int = 0,
 )
