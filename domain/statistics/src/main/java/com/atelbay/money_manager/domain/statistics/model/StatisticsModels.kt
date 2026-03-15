@@ -21,12 +21,18 @@ data class MonthlyTotal(
     val label: String,
 )
 
+data class StatisticsDateRange(
+    val startMillis: Long,
+    val endMillis: Long,
+)
+
 enum class TransactionType {
     EXPENSE,
     INCOME,
 }
 
 data class PeriodSummary(
+    val dateRange: StatisticsDateRange,
     val totalExpenses: Double,
     val totalIncome: Double,
     val expensesByCategory: List<CategorySummary>,

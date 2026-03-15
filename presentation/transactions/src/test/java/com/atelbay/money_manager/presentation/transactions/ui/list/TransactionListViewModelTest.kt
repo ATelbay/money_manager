@@ -276,6 +276,19 @@ class TransactionListViewModelTest {
     ) : TransactionRepository {
         override fun observeAll(): Flow<List<Transaction>> = flowOf(transactions)
 
+        override fun observeByCategoryTypeAndDateRange(
+            categoryId: Long,
+            transactionType: TransactionType,
+            startMillis: Long,
+            endMillis: Long,
+        ): Flow<List<Transaction>> = flowOf(
+            transactions.filter { transaction ->
+                transaction.categoryId == categoryId &&
+                    transaction.type == transactionType &&
+                    transaction.date in startMillis..endMillis
+            },
+        )
+
         override fun observeById(id: Long): Flow<Transaction?> =
             flowOf(transactions.firstOrNull { it.id == id })
 

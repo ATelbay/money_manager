@@ -24,6 +24,23 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE isDeleted = 0 AND categoryId = :categoryId ORDER BY date DESC")
     fun observeByCategory(categoryId: Long): Flow<List<TransactionEntity>>
 
+    @Query(
+        """
+        SELECT * FROM transactions
+        WHERE isDeleted = 0
+          AND categoryId = :categoryId
+          AND type = :type
+          AND date BETWEEN :startDate AND :endDate
+        ORDER BY date DESC
+        """,
+    )
+    fun observeByCategoryTypeAndDateRange(
+        categoryId: Long,
+        type: String,
+        startDate: Long,
+        endDate: Long,
+    ): Flow<List<TransactionEntity>>
+
     @Query("SELECT * FROM transactions WHERE id = :id AND isDeleted = 0")
     fun observeById(id: Long): Flow<TransactionEntity?>
 

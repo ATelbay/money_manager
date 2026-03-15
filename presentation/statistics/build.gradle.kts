@@ -8,6 +8,9 @@ android {
 
 dependencies {
     implementation(projects.domain.statistics)
+    implementation(projects.domain.transactions)
+    implementation(projects.domain.categories)
+    implementation(projects.domain.accounts)
     implementation(projects.core.model)
     implementation(projects.core.ui)
 }

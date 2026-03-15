@@ -2,9 +2,11 @@ package com.atelbay.money_manager.presentation.statistics.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.atelbay.money_manager.domain.statistics.model.StatisticsDateRange
 import com.atelbay.money_manager.domain.statistics.model.StatsPeriod
 import com.atelbay.money_manager.domain.statistics.model.TransactionType
 import com.atelbay.money_manager.domain.statistics.usecase.GetPeriodSummaryUseCase
+import com.atelbay.money_manager.domain.statistics.usecase.StatisticsPeriodRangeResolver
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Job
@@ -21,6 +23,7 @@ import javax.inject.Inject
 @HiltViewModel
 class StatisticsViewModel @Inject constructor(
     private val getPeriodSummaryUseCase: GetPeriodSummaryUseCase,
+    private val rangeResolver: StatisticsPeriodRangeResolver,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(StatisticsState())
@@ -48,6 +51,15 @@ class StatisticsViewModel @Inject constructor(
         loadSummary(_state.value.period)
     }
 
+    fun refreshCurrentPeriod() {
+        val currentRange = _state.value.dateRange ?: return
+        val latestRange = rangeResolver(_state.value.period)
+        if (currentRange != latestRange) {
+            _state.update { it.copy(isLoading = true) }
+            loadSummary(_state.value.period)
+        }
+    }
+
     private fun loadSummary(period: StatsPeriod) {
         summaryJob?.cancel()
         summaryJob = getPeriodSummaryUseCase(period)
@@ -55,6 +67,7 @@ class StatisticsViewModel @Inject constructor(
             .onEach { summary ->
                 _state.update {
                     it.copy(
+                        dateRange = summary.dateRange,
                         totalExpenses = summary.totalExpenses,
                         totalIncome = summary.totalIncome,
                         expensesByCategory = summary.expensesByCategory.toImmutableList(),

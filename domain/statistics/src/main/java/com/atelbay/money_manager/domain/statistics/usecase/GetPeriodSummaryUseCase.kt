@@ -20,9 +20,12 @@ import javax.inject.Inject
 class GetPeriodSummaryUseCase @Inject constructor(
     private val transactionDao: TransactionDao,
     private val categoryDao: CategoryDao,
+    private val rangeResolver: StatisticsPeriodRangeResolver,
 ) {
     operator fun invoke(period: StatsPeriod): Flow<PeriodSummary> {
-        val (start, end) = periodRange(period)
+        val dateRange = rangeResolver(period)
+        val start = dateRange.startMillis
+        val end = dateRange.endMillis
         return combine(
             transactionDao.observeByDateRange(start, end),
             categoryDao.observeAll(),
@@ -61,6 +64,7 @@ class GetPeriodSummaryUseCase @Inject constructor(
             }
 
             PeriodSummary(
+                dateRange = dateRange,
                 totalExpenses = totalExpenses,
                 totalIncome = totalIncome,
                 expensesByCategory = expensesByCategory,
@@ -71,36 +75,6 @@ class GetPeriodSummaryUseCase @Inject constructor(
                 monthlyIncome = monthlyIncome,
             )
         }
-    }
-
-    // T003: Fixed periodRange — set start to 00:00 first, then subtract fixed day counts
-    private fun periodRange(period: StatsPeriod): Pair<Long, Long> {
-        val cal = Calendar.getInstance(TimeZone.getDefault())
-
-        // End of today
-        cal.set(Calendar.HOUR_OF_DAY, 23)
-        cal.set(Calendar.MINUTE, 59)
-        cal.set(Calendar.SECOND, 59)
-        cal.set(Calendar.MILLISECOND, 999)
-        val end = cal.timeInMillis
-
-        // Reset to start of today, then subtract
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-
-        when (period) {
-            StatsPeriod.WEEK -> cal.add(Calendar.DAY_OF_YEAR, -6)
-            StatsPeriod.MONTH -> cal.add(Calendar.DAY_OF_YEAR, -29)
-            StatsPeriod.YEAR -> {
-                cal.set(Calendar.DAY_OF_MONTH, 1)  // snap to 1st of current month
-                cal.add(Calendar.MONTH, -11)        // go back 11 months → exactly 12 buckets
-            }
-        }
-        val start = cal.timeInMillis
-
-        return start to end
     }
 
     // T004: Fill every day from start to end with zero-default

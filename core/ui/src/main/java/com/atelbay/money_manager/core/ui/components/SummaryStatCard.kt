@@ -1,5 +1,8 @@
 package com.atelbay.money_manager.core.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,8 +18,10 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -40,6 +45,8 @@ fun SummaryStatCard(
     currency: String = "\u20B8",
     change: Float? = null,
     type: StatType = StatType.DEFAULT,
+    selected: Boolean = false,
+    onClick: (() -> Unit)? = null,
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
@@ -47,6 +54,35 @@ fun SummaryStatCard(
         minimumFractionDigits = 2
         maximumFractionDigits = 2
     }
+    val selectionColor = when (type) {
+        StatType.INCOME -> colors.incomeForeground
+        StatType.EXPENSE -> colors.expenseForeground
+        StatType.DEFAULT -> colors.chart1
+    }
+    val borderColor by animateColorAsState(
+        targetValue = when {
+            selected -> selectionColor.copy(alpha = 0.9f)
+            onClick != null -> colors.surfaceBorder.copy(alpha = 0.5f)
+            else -> Color.Transparent
+        },
+        label = "summaryCardBorder",
+    )
+    val contentAlpha by animateFloatAsState(
+        targetValue = if (onClick != null && !selected) 0.72f else 1f,
+        label = "summaryCardAlpha",
+    )
+    val titleColor by animateColorAsState(
+        targetValue = if (selected) colors.textPrimary else colors.textSecondary,
+        label = "summaryCardTitle",
+    )
+    val amountColor by animateColorAsState(
+        targetValue = when {
+            selected && type == StatType.INCOME -> colors.incomeForeground
+            selected && type == StatType.EXPENSE -> colors.expenseForeground
+            else -> colors.textPrimary
+        },
+        label = "summaryCardAmount",
+    )
 
     val iconBg = when (type) {
         StatType.INCOME -> colors.incomeBg
@@ -59,8 +95,20 @@ fun SummaryStatCard(
         StatType.DEFAULT -> colors.chart1
     }
 
-    GlassCard(modifier = modifier) {
-        Column(modifier = Modifier.padding(16.dp)) {
+    GlassCard(
+        modifier = modifier
+            .border(
+                width = if (selected) 1.5.dp else 1.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(20.dp),
+            ),
+        onClick = onClick,
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .alpha(contentAlpha),
+        ) {
             Row(
                 modifier = Modifier.padding(bottom = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -108,12 +156,12 @@ fun SummaryStatCard(
             Text(
                 text = title,
                 style = typography.caption,
-                color = colors.textSecondary,
+                color = titleColor,
             )
             Text(
                 text = "$currency ${formatter.format(value)}",
                 style = typography.amount,
-                color = colors.textPrimary,
+                color = amountColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 16.sp, stepSize = 1.sp),
