@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +26,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -35,9 +37,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -92,6 +91,7 @@ fun StatisticsScreen(
     state: StatisticsState,
     onPeriodChange: (StatsPeriod) -> Unit,
     onTransactionTypeChange: (TransactionType) -> Unit,
+    onCategoryClick: (CategorySummary) -> Unit = {},
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
     contentWindowInsets: WindowInsets = ScaffoldDefaults.contentWindowInsets,
@@ -149,9 +149,9 @@ fun StatisticsScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                 )
-                TransactionTypeToggle(
-                    selected = state.transactionType,
-                    onSelect = onTransactionTypeChange,
+                StatisticsTypeCards(
+                    state = state,
+                    onTransactionTypeChange = onTransactionTypeChange,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
@@ -207,9 +207,9 @@ fun StatisticsScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                 )
-                TransactionTypeToggle(
-                    selected = state.transactionType,
-                    onSelect = onTransactionTypeChange,
+                StatisticsTypeCards(
+                    state = state,
+                    onTransactionTypeChange = onTransactionTypeChange,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
@@ -266,43 +266,15 @@ fun StatisticsScreen(
                 )
             }
 
-            item(key = "typeToggle") {
-                TransactionTypeToggle(
-                    selected = state.transactionType,
-                    onSelect = onTransactionTypeChange,
+            // Summary Cards
+            item(key = "totals") {
+                StatisticsTypeCards(
+                    state = state,
+                    onTransactionTypeChange = onTransactionTypeChange,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
                 )
-            }
-
-            // Summary Cards
-            item(key = "totals") {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    SummaryStatCard(
-                        title = s.expensesUpper,
-                        value = state.totalExpenses,
-                        icon = Icons.AutoMirrored.Filled.TrendingDown,
-                        type = StatType.EXPENSE,
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("statistics:totalExpenses"),
-                    )
-                    SummaryStatCard(
-                        title = s.incomeUpper,
-                        value = state.totalIncome,
-                        icon = Icons.AutoMirrored.Filled.TrendingUp,
-                        type = StatType.INCOME,
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("statistics:totalIncome"),
-                    )
-                }
             }
 
             // Donut Chart
@@ -362,6 +334,7 @@ fun StatisticsScreen(
                         )
                         CategoryBreakdownCard(
                             categories = currentCategories,
+                            onCategoryClick = onCategoryClick,
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -405,33 +378,39 @@ private fun PeriodSelector(
     }
 }
 
-// ── Transaction Type Toggle ──
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TransactionTypeToggle(
-    selected: TransactionType,
-    onSelect: (TransactionType) -> Unit,
+private fun StatisticsTypeCards(
+    state: StatisticsState,
+    onTransactionTypeChange: (TransactionType) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val s = MoneyManagerTheme.strings
-    SingleChoiceSegmentedButtonRow(
-        modifier = modifier.testTag("statistics:typeToggle"),
+    val strings = MoneyManagerTheme.strings
+    Row(
+        modifier = modifier.testTag("statistics:typeSelector"),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        SegmentedButton(
-            selected = selected == TransactionType.EXPENSE,
-            onClick = { onSelect(TransactionType.EXPENSE) },
-            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-        ) {
-            Text(text = s.expensesLabel)
-        }
-        SegmentedButton(
-            selected = selected == TransactionType.INCOME,
-            onClick = { onSelect(TransactionType.INCOME) },
-            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-        ) {
-            Text(text = s.incomeLabel)
-        }
+        SummaryStatCard(
+            title = strings.expensesUpper,
+            value = state.totalExpenses,
+            icon = Icons.AutoMirrored.Filled.TrendingDown,
+            type = StatType.EXPENSE,
+            selected = state.transactionType == TransactionType.EXPENSE,
+            onClick = { onTransactionTypeChange(TransactionType.EXPENSE) },
+            modifier = Modifier
+                .weight(1f)
+                .testTag("statistics:totalExpenses"),
+        )
+        SummaryStatCard(
+            title = strings.incomeUpper,
+            value = state.totalIncome,
+            icon = Icons.AutoMirrored.Filled.TrendingUp,
+            type = StatType.INCOME,
+            selected = state.transactionType == TransactionType.INCOME,
+            onClick = { onTransactionTypeChange(TransactionType.INCOME) },
+            modifier = Modifier
+                .weight(1f)
+                .testTag("statistics:totalIncome"),
+        )
     }
 }
 
@@ -656,6 +635,7 @@ private fun BarChart(
 @Composable
 private fun CategoryBreakdownCard(
     categories: ImmutableList<CategorySummary>,
+    onCategoryClick: (CategorySummary) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MoneyManagerTheme.colors
@@ -679,6 +659,7 @@ private fun CategoryBreakdownCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .graphicsLayer { this.alpha = alpha.value }
+                        .clickable { onCategoryClick(summary) }
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                         .testTag("statistics:category_${summary.categoryId}"),
                     verticalAlignment = Alignment.CenterVertically,
@@ -727,6 +708,14 @@ private fun CategoryBreakdownCard(
                         overflow = TextOverflow.Ellipsis,
                         autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 16.sp, stepSize = 1.sp),
                         modifier = Modifier.widthIn(max = 120.dp),
+                    )
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = colors.textSecondary,
                     )
                 }
 

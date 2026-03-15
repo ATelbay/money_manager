@@ -9,6 +9,7 @@ import com.atelbay.money_manager.data.sync.SyncManager
 import com.atelbay.money_manager.data.transactions.mapper.toDomain
 import com.atelbay.money_manager.data.transactions.mapper.toEntity
 import com.atelbay.money_manager.core.model.Transaction
+import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.domain.transactions.repository.TransactionRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -28,6 +29,27 @@ class TransactionRepositoryImpl @Inject constructor(
     override fun observeAll(): Flow<List<Transaction>> =
         combine(
             transactionDao.observeAll(),
+            categoryDao.observeAll().distinctUntilChanged(),
+        ) { transactions, categories ->
+            val categoryMap = categories.associateBy { it.id }
+            transactions.map { entity ->
+                entity.toDomain(categoryMap[entity.categoryId])
+            }
+        }
+
+    override fun observeByCategoryTypeAndDateRange(
+        categoryId: Long,
+        transactionType: TransactionType,
+        startMillis: Long,
+        endMillis: Long,
+    ): Flow<List<Transaction>> =
+        combine(
+            transactionDao.observeByCategoryTypeAndDateRange(
+                categoryId = categoryId,
+                type = transactionType.value,
+                startDate = startMillis,
+                endDate = endMillis,
+            ),
             categoryDao.observeAll().distinctUntilChanged(),
         ) { transactions, categories ->
             val categoryMap = categories.associateBy { it.id }

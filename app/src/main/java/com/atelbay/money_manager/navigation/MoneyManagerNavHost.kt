@@ -29,6 +29,7 @@ import com.atelbay.money_manager.presentation.categories.ui.edit.CategoryEditRou
 import com.atelbay.money_manager.presentation.categories.ui.list.CategoryListRoute
 import com.atelbay.money_manager.presentation.accounts.ui.edit.AccountEditRoute
 import com.atelbay.money_manager.presentation.accounts.ui.list.AccountListRoute
+import com.atelbay.money_manager.presentation.statistics.ui.CategoryTransactionsRoute
 import com.atelbay.money_manager.presentation.statistics.ui.StatisticsRoute
 import com.atelbay.money_manager.presentation.settings.ui.CurrencyPickerRoute
 import com.atelbay.money_manager.presentation.settings.ui.SettingsRoute
@@ -183,6 +184,29 @@ fun MoneyManagerNavHost(
                 ) {
                     StatisticsRoute(
                         modifier = Modifier.padding(bottom = bottomBarPadding),
+                        onCategoryClick = { request ->
+                            navController.navigate(
+                                StatisticsCategoryTransactions(
+                                    categoryId = request.categoryId,
+                                    categoryName = request.categoryName,
+                                    categoryIcon = request.categoryIcon,
+                                    categoryColor = request.categoryColor,
+                                    transactionType = request.transactionType,
+                                    period = request.period,
+                                    startMillis = request.startMillis,
+                                    endMillis = request.endMillis,
+                                ),
+                            )
+                        },
+                    )
+                }
+
+                composable<StatisticsCategoryTransactions> {
+                    CategoryTransactionsRoute(
+                        onBack = { navController.popBackStack() },
+                        onTransactionClick = { id ->
+                            navController.navigate(TransactionEdit(id = id))
+                        },
                     )
                 }
 
