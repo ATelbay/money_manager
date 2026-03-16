@@ -97,6 +97,11 @@ import com.patrykandpatrick.vico.core.cartesian.layer.ColumnCartesianLayer
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
 import com.patrykandpatrick.vico.core.common.shape.CorneredShape
 import com.patrykandpatrick.vico.core.common.shape.Shape
+import android.text.Layout
+import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesianMarker
+import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
+import com.patrykandpatrick.vico.core.cartesian.marker.DefaultCartesianMarker
+import com.patrykandpatrick.vico.core.cartesian.marker.ColumnCartesianLayerMarkerTarget
 import java.text.DecimalFormat
 
 // ExtraStore keys for Vico chart metadata
@@ -634,6 +639,26 @@ private fun VicoBarChartSection(
                 )
                 val zoomState = rememberVicoZoomState(zoomEnabled = false)
 
+                val marker = rememberDefaultCartesianMarker(
+                    label = rememberTextComponent(
+                        textAlignment = Layout.Alignment.ALIGN_CENTER,
+                    ),
+                    valueFormatter = DefaultCartesianMarker.ValueFormatter { context, targets ->
+                        val target = targets.firstOrNull() ?: return@ValueFormatter ""
+                        val entry = (target as? ColumnCartesianLayerMarkerTarget)?.columns?.firstOrNull()
+                        val x = entry?.entry?.x ?: return@ValueFormatter ""
+                        val y = entry.entry.y
+
+                        val symbol = context.model.extraStore.getOrNull(currencySymbolKey) ?: ""
+                        val isPrefix = context.model.extraStore.getOrNull(currencyPrefixKey) ?: true
+                        val dateStr = context.model.extraStore.getOrNull(xToDateStringKey)?.get(x) ?: ""
+
+                        val amountFormatted = java.text.NumberFormat.getNumberInstance().format(y)
+                        val amountWithCurrency = if (isPrefix) "$symbol $amountFormatted" else "$amountFormatted $symbol"
+                        "$amountWithCurrency\n$dateStr"
+                    },
+                )
+
                 CartesianChartHost(
                     chart = rememberCartesianChart(
                         rememberColumnCartesianLayer(
@@ -663,6 +688,7 @@ private fun VicoBarChartSection(
                             valueFormatter = xAxisFormatter,
                             guideline = null,
                         ),
+                        marker = marker,
                     ),
                     modelProducer = modelProducer,
                     scrollState = scrollState,

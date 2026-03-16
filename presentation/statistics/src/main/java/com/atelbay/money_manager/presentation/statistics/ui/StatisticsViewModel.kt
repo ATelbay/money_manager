@@ -57,6 +57,7 @@ class StatisticsViewModel @Inject constructor(
     val chartModelProducer = CartesianChartModelProducer()
 
     private var summaryJob: Job? = null
+    private var chartUpdateJob: Job? = null
 
     init {
         loadSummary(_state.value.period)
@@ -72,7 +73,8 @@ class StatisticsViewModel @Inject constructor(
         _state.update { current ->
             current.copy(transactionType = type).withChartContract()
         }
-        viewModelScope.launch { updateChartModel() }
+        chartUpdateJob?.cancel()
+        chartUpdateJob = viewModelScope.launch { updateChartModel() }
     }
 
     fun retry() {
@@ -150,7 +152,8 @@ class StatisticsViewModel @Inject constructor(
                         error = null,
                     ).withChartContract(dateRange = snapshot.summary.dateRange)
                 }
-                updateChartModel()
+                chartUpdateJob?.cancel()
+                chartUpdateJob = viewModelScope.launch { updateChartModel() }
             }
             .catch { e ->
                 _state.update { current ->
