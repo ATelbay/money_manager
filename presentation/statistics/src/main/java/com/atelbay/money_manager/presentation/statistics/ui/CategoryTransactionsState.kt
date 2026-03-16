@@ -2,6 +2,7 @@ package com.atelbay.money_manager.presentation.statistics.ui
 
 import com.atelbay.money_manager.domain.statistics.model.StatsPeriod
 import com.atelbay.money_manager.domain.statistics.model.TransactionType
+import com.atelbay.money_manager.core.ui.util.MoneyDisplayPresentation
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
@@ -30,6 +31,7 @@ data class CategoryTransactionItem(
     val categoryColor: Long,
     val amount: Double,
     val currency: String,
+    val moneyDisplay: MoneyDisplayPresentation,
     val date: Long,
     val isIncome: Boolean,
 )

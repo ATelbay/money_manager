@@ -6,6 +6,11 @@ import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.core.model.TransactionType
+import com.atelbay.money_manager.core.ui.util.AggregateCurrencyDisplayMode
+import com.atelbay.money_manager.core.ui.util.AggregateCurrencyDisplayResolver
+import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
+import com.atelbay.money_manager.core.ui.util.MoneyDisplayPresentation
+import com.atelbay.money_manager.core.ui.util.normalizeCurrencyCode
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
 import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
 import com.atelbay.money_manager.domain.exchangerate.usecase.ConvertAmountUseCase
@@ -51,6 +56,7 @@ private data class SummaryMetrics(
     val income: Double?,
     val expense: Double?,
     val displayCurrency: String?,
+    val moneyDisplay: MoneyDisplayPresentation,
     val displayMode: SummaryDisplayMode,
 )
 
@@ -179,6 +185,7 @@ class TransactionListViewModel @Inject constructor(
                     searchQuery = filters.searchQuery,
                     balance = summaryMetrics.balance,
                     displayCurrency = summaryMetrics.displayCurrency,
+                    summaryMoneyDisplay = summaryMetrics.moneyDisplay,
                     summaryDisplayMode = summaryMetrics.displayMode,
                     isLoading = false,
                     selectedAccountName = selectedAccount?.name,
@@ -264,6 +271,12 @@ class TransactionListViewModel @Inject constructor(
                 } else {
                     ConversionStatus.UNAVAILABLE
                 },
+                displayMoneyDisplay = MoneyDisplayFormatter.resolveAndFormat(
+                    normalizedBaseCurrency.takeIf { hasConvertedAmount } ?: originalCurrency,
+                ),
+                secondaryMoneyDisplay = originalCurrency
+                    .takeIf { hasConvertedAmount }
+                    ?.let(MoneyDisplayFormatter::resolveAndFormat),
             )
         }.toImmutableList()
     }
@@ -303,76 +316,85 @@ class TransactionListViewModel @Inject constructor(
                 .map(::normalizeCurrency)
                 .filterTo(this) { it.isNotBlank() }
         }
+        val displayResolution = AggregateCurrencyDisplayResolver.resolve(
+            baseCurrency = normalizedBaseCurrency,
+            scopedCurrencies = scopedCurrencies,
+            canDisplayInBaseCurrency = canConvertAll,
+        )
 
-        if (scopedAccounts.isEmpty() && periodTransactions.isEmpty()) {
-            return SummaryMetrics(
-                balance = 0.0,
-                income = 0.0,
-                expense = 0.0,
-                displayCurrency = normalizedBaseCurrency,
-                displayMode = SummaryDisplayMode.ORIGINAL_SINGLE_CURRENCY,
-            )
-        }
-
-        if (!canConvertAll) {
-            if (scopedCurrencies.size != 1) {
-                return SummaryMetrics(
+        return when (displayResolution.displayMode) {
+            AggregateCurrencyDisplayMode.UNAVAILABLE -> {
+                SummaryMetrics(
                     balance = null,
                     income = null,
                     expense = null,
                     displayCurrency = null,
+                    moneyDisplay = MoneyDisplayFormatter.format(
+                        MoneyDisplayFormatter.unavailable(),
+                    ),
                     displayMode = SummaryDisplayMode.UNAVAILABLE,
                 )
             }
-            val fallbackBalance = scopedAccounts.sumOf { it.balance }
-            val fallbackIncome =
-                periodTransactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-            val fallbackExpense =
-                periodTransactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+            AggregateCurrencyDisplayMode.ORIGINAL_SINGLE_CURRENCY -> {
+                val fallbackBalance = scopedAccounts.sumOf { it.balance }
+                val fallbackIncome = periodTransactions
+                    .filter { it.type == TransactionType.INCOME }
+                    .sumOf { it.amount }
+                val fallbackExpense = periodTransactions
+                    .filter { it.type == TransactionType.EXPENSE }
+                    .sumOf { it.amount }
 
-            return SummaryMetrics(
-                balance = fallbackBalance,
-                income = fallbackIncome,
-                expense = fallbackExpense,
-                displayCurrency = scopedCurrencies.single(),
-                displayMode = SummaryDisplayMode.ORIGINAL_SINGLE_CURRENCY,
-            )
+                SummaryMetrics(
+                    balance = fallbackBalance,
+                    income = fallbackIncome,
+                    expense = fallbackExpense,
+                    displayCurrency = displayResolution.displayCurrency,
+                    moneyDisplay = displayResolution.displayCurrency
+                        ?.let(MoneyDisplayFormatter::resolveAndFormat)
+                        ?: MoneyDisplayFormatter.format(MoneyDisplayFormatter.unavailable()),
+                    displayMode = SummaryDisplayMode.ORIGINAL_SINGLE_CURRENCY,
+                )
+            }
+            AggregateCurrencyDisplayMode.CONVERTED -> {
+                val convertedBalances = scopedAccounts.map {
+                    convertToBaseCurrency(
+                        amount = it.balance,
+                        sourceCurrency = it.currency,
+                        baseCurrency = normalizedBaseCurrency,
+                        exchangeRate = exchangeRate,
+                    )
+                }
+                val convertedTransactions = periodTransactions.mapNotNull { transaction ->
+                    val sourceCurrency = accountCurrenciesById[transaction.accountId]?.currency
+                        ?: return@mapNotNull null
+
+                    convertToBaseCurrency(
+                        amount = transaction.amount,
+                        sourceCurrency = sourceCurrency,
+                        baseCurrency = normalizedBaseCurrency,
+                        exchangeRate = exchangeRate,
+                    ) to transaction.type
+                }
+
+                val convertedIncome = convertedTransactions
+                    .filter { (_, type) -> type == TransactionType.INCOME }
+                    .sumOf { (convertedAmount, _) -> convertedAmount.amount }
+                val convertedExpense = convertedTransactions
+                    .filter { (_, type) -> type == TransactionType.EXPENSE }
+                    .sumOf { (convertedAmount, _) -> convertedAmount.amount }
+
+                SummaryMetrics(
+                    balance = convertedBalances.sumOf { it.amount },
+                    income = convertedIncome,
+                    expense = convertedExpense,
+                    displayCurrency = displayResolution.displayCurrency,
+                    moneyDisplay = displayResolution.displayCurrency
+                        ?.let(MoneyDisplayFormatter::resolveAndFormat)
+                        ?: MoneyDisplayFormatter.format(MoneyDisplayFormatter.unavailable()),
+                    displayMode = SummaryDisplayMode.CONVERTED,
+                )
+            }
         }
-
-        val convertedBalances = scopedAccounts.map {
-            convertToBaseCurrency(
-                amount = it.balance,
-                sourceCurrency = it.currency,
-                baseCurrency = normalizedBaseCurrency,
-                exchangeRate = exchangeRate,
-            )
-        }
-        val convertedTransactions = periodTransactions.mapNotNull { transaction ->
-            val sourceCurrency = accountCurrenciesById[transaction.accountId]?.currency
-                ?: return@mapNotNull null
-
-            convertToBaseCurrency(
-                amount = transaction.amount,
-                sourceCurrency = sourceCurrency,
-                baseCurrency = normalizedBaseCurrency,
-                exchangeRate = exchangeRate,
-            ) to transaction.type
-        }
-
-        val convertedIncome = convertedTransactions
-            .filter { (_, type) -> type == TransactionType.INCOME }
-            .sumOf { (convertedAmount, _) -> convertedAmount.amount }
-        val convertedExpense = convertedTransactions
-            .filter { (_, type) -> type == TransactionType.EXPENSE }
-            .sumOf { (convertedAmount, _) -> convertedAmount.amount }
-
-        return SummaryMetrics(
-            balance = convertedBalances.sumOf { it.amount },
-            income = convertedIncome,
-            expense = convertedExpense,
-            displayCurrency = normalizedBaseCurrency,
-            displayMode = SummaryDisplayMode.CONVERTED,
-        )
     }
 
     private fun canDisplayInBaseCurrency(
@@ -449,7 +471,7 @@ class TransactionListViewModel @Inject constructor(
     }
 
     private fun normalizeCurrency(currency: String): String {
-        return currency.trim().uppercase().ifBlank { KZT }
+        return currency.normalizeCurrencyCode(fallback = KZT)
     }
 
     private companion object {

@@ -28,6 +28,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.TextAutoSize
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.theme.Teal
+import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
+import com.atelbay.money_manager.core.ui.util.MoneyDisplayPresentation
+import com.atelbay.money_manager.core.ui.util.formatAmount
+import com.atelbay.money_manager.core.ui.util.supportingText
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -42,8 +46,8 @@ fun BalanceCard(
     accountName: String,
     balance: Double,
     modifier: Modifier = Modifier,
-    currency: String = "\u20B8",
-    isUnavailable: Boolean = false,
+    moneyDisplay: MoneyDisplayPresentation = MoneyDisplayFormatter.resolveAndFormat("KZT"),
+    unavailableSupportingText: String? = null,
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
@@ -100,7 +104,10 @@ fun BalanceCard(
                 color = colors.textSecondary,
             )
             Text(
-                text = if (isUnavailable) "-" else "$currency ${formatter.format(displayBalance)}",
+                text = moneyDisplay.formatAmount(
+                    amount = displayBalance,
+                    formatter = formatter,
+                ),
                 style = typography.balanceDisplay,
                 color = colors.textPrimary,
                 maxLines = 1,
@@ -108,9 +115,9 @@ fun BalanceCard(
                 autoSize = TextAutoSize.StepBased(minFontSize = 14.sp, maxFontSize = 34.sp, stepSize = 1.sp),
                 modifier = Modifier.padding(top = 8.dp),
             )
-            if (isUnavailable) {
+            moneyDisplay.supportingText(unavailableSupportingText)?.let { supportingText ->
                 Text(
-                    text = "Недостаточно курсов для конвертации",
+                    text = supportingText,
                     style = typography.caption,
                     color = colors.textSecondary,
                     modifier = Modifier.padding(top = 4.dp),
@@ -140,13 +147,13 @@ private fun BalanceCardExtremePreview() {
             BalanceCard(
                 accountName = "Kaspi Gold",
                 balance = 9_999_999_999_999.99,
-                currency = "KZT",
+                moneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
                 modifier = Modifier.padding(16.dp),
             )
             BalanceCard(
                 accountName = "Kaspi Gold",
                 balance = -9_999_999_999_999.99,
-                currency = "KZT",
+                moneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
                 modifier = Modifier.padding(16.dp),
             )
             BalanceCard(

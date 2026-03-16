@@ -11,6 +11,12 @@ dependencies {
     implementation(projects.domain.transactions)
     implementation(projects.domain.categories)
     implementation(projects.domain.accounts)
+    implementation(projects.domain.exchangerate)
+    implementation(projects.core.datastore)
     implementation(projects.core.model)
     implementation(projects.core.ui)
+
+    testImplementation(libs.bundles.testing)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.bundles.android.testing)
 }

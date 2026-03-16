@@ -39,8 +39,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
-import java.text.NumberFormat
-import java.util.Locale
+import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
+import com.atelbay.money_manager.core.ui.util.MoneyDisplayPresentation
+import com.atelbay.money_manager.core.ui.util.defaultMoneyNumberFormat
+import com.atelbay.money_manager.core.ui.util.formatAmount
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,24 +55,29 @@ fun TransactionListItem(
     date: String,
     isIncome: Boolean,
     modifier: Modifier = Modifier,
-    currency: String = "\u20B8",
+    moneyDisplay: MoneyDisplayPresentation = MoneyDisplayFormatter.resolveAndFormat("KZT"),
     secondaryAmount: Double? = null,
-    secondaryCurrency: String? = null,
+    secondaryMoneyDisplay: MoneyDisplayPresentation? = null,
     secondaryAmountLabel: String? = null,
     onClick: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
-    val formatter = NumberFormat.getNumberInstance(Locale.US).apply {
-        minimumFractionDigits = 2
-        maximumFractionDigits = 2
-    }
+    val formatter = defaultMoneyNumberFormat()
     val sign = if (isIncome) "+" else "\u2212"
-    val primaryAmountText = "$sign$currency ${formatter.format(amount)}"
+    val primaryAmountText = moneyDisplay.formatAmount(
+        amount = amount,
+        sign = sign,
+        formatter = formatter,
+    )
     val secondaryAmountText = secondaryAmount?.let {
-        val resolvedCurrency = secondaryCurrency ?: currency
-        val formattedAmount = "$sign$resolvedCurrency ${formatter.format(it)}"
+        val resolvedDisplay = secondaryMoneyDisplay ?: moneyDisplay
+        val formattedAmount = resolvedDisplay.formatAmount(
+            amount = it,
+            sign = sign,
+            formatter = formatter,
+        )
         secondaryAmountLabel?.let { label -> "$label $formattedAmount" } ?: formattedAmount
     }
 
@@ -234,9 +241,9 @@ private fun TransactionListItemExtremePreview() {
             amount = 9_999_999_999_999.99,
             date = "Сегодня",
             isIncome = false,
-            currency = "KZT",
+            moneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
             secondaryAmount = 9_999_999_999_999.99,
-            secondaryCurrency = "USD",
+            secondaryMoneyDisplay = MoneyDisplayFormatter.resolveAndFormat("USD"),
             secondaryAmountLabel = "≈",
         )
     }

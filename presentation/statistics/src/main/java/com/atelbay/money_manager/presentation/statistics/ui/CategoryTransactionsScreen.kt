@@ -173,7 +173,7 @@ fun CategoryTransactionsScreen(
                                 amount = transaction.amount,
                                 date = timestampFormatter.format(Date(transaction.date)),
                                 isIncome = transaction.isIncome,
-                                currency = transaction.currency,
+                                moneyDisplay = transaction.moneyDisplay,
                                 onClick = { onTransactionClick(transaction.transactionId) },
                                 modifier = Modifier
                                     .fillMaxWidth()

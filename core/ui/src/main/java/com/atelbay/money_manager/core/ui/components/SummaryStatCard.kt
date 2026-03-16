@@ -31,18 +31,22 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.ui.text.style.TextOverflow
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
-import java.text.NumberFormat
-import java.util.Locale
+import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
+import com.atelbay.money_manager.core.ui.util.MoneyDisplayPresentation
+import com.atelbay.money_manager.core.ui.util.defaultMoneyNumberFormat
+import com.atelbay.money_manager.core.ui.util.formatAmount
+import com.atelbay.money_manager.core.ui.util.supportingText
 
 enum class StatType { DEFAULT, INCOME, EXPENSE }
 
 @Composable
 fun SummaryStatCard(
     title: String,
-    value: Double,
+    value: Double?,
     icon: ImageVector,
     modifier: Modifier = Modifier,
-    currency: String = "\u20B8",
+    moneyDisplay: MoneyDisplayPresentation = MoneyDisplayFormatter.resolveAndFormat("KZT"),
+    unavailableSupportingText: String? = null,
     change: Float? = null,
     type: StatType = StatType.DEFAULT,
     selected: Boolean = false,
@@ -50,10 +54,7 @@ fun SummaryStatCard(
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
-    val formatter = NumberFormat.getNumberInstance(Locale.US).apply {
-        minimumFractionDigits = 2
-        maximumFractionDigits = 2
-    }
+    val formatter = defaultMoneyNumberFormat()
     val selectionColor = when (type) {
         StatType.INCOME -> colors.incomeForeground
         StatType.EXPENSE -> colors.expenseForeground
@@ -159,7 +160,12 @@ fun SummaryStatCard(
                 color = titleColor,
             )
             Text(
-                text = "$currency ${formatter.format(value)}",
+                text = value?.let {
+                    moneyDisplay.formatAmount(
+                        amount = it,
+                        formatter = formatter,
+                    )
+                } ?: moneyDisplay.primaryLabel,
                 style = typography.amount,
                 color = amountColor,
                 maxLines = 1,
@@ -167,6 +173,14 @@ fun SummaryStatCard(
                 autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 16.sp, stepSize = 1.sp),
                 modifier = Modifier.padding(top = 4.dp),
             )
+            moneyDisplay.supportingText(unavailableSupportingText)?.let { supportingText ->
+                Text(
+                    text = supportingText,
+                    style = typography.caption,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
         }
     }
 }
@@ -195,7 +209,7 @@ private fun SummaryStatCardExtremePreview() {
             value = 9_999_999_999_999.99,
             icon = Icons.AutoMirrored.Filled.TrendingDown,
             type = StatType.EXPENSE,
-            currency = "KZT",
+            moneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
             modifier = Modifier.padding(16.dp),
         )
     }

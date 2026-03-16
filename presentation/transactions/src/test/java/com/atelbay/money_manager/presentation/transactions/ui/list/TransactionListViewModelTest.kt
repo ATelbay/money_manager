@@ -41,6 +41,28 @@ class TransactionListViewModelTest {
     }
 
     @Test
+    fun `initial state stays loading before debounced filters emit`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+
+        val viewModel = createViewModel(
+            transactions = listOf(
+                transaction(
+                    amount = 125.0,
+                    type = TransactionType.INCOME,
+                    categoryName = "Salary",
+                ),
+            ),
+            accounts = listOf(account(currency = "USD", balance = 125.0)),
+            baseCurrency = flowOf("USD"),
+        )
+
+        assertEquals(true, viewModel.state.value.isLoading)
+        assertEquals(0, viewModel.state.value.transactionRows.size)
+        assertNull(viewModel.state.value.displayCurrency)
+        assertEquals(SummaryDisplayMode.UNAVAILABLE, viewModel.state.value.summaryDisplayMode)
+    }
+
+    @Test
     fun `same currency keeps transaction row on source amount`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
 
@@ -63,11 +85,14 @@ class TransactionListViewModelTest {
         assertEquals(125.0, row.displayAmount, 0.0)
         assertEquals("USD", row.displayCurrency)
         assertEquals(ConversionStatus.UNAVAILABLE, row.conversionStatus)
+        assertEquals("$", row.displayMoneyDisplay.primaryLabel)
+        assertEquals("USD", row.displayMoneyDisplay.secondaryLabel)
 
         assertEquals("USD", viewModel.state.value.displayCurrency)
         assertEquals(125.0, viewModel.state.value.balance ?: 0.0, 0.0)
         assertEquals(125.0, viewModel.state.value.periodIncome ?: 0.0, 0.0)
         assertEquals(0.0, viewModel.state.value.periodExpense ?: 0.0, 0.0)
+        assertEquals("$", viewModel.state.value.summaryMoneyDisplay.primaryLabel)
         assertEquals(
             SummaryDisplayMode.CONVERTED,
             viewModel.state.value.summaryDisplayMode,
@@ -98,6 +123,8 @@ class TransactionListViewModelTest {
         assertEquals(100.0, incomeRow.convertedAmount ?: 0.0, 0.0)
         assertEquals("USD", incomeRow.convertedCurrency)
         assertEquals(ConversionStatus.AVAILABLE, incomeRow.conversionStatus)
+        assertEquals("$", incomeRow.displayMoneyDisplay.primaryLabel)
+        assertEquals("USD", incomeRow.displayMoneyDisplay.secondaryLabel)
 
         assertEquals(20.0, expenseRow.convertedAmount ?: 0.0, 0.0)
         assertEquals("USD", expenseRow.convertedCurrency)
