@@ -90,15 +90,14 @@ import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
-import com.patrykandpatrick.vico.core.cartesian.CartesianDrawingContext
-import com.patrykandpatrick.vico.core.cartesian.decoration.Decoration
+import com.patrykandpatrick.vico.compose.common.ProvideVicoTheme
+import com.patrykandpatrick.vico.compose.common.VicoTheme
 import com.patrykandpatrick.vico.core.cartesian.data.ColumnCartesianLayerModel
 import com.patrykandpatrick.vico.core.cartesian.layer.ColumnCartesianLayer
 import com.patrykandpatrick.vico.core.common.component.LineComponent
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
 import com.patrykandpatrick.vico.core.common.shape.CorneredShape
 import com.patrykandpatrick.vico.core.common.shape.Shape
-import android.graphics.Paint
 import android.text.Layout
 import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesianMarker
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
@@ -125,38 +124,6 @@ private class TodayColumnProvider(
         fullOpacityColumn
 }
 
-private class TodayDotDecoration(
-    private val dotColor: Int,
-    private val dotRadiusDp: Float = 3f,
-) : Decoration {
-    override fun drawOverLayers(context: CartesianDrawingContext) {
-        with(context) {
-            val todayIndex = model.extraStore.getOrNull(todayIndexKey) ?: return
-            if (todayIndex < 0) return
-
-            val todayX = todayIndex.toDouble()
-            val layerStart = if (isLtr) layerBounds.left else layerBounds.right
-            val drawingStart =
-                layerStart + layoutDirectionMultiplier * layerDimensions.startPadding
-            val xSpacingMultiplier =
-                ((todayX - ranges.minX) / ranges.xStep).toFloat()
-            val canvasX = drawingStart +
-                layoutDirectionMultiplier * (layerDimensions.xSpacing * xSpacingMultiplier - scroll)
-            val canvasY = layerBounds.top - dotRadiusDp * density * 2
-            val dotRadius = dotRadiusDp * density
-
-            if (canvasX < layerBounds.left - dotRadius || canvasX > layerBounds.right + dotRadius) {
-                return
-            }
-
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = dotColor
-                style = Paint.Style.FILL
-            }
-            canvas.drawCircle(canvasX, canvasY, dotRadius, paint)
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -672,7 +639,9 @@ private fun VicoBarChartSection(
 
                 val xAxisFormatter = remember {
                     CartesianValueFormatter { context, value, _ ->
-                        context.model.extraStore.getOrNull(xToLabelMapKey)?.get(value) ?: ""
+                        val label = context.model.extraStore.getOrNull(xToLabelMapKey)?.get(value) ?: ""
+                        val todayIndex = context.model.extraStore.getOrNull(todayIndexKey) ?: -1
+                        if (value.toInt() == todayIndex) "$label•" else label
                     }
                 }
 
@@ -706,20 +675,9 @@ private fun VicoBarChartSection(
                     TodayColumnProvider(fullOpacityColumn, reducedOpacityColumn)
                 }
 
-                val dotColor = barColor
-                val todayDotDecoration = remember(dotColor) {
-                    TodayDotDecoration(
-                        dotColor = android.graphics.Color.argb(
-                            (dotColor.alpha * 255).toInt(),
-                            (dotColor.red * 255).toInt(),
-                            (dotColor.green * 255).toInt(),
-                            (dotColor.blue * 255).toInt(),
-                        ),
-                    )
-                }
-
                 val marker = rememberDefaultCartesianMarker(
                     label = rememberTextComponent(
+                        color = colors.textPrimary,
                         textAlignment = Layout.Alignment.ALIGN_CENTER,
                     ),
                     valueFormatter = DefaultCartesianMarker.ValueFormatter { context, targets ->
@@ -738,44 +696,56 @@ private fun VicoBarChartSection(
                     },
                 )
 
-                CartesianChartHost(
-                    chart = rememberCartesianChart(
-                        rememberColumnCartesianLayer(
-                            columnProvider = columnProvider,
+                ProvideVicoTheme(
+                    theme = VicoTheme(
+                        candlestickCartesianLayerColors = VicoTheme.CandlestickCartesianLayerColors(
+                            bullish = barColor,
+                            neutral = barColor,
+                            bearish = barColor,
                         ),
-                        startAxis = VerticalAxis.rememberStart(
-                            valueFormatter = yAxisFormatter,
-                            guideline = rememberLineComponent(
-                                fill = remember(colors.borderSubtle) { fill(colors.borderSubtle) },
-                                shape = dashedShape(
-                                    shape = Shape.Rectangle,
-                                    dashLength = 8.dp,
-                                    gapLength = 4.dp,
+                        columnCartesianLayerColors = listOf(barColor),
+                        textColor = colors.textSecondary,
+                        lineColor = colors.borderSubtle,
+                    ),
+                ) {
+                    CartesianChartHost(
+                        chart = rememberCartesianChart(
+                            rememberColumnCartesianLayer(
+                                columnProvider = columnProvider,
+                            ),
+                            startAxis = VerticalAxis.rememberStart(
+                                valueFormatter = yAxisFormatter,
+                                guideline = rememberLineComponent(
+                                    fill = remember(colors.borderSubtle) { fill(colors.borderSubtle) },
+                                    shape = dashedShape(
+                                        shape = Shape.Rectangle,
+                                        dashLength = 8.dp,
+                                        gapLength = 4.dp,
+                                    ),
                                 ),
                             ),
+                            bottomAxis = HorizontalAxis.rememberBottom(
+                                valueFormatter = xAxisFormatter,
+                                guideline = null,
+                            ),
+                            marker = marker,
                         ),
-                        bottomAxis = HorizontalAxis.rememberBottom(
-                            valueFormatter = xAxisFormatter,
-                            guideline = null,
-                        ),
-                        marker = marker,
-                        decorations = listOf(todayDotDecoration),
-                    ),
-                    modelProducer = modelProducer,
-                    scrollState = scrollState,
-                    zoomState = zoomState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp)
-                        .padding(16.dp)
-                        .testTag(
-                            if (period == StatsPeriod.MONTH) {
-                                "statistics:monthChartContainer"
-                            } else {
-                                "statistics:barChart"
-                            },
-                        ),
-                )
+                        modelProducer = modelProducer,
+                        scrollState = scrollState,
+                        zoomState = zoomState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp)
+                            .padding(16.dp)
+                            .testTag(
+                                if (period == StatsPeriod.MONTH) {
+                                    "statistics:monthChartContainer"
+                                } else {
+                                    "statistics:barChart"
+                                },
+                            ),
+                    )
+                }
             }
         }
     }

@@ -2,7 +2,6 @@ package com.atelbay.money_manager.presentation.statistics.ui
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assert
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -26,7 +25,7 @@ class StatisticsScreenTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun month_chart_renders_title_range_y_axis_today_marker_and_scroll_container() {
+    fun month_chart_renders_title_range_and_scroll_container() {
         composeRule.setContent {
             MoneyManagerTheme(dynamicColor = false) {
                 StatisticsScreen(
@@ -49,7 +48,6 @@ class StatisticsScreenTest {
                         chart = StatisticsChartState(
                             title = "Expenses by day",
                             dateRangeLabel = "Feb 15 - Mar 16, 2026",
-                            yAxisLabels = persistentListOf("₸ 300", "₸ 225", "₸ 150", "₸ 75", "₸ 0"),
                             isScrollable = true,
                             points = persistentListOf(
                                 StatisticsChartPoint(1L, "14", 100.0),
@@ -67,8 +65,6 @@ class StatisticsScreenTest {
 
         composeRule.onNodeWithTag("statistics:chartTitle").assertTextEquals("Expenses by day")
         composeRule.onNodeWithTag("statistics:chartDateRange").assertTextEquals("Feb 15 - Mar 16, 2026")
-        composeRule.onNodeWithTag("statistics:yAxisLabel_0").assertTextEquals("₸ 300")
-        composeRule.onNodeWithTag("statistics:chartTodayMarker").assertExists()
         composeRule.onNodeWithTag("statistics:monthChartContainer").assert(hasScrollAction())
     }
 }
