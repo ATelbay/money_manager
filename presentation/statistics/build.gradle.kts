@@ -15,6 +15,7 @@ dependencies {
     implementation(projects.core.datastore)
     implementation(projects.core.model)
     implementation(projects.core.ui)
+    implementation(libs.vico.compose.m3)
 
     testImplementation(libs.bundles.testing)
     androidTestImplementation(platform(libs.androidx.compose.bom))

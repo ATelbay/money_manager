@@ -84,7 +84,15 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModel
 import java.text.DecimalFormat
+
+// ExtraStore keys for Vico chart metadata
+internal val xToLabelMapKey = CartesianChartModel.ExtraStore.Key<Map<Double, String>>()
+internal val xToDateStringKey = CartesianChartModel.ExtraStore.Key<Map<Double, String>>()
+internal val todayIndexKey = CartesianChartModel.ExtraStore.Key<Int>()
+internal val currencySymbolKey = CartesianChartModel.ExtraStore.Key<String>()
+internal val currencyPrefixKey = CartesianChartModel.ExtraStore.Key<Boolean>()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

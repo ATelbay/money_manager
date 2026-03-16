@@ -6,9 +6,7 @@ import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.core.ui.theme.appStringsFor
-import com.atelbay.money_manager.core.ui.util.defaultMoneyNumberFormat
 import com.atelbay.money_manager.core.ui.util.formatAmount
-import com.atelbay.money_manager.core.ui.util.isUnavailable
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
 import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
 import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
@@ -31,7 +29,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
-import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -185,11 +182,6 @@ class StatisticsViewModel @Inject constructor(
                 ),
                 dateRangeLabel = dateRange?.let(::formatDateRangeLabel).orEmpty(),
                 points = points.toImmutableList(),
-                yAxisLabels = buildYAxisLabels(
-                    points = points,
-                    moneyDisplay = currencyUiState.moneyDisplay,
-                    axisFormatter = rememberAxisNumberFormat(),
-                ).toImmutableList(),
                 isScrollable = period == StatsPeriod.MONTH,
             ),
         )
@@ -290,31 +282,7 @@ class StatisticsViewModel @Inject constructor(
         }
     }
 
-    private fun buildYAxisLabels(
-        points: List<StatisticsChartPoint>,
-        moneyDisplay: com.atelbay.money_manager.core.ui.util.MoneyDisplayPresentation,
-        axisFormatter: NumberFormat,
-    ): List<String> {
-        val maxAmount = points.maxOfOrNull { it.amount ?: 0.0 } ?: 0.0
-        if (maxAmount <= 0.0 || moneyDisplay.isUnavailable) {
-            return emptyList()
-        }
-
-        val steps = listOf(1.0, 0.75, 0.5, 0.25, 0.0)
-        return steps.map { multiplier ->
-            moneyDisplay.formatAmount(
-                amount = maxAmount * multiplier,
-                formatter = axisFormatter,
-            )
-        }
-    }
-
     private fun localizedStrings() = appStringsFor(Locale.getDefault().language)
-
-    private fun rememberAxisNumberFormat(): NumberFormat = defaultMoneyNumberFormat().apply {
-        minimumFractionDigits = 0
-        maximumFractionDigits = 0
-    }
 
     private fun startOfDay(timestamp: Long): Long {
         val calendar = Calendar.getInstance(TimeZone.getDefault())
