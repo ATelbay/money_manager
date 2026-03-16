@@ -6,6 +6,7 @@ import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.core.ui.theme.appStringsFor
+import com.atelbay.money_manager.core.ui.util.MoneyDisplayMode
 import com.atelbay.money_manager.core.ui.util.formatAmount
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
 import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
@@ -17,6 +18,8 @@ import com.atelbay.money_manager.domain.statistics.model.TransactionType
 import com.atelbay.money_manager.domain.statistics.usecase.GetPeriodSummaryUseCase
 import com.atelbay.money_manager.domain.statistics.usecase.StatisticsPeriodRangeResolver
 import com.atelbay.money_manager.domain.transactions.usecase.GetTransactionsUseCase
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Job
@@ -29,6 +32,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -50,6 +54,8 @@ class StatisticsViewModel @Inject constructor(
     private val _state = MutableStateFlow(createInitialState())
     val state: StateFlow<StatisticsState> = _state.asStateFlow()
 
+    val chartModelProducer = CartesianChartModelProducer()
+
     private var summaryJob: Job? = null
 
     init {
@@ -66,6 +72,7 @@ class StatisticsViewModel @Inject constructor(
         _state.update { current ->
             current.copy(transactionType = type).withChartContract()
         }
+        viewModelScope.launch { updateChartModel() }
     }
 
     fun retry() {
@@ -143,6 +150,7 @@ class StatisticsViewModel @Inject constructor(
                         error = null,
                     ).withChartContract(dateRange = snapshot.summary.dateRange)
                 }
+                updateChartModel()
             }
             .catch { e ->
                 _state.update { current ->
@@ -185,6 +193,38 @@ class StatisticsViewModel @Inject constructor(
                 isScrollable = period == StatsPeriod.MONTH,
             ),
         )
+    }
+
+    private suspend fun updateChartModel() {
+        val currentState = _state.value
+        val points = currentState.chart.points
+        if (points.isEmpty()) return
+
+        val moneyDisplay = currentState.currencyUiState.moneyDisplay
+        val period = currentState.period
+
+        val indices: List<Number> = points.indices.map { it.toDouble() }
+        val amounts: List<Number> = points.map { it.amount ?: 0.0 }
+
+        val dateFormat = when (period) {
+            StatsPeriod.WEEK, StatsPeriod.MONTH -> SimpleDateFormat("MMM d", localizedStrings().locale)
+            StatsPeriod.YEAR -> SimpleDateFormat("MMM yyyy", localizedStrings().locale)
+        }
+
+        chartModelProducer.runTransaction {
+            columnSeries { series(x = indices, y = amounts) }
+            extras { store ->
+                store[xToLabelMapKey] = points.mapIndexed { i, p ->
+                    i.toDouble() to p.displayLabel
+                }.toMap()
+                store[xToDateStringKey] = points.mapIndexed { i, p ->
+                    i.toDouble() to dateFormat.format(Date(p.bucketStartMillis))
+                }.toMap()
+                store[todayIndexKey] = points.indexOfFirst { it.isToday }
+                store[currencySymbolKey] = moneyDisplay.primaryLabel
+                store[currencyPrefixKey] = moneyDisplay.displayMode == MoneyDisplayMode.SYMBOL_FIRST
+            }
+        }
     }
 
     private fun buildChartTitle(

@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,7 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.TextAutoSize
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,7 +43,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,8 +54,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -83,21 +78,39 @@ import com.atelbay.money_manager.domain.statistics.model.TransactionType
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModel
+import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
+import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
+import com.patrykandpatrick.vico.compose.common.component.rememberLineComponent
+import com.patrykandpatrick.vico.compose.common.fill
+import com.patrykandpatrick.vico.compose.common.shape.dashedShape
+import com.patrykandpatrick.vico.core.cartesian.Scroll
+import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
+import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
+import com.patrykandpatrick.vico.core.cartesian.layer.ColumnCartesianLayer
+import com.patrykandpatrick.vico.core.common.data.ExtraStore
+import com.patrykandpatrick.vico.core.common.shape.CorneredShape
+import com.patrykandpatrick.vico.core.common.shape.Shape
 import java.text.DecimalFormat
 
 // ExtraStore keys for Vico chart metadata
-internal val xToLabelMapKey = CartesianChartModel.ExtraStore.Key<Map<Double, String>>()
-internal val xToDateStringKey = CartesianChartModel.ExtraStore.Key<Map<Double, String>>()
-internal val todayIndexKey = CartesianChartModel.ExtraStore.Key<Int>()
-internal val currencySymbolKey = CartesianChartModel.ExtraStore.Key<String>()
-internal val currencyPrefixKey = CartesianChartModel.ExtraStore.Key<Boolean>()
+internal val xToLabelMapKey = ExtraStore.Key<Map<Double, String>>()
+internal val xToDateStringKey = ExtraStore.Key<Map<Double, String>>()
+internal val todayIndexKey = ExtraStore.Key<Int>()
+internal val currencySymbolKey = ExtraStore.Key<String>()
+internal val currencyPrefixKey = ExtraStore.Key<Boolean>()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatisticsScreen(
     state: StatisticsState,
+    chartModelProducer: CartesianChartModelProducer = CartesianChartModelProducer(),
     onPeriodChange: (StatsPeriod) -> Unit,
     onTransactionTypeChange: (TransactionType) -> Unit,
     onCategoryClick: (CategorySummary) -> Unit = {},
@@ -286,9 +299,9 @@ fun StatisticsScreen(
             // Bar Chart
             if (state.chart.points.isNotEmpty()) {
                 item(key = "bar") {
-                    StatisticsBarChartSection(
+                    VicoBarChartSection(
                         chart = state.chart,
-                        moneyDisplay = state.currencyUiState.moneyDisplay,
+                        modelProducer = chartModelProducer,
                         barColor = if (isExpense) {
                             colors.expense.copy(alpha = 0.8f)
                         } else {
@@ -296,6 +309,7 @@ fun StatisticsScreen(
                         },
                         isUnavailable = state.currencyUiState.isUnavailable,
                         unavailableText = s.mixedCurrencyUnavailable,
+                        period = state.period,
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
                 }
@@ -547,29 +561,21 @@ private fun DonutChart(
     }
 }
 
-// ── Bar Chart ──
+
+// ── Vico Bar Chart ──
 
 @Composable
-private fun StatisticsBarChartSection(
+private fun VicoBarChartSection(
     chart: StatisticsChartState,
-    moneyDisplay: MoneyDisplayPresentation,
+    modelProducer: CartesianChartModelProducer,
     barColor: Color,
     isUnavailable: Boolean,
     unavailableText: String,
+    period: StatsPeriod,
     modifier: Modifier = Modifier,
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
-    val scrollState = rememberScrollState()
-    val coroutineScope = rememberCoroutineScope()
-
-    LaunchedEffect(chart.isScrollable, chart.points.size) {
-        if (chart.isScrollable) {
-            coroutineScope.launch {
-                scrollState.scrollTo(scrollState.maxValue)
-            }
-        }
-    }
 
     Column(modifier = modifier) {
         Text(
@@ -599,33 +605,80 @@ private fun StatisticsBarChartSection(
                         .testTag("statistics:barChartUnavailable"),
                 )
             } else {
-                Row(
+                val yAxisFormatter = remember {
+                    CartesianValueFormatter { context, value, _ ->
+                        val symbol = context.model.extraStore.getOrNull(currencySymbolKey) ?: ""
+                        val isPrefix = context.model.extraStore.getOrNull(currencyPrefixKey) ?: true
+                        val formatted = when {
+                            value >= 1_000_000 -> String.format("%.1fM", value / 1_000_000)
+                            value >= 1_000 -> String.format("%.0fK", value / 1_000)
+                            else -> String.format("%.0f", value)
+                        }
+                        if (isPrefix) "$symbol $formatted" else "$formatted $symbol"
+                    }
+                }
+
+                val xAxisFormatter = remember {
+                    CartesianValueFormatter { context, value, _ ->
+                        context.model.extraStore.getOrNull(xToLabelMapKey)?.get(value) ?: ""
+                    }
+                }
+
+                val scrollState = rememberVicoScrollState(
+                    scrollEnabled = period == StatsPeriod.MONTH,
+                    initialScroll = if (period == StatsPeriod.MONTH) {
+                        Scroll.Absolute.End
+                    } else {
+                        Scroll.Absolute.Start
+                    },
+                )
+                val zoomState = rememberVicoZoomState(zoomEnabled = false)
+
+                CartesianChartHost(
+                    chart = rememberCartesianChart(
+                        rememberColumnCartesianLayer(
+                            columnProvider = ColumnCartesianLayer.ColumnProvider.series(
+                                rememberLineComponent(
+                                    fill = remember(barColor) { fill(barColor) },
+                                    thickness = 16.dp,
+                                    shape = CorneredShape.rounded(
+                                        topLeftPercent = 40,
+                                        topRightPercent = 40,
+                                    ),
+                                ),
+                            ),
+                        ),
+                        startAxis = VerticalAxis.rememberStart(
+                            valueFormatter = yAxisFormatter,
+                            guideline = rememberLineComponent(
+                                fill = remember(colors.borderSubtle) { fill(colors.borderSubtle) },
+                                shape = dashedShape(
+                                    shape = Shape.Rectangle,
+                                    dashLength = 8.dp,
+                                    gapLength = 4.dp,
+                                ),
+                            ),
+                        ),
+                        bottomAxis = HorizontalAxis.rememberBottom(
+                            valueFormatter = xAxisFormatter,
+                            guideline = null,
+                        ),
+                    ),
+                    modelProducer = modelProducer,
+                    scrollState = scrollState,
+                    zoomState = zoomState,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .height(220.dp)
                         .padding(16.dp)
-                        .height(220.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    YAxisLabels(
-                        labels = chart.yAxisLabels,
-                        modifier = Modifier.testTag("statistics:yAxis"),
-                    )
-                    ChartBars(
-                        chart = chart,
-                        barColor = barColor,
-                        moneyDisplay = moneyDisplay,
-                        scrollState = scrollState,
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag(
-                                if (chart.isScrollable) {
-                                    "statistics:monthChartContainer"
-                                } else {
-                                    "statistics:barChart"
-                                },
-                            ),
-                    )
-                }
+                        .testTag(
+                            if (period == StatsPeriod.MONTH) {
+                                "statistics:monthChartContainer"
+                            } else {
+                                "statistics:barChart"
+                            },
+                        ),
+                )
             }
         }
     }
@@ -745,129 +798,6 @@ private fun CategoryBreakdownCard(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun YAxisLabels(
-    labels: ImmutableList<String>,
-    modifier: Modifier = Modifier,
-) {
-    val typography = MoneyManagerTheme.typography
-    val colors = MoneyManagerTheme.colors
-
-    Column(
-        modifier = modifier.height(180.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
-        horizontalAlignment = Alignment.End,
-    ) {
-        labels.forEachIndexed { index, label ->
-            Text(
-                text = label,
-                style = typography.caption,
-                color = colors.textTertiary,
-                modifier = Modifier.testTag("statistics:yAxisLabel_$index"),
-            )
-        }
-    }
-}
-
-@Composable
-private fun ChartBars(
-    chart: StatisticsChartState,
-    barColor: Color,
-    moneyDisplay: MoneyDisplayPresentation,
-    scrollState: androidx.compose.foundation.ScrollState,
-    modifier: Modifier = Modifier,
-) {
-    val colors = MoneyManagerTheme.colors
-    val reduceMotion = LocalReduceMotion.current
-    val animProgress = remember { Animatable(0f) }
-    val maxAmount = chart.points.maxOfOrNull { it.amount ?: 0.0 } ?: 0.0
-
-    LaunchedEffect(chart.points.map { it.amount }) {
-        animProgress.snapTo(0f)
-        animProgress.animateTo(
-            1f,
-            animationSpec = tween(
-                durationMillis = MoneyManagerMotion.duration(600, reduceMotion),
-            ),
-        )
-    }
-
-    val content: @Composable (Modifier) -> Unit = { rowModifier ->
-        Row(
-            modifier = rowModifier.height(180.dp),
-            horizontalArrangement = Arrangement.spacedBy(if (chart.isScrollable) 8.dp else 6.dp),
-            verticalAlignment = Alignment.Bottom,
-        ) {
-            chart.points.forEachIndexed { index, point ->
-                val fraction = if (maxAmount > 0.0) {
-                    ((point.amount ?: 0.0) / maxAmount).toFloat()
-                } else {
-                    0f
-                }
-                val pointModifier = if (chart.isScrollable) {
-                    Modifier.width(24.dp)
-                } else {
-                    Modifier.weight(1f)
-                }
-
-                Column(
-                    modifier = pointModifier,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Bottom,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.BottomCenter,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height((140 * fraction * animProgress.value).dp.coerceAtLeast(4.dp))
-                                .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                .background(
-                                    if (point.isToday) {
-                                        barColor.copy(alpha = 1f)
-                                    } else {
-                                        barColor.copy(alpha = 0.72f)
-                                    },
-                                )
-                                .testTag("statistics:bar_$index"),
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = point.displayLabel,
-                        style = MoneyManagerTheme.typography.caption,
-                        color = if (point.isToday) colors.textPrimary else colors.textTertiary,
-                        modifier = Modifier.testTag("statistics:barLabel_$index"),
-                    )
-                    if (point.isToday) {
-                        Text(
-                            text = point.displayLabel,
-                            style = MoneyManagerTheme.typography.caption,
-                            color = colors.textPrimary,
-                            modifier = Modifier.testTag("statistics:chartTodayMarker"),
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    if (chart.isScrollable) {
-        Box(
-            modifier = modifier
-                .horizontalScroll(scrollState),
-        ) {
-            content(Modifier.width((chart.points.size * 32).dp))
-        }
-    } else {
-        content(modifier.fillMaxWidth())
     }
 }
 
@@ -1006,7 +936,7 @@ private fun StatisticsScreenPreview() {
                 chart = StatisticsChartState(
                     title = "Expenses by day",
                     dateRangeLabel = "Feb 6 - Feb 10, 2025",
-                    yAxisLabels = persistentListOf("₸ 12,000", "₸ 9,000", "₸ 6,000", "₸ 3,000", "₸ 0"),
+
                     points = persistentListOf(
                         StatisticsChartPoint(1738800000000, "6", 5000.0),
                         StatisticsChartPoint(1738886400000, "7", 3000.0),
@@ -1102,7 +1032,7 @@ private fun StatisticsScreenIncomePreview() {
                 chart = StatisticsChartState(
                     title = "Income by day",
                     dateRangeLabel = "Feb 6 - Feb 10, 2025",
-                    yAxisLabels = persistentListOf("₸ 20,000", "₸ 15,000", "₸ 10,000", "₸ 5,000", "₸ 0"),
+
                     points = persistentListOf(
                         StatisticsChartPoint(1738800000000, "6", 10000.0),
                         StatisticsChartPoint(1738886400000, "7", 5000.0),
@@ -1195,7 +1125,7 @@ private fun StatisticsScreenYearPreview() {
                 chart = StatisticsChartState(
                     title = "Expenses by month",
                     dateRangeLabel = "2025",
-                    yAxisLabels = persistentListOf("₸ 130,000", "₸ 97,500", "₸ 65,000", "₸ 32,500", "₸ 0"),
+
                     points = persistentListOf(
                         StatisticsChartPoint(1, "Янв", 80_000.0),
                         StatisticsChartPoint(2, "Фев", 95_000.0),

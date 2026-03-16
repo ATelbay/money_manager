@@ -1,6 +1,7 @@
 package com.atelbay.money_manager.presentation.statistics.ui
 
 import androidx.compose.runtime.Composable
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -33,6 +34,7 @@ fun StatisticsRoute(
 
     StatisticsScreen(
         state = state,
+        chartModelProducer = viewModel.chartModelProducer,
         onPeriodChange = viewModel::setPeriod,
         onTransactionTypeChange = viewModel::setTransactionType,
         onCategoryClick = { category ->
