@@ -93,10 +93,15 @@ import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
+import com.patrykandpatrick.vico.core.cartesian.CartesianDrawingContext
+import com.patrykandpatrick.vico.core.cartesian.decoration.Decoration
+import com.patrykandpatrick.vico.core.cartesian.data.ColumnCartesianLayerModel
 import com.patrykandpatrick.vico.core.cartesian.layer.ColumnCartesianLayer
+import com.patrykandpatrick.vico.core.common.component.LineComponent
 import com.patrykandpatrick.vico.core.common.data.ExtraStore
 import com.patrykandpatrick.vico.core.common.shape.CorneredShape
 import com.patrykandpatrick.vico.core.common.shape.Shape
+import android.graphics.Paint
 import android.text.Layout
 import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesianMarker
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
@@ -110,6 +115,56 @@ internal val xToDateStringKey = ExtraStore.Key<Map<Double, String>>()
 internal val todayIndexKey = ExtraStore.Key<Int>()
 internal val currencySymbolKey = ExtraStore.Key<String>()
 internal val currencyPrefixKey = ExtraStore.Key<Boolean>()
+
+private class TodayColumnProvider(
+    private val fullOpacityColumn: LineComponent,
+    private val reducedOpacityColumn: LineComponent,
+) : ColumnCartesianLayer.ColumnProvider {
+    override fun getColumn(
+        entry: ColumnCartesianLayerModel.Entry,
+        seriesIndex: Int,
+        extraStore: ExtraStore,
+    ): LineComponent {
+        val todayIndex = extraStore.getOrNull(todayIndexKey) ?: -1
+        return if (entry.x.toInt() == todayIndex) fullOpacityColumn else reducedOpacityColumn
+    }
+
+    override fun getWidestSeriesColumn(seriesIndex: Int, extraStore: ExtraStore): LineComponent =
+        fullOpacityColumn
+}
+
+private class TodayDotDecoration(
+    private val dotColor: Int,
+    private val dotRadiusDp: Float = 3f,
+) : Decoration {
+    override fun drawOverLayers(context: CartesianDrawingContext) {
+        with(context) {
+            val todayIndex = model.extraStore.getOrNull(todayIndexKey) ?: return
+            if (todayIndex < 0) return
+
+            val todayX = todayIndex.toDouble()
+            val layerStart = if (isLtr) layerBounds.left else layerBounds.right
+            val drawingStart =
+                layerStart + layoutDirectionMultiplier * layerDimensions.startPadding
+            val xSpacingMultiplier =
+                ((todayX - ranges.minX) / ranges.xStep).toFloat()
+            val canvasX = drawingStart +
+                layoutDirectionMultiplier * (layerDimensions.xSpacing * xSpacingMultiplier - scroll)
+            val canvasY = layerBounds.top - dotRadiusDp * density * 2
+            val dotRadius = dotRadiusDp * density
+
+            if (canvasX < layerBounds.left - dotRadius || canvasX > layerBounds.right + dotRadius) {
+                return
+            }
+
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = dotColor
+                style = Paint.Style.FILL
+            }
+            canvas.drawCircle(canvasX, canvasY, dotRadius, paint)
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -639,6 +694,38 @@ private fun VicoBarChartSection(
                 )
                 val zoomState = rememberVicoZoomState(zoomEnabled = false)
 
+                val fullOpacityColumn = rememberLineComponent(
+                    fill = remember(barColor) { fill(barColor) },
+                    thickness = 16.dp,
+                    shape = CorneredShape.rounded(
+                        topLeftPercent = 40,
+                        topRightPercent = 40,
+                    ),
+                )
+                val reducedOpacityColumn = rememberLineComponent(
+                    fill = remember(barColor) { fill(barColor.copy(alpha = 0.7f)) },
+                    thickness = 16.dp,
+                    shape = CorneredShape.rounded(
+                        topLeftPercent = 40,
+                        topRightPercent = 40,
+                    ),
+                )
+                val columnProvider = remember(fullOpacityColumn, reducedOpacityColumn) {
+                    TodayColumnProvider(fullOpacityColumn, reducedOpacityColumn)
+                }
+
+                val dotColor = barColor
+                val todayDotDecoration = remember(dotColor) {
+                    TodayDotDecoration(
+                        dotColor = android.graphics.Color.argb(
+                            (dotColor.alpha * 255).toInt(),
+                            (dotColor.red * 255).toInt(),
+                            (dotColor.green * 255).toInt(),
+                            (dotColor.blue * 255).toInt(),
+                        ),
+                    )
+                }
+
                 val marker = rememberDefaultCartesianMarker(
                     label = rememberTextComponent(
                         textAlignment = Layout.Alignment.ALIGN_CENTER,
@@ -662,16 +749,7 @@ private fun VicoBarChartSection(
                 CartesianChartHost(
                     chart = rememberCartesianChart(
                         rememberColumnCartesianLayer(
-                            columnProvider = ColumnCartesianLayer.ColumnProvider.series(
-                                rememberLineComponent(
-                                    fill = remember(barColor) { fill(barColor) },
-                                    thickness = 16.dp,
-                                    shape = CorneredShape.rounded(
-                                        topLeftPercent = 40,
-                                        topRightPercent = 40,
-                                    ),
-                                ),
-                            ),
+                            columnProvider = columnProvider,
                         ),
                         startAxis = VerticalAxis.rememberStart(
                             valueFormatter = yAxisFormatter,
@@ -689,6 +767,7 @@ private fun VicoBarChartSection(
                             guideline = null,
                         ),
                         marker = marker,
+                        decorations = listOf(todayDotDecoration),
                     ),
                     modelProducer = modelProducer,
                     scrollState = scrollState,
