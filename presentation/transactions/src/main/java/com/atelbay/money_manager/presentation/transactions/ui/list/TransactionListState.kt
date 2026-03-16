@@ -11,9 +11,7 @@ import java.time.LocalDate
 data class TransactionListState(
     val transactionRows: ImmutableList<TransactionRowState> = persistentListOf(),
     val balance: Double? = null,
-    val displayCurrency: String? = null,
     val summaryMoneyDisplay: MoneyDisplayPresentation = MoneyDisplayFormatter.unavailable().let(MoneyDisplayFormatter::format),
-    val summaryDisplayMode: SummaryDisplayMode = SummaryDisplayMode.UNAVAILABLE,
     val isLoading: Boolean = true,
     val selectedAccountName: String? = null,
     val selectedTab: TransactionType? = null,
@@ -43,12 +41,6 @@ data class TransactionRowState(
 
 enum class ConversionStatus {
     AVAILABLE,
-    UNAVAILABLE,
-}
-
-enum class SummaryDisplayMode {
-    CONVERTED,
-    ORIGINAL_SINGLE_CURRENCY,
     UNAVAILABLE,
 }
 

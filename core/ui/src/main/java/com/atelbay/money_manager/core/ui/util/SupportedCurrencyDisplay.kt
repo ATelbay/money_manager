@@ -28,8 +28,8 @@ object SupportedCurrencyDisplayRegistry {
     )
 
     fun lookup(currencyCode: String): SupportedCurrencyDisplay? =
-        supportedCurrencyDisplays[currencyCode.normalizeCurrencyCode()]
+        supportedCurrencyDisplays[currencyCode.normalizeCurrencyCode(fallback = currencyCode)]
 }
 
-fun String.normalizeCurrencyCode(fallback: String = "KZT"): String =
+fun String.normalizeCurrencyCode(fallback: String): String =
     trim().uppercase(Locale.ROOT).ifBlank { fallback }

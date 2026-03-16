@@ -73,7 +73,6 @@ class CategoryTransactionsViewModel @Inject constructor(
                             categoryIcon = transaction.categoryIcon,
                             categoryColor = transaction.categoryColor,
                             amount = transaction.amount,
-                            currency = currencyByAccountId[transaction.accountId].orEmpty(),
                             moneyDisplay = MoneyDisplayFormatter.resolveAndFormat(
                                 currencyByAccountId[transaction.accountId].orEmpty(),
                             ),

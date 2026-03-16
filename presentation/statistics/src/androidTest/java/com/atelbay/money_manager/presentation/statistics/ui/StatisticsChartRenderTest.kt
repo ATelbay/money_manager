@@ -2,6 +2,7 @@ package com.atelbay.money_manager.presentation.statistics.ui
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertDoesNotExist
+import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -108,7 +109,7 @@ class StatisticsChartRenderTest {
             }
         }
 
-        composeRule.onNodeWithTag("statistics:barChartUnavailable").fetchSemanticsNode()
+        composeRule.onNodeWithTag("statistics:barChartUnavailable").assertExists()
     }
 
     @Test

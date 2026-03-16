@@ -15,6 +15,7 @@ dependencies {
     implementation(projects.core.datastore)
     implementation(projects.core.model)
     implementation(projects.core.ui)
+    implementation(projects.core.common)
     implementation(libs.vico.compose.m3)
 
     testImplementation(libs.bundles.testing)

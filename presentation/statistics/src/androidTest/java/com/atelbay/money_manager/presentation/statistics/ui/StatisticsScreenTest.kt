@@ -2,6 +2,7 @@ package com.atelbay.money_manager.presentation.statistics.ui
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -67,7 +68,7 @@ class StatisticsScreenTest {
         composeRule.onNodeWithTag("statistics:chartTitle").assertTextEquals("Expenses by day")
         composeRule.onNodeWithTag("statistics:chartDateRange").assertTextEquals("Feb 15 - Mar 16, 2026")
         composeRule.onNodeWithTag("statistics:yAxisLabel_0").assertTextEquals("₸ 300")
-        composeRule.onNodeWithTag("statistics:chartTodayMarker").fetchSemanticsNode()
+        composeRule.onNodeWithTag("statistics:chartTodayMarker").assertExists()
         composeRule.onNodeWithTag("statistics:monthChartContainer").assert(hasScrollAction())
     }
 }

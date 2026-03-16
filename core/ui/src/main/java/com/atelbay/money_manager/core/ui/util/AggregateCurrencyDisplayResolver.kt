@@ -17,9 +17,9 @@ object AggregateCurrencyDisplayResolver {
         scopedCurrencies: Iterable<String>,
         canDisplayInBaseCurrency: Boolean,
     ): AggregateCurrencyDisplayResolution {
-        val normalizedBaseCurrency = baseCurrency.normalizeCurrencyCode()
+        val normalizedBaseCurrency = baseCurrency.normalizeCurrencyCode(fallback = baseCurrency)
         val normalizedScopedCurrencies = scopedCurrencies
-            .map { it.normalizeCurrencyCode() }
+            .map { it.normalizeCurrencyCode(fallback = baseCurrency) }
             .toSet()
 
         if (normalizedScopedCurrencies.isEmpty()) {

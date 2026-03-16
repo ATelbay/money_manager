@@ -30,7 +30,6 @@ data class CategoryTransactionItem(
     val categoryIcon: String,
     val categoryColor: Long,
     val amount: Double,
-    val currency: String,
     val moneyDisplay: MoneyDisplayPresentation,
     val date: Long,
     val isIncome: Boolean,

@@ -55,9 +55,7 @@ private data class SummaryMetrics(
     val balance: Double?,
     val income: Double?,
     val expense: Double?,
-    val displayCurrency: String?,
     val moneyDisplay: MoneyDisplayPresentation,
-    val displayMode: SummaryDisplayMode,
 )
 
 private data class ConvertedAmount(
@@ -184,9 +182,7 @@ class TransactionListViewModel @Inject constructor(
                     transactionRows = transactionRows,
                     searchQuery = filters.searchQuery,
                     balance = summaryMetrics.balance,
-                    displayCurrency = summaryMetrics.displayCurrency,
                     summaryMoneyDisplay = summaryMetrics.moneyDisplay,
-                    summaryDisplayMode = summaryMetrics.displayMode,
                     isLoading = false,
                     selectedAccountName = selectedAccount?.name,
                     selectedTab = filters.tab,
@@ -328,11 +324,9 @@ class TransactionListViewModel @Inject constructor(
                     balance = null,
                     income = null,
                     expense = null,
-                    displayCurrency = null,
                     moneyDisplay = MoneyDisplayFormatter.format(
                         MoneyDisplayFormatter.unavailable(),
                     ),
-                    displayMode = SummaryDisplayMode.UNAVAILABLE,
                 )
             }
             AggregateCurrencyDisplayMode.ORIGINAL_SINGLE_CURRENCY -> {
@@ -348,11 +342,9 @@ class TransactionListViewModel @Inject constructor(
                     balance = fallbackBalance,
                     income = fallbackIncome,
                     expense = fallbackExpense,
-                    displayCurrency = displayResolution.displayCurrency,
                     moneyDisplay = displayResolution.displayCurrency
                         ?.let(MoneyDisplayFormatter::resolveAndFormat)
                         ?: MoneyDisplayFormatter.format(MoneyDisplayFormatter.unavailable()),
-                    displayMode = SummaryDisplayMode.ORIGINAL_SINGLE_CURRENCY,
                 )
             }
             AggregateCurrencyDisplayMode.CONVERTED -> {
@@ -387,11 +379,9 @@ class TransactionListViewModel @Inject constructor(
                     balance = convertedBalances.sumOf { it.amount },
                     income = convertedIncome,
                     expense = convertedExpense,
-                    displayCurrency = displayResolution.displayCurrency,
                     moneyDisplay = displayResolution.displayCurrency
                         ?.let(MoneyDisplayFormatter::resolveAndFormat)
                         ?: MoneyDisplayFormatter.format(MoneyDisplayFormatter.unavailable()),
-                    displayMode = SummaryDisplayMode.CONVERTED,
                 )
             }
         }

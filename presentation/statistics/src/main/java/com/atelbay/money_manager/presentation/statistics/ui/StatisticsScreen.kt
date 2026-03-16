@@ -68,11 +68,8 @@ import com.atelbay.money_manager.core.ui.theme.Teal
 import com.atelbay.money_manager.core.ui.util.LocalReduceMotion
 import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
 import com.atelbay.money_manager.core.ui.util.MoneyDisplayPresentation
-import com.atelbay.money_manager.core.ui.util.defaultMoneyNumberFormat
 import com.atelbay.money_manager.core.ui.util.formatAmount
 import com.atelbay.money_manager.domain.statistics.model.CategorySummary
-import com.atelbay.money_manager.domain.statistics.model.DailyTotal
-import com.atelbay.money_manager.domain.statistics.model.MonthlyTotal
 import com.atelbay.money_manager.domain.statistics.model.StatsPeriod
 import com.atelbay.money_manager.domain.statistics.model.TransactionType
 import kotlinx.collections.immutable.ImmutableList
@@ -109,12 +106,7 @@ import com.patrykandpatrick.vico.core.cartesian.marker.DefaultCartesianMarker
 import com.patrykandpatrick.vico.core.cartesian.marker.ColumnCartesianLayerMarkerTarget
 import java.text.DecimalFormat
 
-// ExtraStore keys for Vico chart metadata
-internal val xToLabelMapKey = ExtraStore.Key<Map<Double, String>>()
-internal val xToDateStringKey = ExtraStore.Key<Map<Double, String>>()
-internal val todayIndexKey = ExtraStore.Key<Int>()
-internal val currencySymbolKey = ExtraStore.Key<String>()
-internal val currencyPrefixKey = ExtraStore.Key<Boolean>()
+
 
 private class TodayColumnProvider(
     private val fullOpacityColumn: LineComponent,
@@ -276,9 +268,9 @@ fun StatisticsScreen(
 
         // Empty state
         val isEmpty = if (isExpense) {
-            state.expensesByCategory.isEmpty()
+            state.displayedExpensesByCategory.isEmpty()
         } else {
-            state.incomesByCategory.isEmpty()
+            state.displayedIncomesByCategory.isEmpty()
         }
         if (isEmpty) {
             Column(
@@ -988,16 +980,8 @@ private fun StatisticsScreenPreview() {
         StatisticsScreen(
             state = StatisticsState(
                 isLoading = false,
-                totalExpenses = 85_000.0,
-                totalIncome = 200_000.0,
                 displayedTotalExpenses = 85_000.0,
                 displayedTotalIncome = 200_000.0,
-                expensesByCategory = persistentListOf(
-                    CategorySummary(1, "Еда", "restaurant", 0xFFFF6B6B, 35_000.0, 41),
-                    CategorySummary(2, "Транспорт", "directions_car", 0xFF4ECDC4, 20_000.0, 24),
-                    CategorySummary(3, "Развлечения", "sports_esports", 0xFF45B7D1, 15_000.0, 18),
-                    CategorySummary(4, "Покупки", "shopping_bag", 0xFFF7B801, 15_000.0, 17),
-                ),
                 displayedExpensesByCategory = persistentListOf(
                     StatisticsCategoryDisplayItem(
                         category = CategorySummary(1, "Еда", "restaurant", 0xFFFF6B6B, 35_000.0, 41),
@@ -1019,13 +1003,6 @@ private fun StatisticsScreenPreview() {
                         displayAmount = 15_000.0,
                         displayPercentage = 17,
                     ),
-                ),
-                dailyExpenses = persistentListOf(
-                    DailyTotal(1738800000000, 5000.0),
-                    DailyTotal(1738886400000, 3000.0),
-                    DailyTotal(1738972800000, 8000.0),
-                    DailyTotal(1739059200000, 2000.0),
-                    DailyTotal(1739145600000, 12000.0),
                 ),
                 displayedDailyExpenses = persistentListOf(
                     StatisticsDisplayDailyTotal(1738800000000, 5000.0),
@@ -1096,14 +1073,8 @@ private fun StatisticsScreenIncomePreview() {
             state = StatisticsState(
                 isLoading = false,
                 transactionType = TransactionType.INCOME,
-                totalExpenses = 85_000.0,
-                totalIncome = 200_000.0,
                 displayedTotalExpenses = 85_000.0,
                 displayedTotalIncome = 200_000.0,
-                incomesByCategory = persistentListOf(
-                    CategorySummary(1, "Зарплата", "payments", 0xFF4ECDC4, 150_000.0, 75),
-                    CategorySummary(2, "Фриланс", "work", 0xFF45B7D1, 50_000.0, 25),
-                ),
                 displayedIncomesByCategory = persistentListOf(
                     StatisticsCategoryDisplayItem(
                         category = CategorySummary(1, "Зарплата", "payments", 0xFF4ECDC4, 150_000.0, 75),
@@ -1115,13 +1086,6 @@ private fun StatisticsScreenIncomePreview() {
                         displayAmount = 50_000.0,
                         displayPercentage = 25,
                     ),
-                ),
-                dailyIncome = persistentListOf(
-                    DailyTotal(1738800000000, 10000.0),
-                    DailyTotal(1738886400000, 5000.0),
-                    DailyTotal(1738972800000, 15000.0),
-                    DailyTotal(1739059200000, 0.0),
-                    DailyTotal(1739145600000, 20000.0),
                 ),
                 displayedDailyIncome = persistentListOf(
                     StatisticsDisplayDailyTotal(1738800000000, 10000.0),
@@ -1163,16 +1127,8 @@ private fun StatisticsScreenYearPreview() {
             state = StatisticsState(
                 isLoading = false,
                 period = StatsPeriod.YEAR,
-                totalExpenses = 1_200_000.0,
-                totalIncome = 2_400_000.0,
                 displayedTotalExpenses = 1_200_000.0,
                 displayedTotalIncome = 2_400_000.0,
-                expensesByCategory = persistentListOf(
-                    CategorySummary(1, "Еда", "restaurant", 0xFFFF6B6B, 500_000.0, 42),
-                    CategorySummary(2, "Транспорт", "directions_car", 0xFF4ECDC4, 300_000.0, 25),
-                    CategorySummary(3, "Развлечения", "sports_esports", 0xFF45B7D1, 200_000.0, 17),
-                    CategorySummary(4, "Покупки", "shopping_bag", 0xFFF7B801, 200_000.0, 16),
-                ),
                 displayedExpensesByCategory = persistentListOf(
                     StatisticsCategoryDisplayItem(
                         category = CategorySummary(1, "Еда", "restaurant", 0xFFFF6B6B, 500_000.0, 42),
@@ -1194,20 +1150,6 @@ private fun StatisticsScreenYearPreview() {
                         displayAmount = 200_000.0,
                         displayPercentage = 16,
                     ),
-                ),
-                monthlyExpenses = persistentListOf(
-                    MonthlyTotal(2025, 1, 80_000.0, "Янв"),
-                    MonthlyTotal(2025, 2, 95_000.0, "Фев"),
-                    MonthlyTotal(2025, 3, 110_000.0, "Мар"),
-                    MonthlyTotal(2025, 4, 75_000.0, "Апр"),
-                    MonthlyTotal(2025, 5, 120_000.0, "Май"),
-                    MonthlyTotal(2025, 6, 90_000.0, "Июн"),
-                    MonthlyTotal(2025, 7, 100_000.0, "Июл"),
-                    MonthlyTotal(2025, 8, 85_000.0, "Авг"),
-                    MonthlyTotal(2025, 9, 105_000.0, "Сен"),
-                    MonthlyTotal(2025, 10, 95_000.0, "Окт"),
-                    MonthlyTotal(2025, 11, 115_000.0, "Ноя"),
-                    MonthlyTotal(2025, 12, 130_000.0, "Дек"),
                 ),
                 displayedMonthlyExpenses = persistentListOf(
                     StatisticsDisplayMonthlyTotal(2025, 1, "Янв", 80_000.0),

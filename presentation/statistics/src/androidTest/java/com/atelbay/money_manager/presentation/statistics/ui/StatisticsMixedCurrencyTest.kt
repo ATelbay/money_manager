@@ -1,9 +1,9 @@
 package com.atelbay.money_manager.presentation.statistics.ui
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.util.AggregateCurrencyDisplayMode
 import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
@@ -56,9 +56,8 @@ class StatisticsMixedCurrencyTest {
             }
         }
 
-        composeRule.onNodeWithTag("statistics:pieChartUnavailable").fetchSemanticsNode()
-        composeRule.onNodeWithTag("statistics:barChartUnavailable").fetchSemanticsNode()
-        composeRule.onNodeWithTag("statistics:category_1").fetchSemanticsNode()
-        composeRule.onNodeWithText("Недостаточно курсов для конвертации").fetchSemanticsNode()
+        composeRule.onNodeWithTag("statistics:pieChartUnavailable").assertExists()
+        composeRule.onNodeWithTag("statistics:barChartUnavailable").assertExists()
+        composeRule.onNodeWithTag("statistics:category_1").assertExists()
     }
 }

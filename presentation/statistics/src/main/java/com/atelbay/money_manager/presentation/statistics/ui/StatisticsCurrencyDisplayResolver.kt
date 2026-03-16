@@ -1,5 +1,6 @@
 package com.atelbay.money_manager.presentation.statistics.ui
 
+import com.atelbay.money_manager.core.common.startOfDay
 import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.core.model.TransactionType as ModelTransactionType
@@ -38,11 +39,11 @@ class StatisticsCurrencyDisplayResolver @Inject constructor(
         baseCurrency: String,
         exchangeRate: ExchangeRate?,
     ): StatisticsCurrencyResolution {
-        val accountCurrencyById = accounts.associate { it.id to it.currency.normalizeCurrencyCode() }
+        val accountCurrencyById = accounts.associate { it.id to it.currency.normalizeCurrencyCode(fallback = baseCurrency) }
         val scopedCurrencies = transactions
             .mapNotNull { accountCurrencyById[it.accountId] }
             .toSet()
-        val normalizedBaseCurrency = baseCurrency.normalizeCurrencyCode()
+        val normalizedBaseCurrency = baseCurrency.normalizeCurrencyCode(fallback = baseCurrency)
         val canConvertAll = transactions.all { transaction ->
             val currency = accountCurrencyById[transaction.accountId] ?: return@all false
             canConvert(currency = currency, baseCurrency = normalizedBaseCurrency, exchangeRate = exchangeRate)
@@ -259,16 +260,6 @@ class StatisticsCurrencyDisplayResolver @Inject constructor(
                 quotes = quotes,
             )
         }.getOrNull()
-    }
-
-    private fun startOfDay(timestamp: Long): Long {
-        val calendar = Calendar.getInstance(TimeZone.getDefault())
-        calendar.timeInMillis = timestamp
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        return calendar.timeInMillis
     }
 
     private data class DisplayTransaction(

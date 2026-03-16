@@ -7,7 +7,6 @@ import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.core.ui.theme.appStringsFor
 import com.atelbay.money_manager.core.ui.util.MoneyDisplayMode
-import com.atelbay.money_manager.core.ui.util.formatAmount
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
 import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
 import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
@@ -18,6 +17,7 @@ import com.atelbay.money_manager.domain.statistics.model.TransactionType
 import com.atelbay.money_manager.domain.statistics.usecase.GetPeriodSummaryUseCase
 import com.atelbay.money_manager.domain.statistics.usecase.StatisticsPeriodRangeResolver
 import com.atelbay.money_manager.domain.transactions.usecase.GetTransactionsUseCase
+import com.atelbay.money_manager.core.common.startOfDay
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -131,14 +131,6 @@ class StatisticsViewModel @Inject constructor(
                 _state.update { current ->
                     current.copy(
                         dateRange = snapshot.summary.dateRange,
-                        totalExpenses = snapshot.summary.totalExpenses,
-                        totalIncome = snapshot.summary.totalIncome,
-                        expensesByCategory = snapshot.summary.expensesByCategory.toImmutableList(),
-                        incomesByCategory = snapshot.summary.incomesByCategory.toImmutableList(),
-                        dailyExpenses = snapshot.summary.dailyExpenses.toImmutableList(),
-                        dailyIncome = snapshot.summary.dailyIncome.toImmutableList(),
-                        monthlyExpenses = snapshot.summary.monthlyExpenses.toImmutableList(),
-                        monthlyIncome = snapshot.summary.monthlyIncome.toImmutableList(),
                         displayedTotalExpenses = currencyResolution.displayedTotalExpenses,
                         displayedTotalIncome = currencyResolution.displayedTotalIncome,
                         displayedExpensesByCategory = currencyResolution.displayedExpensesByCategory.toImmutableList(),
@@ -326,16 +318,6 @@ class StatisticsViewModel @Inject constructor(
     }
 
     private fun localizedStrings() = appStringsFor(Locale.getDefault().language)
-
-    private fun startOfDay(timestamp: Long): Long {
-        val calendar = Calendar.getInstance(TimeZone.getDefault())
-        calendar.timeInMillis = timestamp
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        return calendar.timeInMillis
-    }
 
     private fun monthStart(year: Int, month: Int): Long {
         val calendar = Calendar.getInstance(TimeZone.getDefault())

@@ -1,20 +1,10 @@
 package com.atelbay.money_manager.presentation.statistics.ui
 
-import com.atelbay.money_manager.core.datastore.UserPreferences
-import com.atelbay.money_manager.core.ui.util.AggregateCurrencyDisplayMode
-import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
 import com.atelbay.money_manager.domain.statistics.model.DailyTotal
 import com.atelbay.money_manager.domain.statistics.model.PeriodSummary
 import com.atelbay.money_manager.domain.statistics.model.StatisticsDateRange
 import com.atelbay.money_manager.domain.statistics.model.StatsPeriod
 import com.atelbay.money_manager.domain.statistics.model.TransactionType
-import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
-import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
-import com.atelbay.money_manager.domain.statistics.usecase.GetPeriodSummaryUseCase
-import com.atelbay.money_manager.domain.statistics.usecase.StatisticsPeriodRangeResolver
-import com.atelbay.money_manager.domain.transactions.usecase.GetTransactionsUseCase
-import io.mockk.every
-import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
@@ -214,80 +204,13 @@ class StatisticsViewModelChartTest {
     private fun createViewModel(
         flows: Map<StatsPeriod, kotlinx.coroutines.flow.Flow<PeriodSummary>>,
         rangeForMonth: StatisticsDateRange = monthRange,
-    ): StatisticsViewModel {
-        val getPeriodSummaryUseCase = mockk<GetPeriodSummaryUseCase>()
-        val getTransactionsUseCase = mockk<GetTransactionsUseCase>()
-        val getAccountsUseCase = mockk<GetAccountsUseCase>()
-        val observeExchangeRateUseCase = mockk<ObserveExchangeRateUseCase>()
-        val userPreferences = mockk<UserPreferences>()
-        val rangeResolver = mockk<StatisticsPeriodRangeResolver>()
-        val statisticsCurrencyDisplayResolver = mockk<StatisticsCurrencyDisplayResolver>()
-
-        every { rangeResolver(StatsPeriod.WEEK) } returns weekRange
-        every { rangeResolver(StatsPeriod.MONTH) } returns rangeForMonth
-        every { rangeResolver(StatsPeriod.YEAR) } returns yearRange
-
-        every { getPeriodSummaryUseCase(StatsPeriod.WEEK) } returns (flows[StatsPeriod.WEEK] ?: emptyFlow())
-        every { getPeriodSummaryUseCase(StatsPeriod.MONTH) } returns (flows[StatsPeriod.MONTH] ?: emptyFlow())
-        every { getPeriodSummaryUseCase(StatsPeriod.YEAR) } returns (flows[StatsPeriod.YEAR] ?: emptyFlow())
-        every { getTransactionsUseCase() } returns flowOf(emptyList())
-        every { getAccountsUseCase() } returns flowOf(emptyList())
-        every { observeExchangeRateUseCase() } returns flowOf(null)
-        every { userPreferences.baseCurrency } returns flowOf("KZT")
-        every {
-            statisticsCurrencyDisplayResolver.resolve(
-                summary = any(),
-                transactions = any(),
-                accounts = any(),
-                baseCurrency = any(),
-                exchangeRate = any(),
-            )
-        } answers {
-            val s = firstArg<PeriodSummary>()
-            StatisticsCurrencyResolution(
-                currencyUiState = StatisticsCurrencyUiState(
-                    moneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
-                    displayMode = AggregateCurrencyDisplayMode.ORIGINAL_SINGLE_CURRENCY,
-                ),
-                displayedTotalExpenses = s.totalExpenses,
-                displayedTotalIncome = s.totalIncome,
-                displayedExpensesByCategory = emptyList(),
-                displayedIncomesByCategory = emptyList(),
-                displayedDailyExpenses = s.dailyExpenses.map {
-                    StatisticsDisplayDailyTotal(date = it.date, amount = it.amount)
-                },
-                displayedDailyIncome = s.dailyIncome.map {
-                    StatisticsDisplayDailyTotal(date = it.date, amount = it.amount)
-                },
-                displayedMonthlyExpenses = s.monthlyExpenses.map {
-                    StatisticsDisplayMonthlyTotal(
-                        year = it.year,
-                        month = it.month,
-                        label = it.label,
-                        amount = it.amount,
-                    )
-                },
-                displayedMonthlyIncome = s.monthlyIncome.map {
-                    StatisticsDisplayMonthlyTotal(
-                        year = it.year,
-                        month = it.month,
-                        label = it.label,
-                        amount = it.amount,
-                    )
-                },
-            )
-        }
-
-        return StatisticsViewModel(
-            getPeriodSummaryUseCase = getPeriodSummaryUseCase,
-            getTransactionsUseCase = getTransactionsUseCase,
-            getAccountsUseCase = getAccountsUseCase,
-            observeExchangeRateUseCase = observeExchangeRateUseCase,
-            userPreferences = userPreferences,
-            rangeResolver = rangeResolver,
-            statisticsCurrencyDisplayResolver = statisticsCurrencyDisplayResolver,
-        )
-    }
+    ): StatisticsViewModel = createViewModel(
+        flows = flows,
+        weekRange = weekRange,
+        monthRange = monthRange,
+        yearRange = yearRange,
+        rangeForMonth = rangeForMonth,
+    )
 
     private fun summary(
         dateRange: StatisticsDateRange,
@@ -305,39 +228,5 @@ class StatisticsViewModelChartTest {
         monthlyIncome = emptyList(),
     )
 
-    private fun dailyTotals(
-        startMillis: Long,
-        count: Int,
-        amountAtIndex: (Int) -> Double,
-    ): List<DailyTotal> = List(count) { index ->
-        DailyTotal(
-            date = startMillis + index * ONE_DAY_MILLIS,
-            amount = amountAtIndex(index),
-        )
-    }
-
-    private fun utcMillis(
-        year: Int,
-        month: Int,
-        dayOfMonth: Int,
-        hourOfDay: Int = 0,
-        minute: Int = 0,
-        second: Int = 0,
-        millisecond: Int = 0,
-    ): Long = Calendar.getInstance(TimeZone.getTimeZone("UTC")).run {
-        set(Calendar.YEAR, year)
-        set(Calendar.MONTH, month)
-        set(Calendar.DAY_OF_MONTH, dayOfMonth)
-        set(Calendar.HOUR_OF_DAY, hourOfDay)
-        set(Calendar.MINUTE, minute)
-        set(Calendar.SECOND, second)
-        set(Calendar.MILLISECOND, millisecond)
-        timeInMillis
-    }
-
     // endregion
-
-    private companion object {
-        const val ONE_DAY_MILLIS = 24 * 60 * 60 * 1000L
-    }
 }

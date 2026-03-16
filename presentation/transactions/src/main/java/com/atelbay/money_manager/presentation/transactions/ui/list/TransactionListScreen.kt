@@ -63,6 +63,7 @@ import com.atelbay.money_manager.core.ui.components.TransactionListItem
 import com.atelbay.money_manager.core.ui.components.categoryIconFromName
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
+import com.atelbay.money_manager.core.ui.util.isUnavailable
 import kotlinx.collections.immutable.persistentListOf
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -164,7 +165,7 @@ fun TransactionListScreen(
                     balance = state.balance ?: 0.0,
                     moneyDisplay = state.summaryMoneyDisplay,
                     unavailableSupportingText = s.mixedCurrencyUnavailable
-                        .takeIf { state.summaryDisplayMode == SummaryDisplayMode.UNAVAILABLE },
+                        .takeIf { state.summaryMoneyDisplay.isUnavailable },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -179,7 +180,7 @@ fun TransactionListScreen(
                     expense = state.periodExpense ?: 0.0,
                     moneyDisplay = state.summaryMoneyDisplay,
                     unavailableSupportingText = s.mixedCurrencyUnavailable
-                        .takeIf { state.summaryDisplayMode == SummaryDisplayMode.UNAVAILABLE },
+                        .takeIf { state.summaryMoneyDisplay.isUnavailable },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
@@ -500,9 +501,7 @@ private fun TransactionListScreenPreview() {
         TransactionListScreen(
             state = TransactionListState(
                 balance = 1_250_000.50,
-                displayCurrency = "KZT",
                 summaryMoneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
-                summaryDisplayMode = SummaryDisplayMode.ORIGINAL_SINGLE_CURRENCY,
                 isLoading = false,
                 selectedAccountName = "Kaspi Gold",
                 periodIncome = 450_000.0,
@@ -587,9 +586,7 @@ private fun TransactionListScreenEmptyPreview() {
         TransactionListScreen(
             state = TransactionListState(
                 balance = 0.0,
-                displayCurrency = "KZT",
                 summaryMoneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
-                summaryDisplayMode = SummaryDisplayMode.ORIGINAL_SINGLE_CURRENCY,
                 isLoading = false,
                 selectedAccountName = "Kaspi Gold",
                 periodIncome = 0.0,
