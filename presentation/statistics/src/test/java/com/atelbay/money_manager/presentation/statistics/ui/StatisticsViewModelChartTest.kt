@@ -6,6 +6,7 @@ import com.atelbay.money_manager.domain.statistics.model.StatisticsDateRange
 import com.atelbay.money_manager.domain.statistics.model.StatsPeriod
 import com.atelbay.money_manager.domain.statistics.model.TransactionType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -23,7 +24,10 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class StatisticsViewModelChartTest {
+
+    private val testDispatcher = StandardTestDispatcher()
 
     private val originalLocale = Locale.getDefault()
     private val originalTimeZone = TimeZone.getDefault()
@@ -55,6 +59,7 @@ class StatisticsViewModelChartTest {
 
     @Before
     fun setUp() {
+        Dispatchers.setMain(testDispatcher)
         Locale.setDefault(Locale.US)
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
     }
@@ -67,8 +72,7 @@ class StatisticsViewModelChartTest {
     }
 
     @Test
-    fun `chartModelProducer is initialized and not null`() = runTest {
-        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+    fun `chartModelProducer is initialized and not null`() = runTest(testDispatcher) {
 
         val viewModel = createViewModel(
             flows = mapOf(
@@ -82,8 +86,7 @@ class StatisticsViewModelChartTest {
     }
 
     @Test
-    fun `loading week data with 7 points updates chart state and does not crash chartModelProducer`() = runTest {
-        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+    fun `loading week data with 7 points updates chart state and does not crash chartModelProducer`() = runTest(testDispatcher) {
 
         val weekExpenseTotals = dailyTotals(
             startMillis = weekRange.startMillis,
@@ -112,8 +115,7 @@ class StatisticsViewModelChartTest {
     }
 
     @Test
-    fun `isToday marks exactly the last day of the range regardless of calendar today`() = runTest {
-        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+    fun `isToday marks exactly the last day of the range regardless of calendar today`() = runTest(testDispatcher) {
 
         // The ViewModel sets isToday = (bucketStart == startOfDay(endMillis)), not actual calendar
         // today. For a 30-day range the last point is the only one marked as today.
@@ -150,8 +152,7 @@ class StatisticsViewModelChartTest {
     }
 
     @Test
-    fun `toggling transaction type updates chart state without crash`() = runTest {
-        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+    fun `toggling transaction type updates chart state without crash`() = runTest(testDispatcher) {
 
         val weekExpenseTotals = dailyTotals(
             startMillis = weekRange.startMillis,

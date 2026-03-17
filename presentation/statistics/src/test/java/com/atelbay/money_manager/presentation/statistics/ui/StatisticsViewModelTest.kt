@@ -7,6 +7,7 @@ import com.atelbay.money_manager.domain.statistics.model.StatisticsDateRange
 import com.atelbay.money_manager.domain.statistics.model.StatsPeriod
 import com.atelbay.money_manager.domain.statistics.model.TransactionType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
@@ -29,8 +30,10 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class StatisticsViewModelTest {
 
+    private val testDispatcher = StandardTestDispatcher()
     private val originalLocale = Locale.getDefault()
     private val originalTimeZone = TimeZone.getDefault()
 
@@ -49,6 +52,7 @@ class StatisticsViewModelTest {
 
     @Before
     fun setUp() {
+        Dispatchers.setMain(testDispatcher)
         Locale.setDefault(Locale.US)
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
     }
@@ -61,8 +65,7 @@ class StatisticsViewModelTest {
     }
 
     @Test
-    fun `initial state exposes month chart metadata before summary arrives`() = runTest {
-        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+    fun `initial state exposes month chart metadata before summary arrives`() = runTest(testDispatcher) {
 
         val viewModel = createViewModel(
             flows = mapOf(
@@ -84,8 +87,7 @@ class StatisticsViewModelTest {
     }
 
     @Test
-    fun `success path derives daily chart points and today marker for week and month`() = runTest {
-        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+    fun `success path derives daily chart points and today marker for week and month`() = runTest(testDispatcher) {
 
         val monthExpenseTotals = dailyTotals(
             startMillis = monthRange.startMillis,
@@ -164,8 +166,7 @@ class StatisticsViewModelTest {
     }
 
     @Test
-    fun `year success path uses monthly title and never marks a point as today`() = runTest {
-        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+    fun `year success path uses monthly title and never marks a point as today`() = runTest(testDispatcher) {
 
         val yearExpenseTotals = listOf(
             MonthlyTotal(2025, Calendar.APRIL, 10.0, "Apr"),
@@ -208,8 +209,7 @@ class StatisticsViewModelTest {
     }
 
     @Test
-    fun `error path keeps chart title and resolved date range available`() = runTest {
-        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+    fun `error path keeps chart title and resolved date range available`() = runTest(testDispatcher) {
 
         val unavailableError = "Summary unavailable"
         val viewModel = createViewModel(
