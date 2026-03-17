@@ -19,6 +19,7 @@ dependencies {
     implementation(libs.vico.compose.m3)
 
     testImplementation(libs.bundles.testing)
+    testImplementation(libs.robolectric)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.bundles.android.testing)
 }
