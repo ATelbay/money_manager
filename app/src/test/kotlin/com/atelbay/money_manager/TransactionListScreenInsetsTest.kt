@@ -8,7 +8,7 @@ import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
-import com.atelbay.money_manager.presentation.transactions.ui.list.SummaryDisplayMode
+import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
 import com.atelbay.money_manager.presentation.transactions.ui.list.TransactionListScreen
 import com.atelbay.money_manager.presentation.transactions.ui.list.TransactionListState
 import com.atelbay.money_manager.presentation.transactions.ui.list.TransactionRowState
@@ -55,11 +55,10 @@ class TransactionListScreenInsetsTest {
                                 ),
                                 originalAmount = 100.0,
                                 originalCurrency = "USD",
+                                displayMoneyDisplay = MoneyDisplayFormatter.resolveAndFormat("USD"),
                             ),
                         ),
                         balance = 100.0,
-                        displayCurrency = "USD",
-                        summaryDisplayMode = SummaryDisplayMode.ORIGINAL_SINGLE_CURRENCY,
                         isLoading = false,
                         periodIncome = 0.0,
                         periodExpense = 100.0,

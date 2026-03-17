@@ -27,9 +27,14 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import com.atelbay.money_manager.core.ui.util.MoneyDisplayMode
+import com.atelbay.money_manager.core.ui.util.isUnavailable
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -38,6 +43,26 @@ class TransactionListViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+    }
+
+    @Test
+    fun `initial state stays loading before debounced filters emit`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+
+        val viewModel = createViewModel(
+            transactions = listOf(
+                transaction(
+                    amount = 125.0,
+                    type = TransactionType.INCOME,
+                    categoryName = "Salary",
+                ),
+            ),
+            accounts = listOf(account(currency = "USD", balance = 125.0)),
+            baseCurrency = flowOf("USD"),
+        )
+
+        assertEquals(true, viewModel.state.value.isLoading)
+        assertEquals(0, viewModel.state.value.transactionRows.size)
     }
 
     @Test
@@ -63,15 +88,17 @@ class TransactionListViewModelTest {
         assertEquals(125.0, row.displayAmount, 0.0)
         assertEquals("USD", row.displayCurrency)
         assertEquals(ConversionStatus.UNAVAILABLE, row.conversionStatus)
+        assertEquals("$", row.displayMoneyDisplay.primaryLabel)
+        assertEquals("USD", row.displayMoneyDisplay.secondaryLabel)
+        assertFalse(row.displayMoneyDisplay.isUnavailable)
+        assertNull(row.secondaryMoneyDisplay)
 
-        assertEquals("USD", viewModel.state.value.displayCurrency)
         assertEquals(125.0, viewModel.state.value.balance ?: 0.0, 0.0)
         assertEquals(125.0, viewModel.state.value.periodIncome ?: 0.0, 0.0)
         assertEquals(0.0, viewModel.state.value.periodExpense ?: 0.0, 0.0)
-        assertEquals(
-            SummaryDisplayMode.CONVERTED,
-            viewModel.state.value.summaryDisplayMode,
-        )
+        assertEquals("$", viewModel.state.value.summaryMoneyDisplay.primaryLabel)
+        assertFalse(viewModel.state.value.summaryMoneyDisplay.isUnavailable)
+        assertEquals(MoneyDisplayMode.SYMBOL_PLUS_CODE, viewModel.state.value.summaryMoneyDisplay.displayMode)
     }
 
     @Test
@@ -98,16 +125,24 @@ class TransactionListViewModelTest {
         assertEquals(100.0, incomeRow.convertedAmount ?: 0.0, 0.0)
         assertEquals("USD", incomeRow.convertedCurrency)
         assertEquals(ConversionStatus.AVAILABLE, incomeRow.conversionStatus)
+        assertEquals("$", incomeRow.displayMoneyDisplay.primaryLabel)
+        assertEquals("USD", incomeRow.displayMoneyDisplay.secondaryLabel)
+        assertFalse(incomeRow.displayMoneyDisplay.isUnavailable)
+        assertNotNull(incomeRow.secondaryMoneyDisplay)
+        assertEquals("₸", incomeRow.secondaryMoneyDisplay?.primaryLabel)
+        assertFalse(incomeRow.secondaryMoneyDisplay?.isUnavailable ?: true)
 
         assertEquals(20.0, expenseRow.convertedAmount ?: 0.0, 0.0)
         assertEquals("USD", expenseRow.convertedCurrency)
         assertEquals(ConversionStatus.AVAILABLE, expenseRow.conversionStatus)
+        assertFalse(expenseRow.displayMoneyDisplay.isUnavailable)
+        assertNotNull(expenseRow.secondaryMoneyDisplay)
 
-        assertEquals("USD", viewModel.state.value.displayCurrency)
         assertEquals(120.0, viewModel.state.value.balance ?: 0.0, 0.0)
         assertEquals(100.0, viewModel.state.value.periodIncome ?: 0.0, 0.0)
         assertEquals(20.0, viewModel.state.value.periodExpense ?: 0.0, 0.0)
-        assertEquals(SummaryDisplayMode.CONVERTED, viewModel.state.value.summaryDisplayMode)
+        assertEquals("$", viewModel.state.value.summaryMoneyDisplay.primaryLabel)
+        assertFalse(viewModel.state.value.summaryMoneyDisplay.isUnavailable)
     }
 
     @Test
@@ -130,15 +165,15 @@ class TransactionListViewModelTest {
         assertEquals(47_500.0, row.displayAmount, 0.0)
         assertEquals("KZT", row.displayCurrency)
         assertEquals(ConversionStatus.UNAVAILABLE, row.conversionStatus)
+        assertEquals("₸", row.displayMoneyDisplay.primaryLabel)
+        assertFalse(row.displayMoneyDisplay.isUnavailable)
+        assertNull(row.secondaryMoneyDisplay)
 
-        assertEquals("KZT", viewModel.state.value.displayCurrency)
         assertEquals(47_500.0, viewModel.state.value.balance ?: 0.0, 0.0)
         assertEquals(0.0, viewModel.state.value.periodIncome ?: 0.0, 0.0)
         assertEquals(47_500.0, viewModel.state.value.periodExpense ?: 0.0, 0.0)
-        assertEquals(
-            SummaryDisplayMode.ORIGINAL_SINGLE_CURRENCY,
-            viewModel.state.value.summaryDisplayMode,
-        )
+        assertEquals("₸", viewModel.state.value.summaryMoneyDisplay.primaryLabel)
+        assertFalse(viewModel.state.value.summaryMoneyDisplay.isUnavailable)
     }
 
     @Test
@@ -169,11 +204,12 @@ class TransactionListViewModelTest {
         advanceTimeBy(300)
         advanceUntilIdle()
 
-        assertEquals("EUR", viewModel.state.value.displayCurrency)
         assertEquals(191.35, viewModel.state.value.balance ?: 0.0, 0.0)
         assertEquals(47.5, viewModel.state.value.periodIncome ?: 0.0, 0.0)
         assertEquals(20.0, viewModel.state.value.periodExpense ?: 0.0, 0.0)
-        assertEquals(SummaryDisplayMode.CONVERTED, viewModel.state.value.summaryDisplayMode)
+        assertEquals("€", viewModel.state.value.summaryMoneyDisplay.primaryLabel)
+        assertFalse(viewModel.state.value.summaryMoneyDisplay.isUnavailable)
+        assertEquals(MoneyDisplayMode.SYMBOL_FIRST, viewModel.state.value.summaryMoneyDisplay.displayMode)
     }
 
     @Test
@@ -200,12 +236,14 @@ class TransactionListViewModelTest {
             assertNull(row.convertedAmount)
             assertNull(row.convertedCurrency)
             assertEquals(ConversionStatus.UNAVAILABLE, row.conversionStatus)
+            assertFalse(row.displayMoneyDisplay.isUnavailable)
+            assertNull(row.secondaryMoneyDisplay)
         }
         assertNull(viewModel.state.value.balance)
         assertNull(viewModel.state.value.periodIncome)
         assertNull(viewModel.state.value.periodExpense)
-        assertNull(viewModel.state.value.displayCurrency)
-        assertEquals(SummaryDisplayMode.UNAVAILABLE, viewModel.state.value.summaryDisplayMode)
+        assertTrue(viewModel.state.value.summaryMoneyDisplay.isUnavailable)
+        assertEquals("-", viewModel.state.value.summaryMoneyDisplay.primaryLabel)
     }
 
     private fun TestScope.createViewModel(

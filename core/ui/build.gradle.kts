@@ -6,3 +6,7 @@ plugins {
 android {
     namespace = "com.atelbay.money_manager.core.ui"
 }
+
+dependencies {
+    testImplementation(libs.bundles.testing)
+}

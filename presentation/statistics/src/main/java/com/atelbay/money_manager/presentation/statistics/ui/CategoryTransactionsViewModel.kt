@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atelbay.money_manager.core.model.TransactionType as ModelTransactionType
+import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
 import com.atelbay.money_manager.domain.categories.usecase.GetCategoryByIdUseCase
 import com.atelbay.money_manager.domain.statistics.model.StatsPeriod
@@ -72,7 +73,9 @@ class CategoryTransactionsViewModel @Inject constructor(
                             categoryIcon = transaction.categoryIcon,
                             categoryColor = transaction.categoryColor,
                             amount = transaction.amount,
-                            currency = currencyByAccountId[transaction.accountId] ?: "\u20B8",
+                            moneyDisplay = MoneyDisplayFormatter.resolveAndFormat(
+                                currencyByAccountId[transaction.accountId].orEmpty(),
+                            ),
                             date = transaction.date,
                             isIncome = transaction.type == ModelTransactionType.INCOME,
                         )

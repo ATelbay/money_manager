@@ -11,6 +11,15 @@ dependencies {
     implementation(projects.domain.transactions)
     implementation(projects.domain.categories)
     implementation(projects.domain.accounts)
+    implementation(projects.domain.exchangerate)
+    implementation(projects.core.datastore)
     implementation(projects.core.model)
     implementation(projects.core.ui)
+    implementation(projects.core.common)
+    implementation(libs.vico.compose.m3)
+
+    testImplementation(libs.bundles.testing)
+    testImplementation(libs.robolectric)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.bundles.android.testing)
 }

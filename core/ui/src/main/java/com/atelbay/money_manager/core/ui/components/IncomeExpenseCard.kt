@@ -21,6 +21,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,8 +30,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
-import java.text.NumberFormat
-import java.util.Locale
+import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
+import com.atelbay.money_manager.core.ui.util.MoneyDisplayPresentation
+import com.atelbay.money_manager.core.ui.util.defaultMoneyNumberFormat
+import com.atelbay.money_manager.core.ui.util.formatAmount
+import com.atelbay.money_manager.core.ui.util.isUnavailable
+import com.atelbay.money_manager.core.ui.util.supportingText
 import kotlin.math.abs
 
 @Composable
@@ -38,16 +43,13 @@ fun IncomeExpenseCard(
     income: Double,
     expense: Double,
     modifier: Modifier = Modifier,
-    currency: String = "\u20B8",
-    isUnavailable: Boolean = false,
+    moneyDisplay: MoneyDisplayPresentation = MoneyDisplayFormatter.resolveAndFormat("KZT"),
+    unavailableSupportingText: String? = null,
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
     val reduceMotion = LocalReduceMotion.current
-    val formatter = NumberFormat.getNumberInstance(Locale.US).apply {
-        minimumFractionDigits = 2
-        maximumFractionDigits = 2
-    }
+    val formatter = remember { defaultMoneyNumberFormat() }
     val net = income - expense
     val isPositive = net >= 0
 
@@ -96,7 +98,11 @@ fun IncomeExpenseCard(
                         )
                     }
                     Text(
-                        text = if (isUnavailable) "-" else "+$currency ${formatter.format(income)}",
+                        text = moneyDisplay.formatAmount(
+                            amount = income,
+                            sign = "+",
+                            formatter = formatter,
+                        ),
                         style = typography.amount,
                         color = colors.incomeForeground,
                         maxLines = 1,
@@ -128,7 +134,11 @@ fun IncomeExpenseCard(
                         )
                     }
                     Text(
-                        text = if (isUnavailable) "-" else "\u2212$currency ${formatter.format(expense)}",
+                        text = moneyDisplay.formatAmount(
+                            amount = expense,
+                            sign = "\u2212",
+                            formatter = formatter,
+                        ),
                         style = typography.amount,
                         color = colors.expenseForeground,
                         maxLines = 1,
@@ -156,11 +166,11 @@ fun IncomeExpenseCard(
                     color = colors.textSecondary,
                 )
                 Text(
-                    text = if (isUnavailable) {
-                        "-"
-                    } else {
-                        "${if (isPositive) "+" else "\u2212"}$currency ${formatter.format(abs(net))}"
-                    },
+                    text = moneyDisplay.formatAmount(
+                        amount = abs(net),
+                        sign = if (isPositive) "+" else "\u2212",
+                        formatter = formatter,
+                    ),
                     style = typography.cardTitle,
                     color = if (isPositive) colors.incomeForeground else colors.expenseForeground,
                     fontWeight = FontWeight.SemiBold,
@@ -170,7 +180,7 @@ fun IncomeExpenseCard(
                 )
             }
 
-            if (!isUnavailable) {
+            if (!moneyDisplay.isUnavailable) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -198,9 +208,10 @@ fun IncomeExpenseCard(
                 }
             }
 
-            if (isUnavailable) {
+            val supportingText = moneyDisplay.supportingText(unavailableSupportingText)
+            if (supportingText != null) {
                 Text(
-                    text = "Недостаточно курсов для конвертации",
+                    text = supportingText,
                     style = typography.caption,
                     color = colors.textSecondary,
                     modifier = Modifier.padding(top = 4.dp),
@@ -237,7 +248,7 @@ private fun IncomeExpenseCardExtremePreview() {
         IncomeExpenseCard(
             income = 9_999_999_999_999.99,
             expense = 9_999_999_999_999.99,
-            currency = "KZT",
+            moneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
             modifier = Modifier.padding(16.dp),
         )
     }

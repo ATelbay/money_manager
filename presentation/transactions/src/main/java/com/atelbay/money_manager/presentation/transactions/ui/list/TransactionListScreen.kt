@@ -62,6 +62,8 @@ import com.atelbay.money_manager.core.ui.components.MoneyManagerTextField
 import com.atelbay.money_manager.core.ui.components.TransactionListItem
 import com.atelbay.money_manager.core.ui.components.categoryIconFromName
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
+import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
+import com.atelbay.money_manager.core.ui.util.isUnavailable
 import kotlinx.collections.immutable.persistentListOf
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -161,8 +163,9 @@ fun TransactionListScreen(
                 BalanceCard(
                     accountName = state.selectedAccountName ?: s.allAccounts,
                     balance = state.balance ?: 0.0,
-                    currency = state.displayCurrency.orEmpty(),
-                    isUnavailable = state.summaryDisplayMode == SummaryDisplayMode.UNAVAILABLE,
+                    moneyDisplay = state.summaryMoneyDisplay,
+                    unavailableSupportingText = s.mixedCurrencyUnavailable
+                        .takeIf { state.summaryMoneyDisplay.isUnavailable },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -175,8 +178,9 @@ fun TransactionListScreen(
                 IncomeExpenseCard(
                     income = state.periodIncome ?: 0.0,
                     expense = state.periodExpense ?: 0.0,
-                    currency = state.displayCurrency.orEmpty(),
-                    isUnavailable = state.summaryDisplayMode == SummaryDisplayMode.UNAVAILABLE,
+                    moneyDisplay = state.summaryMoneyDisplay,
+                    unavailableSupportingText = s.mixedCurrencyUnavailable
+                        .takeIf { state.summaryMoneyDisplay.isUnavailable },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
@@ -337,9 +341,9 @@ fun TransactionListScreen(
                             amount = row.displayAmount,
                             date = formatTime(transaction.date, timeFormat),
                             isIncome = !isExpense,
-                            currency = row.displayCurrency,
+                            moneyDisplay = row.displayMoneyDisplay,
                             secondaryAmount = row.originalAmount.takeIf { isShowingConvertedAmount },
-                            secondaryCurrency = row.originalCurrency.takeIf { isShowingConvertedAmount },
+                            secondaryMoneyDisplay = row.secondaryMoneyDisplay.takeIf { isShowingConvertedAmount },
                             secondaryAmountLabel = s.originalAmount.takeIf {
                                 isShowingConvertedAmount
                             },
@@ -497,8 +501,7 @@ private fun TransactionListScreenPreview() {
         TransactionListScreen(
             state = TransactionListState(
                 balance = 1_250_000.50,
-                displayCurrency = "KZT",
-                summaryDisplayMode = SummaryDisplayMode.ORIGINAL_SINGLE_CURRENCY,
+                summaryMoneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
                 isLoading = false,
                 selectedAccountName = "Kaspi Gold",
                 periodIncome = 450_000.0,
@@ -520,6 +523,7 @@ private fun TransactionListScreenPreview() {
                         ),
                         originalAmount = 15_480.0,
                         originalCurrency = "KZT",
+                        displayMoneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
                     ),
                     TransactionRowState(
                         transaction = Transaction(
@@ -540,6 +544,8 @@ private fun TransactionListScreenPreview() {
                         convertedAmount = 1_220_875.0,
                         convertedCurrency = "KZT",
                         conversionStatus = ConversionStatus.AVAILABLE,
+                        displayMoneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
+                        secondaryMoneyDisplay = MoneyDisplayFormatter.resolveAndFormat("USD"),
                     ),
                     TransactionRowState(
                         transaction = Transaction(
@@ -557,6 +563,7 @@ private fun TransactionListScreenPreview() {
                         ),
                         originalAmount = 450_000.0,
                         originalCurrency = "KZT",
+                        displayMoneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
                     ),
                 ),
             ),
@@ -579,8 +586,7 @@ private fun TransactionListScreenEmptyPreview() {
         TransactionListScreen(
             state = TransactionListState(
                 balance = 0.0,
-                displayCurrency = "KZT",
-                summaryDisplayMode = SummaryDisplayMode.ORIGINAL_SINGLE_CURRENCY,
+                summaryMoneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
                 isLoading = false,
                 selectedAccountName = "Kaspi Gold",
                 periodIncome = 0.0,
