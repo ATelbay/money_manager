@@ -172,8 +172,12 @@ class TransactionListViewModel @Inject constructor(
                 canConvertAll = canConvertAll,
             )
 
-            // Compute daily net sums from transaction rows (keyed by date header string)
-            val dailyNetSums = computeDailyNetSums(transactionRows)
+            // Compute daily net sums only when all amounts are in the same currency
+            val dailyNetSums = if (canConvertAll) {
+                computeDailyNetSums(transactionRows)
+            } else {
+                emptyMap()
+            }
 
             _state.update {
                 it.copy(

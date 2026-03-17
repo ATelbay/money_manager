@@ -352,6 +352,30 @@ class TransactionListViewModelTest {
     }
 
     @Test
+    fun `dailyNetSums is empty when currencies cannot be converted`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+
+        val viewModel = createViewModel(
+            transactions = listOf(
+                transaction(id = 1L, amount = 1000.0, type = TransactionType.INCOME, categoryName = "Salary", accountId = 1L),
+                transaction(id = 2L, amount = 50.0, type = TransactionType.EXPENSE, categoryName = "Food", accountId = 2L),
+            ),
+            accounts = listOf(
+                account(id = 1L, currency = "KZT", balance = 1000.0),
+                account(id = 2L, currency = "USD", balance = 50.0),
+            ),
+            baseCurrency = flowOf("KZT"),
+            // Exchange rate missing USD → conversion unavailable
+            exchangeRate = MutableStateFlow(null),
+        )
+
+        advanceTimeBy(300)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.dailyNetSums.isEmpty())
+    }
+
+    @Test
     fun `account filtering shows only transactions for selected account`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
 
