@@ -1,5 +1,6 @@
 package com.atelbay.money_manager.presentation.transactions.ui.list
 
+import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
@@ -20,6 +21,9 @@ data class TransactionListState(
     val periodIncome: Double? = null,
     val periodExpense: Double? = null,
     val searchQuery: String = "",
+    val accounts: ImmutableList<Account> = persistentListOf(),
+    val showAccountPicker: Boolean = false,
+    val dailyNetSums: Map<String, Double> = emptyMap(),
 )
 
 data class TransactionRowState(

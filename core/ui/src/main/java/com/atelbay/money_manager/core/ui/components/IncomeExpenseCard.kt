@@ -73,6 +73,8 @@ fun IncomeExpenseCard(
         label = "expenseBar",
     )
 
+    val s = MoneyManagerTheme.strings
+
     GlassCard(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(
@@ -92,7 +94,7 @@ fun IncomeExpenseCard(
                                 .background(colors.income),
                         )
                         Text(
-                            text = "ДОХОД",
+                            text = s.incomeCardLabel,
                             style = typography.caption,
                             color = colors.textSecondary,
                         )
@@ -128,7 +130,7 @@ fun IncomeExpenseCard(
                                 .background(colors.expense),
                         )
                         Text(
-                            text = "РАСХОД",
+                            text = s.expenseCardLabel,
                             style = typography.caption,
                             color = colors.textSecondary,
                         )
@@ -161,7 +163,7 @@ fun IncomeExpenseCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "БАЛАНС",
+                    text = s.balanceCardLabel,
                     style = typography.caption,
                     color = colors.textSecondary,
                 )
@@ -218,7 +220,7 @@ fun IncomeExpenseCard(
                 )
             } else if (income > 0) {
                 Text(
-                    text = "Сохранено ${(savingsRate * 100).toInt()}%",
+                    text = s.savedPercent((savingsRate * 100).toInt()),
                     style = typography.caption,
                     color = if (isPositive) colors.incomeForeground else colors.expenseForeground,
                     maxLines = 1,

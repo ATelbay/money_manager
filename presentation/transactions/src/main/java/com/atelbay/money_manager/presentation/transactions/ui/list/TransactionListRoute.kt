@@ -24,8 +24,10 @@ fun TransactionListRoute(
         onDeleteTransaction = viewModel::deleteTransaction,
         onTabSelected = viewModel::selectTab,
         onPeriodSelected = viewModel::selectPeriod,
-        onCustomDateRange = viewModel::setCustomDateRange,
         onSearchQueryChange = viewModel::updateSearchQuery,
+        onAccountPickerClick = viewModel::toggleAccountPicker,
+        onAccountSelected = viewModel::selectAccount,
+        onDismissAccountPicker = viewModel::dismissAccountPicker,
         modifier = modifier,
     )
 }

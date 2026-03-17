@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
@@ -71,7 +72,7 @@ class TransactionListViewModel @Inject constructor(
     getAccountsUseCase: GetAccountsUseCase,
     observeExchangeRateUseCase: ObserveExchangeRateUseCase,
     private val convertAmountUseCase: ConvertAmountUseCase,
-    userPreferences: UserPreferences,
+    private val userPreferences: UserPreferences,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -79,7 +80,7 @@ class TransactionListViewModel @Inject constructor(
     val state: StateFlow<TransactionListState> = _state.asStateFlow()
 
     private val _selectedTab = MutableStateFlow<TransactionType?>(null)
-    private val _selectedPeriod = MutableStateFlow(Period.ALL)
+    private val _selectedPeriod = MutableStateFlow(Period.MONTH)
     private val _customDateRange = MutableStateFlow<Pair<LocalDate, LocalDate>?>(null)
     private val _searchQuery = MutableStateFlow("")
 
@@ -149,9 +150,6 @@ class TransactionListViewModel @Inject constructor(
                 }
             }
 
-            // Full fallback rule: check if ALL items in scope can be converted.
-            // If any account or transaction currency lacks a required quote,
-            // disable conversion for both summary totals and individual rows.
             val normalizedBase = normalizeCurrency(data.baseCurrency)
             val canConvertAll = canDisplayInBaseCurrency(
                 selectedAccount = selectedAccount,
@@ -177,6 +175,9 @@ class TransactionListViewModel @Inject constructor(
                 canConvertAll = canConvertAll,
             )
 
+            // Compute daily net sums from transaction rows (keyed by date header string)
+            val dailyNetSums = computeDailyNetSums(transactionRows)
+
             _state.update {
                 it.copy(
                     transactionRows = transactionRows,
@@ -190,6 +191,8 @@ class TransactionListViewModel @Inject constructor(
                     customDateRange = filters.customRange,
                     periodIncome = summaryMetrics.income,
                     periodExpense = summaryMetrics.expense,
+                    accounts = data.accounts.toImmutableList(),
+                    dailyNetSums = dailyNetSums,
                 )
             }
         }
@@ -221,6 +224,39 @@ class TransactionListViewModel @Inject constructor(
         }
     }
 
+    fun selectAccount(accountId: Long?) {
+        viewModelScope.launch {
+            userPreferences.setSelectedAccountId(accountId)
+        }
+    }
+
+    fun toggleAccountPicker() {
+        _state.update { it.copy(showAccountPicker = !it.showAccountPicker) }
+    }
+
+    fun dismissAccountPicker() {
+        _state.update { it.copy(showAccountPicker = false) }
+    }
+
+    private fun computeDailyNetSums(
+        transactionRows: ImmutableList<TransactionRowState>,
+    ): Map<String, Double> {
+        val zone = ZoneId.systemDefault()
+        return transactionRows
+            .groupBy { row ->
+                Instant.ofEpochMilli(row.transaction.date)
+                    .atZone(zone)
+                    .toLocalDate()
+                    .toString()
+            }
+            .mapValues { (_, rows) ->
+                rows.sumOf { row ->
+                    val amount = row.displayAmount
+                    if (row.transaction.type == TransactionType.INCOME) amount else -amount
+                }
+            }
+    }
+
     private fun mapTransactionRows(
         transactions: List<Transaction>,
         accounts: List<Account>,
@@ -235,9 +271,6 @@ class TransactionListViewModel @Inject constructor(
             val accountCurrency = currenciesByAccountId[transaction.accountId]?.currency
             val originalCurrency = accountCurrency?.let(::normalizeCurrency).orEmpty()
 
-            // Full fallback: only attempt row conversion when the entire scope can convert.
-            // This prevents partial mixed conversion where some rows show base currency
-            // and others show original currency.
             val convertedResult = if (canConvertAll) {
                 accountCurrency?.let {
                     convertToBaseCurrency(
