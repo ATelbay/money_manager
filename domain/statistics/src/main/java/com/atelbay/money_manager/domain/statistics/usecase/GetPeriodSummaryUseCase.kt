@@ -22,8 +22,8 @@ class GetPeriodSummaryUseCase @Inject constructor(
     private val categoryDao: CategoryDao,
     private val rangeResolver: StatisticsPeriodRangeResolver,
 ) {
-    operator fun invoke(period: StatsPeriod): Flow<PeriodSummary> {
-        val dateRange = rangeResolver(period)
+    operator fun invoke(period: StatsPeriod, anchorMillis: Long? = null): Flow<PeriodSummary> {
+        val dateRange = rangeResolver(period, anchorMillis)
         val start = dateRange.startMillis
         val end = dateRange.endMillis
         return combine(

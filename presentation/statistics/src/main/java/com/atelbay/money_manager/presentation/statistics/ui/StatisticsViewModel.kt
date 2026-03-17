@@ -34,6 +34,8 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.time.YearMonth
+import java.time.ZoneId
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -65,7 +67,22 @@ class StatisticsViewModel @Inject constructor(
 
     fun setPeriod(period: StatsPeriod) {
         if (_state.value.period == period) return
+        _state.update { it.copy(selectedMonth = null) }
         loadSummary(period)
+    }
+
+    fun setMonth(yearMonth: YearMonth?) {
+        if (yearMonth != null) {
+            val anchorMillis = yearMonth.atDay(1)
+                .atStartOfDay(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+            _state.update { it.copy(selectedMonth = yearMonth) }
+            loadSummary(_state.value.period, anchorMillis)
+        } else {
+            _state.update { it.copy(selectedMonth = null) }
+            loadSummary(_state.value.period)
+        }
     }
 
     fun setTransactionType(type: TransactionType) {
@@ -89,8 +106,8 @@ class StatisticsViewModel @Inject constructor(
         }
     }
 
-    private fun loadSummary(period: StatsPeriod) {
-        val resolvedRange = rangeResolver(period)
+    private fun loadSummary(period: StatsPeriod, anchorMillis: Long? = null) {
+        val resolvedRange = rangeResolver(period, anchorMillis)
         _state.update { current ->
             current.copy(
                 period = period,
@@ -102,7 +119,7 @@ class StatisticsViewModel @Inject constructor(
 
         summaryJob?.cancel()
         summaryJob = combine(
-            getPeriodSummaryUseCase(period),
+            getPeriodSummaryUseCase(period, anchorMillis),
             getTransactionsUseCase(),
             getAccountsUseCase(),
             userPreferences.baseCurrency,

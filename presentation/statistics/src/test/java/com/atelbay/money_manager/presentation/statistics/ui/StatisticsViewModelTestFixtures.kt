@@ -67,13 +67,13 @@ internal fun createViewModel(
     val rangeResolver = mockk<StatisticsPeriodRangeResolver>()
     val statisticsCurrencyDisplayResolver = mockk<StatisticsCurrencyDisplayResolver>()
 
-    every { rangeResolver(StatsPeriod.WEEK) } returns weekRange
-    every { rangeResolver(StatsPeriod.MONTH) } returns rangeForMonth
-    every { rangeResolver(StatsPeriod.YEAR) } returns yearRange
+    every { rangeResolver(StatsPeriod.WEEK, any()) } returns weekRange
+    every { rangeResolver(StatsPeriod.MONTH, any()) } returns rangeForMonth
+    every { rangeResolver(StatsPeriod.YEAR, any()) } returns yearRange
 
-    every { getPeriodSummaryUseCase(StatsPeriod.WEEK) } returns (flows[StatsPeriod.WEEK] ?: emptyFlow())
-    every { getPeriodSummaryUseCase(StatsPeriod.MONTH) } returns (flows[StatsPeriod.MONTH] ?: emptyFlow())
-    every { getPeriodSummaryUseCase(StatsPeriod.YEAR) } returns (flows[StatsPeriod.YEAR] ?: emptyFlow())
+    every { getPeriodSummaryUseCase(StatsPeriod.WEEK, any()) } returns (flows[StatsPeriod.WEEK] ?: emptyFlow())
+    every { getPeriodSummaryUseCase(StatsPeriod.MONTH, any()) } returns (flows[StatsPeriod.MONTH] ?: emptyFlow())
+    every { getPeriodSummaryUseCase(StatsPeriod.YEAR, any()) } returns (flows[StatsPeriod.YEAR] ?: emptyFlow())
     every { getTransactionsUseCase() } returns flowOf(emptyList())
     every { getAccountsUseCase() } returns flowOf(emptyList())
     every { observeExchangeRateUseCase() } returns flowOf(null)

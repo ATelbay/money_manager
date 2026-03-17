@@ -16,7 +16,7 @@ val IncomeBgDark = Color(0x1F4ADE80)
 val IncomeForegroundLight = Color(0xFF16A34A)
 
 // ── Expense — Coral ──
-val ExpenseCoral = Color(0xFFFF6B6B)
+val ExpenseCoral = Color(0xFFD08068)
 val ExpenseBgLight = Color(0x1FFF6B6B)
 val ExpenseBgDark = Color(0x1FFF6B6B)
 val ExpenseForegroundLight = Color(0xFFDC2626)
@@ -48,7 +48,7 @@ val CategoryEntertainment = Color(0xFFEF4444)
 val CategoryDining = Color(0xFFF59E0B)
 
 // ── Light Theme ──
-val BackgroundLight = Color(0xFFF5F5F7)
+val BackgroundLight = Color(0xFFF5F4F1)
 val ForegroundLight = Color(0xFF1A1A1A)
 val SurfaceLight = Color(0xFFFFFFFF)
 val SurfaceBorderLight = Color(0x0F000000) // 6%
@@ -56,26 +56,30 @@ val GlassBgStartLight = Color(0xF2FFFFFF) // 95%
 val GlassBgEndLight = Color(0xD9FFFFFF) // 85%
 val GlassBorderLight = Color(0x14000000) // 8%
 val GlassGlowLight = Color(0x05000000) // 2%
-val TextPrimaryLight = Color(0xFF1A1A1A)
-val TextSecondaryLight = Color(0x80000000) // 50%
+val TextPrimaryLight = Color(0xFF1A1918)
+val TextSecondaryLight = Color(0xFF9C9B99)
 val TextTertiaryLight = Color(0x59000000) // 35%
+val DividerLight = Color(0xFFEDECEA)
 val BorderLight = Color(0x0F000000) // 6%
 val BorderSubtleLight = Color(0x0A000000) // 4%
+val GreenAccentLight = Color(0xFF3D8A5A)
 
 // ── Dark Theme ──
-val BackgroundDark = Color(0xFF0D0D0D)
+val BackgroundDark = Color(0xFF1A1918)
 val ForegroundDark = Color(0xFFFFFFFF)
-val SurfaceDark = Color(0xFF1A1A1A)
+val SurfaceDark = Color(0xFF2A2928)
 val SurfaceBorderDark = Color(0x0FFFFFFF) // 6%
 val GlassBgStartDark = Color(0x0DFFFFFF) // 5%
 val GlassBgEndDark = Color(0x05FFFFFF) // 2%
 val GlassBorderDark = Color(0x14FFFFFF) // 8%
 val GlassGlowDark = Color(0x0AFFFFFF) // 4%
 val TextPrimaryDark = Color(0xFFFFFFFF)
-val TextSecondaryDark = Color(0x8CFFFFFF) // 55%
+val TextSecondaryDark = Color(0xFF6D6C6A)
 val TextTertiaryDark = Color(0x59FFFFFF) // 35%
+val DividerDark = Color(0xFF3A3938)
 val BorderDark = Color(0x14FFFFFF) // 8%
 val BorderSubtleDark = Color(0x0AFFFFFF) // 4%
+val GreenAccentDark = Color(0xFF4DB87A)
 
 // ── M3 Color Scheme Mapping ──
 // Light
@@ -156,6 +160,8 @@ data class MoneyManagerColors(
     val chart3: Color,
     val chart4: Color,
     val chart5: Color,
+    val divider: Color,
+    val greenAccent: Color,
 )
 
 val LightMoneyManagerColors = MoneyManagerColors(
@@ -186,6 +192,8 @@ val LightMoneyManagerColors = MoneyManagerColors(
     chart3 = Chart3,
     chart4 = Chart4,
     chart5 = Chart5,
+    divider = DividerLight,
+    greenAccent = GreenAccentLight,
 )
 
 val DarkMoneyManagerColors = MoneyManagerColors(
@@ -216,6 +224,8 @@ val DarkMoneyManagerColors = MoneyManagerColors(
     chart3 = Chart3,
     chart4 = Chart4,
     chart5 = Chart5,
+    divider = DividerDark,
+    greenAccent = GreenAccentDark,
 )
 
 val LocalMoneyManagerColors = staticCompositionLocalOf { LightMoneyManagerColors }

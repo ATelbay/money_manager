@@ -1,15 +1,17 @@
 package com.atelbay.money_manager.presentation.statistics.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -29,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,12 +40,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,12 +59,14 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.atelbay.money_manager.core.ui.components.GlassCard
-import com.atelbay.money_manager.core.ui.components.MoneyManagerChip
+import com.atelbay.money_manager.core.ui.components.MoneyManagerSegmentedButton
 import com.atelbay.money_manager.core.ui.components.StatType
 import com.atelbay.money_manager.core.ui.components.SummaryStatCard
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
@@ -79,6 +86,7 @@ import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import com.patrykandpatrick.vico.compose.cartesian.VicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
@@ -104,6 +112,8 @@ import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.core.cartesian.marker.DefaultCartesianMarker
 import com.patrykandpatrick.vico.core.cartesian.marker.ColumnCartesianLayerMarkerTarget
 import java.text.DecimalFormat
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 
 
 
@@ -134,6 +144,7 @@ fun StatisticsScreen(
     onTransactionTypeChange: (TransactionType) -> Unit,
     onCategoryClick: (CategorySummary) -> Unit = {},
     onRetry: () -> Unit,
+    onSetMonth: (YearMonth?) -> Unit = {},
     modifier: Modifier = Modifier,
     contentWindowInsets: WindowInsets = ScaffoldDefaults.contentWindowInsets,
 ) {
@@ -149,23 +160,46 @@ fun StatisticsScreen(
     }
     val currentTotal = if (isExpense) state.displayedTotalExpenses else state.displayedTotalIncome
 
+    var showMonthPicker by remember { mutableStateOf(false) }
+    val monthFormatter = remember { DateTimeFormatter.ofPattern("MMM yyyy") }
+    val pillLabel = (state.selectedMonth ?: YearMonth.now()).format(monthFormatter)
+
+    if (showMonthPicker) {
+        MonthPickerDialog(
+            initialYearMonth = state.selectedMonth ?: YearMonth.now(),
+            onMonthSelected = { yearMonth ->
+                onSetMonth(yearMonth)
+                showMonthPicker = false
+            },
+            onDismiss = { showMonthPicker = false },
+        )
+    }
+
     Scaffold(
         modifier = modifier.testTag("statistics:screen"),
         contentWindowInsets = contentWindowInsets,
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = s.statisticsTitle,
-                        style = typography.sectionHeader,
-                        color = colors.textPrimary,
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                ),
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .testTag("statistics:header"),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = s.statisticsTitle,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (-0.5).sp,
+                    color = colors.textPrimary,
+                )
+                CalendarFilterPill(
+                    label = pillLabel,
+                    onClick = { showMonthPicker = true },
+                )
+            }
         },
     ) { padding ->
         if (state.isLoading) {
@@ -286,10 +320,11 @@ fun StatisticsScreen(
                 )
             }
 
-            // Summary Cards
-            item(key = "totals") {
-                StatisticsTypeCards(
+            // Unified Chart Card (replaces old "totals" + "bar" items)
+            item(key = "chart_card") {
+                UnifiedChartCard(
                     state = state,
+                    chartModelProducer = chartModelProducer,
                     onTransactionTypeChange = onTransactionTypeChange,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -297,62 +332,21 @@ fun StatisticsScreen(
                 )
             }
 
-            // Donut Chart
+            // By Category Section (donut + legend + expandable breakdown)
             if (currentCategories.isNotEmpty()) {
-                item(key = "donut") {
-                    DonutChartCard(
+                item(key = "categories") {
+                    ByCategorySection(
                         categories = currentCategories,
                         totalAmount = currentTotal,
                         moneyDisplay = state.currencyUiState.moneyDisplay,
                         centerLabel = if (isExpense) s.expensesLabel else s.incomeLabel,
                         isUnavailable = state.currencyUiState.isUnavailable,
                         unavailableText = s.mixedCurrencyUnavailable,
+                        onCategoryClick = onCategoryClick,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .testTag("statistics:pieChart"),
+                            .padding(horizontal = 16.dp),
                     )
-                }
-            }
-
-            // Bar Chart
-            if (state.chart.points.isNotEmpty()) {
-                item(key = "bar") {
-                    VicoBarChartSection(
-                        chart = state.chart,
-                        modelProducer = chartModelProducer,
-                        barColor = if (isExpense) {
-                            colors.expense.copy(alpha = 0.8f)
-                        } else {
-                            colors.income.copy(alpha = 0.8f)
-                        },
-                        isUnavailable = state.currencyUiState.isUnavailable,
-                        unavailableText = s.mixedCurrencyUnavailable,
-                        period = state.period,
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                    )
-                }
-            }
-
-            // Category Breakdown
-            if (currentCategories.isNotEmpty()) {
-                item(key = "breakdown") {
-                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                        Text(
-                            text = s.byCategory,
-                            style = typography.caption,
-                            color = colors.textSecondary,
-                            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
-                        )
-                        CategoryBreakdownCard(
-                            categories = currentCategories,
-                            moneyDisplay = state.currencyUiState.moneyDisplay,
-                            isUnavailable = state.currencyUiState.isUnavailable,
-                            unavailableText = s.mixedCurrencyUnavailable,
-                            onCategoryClick = onCategoryClick,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
                 }
             }
 
@@ -371,26 +365,28 @@ private fun PeriodSelector(
     onSelect: (StatsPeriod) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier.testTag("statistics:periodSelector"),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val strings = MoneyManagerTheme.strings
-        StatsPeriod.entries.forEachIndexed { index, period ->
-            if (index > 0) Spacer(modifier = Modifier.width(8.dp))
-            MoneyManagerChip(
-                label = when (period) {
-                    StatsPeriod.WEEK -> strings.periodWeek
-                    StatsPeriod.MONTH -> strings.periodMonth
-                    StatsPeriod.YEAR -> strings.periodYear
-                },
-                selected = selected == period,
-                onClick = { onSelect(period) },
-                modifier = Modifier.testTag("statistics:period_${period.name}"),
-            )
-        }
+    val strings = MoneyManagerTheme.strings
+    val options = listOf(strings.periodWeek, strings.periodMonth, strings.periodYear)
+    val selectedOption = when (selected) {
+        StatsPeriod.WEEK -> strings.periodWeek
+        StatsPeriod.MONTH -> strings.periodMonth
+        StatsPeriod.YEAR -> strings.periodYear
     }
+    MoneyManagerSegmentedButton(
+        options = options,
+        selectedOption = selectedOption,
+        onOptionSelected = { option ->
+            val period = when (option) {
+                strings.periodWeek -> StatsPeriod.WEEK
+                strings.periodMonth -> StatsPeriod.MONTH
+                else -> StatsPeriod.YEAR
+            }
+            onSelect(period)
+        },
+        height = 40.dp,
+        testTagPrefix = "statistics:period",
+        modifier = modifier.testTag("statistics:periodSelector"),
+    )
 }
 
 @Composable
@@ -435,77 +431,7 @@ private fun StatisticsTypeCards(
     }
 }
 
-// ── Donut Chart Card ──
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun DonutChartCard(
-    categories: ImmutableList<StatisticsCategoryDisplayItem>,
-    totalAmount: Double?,
-    moneyDisplay: MoneyDisplayPresentation,
-    centerLabel: String,
-    isUnavailable: Boolean,
-    unavailableText: String,
-    modifier: Modifier = Modifier,
-) {
-    val colors = MoneyManagerTheme.colors
-    val typography = MoneyManagerTheme.typography
-
-    GlassCard(modifier = modifier) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            if (isUnavailable || totalAmount == null) {
-                StatisticsUnavailableCard(
-                    text = unavailableText,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 24.dp)
-                        .testTag("statistics:pieChartUnavailable"),
-                )
-            } else {
-                DonutChart(
-                    categories = categories,
-                    totalAmount = totalAmount,
-                    moneyDisplay = moneyDisplay,
-                    centerLabel = centerLabel,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 32.dp),
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                categories.forEach { category ->
-                    Row(
-                        modifier = Modifier.padding(horizontal = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(Color(category.category.categoryColor)),
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = category.category.categoryName,
-                            style = typography.caption,
-                            color = colors.textSecondary,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
+// ── Donut Chart ──
 
 @Composable
 private fun DonutChart(
@@ -591,29 +517,12 @@ private fun VicoBarChartSection(
     isUnavailable: Boolean,
     unavailableText: String,
     period: StatsPeriod,
+    scrollState: VicoScrollState,
     modifier: Modifier = Modifier,
 ) {
     val colors = MoneyManagerTheme.colors
-    val typography = MoneyManagerTheme.typography
 
     Column(modifier = modifier) {
-        Text(
-            text = chart.title,
-            style = typography.caption,
-            color = colors.textSecondary,
-            modifier = Modifier
-                .padding(start = 4.dp, bottom = 4.dp)
-                .testTag("statistics:chartTitle"),
-        )
-        Text(
-            text = chart.dateRangeLabel,
-            style = typography.caption,
-            color = colors.textTertiary,
-            modifier = Modifier
-                .padding(start = 4.dp, bottom = 8.dp)
-                .testTag("statistics:chartDateRange"),
-        )
-
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             if (isUnavailable) {
                 StatisticsUnavailableCard(
@@ -645,14 +554,6 @@ private fun VicoBarChartSection(
                     }
                 }
 
-                val scrollState = rememberVicoScrollState(
-                    scrollEnabled = period == StatsPeriod.MONTH,
-                    initialScroll = if (period == StatsPeriod.MONTH) {
-                        Scroll.Absolute.End
-                    } else {
-                        Scroll.Absolute.Start
-                    },
-                )
                 val zoomState = rememberVicoZoomState(zoomEnabled = false)
 
                 val fullOpacityColumn = rememberLineComponent(
@@ -751,12 +652,405 @@ private fun VicoBarChartSection(
     }
 }
 
-// ── Category Breakdown ──
+// ── Chart Card Composables ──
+
+// T005
+@Composable
+private fun ExpenseIncomeToggle(
+    selected: TransactionType,
+    onSelect: (TransactionType) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MoneyManagerTheme.colors
+
+    val expenseBg by animateColorAsState(
+        targetValue = if (selected == TransactionType.EXPENSE) colors.glassBgStart else Color.Transparent,
+        animationSpec = MoneyManagerMotion.ColorTransition,
+        label = "expenseBg",
+    )
+    val expenseText by animateColorAsState(
+        targetValue = if (selected == TransactionType.EXPENSE) colors.textPrimary else colors.textSecondary,
+        animationSpec = MoneyManagerMotion.ColorTransition,
+        label = "expenseText",
+    )
+    val incomeBg by animateColorAsState(
+        targetValue = if (selected == TransactionType.INCOME) colors.glassBgStart else Color.Transparent,
+        animationSpec = MoneyManagerMotion.ColorTransition,
+        label = "incomeBg",
+    )
+    val incomeText by animateColorAsState(
+        targetValue = if (selected == TransactionType.INCOME) colors.textPrimary else colors.textSecondary,
+        animationSpec = MoneyManagerMotion.ColorTransition,
+        label = "incomeText",
+    )
+
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(colors.surfaceBorder)
+            .padding(4.dp)
+            .testTag("statistics:expenseIncomeToggle"),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val strings = MoneyManagerTheme.strings
+        // Expense pill
+        Surface(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .clickable { onSelect(TransactionType.EXPENSE) },
+            color = expenseBg,
+            tonalElevation = if (selected == TransactionType.EXPENSE) 1.dp else 0.dp,
+            shadowElevation = if (selected == TransactionType.EXPENSE) 1.dp else 0.dp,
+        ) {
+            Text(
+                text = strings.expensesLabel,
+                color = expenseText,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            )
+        }
+        // Income pill
+        Surface(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .clickable { onSelect(TransactionType.INCOME) },
+            color = incomeBg,
+            tonalElevation = if (selected == TransactionType.INCOME) 1.dp else 0.dp,
+            shadowElevation = if (selected == TransactionType.INCOME) 1.dp else 0.dp,
+        ) {
+            Text(
+                text = strings.incomeLabel,
+                color = incomeText,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            )
+        }
+    }
+}
+
+// T006
+@Composable
+private fun ChartCardHeader(
+    title: String,
+    dateRange: String,
+    selectedType: TransactionType,
+    onTypeChange: (TransactionType) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MoneyManagerTheme.colors
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textPrimary,
+                modifier = Modifier.testTag("statistics:chartTitle"),
+            )
+            Text(
+                text = dateRange,
+                fontSize = 12.sp,
+                color = colors.textSecondary,
+                modifier = Modifier.testTag("statistics:chartDateRange"),
+            )
+        }
+        ExpenseIncomeToggle(
+            selected = selectedType,
+            onSelect = onTypeChange,
+        )
+    }
+}
+
+// T007
+@Composable
+private fun ChartScrollIndicator(
+    scrollFraction: Float,
+    isVisible: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    if (!isVisible) return
+
+    val colors = MoneyManagerTheme.colors
+    val trackWidth = 60.dp
+    val thumbWidth = 24.dp
+    val trackHeight = 3.dp
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("statistics:scrollIndicator"),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .width(trackWidth)
+                .height(trackHeight)
+                .clip(RoundedCornerShape(50))
+                .background(colors.divider),
+        ) {
+            val thumbOffset = ((trackWidth - thumbWidth) * scrollFraction.coerceIn(0f, 1f))
+            Box(
+                modifier = Modifier
+                    .width(thumbWidth)
+                    .height(trackHeight)
+                    .padding(start = thumbOffset)
+                    .clip(RoundedCornerShape(50))
+                    .background(colors.textSecondary),
+            )
+        }
+    }
+}
+
+// T008
+@Composable
+private fun ChartTotalRow(
+    label: String,
+    amount: Double?,
+    moneyDisplay: MoneyDisplayPresentation,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MoneyManagerTheme.colors
+    val amountFormatter = remember { DecimalFormat("#,##0") }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            color = colors.textSecondary,
+        )
+        if (amount != null) {
+            Text(
+                text = moneyDisplay.formatAmount(amount = amount, formatter = amountFormatter),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.3).sp,
+                color = colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+// T009
+@Composable
+private fun UnifiedChartCard(
+    state: StatisticsState,
+    chartModelProducer: CartesianChartModelProducer,
+    onTransactionTypeChange: (TransactionType) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MoneyManagerTheme.colors
+    val strings = MoneyManagerTheme.strings
+    val isExpense = state.transactionType == TransactionType.EXPENSE
+
+    val barColor = if (isExpense) colors.expense.copy(alpha = 0.8f) else colors.income.copy(alpha = 0.8f)
+
+    // T011: lift scrollState here so we can observe it for the indicator
+    val scrollState = rememberVicoScrollState(
+        scrollEnabled = state.period == StatsPeriod.MONTH,
+        initialScroll = if (state.period == StatsPeriod.MONTH) {
+            Scroll.Absolute.End
+        } else {
+            Scroll.Absolute.Start
+        },
+    )
+
+    val scrollFraction = scrollState.value / scrollState.maxValue.coerceAtLeast(1f)
+
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        tonalElevation = 2.dp,
+        shadowElevation = 2.dp,
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            ChartCardHeader(
+                title = state.chart.title,
+                dateRange = state.chart.dateRangeLabel,
+                selectedType = state.transactionType,
+                onTypeChange = onTransactionTypeChange,
+            )
+
+            if (state.chart.points.isNotEmpty()) {
+                Box(modifier = Modifier.height(180.dp)) {
+                    VicoBarChartSection(
+                        chart = state.chart,
+                        modelProducer = chartModelProducer,
+                        barColor = barColor,
+                        isUnavailable = state.currencyUiState.isUnavailable,
+                        unavailableText = strings.mixedCurrencyUnavailable,
+                        period = state.period,
+                        scrollState = scrollState,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
+                ChartScrollIndicator(
+                    scrollFraction = scrollFraction,
+                    isVisible = state.period == StatsPeriod.MONTH,
+                )
+            }
+
+            val totalLabel = if (isExpense) strings.expensesLabel else strings.incomeLabel
+            val totalAmount = if (isExpense) state.displayedTotalExpenses else state.displayedTotalIncome
+            ChartTotalRow(
+                label = totalLabel,
+                amount = totalAmount,
+                moneyDisplay = state.currencyUiState.moneyDisplay,
+            )
+        }
+    }
+}
+
+// ── T014: CategoryLegendRow ──
 
 @Composable
-private fun CategoryBreakdownCard(
+private fun CategoryLegendRow(
+    color: Color,
+    name: String,
+    percentage: String,
+) {
+    val colors = MoneyManagerTheme.colors
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(color),
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = name,
+            fontSize = 13.sp,
+            color = colors.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = percentage,
+            fontSize = 13.sp,
+            color = colors.textSecondary,
+        )
+    }
+}
+
+// ── T015: CategoryLegend ──
+
+@Composable
+private fun CategoryLegend(
     categories: ImmutableList<StatisticsCategoryDisplayItem>,
+) {
+    val colors = MoneyManagerTheme.colors
+    Column(
+        modifier = Modifier.testTag("statistics:categoryLegend"),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        val top3 = categories.take(3)
+        val rest = if (categories.size > 3) categories.drop(3) else emptyList()
+
+        top3.forEach { item ->
+            CategoryLegendRow(
+                color = Color(item.category.categoryColor),
+                name = item.category.categoryName,
+                percentage = "${item.displayPercentage}%",
+            )
+        }
+
+        if (rest.isNotEmpty()) {
+            val otherPercentage = rest.sumOf { it.displayPercentage }
+            CategoryLegendRow(
+                color = colors.textSecondary,
+                name = "Other",
+                percentage = "$otherPercentage%",
+            )
+        }
+    }
+}
+
+// ── T016: CompactDonutCard ──
+
+@Composable
+private fun CompactDonutCard(
+    categories: ImmutableList<StatisticsCategoryDisplayItem>,
+    totalAmount: Double?,
     moneyDisplay: MoneyDisplayPresentation,
+    centerLabel: String,
+) {
+    val strings = MoneyManagerTheme.strings
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = androidx.compose.material3.MaterialTheme.colorScheme.surface,
+        shadowElevation = 2.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(120.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            if (totalAmount != null) {
+                DonutChart(
+                    categories = categories,
+                    totalAmount = totalAmount,
+                    moneyDisplay = moneyDisplay,
+                    centerLabel = centerLabel,
+                    modifier = Modifier
+                        .size(104.dp)
+                        .testTag("statistics:pieChart"),
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(104.dp)
+                        .testTag("statistics:pieChart"),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = strings.mixedCurrencyUnavailable,
+                        fontSize = 11.sp,
+                        color = MoneyManagerTheme.colors.textSecondary,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                CategoryLegend(categories = categories)
+            }
+        }
+    }
+}
+
+// ── T017: ByCategorySection ──
+
+@Composable
+private fun ByCategorySection(
+    categories: ImmutableList<StatisticsCategoryDisplayItem>,
+    totalAmount: Double?,
+    moneyDisplay: MoneyDisplayPresentation,
+    centerLabel: String,
     isUnavailable: Boolean,
     unavailableText: String,
     onCategoryClick: (CategorySummary) -> Unit,
@@ -765,105 +1059,169 @@ private fun CategoryBreakdownCard(
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
     val amountFormatter = remember { DecimalFormat("#,##0") }
-
     val reduceMotion = LocalReduceMotion.current
+    var expanded by remember { mutableStateOf(false) }
 
-    GlassCard(modifier = modifier) {
-        Column {
-            categories.forEachIndexed { index, summary ->
-                val alpha = remember(summary.category.categoryId) { Animatable(0f) }
-                LaunchedEffect(summary.category.categoryId) {
-                    delay(MoneyManagerMotion.staggerDelay(index, reduceMotion))
-                    alpha.animateTo(
-                        1f,
-                        tween(MoneyManagerMotion.duration(MoneyManagerMotion.DurationMedium, reduceMotion)),
-                    )
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .graphicsLayer { this.alpha = alpha.value }
-                        .clickable { onCategoryClick(summary.category) }
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                        .testTag("statistics:category_${summary.category.categoryId}"),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // Color dot
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .clip(CircleShape)
-                            .background(Color(summary.category.categoryColor)),
-                    )
+    Column(
+        modifier = modifier.testTag("statistics:byCategorySection"),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = MoneyManagerTheme.strings.byCategory,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textPrimary,
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = if (expanded) "Show less" else "See all",
+                fontSize = 13.sp,
+                color = colors.greenAccent,
+                modifier = Modifier
+                    .clickable { expanded = !expanded }
+                    .testTag("statistics:seeAllButton"),
+            )
+        }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+        CompactDonutCard(
+            categories = categories,
+            totalAmount = if (isUnavailable) null else totalAmount,
+            moneyDisplay = moneyDisplay,
+            centerLabel = centerLabel,
+        )
 
-                    // Category name
-                    Text(
-                        text = summary.category.categoryName,
-                        style = typography.cardTitle,
-                        color = colors.textPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-
-                    if (isUnavailable || summary.displayAmount == null) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = unavailableText,
-                            style = typography.caption,
-                            color = colors.textSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.widthIn(max = 140.dp),
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "${summary.displayPercentage}%",
-                            style = typography.caption,
-                            color = Color(summary.category.categoryColor),
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn(tween(MoneyManagerMotion.DurationMedium)),
+            exit = fadeOut(tween(MoneyManagerMotion.DurationShort)),
+        ) {
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    categories.forEachIndexed { index, summary ->
+                        val alpha = remember(summary.category.categoryId) { Animatable(0f) }
+                        LaunchedEffect(summary.category.categoryId) {
+                            delay(MoneyManagerMotion.staggerDelay(index, reduceMotion))
+                            alpha.animateTo(
+                                1f,
+                                tween(MoneyManagerMotion.duration(MoneyManagerMotion.DurationMedium, reduceMotion)),
+                            )
+                        }
+                        Row(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(summary.category.categoryColor).copy(alpha = 0.12f))
-                                .padding(horizontal = 8.dp, vertical = 2.dp),
-                        )
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        Text(
-                            text = moneyDisplay.formatAmount(
-                                amount = summary.displayAmount,
-                                formatter = amountFormatter,
-                            ),
-                            style = typography.amount,
-                            color = colors.textPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 16.sp, stepSize = 1.sp),
-                            modifier = Modifier.widthIn(max = 140.dp),
-                        )
+                                .fillMaxWidth()
+                                .graphicsLayer { this.alpha = alpha.value }
+                                .clickable { onCategoryClick(summary.category) }
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                .testTag("statistics:category_${summary.category.categoryId}"),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(summary.category.categoryColor)),
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = summary.category.categoryName,
+                                style = typography.cardTitle,
+                                color = colors.textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (isUnavailable || summary.displayAmount == null) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = unavailableText,
+                                    style = typography.caption,
+                                    color = colors.textSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.widthIn(max = 140.dp),
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "${summary.displayPercentage}%",
+                                    style = typography.caption,
+                                    color = Color(summary.category.categoryColor),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color(summary.category.categoryColor).copy(alpha = 0.12f))
+                                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = moneyDisplay.formatAmount(
+                                        amount = summary.displayAmount,
+                                        formatter = amountFormatter,
+                                    ),
+                                    style = typography.amount,
+                                    color = colors.textPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 16.sp, stepSize = 1.sp),
+                                    modifier = Modifier.widthIn(max = 140.dp),
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = colors.textSecondary,
+                            )
+                        }
+                        if (index < categories.size - 1) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                thickness = 0.5.dp,
+                                color = colors.borderSubtle,
+                            )
+                        }
                     }
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = colors.textSecondary,
-                    )
-                }
-
-                // Divider
-                if (index < categories.size - 1) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        thickness = 0.5.dp,
-                        color = colors.borderSubtle,
-                    )
                 }
             }
+        }
+    }
+}
+
+// ── T024: CalendarFilterPill ──
+
+@Composable
+private fun CalendarFilterPill(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MoneyManagerTheme.colors
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(50),
+        color = androidx.compose.material3.MaterialTheme.colorScheme.surface,
+        shadowElevation = 1.dp,
+        modifier = modifier.testTag("statistics:calendarPill"),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.CalendarMonth,
+                contentDescription = null,
+                tint = colors.textSecondary,
+                modifier = Modifier.size(16.dp),
+            )
+            Text(
+                text = label,
+                fontSize = 14.sp,
+                color = colors.textPrimary,
+            )
         }
     }
 }

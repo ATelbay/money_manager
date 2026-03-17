@@ -8,8 +8,9 @@ import javax.inject.Inject
 
 class StatisticsPeriodRangeResolver @Inject constructor() {
 
-    operator fun invoke(period: StatsPeriod): StatisticsDateRange {
+    operator fun invoke(period: StatsPeriod, anchorMillis: Long? = null): StatisticsDateRange {
         val calendar = Calendar.getInstance(TimeZone.getDefault())
+        if (anchorMillis != null) calendar.timeInMillis = anchorMillis
 
         calendar.set(Calendar.HOUR_OF_DAY, 23)
         calendar.set(Calendar.MINUTE, 59)

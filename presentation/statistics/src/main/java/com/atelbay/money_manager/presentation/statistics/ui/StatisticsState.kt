@@ -6,6 +6,7 @@ import com.atelbay.money_manager.domain.statistics.model.MonthlyTotal
 import com.atelbay.money_manager.domain.statistics.model.StatisticsDateRange
 import com.atelbay.money_manager.domain.statistics.model.StatsPeriod
 import com.atelbay.money_manager.domain.statistics.model.TransactionType
+import java.time.YearMonth
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
@@ -63,6 +64,7 @@ data class StatisticsState(
     val displayedMonthlyIncome: ImmutableList<StatisticsDisplayMonthlyTotal> = persistentListOf(),
     val currencyUiState: StatisticsCurrencyUiState = StatisticsCurrencyUiState(),
     val chart: StatisticsChartState = StatisticsChartState(),
+    val selectedMonth: YearMonth? = null,
     val isLoading: Boolean = true,
     val error: String? = null,
 )
