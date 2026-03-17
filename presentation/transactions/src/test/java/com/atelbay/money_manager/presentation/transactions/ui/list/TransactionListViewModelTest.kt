@@ -283,6 +283,7 @@ class TransactionListViewModelTest {
         type: TransactionType,
         categoryName: String,
         accountId: Long = 1L,
+        date: Long = System.currentTimeMillis(),
     ) = Transaction(
         id = id,
         amount = amount,
@@ -293,7 +294,7 @@ class TransactionListViewModelTest {
         categoryColor = 0L,
         accountId = accountId,
         note = null,
-        date = 1L,
+        date = date,
         createdAt = 1L,
     )
 
