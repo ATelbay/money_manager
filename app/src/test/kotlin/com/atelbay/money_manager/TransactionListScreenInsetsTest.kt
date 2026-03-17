@@ -69,8 +69,10 @@ class TransactionListScreenInsetsTest {
                     onDeleteTransaction = {},
                     onTabSelected = {},
                     onPeriodSelected = {},
-                    onCustomDateRange = { _, _ -> },
                     onSearchQueryChange = {},
+                    onAccountPickerClick = {},
+                    onAccountSelected = {},
+                    onDismissAccountPicker = {},
                     contentWindowInsets = WindowInsets(
                         left = leftInsetPx,
                         top = 0,

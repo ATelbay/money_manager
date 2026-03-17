@@ -1,12 +1,12 @@
 package com.atelbay.money_manager.presentation.transactions.ui.list
 
+import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
 import com.atelbay.money_manager.core.ui.util.MoneyDisplayPresentation
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
-import java.time.LocalDate
 
 data class TransactionListState(
     val transactionRows: ImmutableList<TransactionRowState> = persistentListOf(),
@@ -14,12 +14,15 @@ data class TransactionListState(
     val summaryMoneyDisplay: MoneyDisplayPresentation = MoneyDisplayFormatter.unavailable().let(MoneyDisplayFormatter::format),
     val isLoading: Boolean = true,
     val selectedAccountName: String? = null,
+    val selectedAccountId: Long? = null,
     val selectedTab: TransactionType? = null,
     val selectedPeriod: Period = Period.MONTH,
-    val customDateRange: Pair<LocalDate, LocalDate>? = null,
     val periodIncome: Double? = null,
     val periodExpense: Double? = null,
     val searchQuery: String = "",
+    val accounts: ImmutableList<Account> = persistentListOf(),
+    val showAccountPicker: Boolean = false,
+    val dailyNetSums: Map<String, Double> = emptyMap(),
 )
 
 data class TransactionRowState(
@@ -50,5 +53,4 @@ enum class Period {
     WEEK,
     MONTH,
     YEAR,
-    CUSTOM,
 }

@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
@@ -39,7 +40,6 @@ import javax.inject.Inject
 private data class FilterParams(
     val tab: TransactionType?,
     val period: Period,
-    val customRange: Pair<LocalDate, LocalDate>?,
     val searchQuery: String,
 )
 
@@ -71,7 +71,7 @@ class TransactionListViewModel @Inject constructor(
     getAccountsUseCase: GetAccountsUseCase,
     observeExchangeRateUseCase: ObserveExchangeRateUseCase,
     private val convertAmountUseCase: ConvertAmountUseCase,
-    userPreferences: UserPreferences,
+    private val userPreferences: UserPreferences,
     @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -79,8 +79,7 @@ class TransactionListViewModel @Inject constructor(
     val state: StateFlow<TransactionListState> = _state.asStateFlow()
 
     private val _selectedTab = MutableStateFlow<TransactionType?>(null)
-    private val _selectedPeriod = MutableStateFlow(Period.ALL)
-    private val _customDateRange = MutableStateFlow<Pair<LocalDate, LocalDate>?>(null)
+    private val _selectedPeriod = MutableStateFlow(Period.MONTH)
     private val _searchQuery = MutableStateFlow("")
 
     init {
@@ -104,10 +103,9 @@ class TransactionListViewModel @Inject constructor(
         val filterFlow = combine(
             _selectedTab,
             _selectedPeriod,
-            _customDateRange,
             _searchQuery.debounce(300),
-        ) { tab, period, customRange, query ->
-            FilterParams(tab, period, customRange, query)
+        ) { tab, period, query ->
+            FilterParams(tab, period, query)
         }
 
         combine(dataFlow, filterFlow) { data, filters ->
@@ -124,7 +122,7 @@ class TransactionListViewModel @Inject constructor(
             val periodFiltered = if (filters.period == Period.ALL) {
                 accountFiltered
             } else {
-                val (rangeStart, rangeEnd) = periodToRange(filters.period, filters.customRange)
+                val (rangeStart, rangeEnd) = periodToRange(filters.period)
                 val startMillis =
                     rangeStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
                 val endMillis =
@@ -149,9 +147,6 @@ class TransactionListViewModel @Inject constructor(
                 }
             }
 
-            // Full fallback rule: check if ALL items in scope can be converted.
-            // If any account or transaction currency lacks a required quote,
-            // disable conversion for both summary totals and individual rows.
             val normalizedBase = normalizeCurrency(data.baseCurrency)
             val canConvertAll = canDisplayInBaseCurrency(
                 selectedAccount = selectedAccount,
@@ -177,6 +172,13 @@ class TransactionListViewModel @Inject constructor(
                 canConvertAll = canConvertAll,
             )
 
+            // Compute daily net sums only when all amounts are in the same currency
+            val dailyNetSums = if (canConvertAll) {
+                computeDailyNetSums(transactionRows)
+            } else {
+                emptyMap()
+            }
+
             _state.update {
                 it.copy(
                     transactionRows = transactionRows,
@@ -185,11 +187,13 @@ class TransactionListViewModel @Inject constructor(
                     summaryMoneyDisplay = summaryMetrics.moneyDisplay,
                     isLoading = false,
                     selectedAccountName = selectedAccount?.name,
+                    selectedAccountId = data.selectedAccountId,
                     selectedTab = filters.tab,
                     selectedPeriod = filters.period,
-                    customDateRange = filters.customRange,
                     periodIncome = summaryMetrics.income,
                     periodExpense = summaryMetrics.expense,
+                    accounts = data.accounts.toImmutableList(),
+                    dailyNetSums = dailyNetSums,
                 )
             }
         }
@@ -210,15 +214,43 @@ class TransactionListViewModel @Inject constructor(
         _selectedPeriod.value = period
     }
 
-    fun setCustomDateRange(start: LocalDate, end: LocalDate) {
-        _customDateRange.value = start to end
-        _selectedPeriod.value = Period.CUSTOM
-    }
-
     fun deleteTransaction(id: Long) {
         viewModelScope.launch {
             deleteTransactionUseCase(id)
         }
+    }
+
+    fun selectAccount(accountId: Long?) {
+        viewModelScope.launch {
+            userPreferences.setSelectedAccountId(accountId)
+        }
+    }
+
+    fun toggleAccountPicker() {
+        _state.update { it.copy(showAccountPicker = !it.showAccountPicker) }
+    }
+
+    fun dismissAccountPicker() {
+        _state.update { it.copy(showAccountPicker = false) }
+    }
+
+    private fun computeDailyNetSums(
+        transactionRows: ImmutableList<TransactionRowState>,
+    ): Map<String, Double> {
+        val zone = ZoneId.systemDefault()
+        return transactionRows
+            .groupBy { row ->
+                Instant.ofEpochMilli(row.transaction.date)
+                    .atZone(zone)
+                    .toLocalDate()
+                    .toString()
+            }
+            .mapValues { (_, rows) ->
+                rows.sumOf { row ->
+                    val amount = row.displayAmount
+                    if (row.transaction.type == TransactionType.INCOME) amount else -amount
+                }
+            }
     }
 
     private fun mapTransactionRows(
@@ -235,9 +267,6 @@ class TransactionListViewModel @Inject constructor(
             val accountCurrency = currenciesByAccountId[transaction.accountId]?.currency
             val originalCurrency = accountCurrency?.let(::normalizeCurrency).orEmpty()
 
-            // Full fallback: only attempt row conversion when the entire scope can convert.
-            // This prevents partial mixed conversion where some rows show base currency
-            // and others show original currency.
             val convertedResult = if (canConvertAll) {
                 accountCurrency?.let {
                     convertToBaseCurrency(
@@ -277,10 +306,7 @@ class TransactionListViewModel @Inject constructor(
         }.toImmutableList()
     }
 
-    private fun periodToRange(
-        period: Period,
-        customRange: Pair<LocalDate, LocalDate>?,
-    ): Pair<LocalDate, LocalDate> {
+    private fun periodToRange(period: Period): Pair<LocalDate, LocalDate> {
         val today = LocalDate.now()
         return when (period) {
             Period.ALL -> LocalDate.of(2000, 1, 1) to today
@@ -288,7 +314,6 @@ class TransactionListViewModel @Inject constructor(
             Period.WEEK -> today.minusDays(6) to today
             Period.MONTH -> today.minusDays(29) to today
             Period.YEAR -> today.minusYears(1).plusDays(1) to today
-            Period.CUSTOM -> customRange ?: (today.minusDays(29) to today)
         }
     }
 

@@ -2,8 +2,7 @@ package com.atelbay.money_manager.presentation.transactions.ui.list
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,30 +17,27 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -49,8 +45,10 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import com.atelbay.money_manager.core.ui.components.LocalAnimatedVisibilityScope
 import com.atelbay.money_manager.core.ui.components.LocalSharedTransitionScope
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.core.ui.components.BalanceCard
@@ -63,6 +61,7 @@ import com.atelbay.money_manager.core.ui.components.TransactionListItem
 import com.atelbay.money_manager.core.ui.components.categoryIconFromName
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
+import com.atelbay.money_manager.core.ui.util.formatAmount
 import com.atelbay.money_manager.core.ui.util.isUnavailable
 import kotlinx.collections.immutable.persistentListOf
 import java.text.SimpleDateFormat
@@ -73,7 +72,7 @@ import java.util.Date
 
 private val TransactionListBottomGutter = 16.dp
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun TransactionListScreen(
     state: TransactionListState,
@@ -83,8 +82,10 @@ fun TransactionListScreen(
     onDeleteTransaction: (Long) -> Unit,
     onTabSelected: (TransactionType?) -> Unit,
     onPeriodSelected: (Period) -> Unit,
-    onCustomDateRange: (LocalDate, LocalDate) -> Unit,
     onSearchQueryChange: (String) -> Unit,
+    onAccountPickerClick: () -> Unit,
+    onAccountSelected: (Long?) -> Unit,
+    onDismissAccountPicker: () -> Unit,
     modifier: Modifier = Modifier,
     contentWindowInsets: WindowInsets = ScaffoldDefaults.contentWindowInsets,
 ) {
@@ -95,7 +96,6 @@ fun TransactionListScreen(
     val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
     val dateHeaderFormat = remember(locale) { SimpleDateFormat("dd MMMM", locale) }
     val timeFormat = remember(locale) { SimpleDateFormat("HH:mm", locale) }
-    var showDateRangePicker by remember { mutableStateOf(false) }
     val layoutDirection = LocalLayoutDirection.current
 
     Scaffold(
@@ -129,7 +129,6 @@ fun TransactionListScreen(
         },
         floatingActionButton = {
             MoneyManagerFAB(
-                
                 onClick = onAddClick,
                 testTag = "transactionList:fab",
             )
@@ -158,7 +157,7 @@ fun TransactionListScreen(
                 bottom = padding.calculateBottomPadding() + TransactionListBottomGutter,
             ),
         ) {
-            // Balance card
+            // 1. Balance card
             item(key = "balance") {
                 BalanceCard(
                     accountName = state.selectedAccountName ?: s.allAccounts,
@@ -166,6 +165,7 @@ fun TransactionListScreen(
                     moneyDisplay = state.summaryMoneyDisplay,
                     unavailableSupportingText = s.mixedCurrencyUnavailable
                         .takeIf { state.summaryMoneyDisplay.isUnavailable },
+                    onAccountPickerClick = onAccountPickerClick,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -173,7 +173,32 @@ fun TransactionListScreen(
                 )
             }
 
-            // Income/Expense summary
+            // 2. Date period chips (Day | Week | Month | Year)
+            item(key = "period") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .testTag("transactionList:periodFilter"),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    val periods = listOf(
+                        Period.TODAY to s.periodDay,
+                        Period.WEEK to s.periodWeek,
+                        Period.MONTH to s.periodMonth,
+                        Period.YEAR to s.periodYear,
+                    )
+                    periods.forEach { (period, label) ->
+                        MoneyManagerChip(
+                            label = label,
+                            selected = state.selectedPeriod == period,
+                            onClick = { onPeriodSelected(period) },
+                        )
+                    }
+                }
+            }
+
+            // 3. Income/Expense summary
             item(key = "summary") {
                 IncomeExpenseCard(
                     income = state.periodIncome ?: 0.0,
@@ -188,12 +213,12 @@ fun TransactionListScreen(
                 )
             }
 
-            // Search bar
+            // 4. Search bar
             item(key = "search") {
                 MoneyManagerTextField(
                     value = state.searchQuery,
                     onValueChange = onSearchQueryChange,
-                    placeholder = s.search,
+                    placeholder = s.searchTransactions,
                     maxLines = 1,
                     leadingIcon = {
                         Icon(
@@ -222,7 +247,7 @@ fun TransactionListScreen(
                 )
             }
 
-            // Type filter chips
+            // 5. Transaction type filter chips (All | Expenses | Income)
             item(key = "typeFilter") {
                 Row(
                     modifier = Modifier
@@ -252,39 +277,7 @@ fun TransactionListScreen(
                 }
             }
 
-            // Period filter chips
-            item(key = "period") {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .testTag("transactionList:periodFilter"),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    val periods = listOf(
-                        Period.ALL to s.filterAll,
-                        Period.TODAY to s.periodToday,
-                        Period.WEEK to s.periodWeek,
-                        Period.MONTH to s.periodMonth,
-                        Period.YEAR to s.periodYear,
-                    )
-                    periods.forEach { (period, label) ->
-                        MoneyManagerChip(
-                            label = label,
-                            selected = state.selectedPeriod == period,
-                            onClick = { onPeriodSelected(period) },
-                        )
-                    }
-                    MoneyManagerChip(
-                        label = s.periodCustom,
-                        selected = state.selectedPeriod == Period.CUSTOM,
-                        onClick = { showDateRangePicker = true },
-                    )
-                }
-            }
-
-            // Transaction list or empty state
+            // 6. Transaction list or empty state
             if (state.transactionRows.isEmpty()) {
                 item(key = "empty") {
                     EmptyState(
@@ -295,21 +288,60 @@ fun TransactionListScreen(
                     )
                 }
             } else {
-                // Group transactions by date
-                val grouped = state.transactionRows.groupBy { formatDateHeader(it.transaction.date, s.periodToday, s.periodYesterday, dateHeaderFormat) }
+                val grouped = state.transactionRows.groupBy {
+                    formatDateHeader(
+                        it.transaction.date,
+                        s.periodToday,
+                        s.periodYesterday,
+                        dateHeaderFormat,
+                    )
+                }
 
                 grouped.forEach { (dateHeader, transactionRows) ->
-                    // Date section header
+                    // Compute daily net sum for this header
+                    val dateKey = transactionRows.firstOrNull()?.let { row ->
+                        Instant.ofEpochMilli(row.transaction.date)
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalDate()
+                            .toString()
+                    }
+                    val dailyNet = dateKey?.let { state.dailyNetSums[it] }
+
+                    // Date section header with daily net sum
                     item(key = "header_$dateHeader") {
-                        Text(
-                            text = dateHeader,
-                            style = MoneyManagerTheme.typography.caption,
-                            color = colors.textSecondary,
+                        Row(
                             modifier = Modifier
                                 .animateItem()
+                                .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
                                 .padding(top = 16.dp, bottom = 8.dp),
-                        )
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = dateHeader,
+                                style = MoneyManagerTheme.typography.caption,
+                                color = colors.textSecondary,
+                            )
+                            if (dailyNet != null) {
+                                val isPositive = dailyNet >= 0
+                                val sign = if (isPositive) "+" else "\u2212"
+                                val netColor = if (isPositive) {
+                                    colors.incomeForeground
+                                } else {
+                                    colors.expenseForeground
+                                }
+                                Text(
+                                    text = state.summaryMoneyDisplay.formatAmount(
+                                        kotlin.math.abs(dailyNet),
+                                        sign = sign,
+                                    ),
+                                    style = MoneyManagerTheme.typography.caption,
+                                    color = netColor,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                        }
                     }
 
                     items(
@@ -362,14 +394,93 @@ fun TransactionListScreen(
         }
     }
 
-    if (showDateRangePicker) {
-        DateRangePickerDialog(
-            onDismiss = { showDateRangePicker = false },
-            onConfirm = { start, end ->
-                onCustomDateRange(start, end)
-                showDateRangePicker = false
-            },
+    // Account picker bottom sheet
+    if (state.showAccountPicker) {
+        AccountPickerBottomSheet(
+            accounts = state.accounts,
+            selectedAccountId = state.selectedAccountId,
+            onAccountSelected = onAccountSelected,
+            onDismiss = onDismissAccountPicker,
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AccountPickerBottomSheet(
+    accounts: List<Account>,
+    selectedAccountId: Long?,
+    onAccountSelected: (Long?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = MoneyManagerTheme.colors
+    val s = MoneyManagerTheme.strings
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(modifier = Modifier.padding(bottom = 24.dp)) {
+            // "All accounts" option
+            ListItem(
+                headlineContent = {
+                    Text(
+                        text = s.allAccounts,
+                        style = MoneyManagerTheme.typography.cardTitle,
+                        fontWeight = if (selectedAccountId == null) FontWeight.SemiBold else FontWeight.Normal,
+                    )
+                },
+                trailingContent = {
+                    if (selectedAccountId == null) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = null,
+                            tint = colors.chart1,
+                        )
+                    }
+                },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable {
+                    onAccountSelected(null)
+                    onDismiss()
+                },
+            )
+            HorizontalDivider(color = colors.borderSubtle)
+
+            accounts.forEach { account ->
+                val isSelected = account.id == selectedAccountId
+                ListItem(
+                    headlineContent = {
+                        Text(
+                            text = account.name,
+                            style = MoneyManagerTheme.typography.cardTitle,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        )
+                    },
+                    supportingContent = {
+                        Text(
+                            text = account.currency,
+                            style = MoneyManagerTheme.typography.caption,
+                            color = colors.textSecondary,
+                        )
+                    },
+                    trailingContent = {
+                        if (isSelected) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = null,
+                                tint = colors.chart1,
+                            )
+                        }
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.clickable {
+                        onAccountSelected(account.id)
+                        onDismiss()
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -431,55 +542,6 @@ private fun EmptyState(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DateRangePickerDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (LocalDate, LocalDate) -> Unit,
-) {
-    val dateRangePickerState = rememberDateRangePickerState()
-    val s = MoneyManagerTheme.strings
-
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val startMillis = dateRangePickerState.selectedStartDateMillis
-                    val endMillis = dateRangePickerState.selectedEndDateMillis
-                    if (startMillis != null && endMillis != null) {
-                        val start = Instant.ofEpochMilli(startMillis)
-                            .atZone(ZoneId.systemDefault())
-                            .toLocalDate()
-                        val end = Instant.ofEpochMilli(endMillis)
-                            .atZone(ZoneId.systemDefault())
-                            .toLocalDate()
-                        onConfirm(start, end)
-                    }
-                },
-            ) {
-                Text(s.ok)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(s.cancel)
-            }
-        },
-    ) {
-        DateRangePicker(
-            state = dateRangePickerState,
-            title = {
-                Text(
-                    s.choosePeriod,
-                    modifier = Modifier.padding(start = 24.dp, top = 16.dp)
-                )
-            },
-            modifier = Modifier.height(500.dp),
-        )
-    }
-}
-
 private fun formatDateHeader(timestamp: Long, todayStr: String, yesterdayStr: String, formatter: SimpleDateFormat): String {
     val txDate = Instant.ofEpochMilli(timestamp)
         .atZone(ZoneId.systemDefault())
@@ -506,6 +568,7 @@ private fun TransactionListScreenPreview() {
                 selectedAccountName = "Kaspi Gold",
                 periodIncome = 450_000.0,
                 periodExpense = 358_400.0,
+                selectedPeriod = Period.MONTH,
                 transactionRows = persistentListOf(
                     TransactionRowState(
                         transaction = Transaction(
@@ -566,6 +629,10 @@ private fun TransactionListScreenPreview() {
                         displayMoneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
                     ),
                 ),
+                dailyNetSums = mapOf(
+                    LocalDate.now().toString() to -17_930.0,
+                    LocalDate.now().minusDays(1).toString() to 450_000.0,
+                ),
             ),
             onTransactionClick = {},
             onAddClick = {},
@@ -573,8 +640,10 @@ private fun TransactionListScreenPreview() {
             onDeleteTransaction = {},
             onTabSelected = {},
             onPeriodSelected = {},
-            onCustomDateRange = { _, _ -> },
             onSearchQueryChange = {},
+            onAccountPickerClick = {},
+            onAccountSelected = {},
+            onDismissAccountPicker = {},
         )
     }
 }
@@ -591,6 +660,7 @@ private fun TransactionListScreenEmptyPreview() {
                 selectedAccountName = "Kaspi Gold",
                 periodIncome = 0.0,
                 periodExpense = 0.0,
+                selectedPeriod = Period.MONTH,
             ),
             onTransactionClick = {},
             onAddClick = {},
@@ -598,8 +668,10 @@ private fun TransactionListScreenEmptyPreview() {
             onDeleteTransaction = {},
             onTabSelected = {},
             onPeriodSelected = {},
-            onCustomDateRange = { _, _ -> },
             onSearchQueryChange = {},
+            onAccountPickerClick = {},
+            onAccountSelected = {},
+            onDismissAccountPicker = {},
         )
     }
 }
