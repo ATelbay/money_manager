@@ -40,7 +40,6 @@ import javax.inject.Inject
 private data class FilterParams(
     val tab: TransactionType?,
     val period: Period,
-    val customRange: Pair<LocalDate, LocalDate>?,
     val searchQuery: String,
 )
 
@@ -81,7 +80,6 @@ class TransactionListViewModel @Inject constructor(
 
     private val _selectedTab = MutableStateFlow<TransactionType?>(null)
     private val _selectedPeriod = MutableStateFlow(Period.MONTH)
-    private val _customDateRange = MutableStateFlow<Pair<LocalDate, LocalDate>?>(null)
     private val _searchQuery = MutableStateFlow("")
 
     init {
@@ -105,10 +103,9 @@ class TransactionListViewModel @Inject constructor(
         val filterFlow = combine(
             _selectedTab,
             _selectedPeriod,
-            _customDateRange,
             _searchQuery.debounce(300),
-        ) { tab, period, customRange, query ->
-            FilterParams(tab, period, customRange, query)
+        ) { tab, period, query ->
+            FilterParams(tab, period, query)
         }
 
         combine(dataFlow, filterFlow) { data, filters ->
@@ -125,7 +122,7 @@ class TransactionListViewModel @Inject constructor(
             val periodFiltered = if (filters.period == Period.ALL) {
                 accountFiltered
             } else {
-                val (rangeStart, rangeEnd) = periodToRange(filters.period, filters.customRange)
+                val (rangeStart, rangeEnd) = periodToRange(filters.period)
                 val startMillis =
                     rangeStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
                 val endMillis =
@@ -186,9 +183,9 @@ class TransactionListViewModel @Inject constructor(
                     summaryMoneyDisplay = summaryMetrics.moneyDisplay,
                     isLoading = false,
                     selectedAccountName = selectedAccount?.name,
+                    selectedAccountId = data.selectedAccountId,
                     selectedTab = filters.tab,
                     selectedPeriod = filters.period,
-                    customDateRange = filters.customRange,
                     periodIncome = summaryMetrics.income,
                     periodExpense = summaryMetrics.expense,
                     accounts = data.accounts.toImmutableList(),
@@ -211,11 +208,6 @@ class TransactionListViewModel @Inject constructor(
 
     fun selectPeriod(period: Period) {
         _selectedPeriod.value = period
-    }
-
-    fun setCustomDateRange(start: LocalDate, end: LocalDate) {
-        _customDateRange.value = start to end
-        _selectedPeriod.value = Period.CUSTOM
     }
 
     fun deleteTransaction(id: Long) {
@@ -310,10 +302,7 @@ class TransactionListViewModel @Inject constructor(
         }.toImmutableList()
     }
 
-    private fun periodToRange(
-        period: Period,
-        customRange: Pair<LocalDate, LocalDate>?,
-    ): Pair<LocalDate, LocalDate> {
+    private fun periodToRange(period: Period): Pair<LocalDate, LocalDate> {
         val today = LocalDate.now()
         return when (period) {
             Period.ALL -> LocalDate.of(2000, 1, 1) to today
@@ -321,7 +310,6 @@ class TransactionListViewModel @Inject constructor(
             Period.WEEK -> today.minusDays(6) to today
             Period.MONTH -> today.minusDays(29) to today
             Period.YEAR -> today.minusYears(1).plusDays(1) to today
-            Period.CUSTOM -> customRange ?: (today.minusDays(29) to today)
         }
     }
 

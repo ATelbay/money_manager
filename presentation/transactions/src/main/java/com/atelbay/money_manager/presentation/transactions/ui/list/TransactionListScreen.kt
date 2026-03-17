@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -37,7 +36,6 @@ import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -63,15 +61,14 @@ import com.atelbay.money_manager.core.ui.components.TransactionListItem
 import com.atelbay.money_manager.core.ui.components.categoryIconFromName
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
+import com.atelbay.money_manager.core.ui.util.formatAmount
 import com.atelbay.money_manager.core.ui.util.isUnavailable
 import kotlinx.collections.immutable.persistentListOf
-import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Date
-import java.util.Locale
 
 private val TransactionListBottomGutter = 16.dp
 
@@ -100,12 +97,6 @@ fun TransactionListScreen(
     val dateHeaderFormat = remember(locale) { SimpleDateFormat("dd MMMM", locale) }
     val timeFormat = remember(locale) { SimpleDateFormat("HH:mm", locale) }
     val layoutDirection = LocalLayoutDirection.current
-    val moneyFormatter = remember {
-        NumberFormat.getNumberInstance(Locale.US).apply {
-            minimumFractionDigits = 2
-            maximumFractionDigits = 2
-        }
-    }
 
     Scaffold(
         modifier = modifier.testTag("transactionList:screen"),
@@ -338,14 +329,13 @@ fun TransactionListScreen(
                                 val netColor = if (isPositive) {
                                     colors.incomeForeground
                                 } else {
-                                    Color(0xFFD08068)
+                                    colors.expenseForeground
                                 }
                                 Text(
-                                    text = "$sign${
-                                        state.summaryMoneyDisplay.let { display ->
-                                            moneyFormatter.format(kotlin.math.abs(dailyNet))
-                                        }
-                                    }",
+                                    text = state.summaryMoneyDisplay.formatAmount(
+                                        kotlin.math.abs(dailyNet),
+                                        sign = sign,
+                                    ),
                                     style = MoneyManagerTheme.typography.caption,
                                     color = netColor,
                                     fontWeight = FontWeight.SemiBold,
@@ -408,7 +398,7 @@ fun TransactionListScreen(
     if (state.showAccountPicker) {
         AccountPickerBottomSheet(
             accounts = state.accounts,
-            selectedAccountName = state.selectedAccountName,
+            selectedAccountId = state.selectedAccountId,
             onAccountSelected = onAccountSelected,
             onDismiss = onDismissAccountPicker,
         )
@@ -419,17 +409,15 @@ fun TransactionListScreen(
 @Composable
 private fun AccountPickerBottomSheet(
     accounts: List<Account>,
-    selectedAccountName: String?,
+    selectedAccountId: Long?,
     onAccountSelected: (Long?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val colors = MoneyManagerTheme.colors
     val s = MoneyManagerTheme.strings
-    val sheetState = rememberModalBottomSheetState()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
         Column(modifier = Modifier.padding(bottom = 24.dp)) {
@@ -439,11 +427,11 @@ private fun AccountPickerBottomSheet(
                     Text(
                         text = s.allAccounts,
                         style = MoneyManagerTheme.typography.cardTitle,
-                        fontWeight = if (selectedAccountName == null) FontWeight.SemiBold else FontWeight.Normal,
+                        fontWeight = if (selectedAccountId == null) FontWeight.SemiBold else FontWeight.Normal,
                     )
                 },
                 trailingContent = {
-                    if (selectedAccountName == null) {
+                    if (selectedAccountId == null) {
                         Icon(
                             Icons.Default.Check,
                             contentDescription = null,
@@ -460,7 +448,7 @@ private fun AccountPickerBottomSheet(
             HorizontalDivider(color = colors.borderSubtle)
 
             accounts.forEach { account ->
-                val isSelected = account.name == selectedAccountName
+                val isSelected = account.id == selectedAccountId
                 ListItem(
                     headlineContent = {
                         Text(

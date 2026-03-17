@@ -53,7 +53,6 @@ private val DoubleToVector: TwoWayConverter<Double, AnimationVector1D> =
     )
 
 private val BalanceCardGreenLight = Color(0xFF3D8A5A)
-private val BalanceCardGreenDark = Color(0xFF4DB87A)
 private val BalanceCardGreenEnd = Color(0xFF2D6B44)
 
 @Composable
