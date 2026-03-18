@@ -1,11 +1,8 @@
 package com.atelbay.money_manager.presentation.statistics.ui
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -339,7 +336,6 @@ fun StatisticsScreen(
                         categories = currentCategories,
                         totalAmount = currentTotal,
                         moneyDisplay = state.currencyUiState.moneyDisplay,
-                        centerLabel = if (isExpense) s.expensesLabel else s.incomeLabel,
                         isUnavailable = state.currencyUiState.isUnavailable,
                         unavailableText = s.mixedCurrencyUnavailable,
                         onCategoryClick = onCategoryClick,
@@ -383,7 +379,7 @@ private fun PeriodSelector(
             }
             onSelect(period)
         },
-        height = 40.dp,
+        height = 44.dp,
         testTagPrefix = "statistics:period",
         modifier = modifier.testTag("statistics:periodSelector"),
     )
@@ -433,17 +429,20 @@ private fun StatisticsTypeCards(
 
 // ── Donut Chart ──
 
+private fun formatCompactAmount(amount: Double): String = when {
+    amount >= 1_000_000 -> String.format("%.1fM", amount / 1_000_000)
+    amount >= 1_000 -> String.format("%.0fK", amount / 1_000)
+    else -> String.format("%.0f", amount)
+}
+
 @Composable
 private fun DonutChart(
     categories: ImmutableList<StatisticsCategoryDisplayItem>,
     totalAmount: Double,
     moneyDisplay: MoneyDisplayPresentation,
-    centerLabel: String,
     modifier: Modifier = Modifier,
 ) {
     val colors = MoneyManagerTheme.colors
-    val typography = MoneyManagerTheme.typography
-    val formatter = remember { DecimalFormat("#,##0") }
 
     val reduceMotion = LocalReduceMotion.current
     val animProgress = remember { Animatable(0f) }
@@ -487,20 +486,17 @@ private fun DonutChart(
         // Center text
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = centerLabel,
-                style = typography.caption,
-                color = colors.textSecondary,
+                text = formatCompactAmount(totalAmount),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.5).sp,
+                color = colors.textPrimary,
             )
             Text(
-                text = moneyDisplay.formatAmount(
-                    amount = totalAmount,
-                    formatter = formatter,
-                ),
-                style = typography.sectionHeader,
-                color = colors.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = 20.sp, stepSize = 1.sp),
+                text = moneyDisplay.primaryLabel,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = colors.textSecondary,
             )
         }
     }
@@ -706,7 +702,7 @@ private fun ExpenseIncomeToggle(
             Text(
                 text = strings.expensesLabel,
                 color = expenseText,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             )
         }
@@ -722,7 +718,7 @@ private fun ExpenseIncomeToggle(
             Text(
                 text = strings.incomeLabel,
                 color = incomeText,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             )
         }
@@ -748,7 +744,7 @@ private fun ChartCardHeader(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                fontSize = 16.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = colors.textPrimary,
                 modifier = Modifier.testTag("statistics:chartTitle"),
@@ -828,6 +824,7 @@ private fun ChartTotalRow(
         Text(
             text = label,
             fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
             color = colors.textSecondary,
         )
         if (amount != null) {
@@ -860,12 +857,8 @@ private fun UnifiedChartCard(
 
     // T011: lift scrollState here so we can observe it for the indicator
     val scrollState = rememberVicoScrollState(
-        scrollEnabled = state.period == StatsPeriod.MONTH,
-        initialScroll = if (state.period == StatsPeriod.MONTH) {
-            Scroll.Absolute.End
-        } else {
-            Scroll.Absolute.Start
-        },
+        scrollEnabled = true,
+        initialScroll = Scroll.Absolute.End,
     )
 
     val scrollFraction = scrollState.value / scrollState.maxValue.coerceAtLeast(1f)
@@ -903,11 +896,11 @@ private fun UnifiedChartCard(
 
                 ChartScrollIndicator(
                     scrollFraction = scrollFraction,
-                    isVisible = state.period == StatsPeriod.MONTH,
+                    isVisible = true,
                 )
             }
 
-            val totalLabel = if (isExpense) strings.expensesLabel else strings.incomeLabel
+            val totalLabel = if (isExpense) strings.totalExpenses else strings.totalIncome
             val totalAmount = if (isExpense) state.displayedTotalExpenses else state.displayedTotalIncome
             ChartTotalRow(
                 label = totalLabel,
@@ -932,7 +925,7 @@ private fun CategoryLegendRow(
     ) {
         Box(
             modifier = Modifier
-                .size(8.dp)
+                .size(10.dp)
                 .clip(CircleShape)
                 .background(color),
         )
@@ -949,7 +942,7 @@ private fun CategoryLegendRow(
         Text(
             text = percentage,
             fontSize = 13.sp,
-            color = colors.textSecondary,
+            color = color,
         )
     }
 }
@@ -995,7 +988,6 @@ private fun CompactDonutCard(
     categories: ImmutableList<StatisticsCategoryDisplayItem>,
     totalAmount: Double?,
     moneyDisplay: MoneyDisplayPresentation,
-    centerLabel: String,
 ) {
     val strings = MoneyManagerTheme.strings
     Surface(
@@ -1007,7 +999,7 @@ private fun CompactDonutCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(120.dp)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(20.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -1016,7 +1008,6 @@ private fun CompactDonutCard(
                     categories = categories,
                     totalAmount = totalAmount,
                     moneyDisplay = moneyDisplay,
-                    centerLabel = centerLabel,
                     modifier = Modifier
                         .size(104.dp)
                         .testTag("statistics:pieChart"),
@@ -1050,7 +1041,6 @@ private fun ByCategorySection(
     categories: ImmutableList<StatisticsCategoryDisplayItem>,
     totalAmount: Double?,
     moneyDisplay: MoneyDisplayPresentation,
-    centerLabel: String,
     isUnavailable: Boolean,
     unavailableText: String,
     onCategoryClick: (CategorySummary) -> Unit,
@@ -1060,7 +1050,6 @@ private fun ByCategorySection(
     val typography = MoneyManagerTheme.typography
     val amountFormatter = remember { DecimalFormat("#,##0") }
     val reduceMotion = LocalReduceMotion.current
-    var expanded by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier.testTag("statistics:byCategorySection"),
@@ -1076,30 +1065,15 @@ private fun ByCategorySection(
                 fontWeight = FontWeight.SemiBold,
                 color = colors.textPrimary,
             )
-            Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = if (expanded) "Show less" else "See all",
-                fontSize = 13.sp,
-                color = colors.greenAccent,
-                modifier = Modifier
-                    .clickable { expanded = !expanded }
-                    .testTag("statistics:seeAllButton"),
-            )
         }
 
         CompactDonutCard(
             categories = categories,
             totalAmount = if (isUnavailable) null else totalAmount,
             moneyDisplay = moneyDisplay,
-            centerLabel = centerLabel,
         )
 
-        AnimatedVisibility(
-            visible = expanded,
-            enter = fadeIn(tween(MoneyManagerMotion.DurationMedium)),
-            exit = fadeOut(tween(MoneyManagerMotion.DurationShort)),
-        ) {
-            GlassCard(modifier = Modifier.fillMaxWidth()) {
+        GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column {
                     categories.forEachIndexed { index, summary ->
                         val alpha = remember(summary.category.categoryId) { Animatable(0f) }
@@ -1187,7 +1161,6 @@ private fun ByCategorySection(
                 }
             }
         }
-    }
 }
 
 // ── T024: CalendarFilterPill ──
@@ -1219,8 +1192,8 @@ private fun CalendarFilterPill(
             )
             Text(
                 text = label,
-                fontSize = 14.sp,
-                color = colors.textPrimary,
+                fontSize = 13.sp,
+                color = colors.textSecondary,
             )
         }
     }
