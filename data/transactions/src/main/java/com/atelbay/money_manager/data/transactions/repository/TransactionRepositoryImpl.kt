@@ -37,6 +37,17 @@ class TransactionRepositoryImpl @Inject constructor(
             }
         }
 
+    override fun observeByDateRange(startMillis: Long, endMillis: Long): Flow<List<Transaction>> =
+        combine(
+            transactionDao.observeByDateRange(startMillis, endMillis),
+            categoryDao.observeAll().distinctUntilChanged(),
+        ) { transactions, categories ->
+            val categoryMap = categories.associateBy { it.id }
+            transactions.map { entity ->
+                entity.toDomain(categoryMap[entity.categoryId])
+            }
+        }
+
     override fun observeByCategoryTypeAndDateRange(
         categoryId: Long,
         transactionType: TransactionType,

@@ -40,8 +40,6 @@ class StatisticsMixedCurrencyTest {
                             displayMode = AggregateCurrencyDisplayMode.UNAVAILABLE,
                         ),
                         chart = StatisticsChartState(
-                            title = "Expenses by day",
-                            dateRangeLabel = "Feb 15 - Mar 16, 2026",
                             points = persistentListOf(
                                 StatisticsChartPoint(1L, "15", null),
                                 StatisticsChartPoint(2L, "16", null, isToday = true),

@@ -20,8 +20,10 @@ import com.atelbay.money_manager.domain.transactions.usecase.GetTransactionsUseC
 import com.atelbay.money_manager.core.common.startOfDay
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
+import com.atelbay.money_manager.core.common.di.DefaultDispatcher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,11 +31,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.time.YearMonth
+import java.time.ZoneId
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -49,7 +54,10 @@ class StatisticsViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
     private val rangeResolver: StatisticsPeriodRangeResolver,
     private val statisticsCurrencyDisplayResolver: StatisticsCurrencyDisplayResolver,
+    @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
+
+    private var cachedLanguageCode: String = Locale.getDefault().language
 
     private val _state = MutableStateFlow(createInitialState())
     val state: StateFlow<StatisticsState> = _state.asStateFlow()
@@ -60,12 +68,40 @@ class StatisticsViewModel @Inject constructor(
     private var chartUpdateJob: Job? = null
 
     init {
+        userPreferences.languageCode
+            .onEach { newCode ->
+                val changed = cachedLanguageCode != newCode
+                cachedLanguageCode = newCode
+                if (changed) {
+                    val s = _state.value
+                    val anchorMillis = s.selectedMonth?.let {
+                        it.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    }
+                    loadSummary(s.period, anchorMillis)
+                }
+            }
+            .launchIn(viewModelScope)
         loadSummary(_state.value.period)
     }
 
     fun setPeriod(period: StatsPeriod) {
         if (_state.value.period == period) return
+        _state.update { it.copy(selectedMonth = null) }
         loadSummary(period)
+    }
+
+    fun setMonth(yearMonth: YearMonth?) {
+        if (yearMonth != null) {
+            val anchorMillis = yearMonth.atDay(1)
+                .atStartOfDay(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+            _state.update { it.copy(selectedMonth = yearMonth) }
+            loadSummary(_state.value.period, anchorMillis)
+        } else {
+            _state.update { it.copy(selectedMonth = null) }
+            loadSummary(_state.value.period)
+        }
     }
 
     fun setTransactionType(type: TransactionType) {
@@ -78,19 +114,27 @@ class StatisticsViewModel @Inject constructor(
     }
 
     fun retry() {
-        loadSummary(_state.value.period)
+        val state = _state.value
+        val anchorMillis = state.selectedMonth?.let {
+            it.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        }
+        loadSummary(state.period, anchorMillis)
     }
 
     fun refreshCurrentPeriod() {
-        val currentRange = _state.value.dateRange
-        val latestRange = rangeResolver(_state.value.period)
+        val state = _state.value
+        val anchorMillis = state.selectedMonth?.let {
+            it.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        }
+        val currentRange = state.dateRange
+        val latestRange = rangeResolver(state.period, anchorMillis)
         if (currentRange != latestRange) {
-            loadSummary(_state.value.period)
+            loadSummary(state.period, anchorMillis)
         }
     }
 
-    private fun loadSummary(period: StatsPeriod) {
-        val resolvedRange = rangeResolver(period)
+    private fun loadSummary(period: StatsPeriod, anchorMillis: Long? = null) {
+        val resolvedRange = rangeResolver(period, anchorMillis)
         _state.update { current ->
             current.copy(
                 period = period,
@@ -102,17 +146,15 @@ class StatisticsViewModel @Inject constructor(
 
         summaryJob?.cancel()
         summaryJob = combine(
-            getPeriodSummaryUseCase(period),
-            getTransactionsUseCase(),
+            getPeriodSummaryUseCase(period, anchorMillis),
+            getTransactionsUseCase(resolvedRange.startMillis, resolvedRange.endMillis),
             getAccountsUseCase(),
             userPreferences.baseCurrency,
             observeExchangeRateUseCase(),
         ) { summary, transactions, accounts, baseCurrency, exchangeRate ->
             StatisticsSnapshot(
                 summary = summary,
-                transactions = transactions.filter {
-                    it.date in summary.dateRange.startMillis..summary.dateRange.endMillis
-                },
+                transactions = transactions,
                 accounts = accounts,
                 baseCurrency = baseCurrency,
                 exchangeRate = exchangeRate,
@@ -155,6 +197,7 @@ class StatisticsViewModel @Inject constructor(
                     ).withChartContract()
                 }
             }
+            .flowOn(defaultDispatcher)
             .launchIn(viewModelScope)
     }
 
@@ -179,13 +222,8 @@ class StatisticsViewModel @Inject constructor(
 
         return copy(
             chart = StatisticsChartState(
-                title = buildChartTitle(
-                    period = period,
-                    transactionType = transactionType,
-                ),
-                dateRangeLabel = dateRange?.let(::formatDateRangeLabel).orEmpty(),
                 points = points.toImmutableList(),
-                isScrollable = period == StatsPeriod.MONTH,
+                isScrollable = true,
             ),
         )
     }
@@ -222,59 +260,6 @@ class StatisticsViewModel @Inject constructor(
         }
     }
 
-    private fun buildChartTitle(
-        period: StatsPeriod,
-        transactionType: TransactionType,
-    ): String {
-        val strings = localizedStrings()
-        val subject = when (transactionType) {
-            TransactionType.EXPENSE -> strings.expensesLabel
-            TransactionType.INCOME -> strings.incomeLabel
-        }
-        return when (period) {
-            StatsPeriod.YEAR -> strings.statisticsChartByMonth(subject)
-            StatsPeriod.WEEK, StatsPeriod.MONTH -> strings.statisticsChartByDay(subject)
-        }
-    }
-
-    private fun formatDateRangeLabel(dateRange: StatisticsDateRange): String {
-        val strings = localizedStrings()
-        val locale = strings.locale
-        val timeZone = TimeZone.getDefault()
-        val start = Calendar.getInstance(timeZone).apply { timeInMillis = dateRange.startMillis }
-        val end = Calendar.getInstance(timeZone).apply { timeInMillis = dateRange.endMillis }
-
-        val monthDayFormat = SimpleDateFormat("MMM d", locale)
-        val fullDateFormat = SimpleDateFormat("MMM d, yyyy", locale)
-        val monthFormat = SimpleDateFormat("MMM", locale)
-
-        return when {
-            start.get(Calendar.YEAR) != end.get(Calendar.YEAR) -> {
-                strings.statisticsDateRangeCrossYear(
-                    fullDateFormat.format(Date(dateRange.startMillis)),
-                    fullDateFormat.format(Date(dateRange.endMillis)),
-                )
-            }
-
-            start.get(Calendar.MONTH) == end.get(Calendar.MONTH) -> {
-                strings.statisticsDateRangeSingleMonth(
-                    monthFormat.format(start.time),
-                    start.get(Calendar.DAY_OF_MONTH),
-                    end.get(Calendar.DAY_OF_MONTH),
-                    end.get(Calendar.YEAR),
-                )
-            }
-
-            else -> {
-                strings.statisticsDateRangeCrossMonth(
-                    monthDayFormat.format(Date(dateRange.startMillis)),
-                    monthDayFormat.format(Date(dateRange.endMillis)),
-                    end.get(Calendar.YEAR),
-                )
-            }
-        }
-    }
-
     private fun buildChartPoints(
         state: StatisticsState,
         period: StatsPeriod,
@@ -306,10 +291,15 @@ class StatisticsViewModel @Inject constructor(
                     TransactionType.EXPENSE -> state.displayedMonthlyExpenses
                     TransactionType.INCOME -> state.displayedMonthlyIncome
                 }
+                val monthLabelFormatter = SimpleDateFormat("MMM", localizedStrings().locale)
                 totals.map { total ->
+                    val cal = Calendar.getInstance(TimeZone.getDefault())
+                    cal.set(Calendar.YEAR, total.year)
+                    cal.set(Calendar.MONTH, total.month)
+                    val raw = monthLabelFormatter.format(cal.time).removeSuffix(".").take(3)
                     StatisticsChartPoint(
                         bucketStartMillis = monthStart(total.year, total.month),
-                        displayLabel = total.label,
+                        displayLabel = raw,
                         amount = total.amount,
                     )
                 }
@@ -317,7 +307,7 @@ class StatisticsViewModel @Inject constructor(
         }
     }
 
-    private fun localizedStrings() = appStringsFor(Locale.getDefault().language)
+    private fun localizedStrings() = appStringsFor(cachedLanguageCode)
 
     private fun monthStart(year: Int, month: Int): Long {
         val calendar = Calendar.getInstance(TimeZone.getDefault())

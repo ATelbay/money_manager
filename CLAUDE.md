@@ -97,6 +97,7 @@ MoneyManager/
 | `git-conventional-commits.md` | Анализ изменений и коммиты в формате Conventional Commits |
 | `firebase-auth.md` | Firebase Auth + CredentialManager: Google Sign-In, Coil 3 |
 | `mcp-tools.md` | MCP-инструменты: context7 для документации, Firebase MCP |
+| `pencil-design.md` | Pencil MCP: reading, creating, and referencing UI designs in .pen files |
 
 ## Полезные команды
 
@@ -107,6 +108,17 @@ MoneyManager/
 ./gradlew lint
 ./gradlew detekt
 ```
+
+## Design-to-Code Workflow (Pencil + Speckit)
+
+When a UI feature has a `.pen` design file, ALWAYS include a **Design Reference** section in `spec.md`:
+- `.pen` file path (e.g. `money_manager_screens.pen`)
+- Node IDs for light + dark variants (e.g. `rktgn`, `rGZ2b`)
+- Instruction: use pencil MCP `get_screenshot(nodeId)` and `batch_get(nodeIds)` during implementation to verify visually
+
+Propagate key node IDs into individual tasks in `tasks.md` so implementing agents can screenshot and compare the specific component they're building. This is critical because context is cleared between speckit steps.
+
+Design file location: `~/Documents/pencil/money_manager_ds/money_manager_screens.pen`
 
 ## TODO / Не в MVP
 
@@ -131,6 +143,9 @@ MoneyManager/
 - N/A (no data changes) (005-ui-overflow-audit)
 - Kotlin 2.3.0 + Google Tink Android 1.8.0 (`AesGcmJce`, `Hkdf`), Firebase Firestore (via BOM 34.8.0), Hilt 2.58 (007-firestore-encryption)
 - Room 2.8.4 (unchanged), Firestore (encrypted DTOs) (007-firestore-encryption)
+- Kotlin 2.3.0 + Jetpack Compose (BOM 2026.01.01), Vico 2.4.3 (`compose-m3`), Hilt 2.58 (009-statistics-chart-vico)
+- Kotlin 2.3.0 + Jetpack Compose (BOM 2026.01.01), Material 3, Vico 2.4.3, Hilt 2.58 (010-statistics-ui-redesign)
+- Room 2.8.4 (unchanged), Preferences DataStore 1.1.7 (010-statistics-ui-redesign)
 
 ## Recent Changes
 - 001-animation-audit: Added Kotlin 2.3.0 + Jetpack Compose (BOM 2026.01.01), Material 3, Navigation Compose 2.9.7
