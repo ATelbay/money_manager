@@ -66,6 +66,7 @@ class StatisticsViewModel @Inject constructor(
 
     private var summaryJob: Job? = null
     private var chartUpdateJob: Job? = null
+    private var visibleMaxY: Double = 0.0
 
     init {
         userPreferences.languageCode
@@ -109,6 +110,13 @@ class StatisticsViewModel @Inject constructor(
         _state.update { current ->
             current.copy(transactionType = type).withChartContract()
         }
+        chartUpdateJob?.cancel()
+        chartUpdateJob = viewModelScope.launch { updateChartModel() }
+    }
+
+    fun onVisibleMaxChanged(maxY: Double) {
+        if (maxY == visibleMaxY) return
+        visibleMaxY = maxY
         chartUpdateJob?.cancel()
         chartUpdateJob = viewModelScope.launch { updateChartModel() }
     }
@@ -256,6 +264,7 @@ class StatisticsViewModel @Inject constructor(
                 store[todayIndexKey] = points.indexOfFirst { it.isToday }
                 store[currencySymbolKey] = moneyDisplay.primaryLabel
                 store[currencyPrefixKey] = moneyDisplay.displayMode == MoneyDisplayMode.SYMBOL_FIRST
+                store[visibleMaxYKey] = visibleMaxY
             }
         }
     }

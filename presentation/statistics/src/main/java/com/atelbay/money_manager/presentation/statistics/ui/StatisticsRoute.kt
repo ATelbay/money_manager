@@ -55,6 +55,7 @@ fun StatisticsRoute(
         },
         onRetry = viewModel::retry,
         onSetMonth = viewModel::setMonth,
+        onVisibleMaxChanged = viewModel::onVisibleMaxChanged,
         modifier = modifier,
     )
 }
