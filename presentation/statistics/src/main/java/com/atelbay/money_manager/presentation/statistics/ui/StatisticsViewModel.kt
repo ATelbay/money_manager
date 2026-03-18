@@ -69,7 +69,17 @@ class StatisticsViewModel @Inject constructor(
 
     init {
         userPreferences.languageCode
-            .onEach { cachedLanguageCode = it }
+            .onEach { newCode ->
+                val changed = cachedLanguageCode != newCode
+                cachedLanguageCode = newCode
+                if (changed) {
+                    val s = _state.value
+                    val anchorMillis = s.selectedMonth?.let {
+                        it.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    }
+                    loadSummary(s.period, anchorMillis)
+                }
+            }
             .launchIn(viewModelScope)
         loadSummary(_state.value.period)
     }
@@ -286,9 +296,10 @@ class StatisticsViewModel @Inject constructor(
                     val cal = Calendar.getInstance(TimeZone.getDefault())
                     cal.set(Calendar.YEAR, total.year)
                     cal.set(Calendar.MONTH, total.month)
+                    val raw = monthLabelFormatter.format(cal.time).removeSuffix(".").take(3)
                     StatisticsChartPoint(
                         bucketStartMillis = monthStart(total.year, total.month),
-                        displayLabel = monthLabelFormatter.format(cal.time),
+                        displayLabel = raw,
                         amount = total.amount,
                     )
                 }
