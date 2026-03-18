@@ -163,7 +163,7 @@ fun StatisticsScreen(
     val currentTotal = if (isExpense) state.displayedTotalExpenses else state.displayedTotalIncome
 
     var showMonthPicker by remember { mutableStateOf(false) }
-    val monthFormatter = remember { DateTimeFormatter.ofPattern("MMM yyyy") }
+    val monthFormatter = remember(s.locale) { DateTimeFormatter.ofPattern("MMM yyyy", s.locale) }
     val pillLabel = (state.selectedMonth ?: YearMonth.now()).format(monthFormatter)
 
     if (showMonthPicker) {

@@ -281,10 +281,14 @@ class StatisticsViewModel @Inject constructor(
                     TransactionType.EXPENSE -> state.displayedMonthlyExpenses
                     TransactionType.INCOME -> state.displayedMonthlyIncome
                 }
+                val monthLabelFormatter = SimpleDateFormat("MMM", localizedStrings().locale)
                 totals.map { total ->
+                    val cal = Calendar.getInstance(TimeZone.getDefault())
+                    cal.set(Calendar.YEAR, total.year)
+                    cal.set(Calendar.MONTH, total.month)
                     StatisticsChartPoint(
                         bucketStartMillis = monthStart(total.year, total.month),
-                        displayLabel = total.label,
+                        displayLabel = monthLabelFormatter.format(cal.time),
                         amount = total.amount,
                     )
                 }
