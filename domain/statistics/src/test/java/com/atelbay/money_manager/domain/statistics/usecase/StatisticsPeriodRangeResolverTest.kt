@@ -48,7 +48,7 @@ class StatisticsPeriodRangeResolverTest {
     }
 
     @Test
-    fun `MONTH with anchorMillis - start is 29 days before anchor day`() {
+    fun `MONTH with anchorMillis - start is 1 month before anchor day`() {
         val range = resolver(StatsPeriod.MONTH, anchorMillis)
 
         val expectedStart = anchorCalendar().apply {
@@ -56,7 +56,7 @@ class StatisticsPeriodRangeResolverTest {
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
-            add(Calendar.DAY_OF_YEAR, -29)
+            add(Calendar.MONTH, -1)
         }.timeInMillis
 
         assertEquals(expectedStart, range.startMillis)

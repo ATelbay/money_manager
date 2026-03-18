@@ -95,14 +95,22 @@ class StatisticsViewModel @Inject constructor(
     }
 
     fun retry() {
-        loadSummary(_state.value.period)
+        val state = _state.value
+        val anchorMillis = state.selectedMonth?.let {
+            it.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        }
+        loadSummary(state.period, anchorMillis)
     }
 
     fun refreshCurrentPeriod() {
-        val currentRange = _state.value.dateRange
-        val latestRange = rangeResolver(_state.value.period)
+        val state = _state.value
+        val anchorMillis = state.selectedMonth?.let {
+            it.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        }
+        val currentRange = state.dateRange
+        val latestRange = rangeResolver(state.period, anchorMillis)
         if (currentRange != latestRange) {
-            loadSummary(_state.value.period)
+            loadSummary(state.period, anchorMillis)
         }
     }
 
@@ -202,7 +210,7 @@ class StatisticsViewModel @Inject constructor(
                 ),
                 dateRangeLabel = dateRange?.let(::formatDateRangeLabel).orEmpty(),
                 points = points.toImmutableList(),
-                isScrollable = period == StatsPeriod.MONTH,
+                isScrollable = true,
             ),
         )
     }

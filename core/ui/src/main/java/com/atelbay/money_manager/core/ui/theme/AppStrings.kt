@@ -17,6 +17,7 @@ data class AppStrings(
     val search: String,
     val clearSearch: String,
     val all: String,
+    val other: String,
 
     // ── Bottom nav ──
     val navTransactions: String,
@@ -191,6 +192,7 @@ val RussianStrings = AppStrings(
     search = "Поиск",
     clearSearch = "Очистить",
     all = "Все",
+    other = "Другое",
     navTransactions = "Главная",
     navAccounts = "Счета",
     navStatistics = "Статистика",
@@ -335,6 +337,7 @@ val EnglishStrings = AppStrings(
     search = "Search",
     clearSearch = "Clear",
     all = "All",
+    other = "Other",
     navTransactions = "Home",
     navAccounts = "Accounts",
     navStatistics = "Statistics",
@@ -479,6 +482,7 @@ val KazakhStrings = AppStrings(
     search = "Іздеу",
     clearSearch = "Тазалау",
     all = "Барлығы",
+    other = "Басқа",
     navTransactions = "Басты",
     navAccounts = "Шоттар",
     navStatistics = "Статистика",

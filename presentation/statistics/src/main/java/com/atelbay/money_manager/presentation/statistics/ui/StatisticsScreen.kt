@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -795,7 +796,7 @@ private fun ChartScrollIndicator(
                 modifier = Modifier
                     .width(thumbWidth)
                     .height(trackHeight)
-                    .padding(start = thumbOffset)
+                    .offset(x = thumbOffset)
                     .clip(RoundedCornerShape(50))
                     .background(colors.textSecondary),
             )
@@ -954,6 +955,7 @@ private fun CategoryLegend(
     categories: ImmutableList<StatisticsCategoryDisplayItem>,
 ) {
     val colors = MoneyManagerTheme.colors
+    val strings = MoneyManagerTheme.strings
     Column(
         modifier = Modifier.testTag("statistics:categoryLegend"),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -974,7 +976,7 @@ private fun CategoryLegend(
             val otherPercentage = rest.sumOf { it.displayPercentage }
             CategoryLegendRow(
                 color = colors.textSecondary,
-                name = "Other",
+                name = strings.other,
                 percentage = "$otherPercentage%",
             )
         }

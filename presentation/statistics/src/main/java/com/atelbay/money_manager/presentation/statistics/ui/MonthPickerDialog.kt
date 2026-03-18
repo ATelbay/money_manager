@@ -35,12 +35,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
+import java.time.Month
 import java.time.YearMonth
-
-private val MONTH_ABBREVIATIONS = listOf(
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-)
+import java.time.format.TextStyle
 
 @Composable
 fun MonthPickerDialog(
@@ -48,8 +45,12 @@ fun MonthPickerDialog(
     onMonthSelected: (YearMonth) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val now = YearMonth.now()
+    val now = remember { YearMonth.now() }
     var displayedYear by remember { mutableIntStateOf(initialYearMonth.year) }
+    val locale = MoneyManagerTheme.strings.locale
+    val monthAbbreviations = remember(locale) {
+        Month.entries.map { it.getDisplayName(TextStyle.SHORT, locale) }
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -91,14 +92,14 @@ fun MonthPickerDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // 3×4 month grid
-                val rows = MONTH_ABBREVIATIONS.chunked(3)
-                rows.forEach { rowMonths ->
+                val rows = monthAbbreviations.chunked(3)
+                rows.forEachIndexed { rowIndex, rowMonths ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                     ) {
-                        rowMonths.forEach { abbr ->
-                            val monthNumber = MONTH_ABBREVIATIONS.indexOf(abbr) + 1
+                        rowMonths.forEachIndexed { colIndex, abbr ->
+                            val monthNumber = rowIndex * 3 + colIndex + 1
                             val yearMonth = YearMonth.of(displayedYear, monthNumber)
                             val isSelected = yearMonth == initialYearMonth
                             val isCurrent = yearMonth == now

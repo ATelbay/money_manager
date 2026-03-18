@@ -17,8 +17,8 @@ val IncomeForegroundLight = Color(0xFF16A34A)
 
 // ── Expense — Coral ──
 val ExpenseCoral = Color(0xFFD08068)
-val ExpenseBgLight = Color(0x1FFF6B6B)
-val ExpenseBgDark = Color(0x1FFF6B6B)
+val ExpenseBgLight = Color(0x1FD08068)
+val ExpenseBgDark = Color(0x1FD08068)
 val ExpenseForegroundLight = Color(0xFFDC2626)
 
 // ── Warning — Amber ──
@@ -74,7 +74,7 @@ val GlassBgEndDark = Color(0x05FFFFFF) // 2%
 val GlassBorderDark = Color(0x14FFFFFF) // 8%
 val GlassGlowDark = Color(0x0AFFFFFF) // 4%
 val TextPrimaryDark = Color(0xFFFFFFFF)
-val TextSecondaryDark = Color(0xFF6D6C6A)
+val TextSecondaryDark = Color(0xFFB0AFAD)
 val TextTertiaryDark = Color(0x59FFFFFF) // 35%
 val DividerDark = Color(0xFF3A3938)
 val BorderDark = Color(0x14FFFFFF) // 8%

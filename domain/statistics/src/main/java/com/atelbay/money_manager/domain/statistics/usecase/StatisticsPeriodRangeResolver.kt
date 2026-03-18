@@ -25,7 +25,7 @@ class StatisticsPeriodRangeResolver @Inject constructor() {
 
         when (period) {
             StatsPeriod.WEEK -> calendar.add(Calendar.DAY_OF_YEAR, -6)
-            StatsPeriod.MONTH -> calendar.add(Calendar.DAY_OF_YEAR, -29)
+            StatsPeriod.MONTH -> calendar.add(Calendar.MONTH, -1)
             StatsPeriod.YEAR -> {
                 calendar.set(Calendar.DAY_OF_MONTH, 1)
                 calendar.add(Calendar.MONTH, -11)
