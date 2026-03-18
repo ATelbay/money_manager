@@ -144,12 +144,9 @@ private class TodayColumnProvider(
 
 private class DynamicRangeProvider : CartesianLayerRangeProvider {
     override fun getMaxY(minY: Double, maxY: Double, extraStore: ExtraStore): Double {
-        val visibleMax = extraStore.getOrNull(visibleMaxYKey)
-        return if (visibleMax != null && visibleMax > 0.0) {
-            visibleMax * 1.1  // 10% padding above tallest visible bar
-        } else {
-            if (minY == 0.0 && maxY == 0.0) 1.0 else maxY.coerceAtLeast(0.0)
-        }
+        val visibleMax = extraStore.getOrNull(visibleMaxYKey) ?: return maxY.coerceAtLeast(0.0)
+        if (visibleMax <= 0.0) return 1.0  // all visible bars are zero — use small fixed scale
+        return visibleMax * 1.1  // 10% padding above tallest visible bar
     }
 }
 
@@ -564,7 +561,7 @@ private fun VicoBarChartSection(
                 val totalBars = amounts.size
                 val firstVisible = (totalBars * scrollPx / totalContentPx).toInt().coerceIn(0, totalBars - 1)
                 val visibleCount = (totalBars * chartWidthPx / totalContentPx).toInt().coerceAtLeast(1)
-                val lastVisible = (firstVisible + visibleCount).coerceAtMost(totalBars)
+                val lastVisible = (firstVisible + visibleCount + 1).coerceAtMost(totalBars) // +1 for partially visible edge bar
 
                 val visibleMax = amounts.subList(firstVisible, lastVisible).max()
                 onVisibleMaxChanged(visibleMax)
