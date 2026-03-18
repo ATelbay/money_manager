@@ -43,9 +43,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +58,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -80,6 +83,8 @@ import com.atelbay.money_manager.domain.statistics.model.TransactionType
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
@@ -98,6 +103,7 @@ import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.compose.common.ProvideVicoTheme
 import com.patrykandpatrick.vico.compose.common.VicoTheme
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.core.cartesian.data.ColumnCartesianLayerModel
 import com.patrykandpatrick.vico.core.cartesian.layer.ColumnCartesianLayer
 import com.patrykandpatrick.vico.core.common.component.LineComponent
@@ -136,6 +142,13 @@ private class TodayColumnProvider(
         fullOpacityColumn
 }
 
+private class DynamicRangeProvider : CartesianLayerRangeProvider {
+    override fun getMaxY(minY: Double, maxY: Double, extraStore: ExtraStore): Double {
+        val visibleMax = extraStore.getOrNull(visibleMaxYKey) ?: return maxY.coerceAtLeast(0.0)
+        if (visibleMax <= 0.0) return 1.0  // all visible bars are zero — use small fixed scale
+        return visibleMax * 1.1  // 10% padding above tallest visible bar
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -147,6 +160,7 @@ fun StatisticsScreen(
     onCategoryClick: (CategorySummary) -> Unit = {},
     onRetry: () -> Unit,
     onSetMonth: (YearMonth?) -> Unit = {},
+    onVisibleMaxChanged: (Double) -> Unit = {},
     modifier: Modifier = Modifier,
     contentWindowInsets: WindowInsets = ScaffoldDefaults.contentWindowInsets,
 ) {
@@ -328,6 +342,7 @@ fun StatisticsScreen(
                     state = state,
                     chartModelProducer = chartModelProducer,
                     onTransactionTypeChange = onTransactionTypeChange,
+                    onVisibleMaxChanged = onVisibleMaxChanged,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
@@ -523,9 +538,35 @@ private fun VicoBarChartSection(
     unavailableText: String,
     period: StatsPeriod,
     scrollState: VicoScrollState,
+    points: ImmutableList<StatisticsChartPoint>,
+    onVisibleMaxChanged: (Double) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MoneyManagerTheme.colors
+
+    var chartWidthPx by remember { mutableIntStateOf(0) }
+
+    val amounts = remember(points) { points.map { it.amount ?: 0.0 } }
+
+    @OptIn(kotlinx.coroutines.FlowPreview::class)
+    LaunchedEffect(scrollState, amounts, chartWidthPx) {
+        if (amounts.isEmpty() || chartWidthPx <= 0) return@LaunchedEffect
+        snapshotFlow { scrollState.value to scrollState.maxValue }
+            .distinctUntilChanged()
+            .debounce(150)
+            .collect { (scrollPx, maxScrollPx) ->
+                val totalContentPx = chartWidthPx + maxScrollPx
+                if (totalContentPx <= 0f) return@collect
+
+                val totalBars = amounts.size
+                val firstVisible = (totalBars * scrollPx / totalContentPx).toInt().coerceIn(0, totalBars - 1)
+                val visibleCount = (totalBars * chartWidthPx / totalContentPx).toInt().coerceAtLeast(1)
+                val lastVisible = (firstVisible + visibleCount + 1).coerceAtMost(totalBars) // +1 for partially visible edge bar
+
+                val visibleMax = amounts.subList(firstVisible, lastVisible).max()
+                onVisibleMaxChanged(visibleMax)
+            }
+    }
 
     Column(modifier = modifier) {
         GlassCard(modifier = Modifier.fillMaxWidth()) {
@@ -580,6 +621,7 @@ private fun VicoBarChartSection(
                 val columnProvider = remember(fullOpacityColumn, reducedOpacityColumn) {
                     TodayColumnProvider(fullOpacityColumn, reducedOpacityColumn)
                 }
+                val rangeProvider = remember { DynamicRangeProvider() }
 
                 val marker = rememberDefaultCartesianMarker(
                     label = rememberTextComponent(
@@ -618,6 +660,7 @@ private fun VicoBarChartSection(
                         chart = rememberCartesianChart(
                             rememberColumnCartesianLayer(
                                 columnProvider = columnProvider,
+                                rangeProvider = rangeProvider,
                             ),
                             startAxis = VerticalAxis.rememberStart(
                                 valueFormatter = yAxisFormatter,
@@ -643,6 +686,7 @@ private fun VicoBarChartSection(
                             .fillMaxWidth()
                             .height(220.dp)
                             .padding(16.dp)
+                            .onSizeChanged { chartWidthPx = it.width }
                             .testTag(
                                 if (period == StatsPeriod.MONTH) {
                                     "statistics:monthChartContainer"
@@ -894,6 +938,7 @@ private fun UnifiedChartCard(
     state: StatisticsState,
     chartModelProducer: CartesianChartModelProducer,
     onTransactionTypeChange: (TransactionType) -> Unit,
+    onVisibleMaxChanged: (Double) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MoneyManagerTheme.colors
@@ -947,6 +992,8 @@ private fun UnifiedChartCard(
                         unavailableText = strings.mixedCurrencyUnavailable,
                         period = state.period,
                         scrollState = scrollState,
+                        points = state.chart.points,
+                        onVisibleMaxChanged = onVisibleMaxChanged,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
