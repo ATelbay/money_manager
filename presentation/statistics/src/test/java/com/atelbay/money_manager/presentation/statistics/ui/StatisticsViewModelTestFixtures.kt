@@ -17,6 +17,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.StandardTestDispatcher
 import java.util.Calendar
 import java.util.TimeZone
 
@@ -58,6 +59,7 @@ internal fun createViewModel(
     monthRange: StatisticsDateRange,
     yearRange: StatisticsDateRange,
     rangeForMonth: StatisticsDateRange = monthRange,
+    testDispatcher: kotlinx.coroutines.CoroutineDispatcher = StandardTestDispatcher(),
 ): StatisticsViewModel {
     val getPeriodSummaryUseCase = mockk<GetPeriodSummaryUseCase>()
     val getTransactionsUseCase = mockk<GetTransactionsUseCase>()
@@ -75,9 +77,11 @@ internal fun createViewModel(
     every { getPeriodSummaryUseCase(StatsPeriod.MONTH, any()) } returns (flows[StatsPeriod.MONTH] ?: emptyFlow())
     every { getPeriodSummaryUseCase(StatsPeriod.YEAR, any()) } returns (flows[StatsPeriod.YEAR] ?: emptyFlow())
     every { getTransactionsUseCase() } returns flowOf(emptyList())
+    every { getTransactionsUseCase(any(), any()) } returns flowOf(emptyList())
     every { getAccountsUseCase() } returns flowOf(emptyList())
     every { observeExchangeRateUseCase() } returns flowOf(null)
     every { userPreferences.baseCurrency } returns flowOf("KZT")
+    every { userPreferences.languageCode } returns flowOf("en")
     every {
         statisticsCurrencyDisplayResolver.resolve(
             summary = any(),
@@ -130,5 +134,6 @@ internal fun createViewModel(
         userPreferences = userPreferences,
         rangeResolver = rangeResolver,
         statisticsCurrencyDisplayResolver = statisticsCurrencyDisplayResolver,
+        defaultDispatcher = testDispatcher,
     )
 }

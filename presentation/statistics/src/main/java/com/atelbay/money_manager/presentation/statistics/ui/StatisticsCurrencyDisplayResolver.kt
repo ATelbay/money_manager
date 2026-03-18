@@ -120,6 +120,22 @@ class StatisticsCurrencyDisplayResolver @Inject constructor(
         val displayedTotalExpenses = expenseTransactions.sumOf(DisplayTransaction::amount)
         val displayedTotalIncome = incomeTransactions.sumOf(DisplayTransaction::amount)
 
+        // Pre-group in a single pass each to avoid O(N×D) nested iteration.
+        val expenseByDay = expenseTransactions.groupBy { startOfDay(it.transaction.date) }
+            .mapValues { (_, txns) -> txns.sumOf(DisplayTransaction::amount) }
+        val incomeByDay = incomeTransactions.groupBy { startOfDay(it.transaction.date) }
+            .mapValues { (_, txns) -> txns.sumOf(DisplayTransaction::amount) }
+
+        val cal = Calendar.getInstance(TimeZone.getDefault())
+        val expenseByMonth = expenseTransactions.groupBy {
+            cal.timeInMillis = it.transaction.date
+            cal.get(Calendar.YEAR) to cal.get(Calendar.MONTH)
+        }.mapValues { (_, txns) -> txns.sumOf(DisplayTransaction::amount) }
+        val incomeByMonth = incomeTransactions.groupBy {
+            cal.timeInMillis = it.transaction.date
+            cal.get(Calendar.YEAR) to cal.get(Calendar.MONTH)
+        }.mapValues { (_, txns) -> txns.sumOf(DisplayTransaction::amount) }
+
         return StatisticsCurrencyResolution(
             currencyUiState = StatisticsCurrencyUiState(
                 moneyDisplay = displayMoney,
@@ -138,35 +154,17 @@ class StatisticsCurrencyDisplayResolver @Inject constructor(
                 total = displayedTotalIncome,
             ),
             displayedDailyExpenses = summary.dailyExpenses.map { total ->
-                StatisticsDisplayDailyTotal(
-                    date = total.date,
-                    amount = expenseTransactions
-                        .filter { startOfDay(it.transaction.date) == total.date }
-                        .sumOf(DisplayTransaction::amount),
-                )
+                StatisticsDisplayDailyTotal(date = total.date, amount = expenseByDay[total.date] ?: 0.0)
             },
             displayedDailyIncome = summary.dailyIncome.map { total ->
-                StatisticsDisplayDailyTotal(
-                    date = total.date,
-                    amount = incomeTransactions
-                        .filter { startOfDay(it.transaction.date) == total.date }
-                        .sumOf(DisplayTransaction::amount),
-                )
+                StatisticsDisplayDailyTotal(date = total.date, amount = incomeByDay[total.date] ?: 0.0)
             },
             displayedMonthlyExpenses = summary.monthlyExpenses.map { total ->
                 StatisticsDisplayMonthlyTotal(
                     year = total.year,
                     month = total.month,
                     label = total.label,
-                    amount = expenseTransactions
-                        .filter {
-                            val calendar = Calendar.getInstance(TimeZone.getDefault()).apply {
-                                timeInMillis = it.transaction.date
-                            }
-                            calendar.get(Calendar.YEAR) == total.year &&
-                                calendar.get(Calendar.MONTH) == total.month
-                        }
-                        .sumOf(DisplayTransaction::amount),
+                    amount = expenseByMonth[total.year to total.month] ?: 0.0,
                 )
             },
             displayedMonthlyIncome = summary.monthlyIncome.map { total ->
@@ -174,15 +172,7 @@ class StatisticsCurrencyDisplayResolver @Inject constructor(
                     year = total.year,
                     month = total.month,
                     label = total.label,
-                    amount = incomeTransactions
-                        .filter {
-                            val calendar = Calendar.getInstance(TimeZone.getDefault()).apply {
-                                timeInMillis = it.transaction.date
-                            }
-                            calendar.get(Calendar.YEAR) == total.year &&
-                                calendar.get(Calendar.MONTH) == total.month
-                        }
-                        .sumOf(DisplayTransaction::amount),
+                    amount = incomeByMonth[total.year to total.month] ?: 0.0,
                 )
             },
         )

@@ -9,4 +9,7 @@ class GetTransactionsUseCase @Inject constructor(
     private val repository: TransactionRepository,
 ) {
     operator fun invoke(): Flow<List<Transaction>> = repository.observeAll()
+
+    operator fun invoke(startMillis: Long, endMillis: Long): Flow<List<Transaction>> =
+        repository.observeByDateRange(startMillis, endMillis)
 }

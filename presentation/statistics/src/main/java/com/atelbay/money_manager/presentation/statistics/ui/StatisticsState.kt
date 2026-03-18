@@ -18,8 +18,6 @@ data class StatisticsChartPoint(
 )
 
 data class StatisticsChartState(
-    val title: String = "",
-    val dateRangeLabel: String = "",
     val points: ImmutableList<StatisticsChartPoint> = persistentListOf(),
     val isScrollable: Boolean = false,
 )

@@ -46,8 +46,6 @@ class StatisticsScreenTest {
                             displayMode = AggregateCurrencyDisplayMode.ORIGINAL_SINGLE_CURRENCY,
                         ),
                         chart = StatisticsChartState(
-                            title = "Expenses by day",
-                            dateRangeLabel = "Feb 15 - Mar 16, 2026",
                             isScrollable = true,
                             points = persistentListOf(
                                 StatisticsChartPoint(1L, "14", 100.0),

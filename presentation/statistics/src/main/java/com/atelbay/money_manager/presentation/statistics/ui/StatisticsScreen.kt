@@ -110,8 +110,12 @@ import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.core.cartesian.marker.DefaultCartesianMarker
 import com.patrykandpatrick.vico.core.cartesian.marker.ColumnCartesianLayerMarkerTarget
 import java.text.DecimalFormat
+import java.text.SimpleDateFormat
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.util.Calendar
+import java.util.Date
+import java.util.TimeZone
 
 
 
@@ -485,18 +489,22 @@ private fun DonutChart(
         }
 
         // Center text
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             Text(
                 text = formatCompactAmount(totalAmount),
-                fontSize = 16.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.5).sp,
+                lineHeight = 14.sp,
                 color = colors.textPrimary,
             )
             Text(
                 text = moneyDisplay.primaryLabel,
-                fontSize = 11.sp,
+                fontSize = 10.sp,
                 fontWeight = FontWeight.Medium,
+                lineHeight = 12.sp,
                 color = colors.textSecondary,
             )
         }
@@ -842,6 +850,44 @@ private fun ChartTotalRow(
     }
 }
 
+@Composable
+private fun formatDateRangeLabel(dateRange: com.atelbay.money_manager.domain.statistics.model.StatisticsDateRange?): String {
+    if (dateRange == null) return ""
+    val strings = MoneyManagerTheme.strings
+    val locale = strings.locale
+    val timeZone = TimeZone.getDefault()
+    val start = Calendar.getInstance(timeZone).apply { timeInMillis = dateRange.startMillis }
+    val end = Calendar.getInstance(timeZone).apply { timeInMillis = dateRange.endMillis }
+
+    val monthDayFormat = remember(locale) { SimpleDateFormat("MMM d", locale) }
+    val fullDateFormat = remember(locale) { SimpleDateFormat("MMM d, yyyy", locale) }
+    val monthFormat = remember(locale) { SimpleDateFormat("MMM", locale) }
+
+    return when {
+        start.get(Calendar.YEAR) != end.get(Calendar.YEAR) -> {
+            strings.statisticsDateRangeCrossYear(
+                fullDateFormat.format(Date(dateRange.startMillis)),
+                fullDateFormat.format(Date(dateRange.endMillis)),
+            )
+        }
+        start.get(Calendar.MONTH) == end.get(Calendar.MONTH) -> {
+            strings.statisticsDateRangeSingleMonth(
+                monthFormat.format(start.time),
+                start.get(Calendar.DAY_OF_MONTH),
+                end.get(Calendar.DAY_OF_MONTH),
+                end.get(Calendar.YEAR),
+            )
+        }
+        else -> {
+            strings.statisticsDateRangeCrossMonth(
+                monthDayFormat.format(Date(dateRange.startMillis)),
+                monthDayFormat.format(Date(dateRange.endMillis)),
+                end.get(Calendar.YEAR),
+            )
+        }
+    }
+}
+
 // T009
 @Composable
 private fun UnifiedChartCard(
@@ -874,9 +920,19 @@ private fun UnifiedChartCard(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            val chartTitle = when (state.transactionType) {
+                TransactionType.EXPENSE -> strings.expensesLabel
+                TransactionType.INCOME -> strings.incomeLabel
+            }.let { subject ->
+                when (state.period) {
+                    StatsPeriod.YEAR -> strings.statisticsChartByMonth(subject)
+                    StatsPeriod.WEEK, StatsPeriod.MONTH -> strings.statisticsChartByDay(subject)
+                }
+            }
+            val dateRangeLabel = formatDateRangeLabel(state.dateRange)
             ChartCardHeader(
-                title = state.chart.title,
-                dateRange = state.chart.dateRangeLabel,
+                title = chartTitle,
+                dateRange = dateRangeLabel,
                 selectedType = state.transactionType,
                 onTypeChange = onTransactionTypeChange,
             )
@@ -1000,8 +1056,7 @@ private fun CompactDonutCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp)
-                .padding(20.dp),
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -1011,13 +1066,13 @@ private fun CompactDonutCard(
                     totalAmount = totalAmount,
                     moneyDisplay = moneyDisplay,
                     modifier = Modifier
-                        .size(104.dp)
+                        .size(100.dp)
                         .testTag("statistics:pieChart"),
                 )
             } else {
                 Box(
                     modifier = Modifier
-                        .size(104.dp)
+                        .size(100.dp)
                         .testTag("statistics:pieChart"),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -1237,7 +1292,7 @@ private fun EmptyState(modifier: Modifier = Modifier) {
             // Simple bar chart icon
             Canvas(
                 modifier = Modifier
-                    .size(80.dp)
+                    .size(100.dp)
                     .padding(bottom = 16.dp),
             ) {
                 val barWidth = 8.dp.toPx()
@@ -1319,9 +1374,6 @@ private fun StatisticsScreenPreview() {
                     displayMode = com.atelbay.money_manager.core.ui.util.AggregateCurrencyDisplayMode.ORIGINAL_SINGLE_CURRENCY,
                 ),
                 chart = StatisticsChartState(
-                    title = "Expenses by day",
-                    dateRangeLabel = "Feb 6 - Feb 10, 2025",
-
                     points = persistentListOf(
                         StatisticsChartPoint(1738800000000, "6", 5000.0),
                         StatisticsChartPoint(1738886400000, "7", 3000.0),
@@ -1402,9 +1454,6 @@ private fun StatisticsScreenIncomePreview() {
                     displayMode = com.atelbay.money_manager.core.ui.util.AggregateCurrencyDisplayMode.ORIGINAL_SINGLE_CURRENCY,
                 ),
                 chart = StatisticsChartState(
-                    title = "Income by day",
-                    dateRangeLabel = "Feb 6 - Feb 10, 2025",
-
                     points = persistentListOf(
                         StatisticsChartPoint(1738800000000, "6", 10000.0),
                         StatisticsChartPoint(1738886400000, "7", 5000.0),
@@ -1473,9 +1522,6 @@ private fun StatisticsScreenYearPreview() {
                     displayMode = com.atelbay.money_manager.core.ui.util.AggregateCurrencyDisplayMode.ORIGINAL_SINGLE_CURRENCY,
                 ),
                 chart = StatisticsChartState(
-                    title = "Expenses by month",
-                    dateRangeLabel = "2025",
-
                     points = persistentListOf(
                         StatisticsChartPoint(1, "Янв", 80_000.0),
                         StatisticsChartPoint(2, "Фев", 95_000.0),

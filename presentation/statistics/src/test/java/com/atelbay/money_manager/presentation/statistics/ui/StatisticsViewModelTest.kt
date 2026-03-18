@@ -82,8 +82,6 @@ class StatisticsViewModelTest {
         assertEquals(StatsPeriod.MONTH, state.period)
         assertEquals(TransactionType.EXPENSE, state.transactionType)
         assertEquals(monthRange, state.dateRange)
-        assertEquals("Expenses by day", state.chart.title)
-        assertEquals("Feb 15 - Mar 16, 2026", state.chart.dateRangeLabel)
         assertTrue(state.chart.points.isEmpty())
         assertTrue(state.isLoading)
         assertNull(state.error)
@@ -136,8 +134,6 @@ class StatisticsViewModelTest {
         advanceUntilIdle()
 
         val monthState = viewModel.state.value
-        assertEquals("Expenses by day", monthState.chart.title)
-        assertEquals("Feb 15 - Mar 16, 2026", monthState.chart.dateRangeLabel)
         assertEquals(30, monthState.chart.points.size)
         assertEquals(1, monthState.chart.points.count { it.isToday })
         assertEquals(0.0, monthState.chart.points.last().amount ?: -1.0, 0.0)
@@ -147,7 +143,6 @@ class StatisticsViewModelTest {
         viewModel.setTransactionType(TransactionType.INCOME)
 
         val incomeState = viewModel.state.value
-        assertEquals("Income by day", incomeState.chart.title)
         assertEquals(monthIncomeTotals.last().amount, incomeState.chart.points.last().amount ?: -1.0, 0.0)
         assertTrue(incomeState.chart.points.last().isToday)
 
@@ -156,8 +151,6 @@ class StatisticsViewModelTest {
 
         val weekState = viewModel.state.value
         assertEquals(StatsPeriod.WEEK, weekState.period)
-        assertEquals("Income by day", weekState.chart.title)
-        assertEquals("Jan 10-16, 2026", weekState.chart.dateRangeLabel)
         assertEquals(7, weekState.chart.points.size)
         assertEquals(1, weekState.chart.points.count { it.isToday })
         assertEquals(
@@ -204,8 +197,6 @@ class StatisticsViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.state.value
-        assertEquals("Expenses by month", state.chart.title)
-        assertEquals("Apr 1, 2025 - Mar 16, 2026", state.chart.dateRangeLabel)
         assertEquals(12, state.chart.points.size)
         assertEquals(yearExpenseTotals.map { it.label }, state.chart.points.map { it.displayLabel })
         assertFalse(state.chart.points.any { it.isToday })
@@ -226,8 +217,6 @@ class StatisticsViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.state.value
-        assertEquals("Expenses by day", state.chart.title)
-        assertEquals("Feb 15 - Mar 16, 2026", state.chart.dateRangeLabel)
         assertTrue(state.chart.points.isEmpty())
         assertEquals(unavailableError, state.error)
         assertFalse(state.isLoading)
@@ -240,6 +229,7 @@ class StatisticsViewModelTest {
         weekRange = weekRange,
         monthRange = monthRange,
         yearRange = yearRange,
+        testDispatcher = testDispatcher,
     )
 
     private fun summary(

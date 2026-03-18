@@ -47,8 +47,6 @@ class StatisticsChartRenderTest {
                             displayMode = AggregateCurrencyDisplayMode.ORIGINAL_SINGLE_CURRENCY,
                         ),
                         chart = StatisticsChartState(
-                            title = "Expenses by day",
-                            dateRangeLabel = "Mar 1 - Mar 31, 2026",
                             isScrollable = false,
                             points = persistentListOf(
                                 StatisticsChartPoint(1L, "1", 100.0),
@@ -92,8 +90,6 @@ class StatisticsChartRenderTest {
                             displayMode = AggregateCurrencyDisplayMode.UNAVAILABLE,
                         ),
                         chart = StatisticsChartState(
-                            title = "Expenses by day",
-                            dateRangeLabel = "Mar 1 - Mar 31, 2026",
                             isScrollable = false,
                             points = persistentListOf(
                                 StatisticsChartPoint(1L, "1", null),
@@ -134,8 +130,6 @@ class StatisticsChartRenderTest {
                             displayMode = AggregateCurrencyDisplayMode.ORIGINAL_SINGLE_CURRENCY,
                         ),
                         chart = StatisticsChartState(
-                            title = "Expenses by day",
-                            dateRangeLabel = "Mar 1 - Mar 31, 2026",
                             isScrollable = false,
                             points = persistentListOf(
                                 StatisticsChartPoint(1L, "1", 150.0),

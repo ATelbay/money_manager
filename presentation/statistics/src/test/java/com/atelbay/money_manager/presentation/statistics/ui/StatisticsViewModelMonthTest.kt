@@ -89,9 +89,11 @@ class StatisticsViewModelMonthTest {
 
         every { getPeriodSummaryUseCase(any(), any()) } returns flowOf(emptySummary(defaultMonthRange))
         every { getTransactionsUseCase() } returns flowOf(emptyList())
+        every { getTransactionsUseCase(any(), any()) } returns flowOf(emptyList())
         every { getAccountsUseCase() } returns flowOf(emptyList())
         every { observeExchangeRateUseCase() } returns flowOf(null)
         every { userPreferences.baseCurrency } returns flowOf("KZT")
+        every { userPreferences.languageCode } returns flowOf("en")
         every {
             statisticsCurrencyDisplayResolver.resolve(
                 summary = any(),
@@ -217,6 +219,7 @@ class StatisticsViewModelMonthTest {
         userPreferences = userPreferences,
         rangeResolver = rangeResolver,
         statisticsCurrencyDisplayResolver = statisticsCurrencyDisplayResolver,
+        defaultDispatcher = testDispatcher,
     )
 
     private fun emptySummary(dateRange: StatisticsDateRange) = PeriodSummary(

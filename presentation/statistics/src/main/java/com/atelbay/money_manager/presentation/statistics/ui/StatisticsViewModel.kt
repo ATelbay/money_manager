@@ -20,8 +20,10 @@ import com.atelbay.money_manager.domain.transactions.usecase.GetTransactionsUseC
 import com.atelbay.money_manager.core.common.startOfDay
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
+import com.atelbay.money_manager.core.common.di.DefaultDispatcher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +31,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -51,7 +54,10 @@ class StatisticsViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
     private val rangeResolver: StatisticsPeriodRangeResolver,
     private val statisticsCurrencyDisplayResolver: StatisticsCurrencyDisplayResolver,
+    @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
+
+    private var cachedLanguageCode: String = Locale.getDefault().language
 
     private val _state = MutableStateFlow(createInitialState())
     val state: StateFlow<StatisticsState> = _state.asStateFlow()
@@ -62,6 +68,9 @@ class StatisticsViewModel @Inject constructor(
     private var chartUpdateJob: Job? = null
 
     init {
+        userPreferences.languageCode
+            .onEach { cachedLanguageCode = it }
+            .launchIn(viewModelScope)
         loadSummary(_state.value.period)
     }
 
@@ -128,16 +137,14 @@ class StatisticsViewModel @Inject constructor(
         summaryJob?.cancel()
         summaryJob = combine(
             getPeriodSummaryUseCase(period, anchorMillis),
-            getTransactionsUseCase(),
+            getTransactionsUseCase(resolvedRange.startMillis, resolvedRange.endMillis),
             getAccountsUseCase(),
             userPreferences.baseCurrency,
             observeExchangeRateUseCase(),
         ) { summary, transactions, accounts, baseCurrency, exchangeRate ->
             StatisticsSnapshot(
                 summary = summary,
-                transactions = transactions.filter {
-                    it.date in summary.dateRange.startMillis..summary.dateRange.endMillis
-                },
+                transactions = transactions,
                 accounts = accounts,
                 baseCurrency = baseCurrency,
                 exchangeRate = exchangeRate,
@@ -180,6 +187,7 @@ class StatisticsViewModel @Inject constructor(
                     ).withChartContract()
                 }
             }
+            .flowOn(defaultDispatcher)
             .launchIn(viewModelScope)
     }
 
@@ -204,11 +212,6 @@ class StatisticsViewModel @Inject constructor(
 
         return copy(
             chart = StatisticsChartState(
-                title = buildChartTitle(
-                    period = period,
-                    transactionType = transactionType,
-                ),
-                dateRangeLabel = dateRange?.let(::formatDateRangeLabel).orEmpty(),
                 points = points.toImmutableList(),
                 isScrollable = true,
             ),
@@ -243,59 +246,6 @@ class StatisticsViewModel @Inject constructor(
                 store[todayIndexKey] = points.indexOfFirst { it.isToday }
                 store[currencySymbolKey] = moneyDisplay.primaryLabel
                 store[currencyPrefixKey] = moneyDisplay.displayMode == MoneyDisplayMode.SYMBOL_FIRST
-            }
-        }
-    }
-
-    private fun buildChartTitle(
-        period: StatsPeriod,
-        transactionType: TransactionType,
-    ): String {
-        val strings = localizedStrings()
-        val subject = when (transactionType) {
-            TransactionType.EXPENSE -> strings.expensesLabel
-            TransactionType.INCOME -> strings.incomeLabel
-        }
-        return when (period) {
-            StatsPeriod.YEAR -> strings.statisticsChartByMonth(subject)
-            StatsPeriod.WEEK, StatsPeriod.MONTH -> strings.statisticsChartByDay(subject)
-        }
-    }
-
-    private fun formatDateRangeLabel(dateRange: StatisticsDateRange): String {
-        val strings = localizedStrings()
-        val locale = strings.locale
-        val timeZone = TimeZone.getDefault()
-        val start = Calendar.getInstance(timeZone).apply { timeInMillis = dateRange.startMillis }
-        val end = Calendar.getInstance(timeZone).apply { timeInMillis = dateRange.endMillis }
-
-        val monthDayFormat = SimpleDateFormat("MMM d", locale)
-        val fullDateFormat = SimpleDateFormat("MMM d, yyyy", locale)
-        val monthFormat = SimpleDateFormat("MMM", locale)
-
-        return when {
-            start.get(Calendar.YEAR) != end.get(Calendar.YEAR) -> {
-                strings.statisticsDateRangeCrossYear(
-                    fullDateFormat.format(Date(dateRange.startMillis)),
-                    fullDateFormat.format(Date(dateRange.endMillis)),
-                )
-            }
-
-            start.get(Calendar.MONTH) == end.get(Calendar.MONTH) -> {
-                strings.statisticsDateRangeSingleMonth(
-                    monthFormat.format(start.time),
-                    start.get(Calendar.DAY_OF_MONTH),
-                    end.get(Calendar.DAY_OF_MONTH),
-                    end.get(Calendar.YEAR),
-                )
-            }
-
-            else -> {
-                strings.statisticsDateRangeCrossMonth(
-                    monthDayFormat.format(Date(dateRange.startMillis)),
-                    monthDayFormat.format(Date(dateRange.endMillis)),
-                    end.get(Calendar.YEAR),
-                )
             }
         }
     }
@@ -342,7 +292,7 @@ class StatisticsViewModel @Inject constructor(
         }
     }
 
-    private fun localizedStrings() = appStringsFor(Locale.getDefault().language)
+    private fun localizedStrings() = appStringsFor(cachedLanguageCode)
 
     private fun monthStart(year: Int, month: Int): Long {
         val calendar = Calendar.getInstance(TimeZone.getDefault())

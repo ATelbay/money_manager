@@ -43,9 +43,18 @@ class GetPeriodSummaryUseCase @Inject constructor(
             val incomesByCategory = buildCategorySummaries(incomes, categoryMap, totalIncome)
 
             // --- Daily totals with zero-fill (T004) ---
-            val expenseDayMap = expenses.groupBy { dayStart(it.date) }
+            val dayCal = Calendar.getInstance(TimeZone.getDefault())
+            fun dayStartReuse(timestamp: Long): Long {
+                dayCal.timeInMillis = timestamp
+                dayCal.set(Calendar.HOUR_OF_DAY, 0)
+                dayCal.set(Calendar.MINUTE, 0)
+                dayCal.set(Calendar.SECOND, 0)
+                dayCal.set(Calendar.MILLISECOND, 0)
+                return dayCal.timeInMillis
+            }
+            val expenseDayMap = expenses.groupBy { dayStartReuse(it.date) }
                 .mapValues { (_, txns) -> txns.sumOf { it.amount } }
-            val incomeDayMap = incomes.groupBy { dayStart(it.date) }
+            val incomeDayMap = incomes.groupBy { dayStartReuse(it.date) }
                 .mapValues { (_, txns) -> txns.sumOf { it.amount } }
 
             val dailyExpenses = fillDays(start, end, expenseDayMap)
@@ -106,10 +115,10 @@ class GetPeriodSummaryUseCase @Inject constructor(
 
         // Group transactions by year+month
         val monthMap = mutableMapOf<Pair<Int, Int>, Double>()
+        val txCal = Calendar.getInstance(TimeZone.getDefault())
         for (tx in transactions) {
-            val cal = Calendar.getInstance(TimeZone.getDefault())
-            cal.timeInMillis = tx.date
-            val key = cal.get(Calendar.YEAR) to cal.get(Calendar.MONTH)
+            txCal.timeInMillis = tx.date
+            val key = txCal.get(Calendar.YEAR) to txCal.get(Calendar.MONTH)
             monthMap[key] = (monthMap[key] ?: 0.0) + tx.amount
         }
 

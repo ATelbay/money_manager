@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface TransactionRepository {
     fun observeAll(): Flow<List<Transaction>>
+    fun observeByDateRange(startMillis: Long, endMillis: Long): Flow<List<Transaction>>
     fun observeByCategoryTypeAndDateRange(
         categoryId: Long,
         transactionType: TransactionType,
