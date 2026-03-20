@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.TransactionType
+import com.atelbay.money_manager.core.ui.theme.AppStrings
 import com.atelbay.money_manager.domain.categories.usecase.GetCategoryByIdUseCase
 import com.atelbay.money_manager.domain.categories.usecase.SaveCategoryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -72,27 +74,33 @@ class CategoryEditViewModel @Inject constructor(
         _state.update { it.copy(selectedColor = color) }
     }
 
-    fun save(onComplete: () -> Unit) {
+    fun save(strings: AppStrings, onComplete: () -> Unit) {
         val current = _state.value
 
         if (current.name.isBlank()) {
-            _state.update { it.copy(nameError = "Введите название категории") }
+            _state.update { it.copy(nameError = strings.errorEnterCategoryName) }
             return
         }
 
         _state.update { it.copy(isSaving = true) }
 
         viewModelScope.launch {
-            saveCategoryUseCase(
-                Category(
-                    id = current.categoryId ?: 0,
-                    name = current.name.trim(),
-                    icon = current.selectedIcon,
-                    color = current.selectedColor,
-                    type = current.type,
-                ),
-            )
-            onComplete()
+            try {
+                saveCategoryUseCase(
+                    Category(
+                        id = current.categoryId ?: 0,
+                        name = current.name.trim(),
+                        icon = current.selectedIcon,
+                        color = current.selectedColor,
+                        type = current.type,
+                    ),
+                )
+                onComplete()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update { it.copy(isSaving = false, nameError = strings.errorUnknown) }
+            }
         }
     }
 

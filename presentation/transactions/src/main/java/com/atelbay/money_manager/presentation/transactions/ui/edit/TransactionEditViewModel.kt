@@ -12,6 +12,7 @@ import com.atelbay.money_manager.domain.categories.usecase.GetCategoriesUseCase
 import com.atelbay.money_manager.domain.transactions.usecase.DeleteTransactionUseCase
 import com.atelbay.money_manager.domain.transactions.usecase.GetTransactionByIdUseCase
 import com.atelbay.money_manager.domain.transactions.usecase.SaveTransactionUseCase
+import com.atelbay.money_manager.core.ui.theme.AppStrings
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -142,18 +143,18 @@ class TransactionEditViewModel @Inject constructor(
         }
     }
 
-    fun save(onComplete: () -> Unit) {
+    fun save(strings: AppStrings, onComplete: () -> Unit) {
         val current = _state.value
         var hasError = false
 
         val amount = current.amount.toDoubleOrNull()
         if (amount == null || amount <= 0) {
-            _state.update { it.copy(amountError = "Введите корректную сумму") }
+            _state.update { it.copy(amountError = strings.errorEnterValidAmount) }
             hasError = true
         }
 
         if (current.selectedCategory == null) {
-            _state.update { it.copy(categoryError = "Выберите категорию") }
+            _state.update { it.copy(categoryError = strings.errorSelectCategory) }
             hasError = true
         }
 
@@ -180,7 +181,7 @@ class TransactionEditViewModel @Inject constructor(
                 )
                 onComplete()
             } catch (e: Exception) {
-                _state.update { it.copy(isSaving = false) }
+                _state.update { it.copy(isSaving = false, saveError = strings.errorUnknown) }
             }
         }
     }

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "33f5ee060b45bb57486d82dae350e8df",
+    "identityHash": "8007c6226c9a961f15bfe7ed040526a4",
     "entities": [
       {
         "tableName": "accounts",
@@ -61,7 +61,27 @@
           "columnNames": [
             "id"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_accounts_isDeleted",
+            "unique": false,
+            "columnNames": [
+              "isDeleted"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_accounts_isDeleted` ON `${TABLE_NAME}` (`isDeleted`)"
+          },
+          {
+            "name": "index_accounts_remoteId",
+            "unique": false,
+            "columnNames": [
+              "remoteId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_accounts_remoteId` ON `${TABLE_NAME}` (`remoteId`)"
+          }
+        ]
       },
       {
         "tableName": "categories",
@@ -126,7 +146,28 @@
           "columnNames": [
             "id"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_categories_type_isDeleted",
+            "unique": false,
+            "columnNames": [
+              "type",
+              "isDeleted"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_categories_type_isDeleted` ON `${TABLE_NAME}` (`type`, `isDeleted`)"
+          },
+          {
+            "name": "index_categories_remoteId",
+            "unique": false,
+            "columnNames": [
+              "remoteId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_categories_remoteId` ON `${TABLE_NAME}` (`remoteId`)"
+          }
+        ]
       },
       {
         "tableName": "transactions",
@@ -244,6 +285,26 @@
             ],
             "orders": [],
             "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_transactions_uniqueHash` ON `${TABLE_NAME}` (`uniqueHash`)"
+          },
+          {
+            "name": "index_transactions_categoryId_type_date",
+            "unique": false,
+            "columnNames": [
+              "categoryId",
+              "type",
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_transactions_categoryId_type_date` ON `${TABLE_NAME}` (`categoryId`, `type`, `date`)"
+          },
+          {
+            "name": "index_transactions_isDeleted",
+            "unique": false,
+            "columnNames": [
+              "isDeleted"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_transactions_isDeleted` ON `${TABLE_NAME}` (`isDeleted`)"
           }
         ],
         "foreignKeys": [
@@ -274,7 +335,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '33f5ee060b45bb57486d82dae350e8df')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8007c6226c9a961f15bfe7ed040526a4')"
     ]
   }
 }

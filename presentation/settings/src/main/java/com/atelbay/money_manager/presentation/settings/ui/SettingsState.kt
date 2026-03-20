@@ -1,7 +1,7 @@
 package com.atelbay.money_manager.presentation.settings.ui
 
 import com.atelbay.money_manager.core.auth.AuthUser
-import com.atelbay.money_manager.data.sync.SyncStatus
+import com.atelbay.money_manager.core.model.SyncStatus
 
 data class SettingsState(
     val currentUser: AuthUser? = null,

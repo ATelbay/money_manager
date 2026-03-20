@@ -2,6 +2,8 @@ package com.atelbay.money_manager.presentation.importstatement.ui
 
 import com.atelbay.money_manager.core.auth.AuthUser
 import com.atelbay.money_manager.core.datastore.UserPreferences
+import com.atelbay.money_manager.core.ui.theme.AppStrings
+import com.atelbay.money_manager.core.ui.theme.RussianStrings
 import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.ImportResult
 import com.atelbay.money_manager.core.model.ImportState
@@ -40,6 +42,8 @@ import org.junit.runner.Description
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ImportViewModelTest {
+
+    private val testStrings: AppStrings = RussianStrings
 
     class MainDispatcherRule(
         private val dispatcher: TestDispatcher = UnconfinedTestDispatcher(),
@@ -139,14 +143,14 @@ class ImportViewModelTest {
         val viewModel = createViewModel()
 
         // Trigger parse
-        viewModel.onPdfSelected(byteArrayOf(1))
+        viewModel.onPdfSelected(byteArrayOf(1), testStrings)
         advanceUntilIdle()
 
         // Should be in Preview state
         assertTrue(viewModel.state.value is ImportState.Preview)
 
         // Trigger import
-        viewModel.importTransactions()
+        viewModel.importTransactions(testStrings)
         advanceUntilIdle()
 
         // Should be in Success state
@@ -171,11 +175,11 @@ class ImportViewModelTest {
         val viewModel = createViewModel()
 
         // Trigger parse
-        viewModel.onPdfSelected(byteArrayOf(1))
+        viewModel.onPdfSelected(byteArrayOf(1), testStrings)
         advanceUntilIdle()
 
         // Trigger import
-        viewModel.importTransactions()
+        viewModel.importTransactions(testStrings)
         advanceUntilIdle()
 
         assertTrue(viewModel.state.value is ImportState.Success)
@@ -200,11 +204,11 @@ class ImportViewModelTest {
         val viewModel = createViewModel()
 
         // Trigger parse
-        viewModel.onPdfSelected(byteArrayOf(1))
+        viewModel.onPdfSelected(byteArrayOf(1), testStrings)
         advanceUntilIdle()
 
         // Trigger import
-        viewModel.importTransactions()
+        viewModel.importTransactions(testStrings)
         advanceUntilIdle()
 
         // State should still be Success despite submission failure

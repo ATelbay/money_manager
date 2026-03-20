@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -32,6 +33,7 @@ fun ImportRoute(
     val selectedAccountId by viewModel.selectedAccountId.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
+    val strings = MoneyManagerTheme.strings
 
     LaunchedEffect(Unit) {
         val isDebug = 0 != (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE)
@@ -53,7 +55,7 @@ fun ImportRoute(
                 }
             }
             if (bytes != null && bytes.isNotEmpty()) {
-                viewModel.onPdfSelected(bytes)
+                viewModel.onPdfSelected(bytes, strings)
             }
         }
     }
@@ -69,7 +71,7 @@ fun ImportRoute(
                     context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 }
                 if (bytes != null && bytes.isNotEmpty()) {
-                    viewModel.onPdfSelected(bytes)
+                    viewModel.onPdfSelected(bytes, strings)
                 }
             }
         }
@@ -81,7 +83,7 @@ fun ImportRoute(
         if (bitmap != null) {
             val stream = ByteArrayOutputStream()
             bitmap.compress(Bitmap.CompressFormat.JPEG, 85, stream)
-            viewModel.onPhotoTaken(stream.toByteArray())
+            viewModel.onPhotoTaken(stream.toByteArray(), strings)
         }
     }
 
@@ -98,7 +100,7 @@ fun ImportRoute(
         onDetailsChange = viewModel::updateDetails,
         onDateChange = viewModel::updateDate,
         onCategoryChange = viewModel::updateCategory,
-        onImport = viewModel::importTransactions,
+        onImport = { viewModel.importTransactions(strings) },
         onReset = viewModel::reset,
         onBack = onBack,
         modifier = modifier,

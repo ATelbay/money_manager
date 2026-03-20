@@ -2,9 +2,8 @@ package com.atelbay.money_manager.presentation.settings.ui
 
 import android.app.Application
 import com.atelbay.money_manager.core.datastore.UserPreferences
-import com.atelbay.money_manager.data.sync.LoginSyncOrchestrator
-import com.atelbay.money_manager.data.sync.SyncManager
-import com.atelbay.money_manager.data.sync.SyncStatus
+import com.atelbay.money_manager.domain.sync.SyncRepository
+import com.atelbay.money_manager.core.model.SyncStatus
 import com.atelbay.money_manager.domain.auth.usecase.ObserveAuthUserUseCase
 import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
 import com.atelbay.money_manager.domain.exchangerate.repository.ExchangeRateRepository
@@ -31,10 +30,14 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
+import com.atelbay.money_manager.core.ui.theme.AppStrings
+import com.atelbay.money_manager.core.ui.theme.RussianStrings
 import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
+
+    private val testStrings: AppStrings = RussianStrings
 
     @After
     fun tearDown() {
@@ -59,7 +62,7 @@ class SettingsViewModelTest {
         )
         advanceUntilIdle()
 
-        viewModel.refreshExchangeRate()
+        viewModel.refreshExchangeRate(testStrings)
         advanceUntilIdle()
 
         coVerify(exactly = 1) { prefs.preferences.resetQuoteRefreshFailureCount() }
@@ -81,7 +84,7 @@ class SettingsViewModelTest {
         )
         advanceUntilIdle()
 
-        viewModel.refreshExchangeRate()
+        viewModel.refreshExchangeRate(testStrings)
         advanceUntilIdle()
 
         coVerify(exactly = 1) { prefs.preferences.incrementQuoteRefreshFailureCount() }
@@ -108,7 +111,7 @@ class SettingsViewModelTest {
         )
         advanceUntilIdle()
 
-        viewModel.refreshExchangeRate()
+        viewModel.refreshExchangeRate(testStrings)
         advanceUntilIdle()
 
         assertEquals("EUR", prefs.baseCurrency.value)
@@ -135,7 +138,7 @@ class SettingsViewModelTest {
         )
         advanceUntilIdle()
 
-        viewModel.refreshExchangeRate()
+        viewModel.refreshExchangeRate(testStrings)
         advanceUntilIdle()
 
         assertEquals("USD", prefs.baseCurrency.value)
@@ -256,10 +259,9 @@ class SettingsViewModelTest {
         val observeAuthUser = mockk<ObserveAuthUserUseCase>().also {
             every { it() } returns flowOf(null)
         }
-        val syncManager = mockk<SyncManager>().also {
-            every { it.syncStatus } returns MutableStateFlow(SyncStatus.Idle)
+        val syncRepository = mockk<SyncRepository>(relaxed = true).also {
+            every { it.syncStatus } returns flowOf(SyncStatus.Idle)
         }
-        val loginSyncOrchestrator = mockk<LoginSyncOrchestrator>(relaxed = true)
 
         return SettingsViewModel(
             userPreferences = preferenceHarness.preferences,
@@ -267,8 +269,7 @@ class SettingsViewModelTest {
             exchangeRateRepository = exchangeRateRepository,
             transactionRepository = transactionRepository,
             observeAuthUser = observeAuthUser,
-            syncManager = syncManager,
-            loginSyncOrchestrator = loginSyncOrchestrator,
+            syncRepository = syncRepository,
             application = application,
         )
     }

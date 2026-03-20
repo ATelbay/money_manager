@@ -48,6 +48,7 @@ include(":domain:accounts")
 include(":domain:statistics")
 include(":domain:import")
 include(":domain:exchangerate")
+include(":domain:sync")
 
 // Data
 include(":data:auth")

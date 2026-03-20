@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atelbay.money_manager.core.common.buildSortedCurrencyList
 import com.atelbay.money_manager.core.model.Account
+import com.atelbay.money_manager.core.ui.theme.AppStrings
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountByIdUseCase
 import com.atelbay.money_manager.domain.accounts.usecase.SaveAccountUseCase
 import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -47,6 +49,8 @@ class AccountEditViewModel @Inject constructor(
                             name = account.name,
                             currency = account.currency,
                             isLoading = false,
+                            originalBalance = account.balance,
+                            originalCreatedAt = account.createdAt,
                         )
                     }
                     return@launch
@@ -64,27 +68,34 @@ class AccountEditViewModel @Inject constructor(
         _state.update { it.copy(currency = currency) }
     }
 
-    fun save(onComplete: () -> Unit) {
+    fun save(strings: AppStrings, onComplete: () -> Unit) {
         val current = _state.value
 
         if (current.name.isBlank()) {
-            _state.update { it.copy(nameError = "Введите название счёта") }
+            _state.update { it.copy(nameError = strings.errorEnterAccountName) }
             return
         }
 
         _state.update { it.copy(isSaving = true) }
 
         viewModelScope.launch {
-            saveAccountUseCase(
-                Account(
-                    id = current.accountId ?: 0,
-                    name = current.name.trim(),
-                    currency = current.currency,
-                    balance = 0.0,
-                    createdAt = System.currentTimeMillis(),
-                ),
-            )
-            onComplete()
+            try {
+                val isEditing = current.accountId != null
+                saveAccountUseCase(
+                    Account(
+                        id = current.accountId ?: 0,
+                        name = current.name.trim(),
+                        currency = current.currency,
+                        balance = if (isEditing) current.originalBalance else 0.0,
+                        createdAt = if (isEditing) current.originalCreatedAt else System.currentTimeMillis(),
+                    ),
+                )
+                onComplete()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update { it.copy(isSaving = false, nameError = strings.errorUnknown) }
+            }
         }
     }
 }

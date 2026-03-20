@@ -1,4 +1,4 @@
-package com.atelbay.money_manager.data.sync
+package com.atelbay.money_manager.core.model
 
 sealed interface SyncStatus {
     data object Idle : SyncStatus

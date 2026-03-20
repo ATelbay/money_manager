@@ -26,6 +26,8 @@ import androidx.room.PrimaryKey
         Index("categoryId"),
         Index("date"),
         Index("uniqueHash", unique = true),
+        Index("categoryId", "type", "date"),
+        Index("isDeleted"),
     ],
 )
 data class TransactionEntity(

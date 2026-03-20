@@ -100,3 +100,4 @@ scripts/ralph/archive/
 app/src/test/screenshots/
 scripts/ralph/figma-pipeline-analysis.md
 universal-parser-plan.txt
+output/

@@ -5,14 +5,14 @@ import android.content.pm.PackageManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atelbay.money_manager.core.datastore.UserPreferences
-import com.atelbay.money_manager.data.sync.LoginSyncOrchestrator
-import com.atelbay.money_manager.data.sync.SyncManager
-import com.atelbay.money_manager.data.sync.SyncStatus
+import com.atelbay.money_manager.core.model.SyncStatus
+import com.atelbay.money_manager.domain.sync.SyncRepository
 import com.atelbay.money_manager.domain.auth.usecase.ObserveAuthUserUseCase
 import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
 import com.atelbay.money_manager.domain.exchangerate.repository.ExchangeRateRepository
 import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
 import com.atelbay.money_manager.domain.transactions.repository.TransactionRepository
+import com.atelbay.money_manager.core.ui.theme.AppStrings
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,8 +38,7 @@ class SettingsViewModel @Inject constructor(
     private val exchangeRateRepository: ExchangeRateRepository,
     private val transactionRepository: TransactionRepository,
     private val observeAuthUser: ObserveAuthUserUseCase,
-    private val syncManager: SyncManager,
-    private val loginSyncOrchestrator: LoginSyncOrchestrator,
+    private val syncRepository: SyncRepository,
     application: Application,
 ) : ViewModel() {
 
@@ -65,7 +64,7 @@ class SettingsViewModel @Inject constructor(
             .onEach { user -> _state.update { it.copy(currentUser = user) } }
             .launchIn(viewModelScope)
 
-        syncManager.syncStatus
+        syncRepository.syncStatus
             .onEach { status ->
                 val lastSyncDisplay = when (status) {
                     is SyncStatus.Synced -> formatSyncDate(status.lastSyncedAt)
@@ -128,7 +127,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun retrySync() {
-        loginSyncOrchestrator.retrySync()
+        syncRepository.retrySync()
     }
 
     fun setThemeMode(mode: ThemeMode) {
@@ -161,7 +160,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun refreshExchangeRate() {
+    fun refreshExchangeRate(strings: AppStrings) {
         if (_state.value.isRefreshingRate) {
             return
         }
@@ -192,7 +191,7 @@ class SettingsViewModel @Inject constructor(
             _state.update {
                 it.copy(
                     isRefreshingRate = false,
-                    rateErrorMessage = refreshError?.let { "Не удалось обновить курс" },
+                    rateErrorMessage = refreshError?.let { strings.errorUpdateRate },
                 )
             }
         }

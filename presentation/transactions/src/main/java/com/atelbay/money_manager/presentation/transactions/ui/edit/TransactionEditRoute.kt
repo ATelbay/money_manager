@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 
 @Composable
 fun TransactionEditRoute(
@@ -13,6 +14,7 @@ fun TransactionEditRoute(
     viewModel: TransactionEditViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val strings = MoneyManagerTheme.strings
 
     TransactionEditScreen(
         state = state,
@@ -26,7 +28,7 @@ fun TransactionEditRoute(
         onDateSelect = viewModel::setDate,
         onDateDismiss = { viewModel.toggleDatePicker(false) },
         onNoteChange = viewModel::setNote,
-        onSave = { viewModel.save(onBack) },
+        onSave = { viewModel.save(strings, onBack) },
         onDelete = if (state.isEditing) {
             {
                 viewModel.deleteTransaction(onBack)

@@ -55,7 +55,7 @@ import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.ui.components.GlassCard
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.theme.Teal
-import com.atelbay.money_manager.data.sync.SyncStatus
+import com.atelbay.money_manager.core.model.SyncStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -1,6 +1,7 @@
 package com.atelbay.money_manager.data.sync
 
 import com.atelbay.money_manager.core.auth.AuthManager
+import com.atelbay.money_manager.core.model.SyncStatus
 import com.atelbay.money_manager.core.crypto.FieldCipherHolder
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
