@@ -20,6 +20,7 @@ data class TransactionEditState(
     val isLoading: Boolean = true,
     val showCategorySheet: Boolean = false,
     val showDatePicker: Boolean = false,
+    val saveError: String? = null,
 ) {
     val isEditing: Boolean get() = transactionId != null
 }

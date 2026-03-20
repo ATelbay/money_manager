@@ -12,6 +12,8 @@ dependencies {
     implementation(projects.core.crypto)
     implementation(projects.core.database)
     implementation(projects.core.firestore)
+    implementation(projects.core.model)
+    implementation(projects.domain.sync)
     implementation(libs.bundles.coroutines)
     implementation(libs.timber)
 }

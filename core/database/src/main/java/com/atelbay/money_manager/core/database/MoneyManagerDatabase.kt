@@ -15,7 +15,7 @@ import com.atelbay.money_manager.core.database.entity.TransactionEntity
         CategoryEntity::class,
         TransactionEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class MoneyManagerDatabase : RoomDatabase() {

@@ -8,9 +8,10 @@ android {
 
 dependencies {
     implementation(projects.core.auth)
+    implementation(projects.core.model)
     implementation(projects.core.datastore)
     implementation(projects.core.ui)
-    implementation(projects.data.sync)
+    implementation(projects.domain.sync)
     implementation(projects.domain.auth)
     implementation(projects.domain.exchangerate)
     implementation(projects.domain.transactions)

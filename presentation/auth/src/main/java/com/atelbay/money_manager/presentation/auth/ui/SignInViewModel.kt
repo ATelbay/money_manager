@@ -3,6 +3,7 @@ package com.atelbay.money_manager.presentation.auth.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atelbay.money_manager.core.auth.SignInCancelledException
+import com.atelbay.money_manager.core.ui.theme.AppStrings
 import com.atelbay.money_manager.domain.auth.usecase.ObserveAuthUserUseCase
 import com.atelbay.money_manager.domain.auth.usecase.SignInWithGoogleUseCase
 import com.atelbay.money_manager.domain.auth.usecase.SignOutUseCase
@@ -34,7 +35,7 @@ class SignInViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    fun signIn() {
+    fun signIn(strings: AppStrings) {
         if (_state.value.isLoading) return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
@@ -46,9 +47,9 @@ class SignInViewModel @Inject constructor(
                 // no-op: user intentionally cancelled
             } catch (e: Exception) {
                 val message = if (e.cause is IOException || e is IOException) {
-                    "Нет подключения к интернету"
+                    strings.errorNoInternet
                 } else {
-                    "Не удалось войти. Попробуйте снова"
+                    strings.errorSignInFailed
                 }
                 _state.update { it.copy(errorMessage = message) }
             } finally {

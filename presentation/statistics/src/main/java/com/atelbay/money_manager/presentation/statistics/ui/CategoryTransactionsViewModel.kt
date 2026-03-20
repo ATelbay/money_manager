@@ -34,7 +34,7 @@ class CategoryTransactionsViewModel @Inject constructor(
     private val _state = MutableStateFlow(
         args?.toInitialState() ?: CategoryTransactionsState(
             isLoading = false,
-            error = "Unable to load category transactions",
+            error = UiError.LoadFailed,
         ),
     )
     val state: StateFlow<CategoryTransactionsState> = _state.asStateFlow()
@@ -83,10 +83,10 @@ class CategoryTransactionsViewModel @Inject constructor(
                     isLoading = false,
                 )
             }
-                .catch { throwable ->
+                .catch { _ ->
                     _state.value = _state.value.copy(
                         isLoading = false,
-                        error = throwable.message ?: "Unable to load category transactions",
+                        error = UiError.LoadFailed,
                     )
                 }
                 .onEach { _state.value = it }

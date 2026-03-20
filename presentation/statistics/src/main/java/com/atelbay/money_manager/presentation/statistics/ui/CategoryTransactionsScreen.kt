@@ -61,6 +61,10 @@ fun CategoryTransactionsScreen(
     val s = MoneyManagerTheme.strings
     val timestampFormatter = remember(s.locale) { SimpleDateFormat("dd MMM yyyy, HH:mm", s.locale) }
     val rangeFormatter = remember(s.locale) { SimpleDateFormat("dd MMM yyyy", s.locale) }
+    val errorMessage = when (state.error) {
+        is UiError.LoadFailed -> s.errorLoadCategoryTransactions
+        null -> null
+    }
 
     Scaffold(
         modifier = modifier.testTag("statistics:categoryTransactions:screen"),
@@ -104,7 +108,7 @@ fun CategoryTransactionsScreen(
                 }
             }
 
-            state.error != null -> {
+            errorMessage != null -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -113,7 +117,7 @@ fun CategoryTransactionsScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = state.error,
+                        text = errorMessage,
                         style = typography.cardTitle,
                         color = colors.textSecondary,
                     )

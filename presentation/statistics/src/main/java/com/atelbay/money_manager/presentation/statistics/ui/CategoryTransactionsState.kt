@@ -6,6 +6,10 @@ import com.atelbay.money_manager.core.ui.util.MoneyDisplayPresentation
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
+sealed interface UiError {
+    data object LoadFailed : UiError
+}
+
 data class CategoryTransactionsState(
     val categoryId: Long = 0,
     val categoryName: String = "",
@@ -17,7 +21,7 @@ data class CategoryTransactionsState(
     val endMillis: Long = 0L,
     val transactions: ImmutableList<CategoryTransactionItem> = persistentListOf(),
     val isLoading: Boolean = true,
-    val error: String? = null,
+    val error: UiError? = null,
 ) {
     val isEmpty: Boolean
         get() = !isLoading && error == null && transactions.isEmpty()

@@ -33,6 +33,7 @@ import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.ImportResult
 import com.atelbay.money_manager.core.model.TransactionOverride
 import com.atelbay.money_manager.core.model.TransactionType
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import kotlinx.datetime.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,6 +53,7 @@ fun ImportPreview(
     onImport: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val strings = MoneyManagerTheme.strings
     val confident = result.newTransactions
         .mapIndexed { index, tx -> index to tx }
         .filter { !it.second.needsReview }
@@ -82,25 +84,25 @@ fun ImportPreview(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Найдено: ${result.total}",
+                        text = strings.importFound(result.total),
                         style = MaterialTheme.typography.titleMedium,
                     )
                     if (result.duplicates > 0) {
                         Text(
-                            text = "Дубликаты: ${result.duplicates}",
+                            text = strings.importDuplicates(result.duplicates),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.testTag("import:duplicateCount"),
                         )
                     }
                     Text(
-                        text = "К импорту: $readyCount из ${result.newTransactions.size}",
+                        text = strings.importReadyCount(readyCount, result.newTransactions.size),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                     )
                     if (noCategoryCount > 0) {
                         Text(
-                            text = "Без категории: $noCategoryCount",
+                            text = strings.importNoCategory(noCategoryCount),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                         )
@@ -111,7 +113,7 @@ fun ImportPreview(
                     enabled = selectedAccountId != null,
                     modifier = Modifier.testTag("import:importButton"),
                 ) {
-                    Text("Импорт ($readyCount)")
+                    Text(strings.importButton(readyCount))
                 }
             }
         }
@@ -130,7 +132,7 @@ fun ImportPreview(
         if (needsReview.isNotEmpty()) {
             item(key = "reviewHeader") {
                 Text(
-                    text = "Требуют проверки (${needsReview.size})",
+                    text = strings.importNeedsReview(needsReview.size),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
@@ -160,7 +162,7 @@ fun ImportPreview(
         if (confident.isNotEmpty()) {
             item(key = "confidentHeader") {
                 Text(
-                    text = "Распознаны (${confident.size})",
+                    text = strings.importRecognized(confident.size),
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
@@ -200,11 +202,12 @@ private fun AccountSelector(
     onAccountSelected: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val strings = MoneyManagerTheme.strings
     var expanded by remember { mutableStateOf(false) }
 
     Column(modifier = modifier) {
         Text(
-            text = "Счёт для импорта",
+            text = strings.importAccountLabel,
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(bottom = 4.dp),
         )
@@ -213,7 +216,7 @@ private fun AccountSelector(
             onExpandedChange = { expanded = it },
         ) {
             OutlinedTextField(
-                value = selectedAccount?.let { "${it.name} (${it.currency})" } ?: "Выберите счёт",
+                value = selectedAccount?.let { "${it.name} (${it.currency})" } ?: strings.importSelectAccount,
                 onValueChange = {},
                 readOnly = true,
                 singleLine = true,

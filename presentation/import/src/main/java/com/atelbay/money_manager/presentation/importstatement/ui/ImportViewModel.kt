@@ -15,6 +15,7 @@ import com.atelbay.money_manager.domain.importstatement.usecase.ImportTransactio
 import com.atelbay.money_manager.domain.importstatement.usecase.ParseStatementUseCase
 import com.atelbay.money_manager.domain.importstatement.usecase.SubmitParserCandidateUseCase
 import com.atelbay.money_manager.core.remoteconfig.ParserConfig
+import com.atelbay.money_manager.core.ui.theme.AppStrings
 import com.atelbay.money_manager.domain.importstatement.usecase.AiMethod
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -75,29 +76,29 @@ class ImportViewModel @Inject constructor(
         _selectedAccountId.value = accountId
     }
 
-    fun onPdfSelected(bytes: ByteArray) {
+    fun onPdfSelected(bytes: ByteArray, strings: AppStrings) {
         viewModelScope.launch {
             _state.value = ImportState.Parsing
             try {
-                parseAndPreview(listOf(bytes to "application/pdf"))
+                parseAndPreview(listOf(bytes to "application/pdf"), strings)
             } catch (e: Exception) {
-                _state.value = ImportState.Error(e.message ?: "Ошибка чтения PDF")
+                _state.value = ImportState.Error(e.message ?: strings.errorReadingPdf)
             }
         }
     }
 
-    fun onPhotoTaken(imageBytes: ByteArray) {
+    fun onPhotoTaken(imageBytes: ByteArray, strings: AppStrings) {
         viewModelScope.launch {
             _state.value = ImportState.Parsing
             try {
-                parseAndPreview(listOf(imageBytes to "image/jpeg"))
+                parseAndPreview(listOf(imageBytes to "image/jpeg"), strings)
             } catch (e: Exception) {
-                _state.value = ImportState.Error(e.message ?: "Неизвестная ошибка")
+                _state.value = ImportState.Error(e.message ?: strings.errorUnknown)
             }
         }
     }
 
-    private suspend fun parseAndPreview(blobs: List<Pair<ByteArray, String>>) {
+    private suspend fun parseAndPreview(blobs: List<Pair<ByteArray, String>>, strings: AppStrings) {
         val parseResult = parseStatementUseCase(blobs)
         val result = parseResult.importResult
         lastAiGeneratedConfig = parseResult.aiGeneratedConfig
@@ -112,7 +113,7 @@ class ImportViewModel @Inject constructor(
         }
 
         if (result.newTransactions.isEmpty() && result.total == 0) {
-            val errorMessage = result.errors.firstOrNull() ?: "Не удалось найти транзакции в документе"
+            val errorMessage = result.errors.firstOrNull() ?: strings.errorNoTransactionsFound
             _state.value = ImportState.Error(errorMessage)
         } else if (result.newTransactions.isEmpty() && result.errors.isNotEmpty()) {
             _state.value = ImportState.Error(result.errors.first())
@@ -157,13 +158,13 @@ class ImportViewModel @Inject constructor(
         updateOverride(index) { it.copy(categoryId = categoryId) }
     }
 
-    fun importTransactions() {
+    fun importTransactions(strings: AppStrings) {
         val current = _state.value
         if (current !is ImportState.Preview) return
 
         val accountId = _selectedAccountId.value
         if (accountId == null) {
-            _state.value = ImportState.Error("Выберите счёт для импорта")
+            _state.value = ImportState.Error(strings.errorSelectAccountForImport)
             return
         }
 
@@ -191,7 +192,7 @@ class ImportViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                _state.value = ImportState.Error(e.message ?: "Ошибка импорта")
+                _state.value = ImportState.Error(e.message ?: strings.errorImport)
             }
         }
     }
