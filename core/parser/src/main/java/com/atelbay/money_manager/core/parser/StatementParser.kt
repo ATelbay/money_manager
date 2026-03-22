@@ -21,7 +21,7 @@ class StatementParser @Inject constructor(
 
     private companion object {
         const val HEADER_LINE_COUNT = 10
-        const val SAMPLE_LINE_COUNT = 10
+        const val SAMPLE_LINE_COUNT = 60
     }
 
     suspend fun tryParsePdf(

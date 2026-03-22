@@ -11,6 +11,8 @@ import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
 import com.atelbay.money_manager.domain.auth.repository.AuthRepository
 import com.atelbay.money_manager.domain.categories.usecase.GetCategoriesUseCase
+import com.atelbay.money_manager.domain.importstatement.usecase.ImportProgressCollector
+import com.atelbay.money_manager.domain.importstatement.usecase.ImportStepEvent
 import com.atelbay.money_manager.domain.importstatement.usecase.ImportTransactionsUseCase
 import com.atelbay.money_manager.domain.importstatement.usecase.ParseStatementUseCase
 import com.atelbay.money_manager.domain.importstatement.usecase.SubmitParserCandidateUseCase
@@ -22,7 +24,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import timber.log.Timber
@@ -54,6 +58,9 @@ class ImportViewModel @Inject constructor(
     /** Debug-only: emits a message when AI fallback is used. */
     private val _debugAiEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val debugAiEvent = _debugAiEvent.asSharedFlow()
+
+    /** Debug progress collector — always created, only consumed in debug UI. */
+    val debugCollector = ListImportProgressCollector()
 
     /** Tracks the AI-generated config from the last parse, if any. */
     private var lastAiGeneratedConfig: ParserConfig? = null
@@ -99,7 +106,8 @@ class ImportViewModel @Inject constructor(
     }
 
     private suspend fun parseAndPreview(blobs: List<Pair<ByteArray, String>>, strings: AppStrings) {
-        val parseResult = parseStatementUseCase(blobs)
+        debugCollector.clear()
+        val parseResult = parseStatementUseCase(blobs, debugCollector)
         val result = parseResult.importResult
         lastAiGeneratedConfig = parseResult.aiGeneratedConfig
         lastSampleRows = parseResult.sampleRows
@@ -201,5 +209,19 @@ class ImportViewModel @Inject constructor(
         _state.value = ImportState.Idle
         lastAiGeneratedConfig = null
         lastSampleRows = null
+        debugCollector.clear()
+    }
+}
+
+class ListImportProgressCollector : ImportProgressCollector {
+    private val _eventsFlow = MutableStateFlow<List<ImportStepEvent>>(emptyList())
+    val eventsFlow: StateFlow<List<ImportStepEvent>> = _eventsFlow.asStateFlow()
+
+    override fun emit(event: ImportStepEvent) {
+        _eventsFlow.update { it + event }
+    }
+
+    fun clear() {
+        _eventsFlow.value = emptyList()
     }
 }

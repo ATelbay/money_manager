@@ -68,10 +68,10 @@ class RegexStatementParser @Inject constructor() {
 
         if (config.useNamedGroups) {
             dateStr = match.groups["date"]?.value ?: error("Named group 'date' not found in match")
-            sign = match.groups["sign"]?.value ?: ""
+            sign = safeNamedGroup(match, "sign")
             amountStr = match.groups["amount"]?.value ?: error("Named group 'amount' not found in match")
-            operation = match.groups["operation"]?.value ?: ""
-            details = match.groups["details"]?.value ?: ""
+            operation = safeNamedGroup(match, "operation")
+            details = safeNamedGroup(match, "details")
         } else {
             val (d, s, a, op, det) = match.destructured
             dateStr = d; sign = s; amountStr = a; operation = op; details = det
@@ -109,6 +109,14 @@ class RegexStatementParser @Inject constructor() {
             uniqueHash = hash,
         )
     }
+
+    /**
+     * Safely extract a named group that may not exist in the pattern.
+     * On Android JVM, `match.groups[name]` throws IllegalArgumentException
+     * if the group name is not defined in the regex (as opposed to returning null).
+     */
+    private fun safeNamedGroup(match: MatchResult, name: String): String =
+        try { match.groups[name]?.value ?: "" } catch (_: IllegalArgumentException) { "" }
 
     private fun parseAmount(amountStr: String, format: String): Double = when (format) {
         "comma_dot" -> amountStr.replace(",", "").toDouble()

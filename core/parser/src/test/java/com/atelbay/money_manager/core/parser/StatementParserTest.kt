@@ -116,16 +116,16 @@ class StatementParserTest {
     // ==================== extractSampleRows TESTS ====================
 
     @Test
-    fun `extractSampleRows returns 10 data lines after skipping 10 header lines`() {
+    fun `extractSampleRows returns up to 60 data lines after skipping 10 header lines`() {
         val headerLines = (1..10).map { "Header line $it" }
-        val dataLines = (1..15).map { "Data line $it" }
+        val dataLines = (1..70).map { "Data line $it" }
         val text = (headerLines + dataLines).joinToString("\n")
 
         val result = statementParser.extractSampleRows(text)
 
-        assertEquals(10, result.lines().size)
+        assertEquals(60, result.lines().size)
         assertEquals("Data line 1", result.lines().first())
-        assertEquals("Data line 10", result.lines().last())
+        assertEquals("Data line 60", result.lines().last())
     }
 
     @Test

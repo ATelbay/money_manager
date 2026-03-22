@@ -1,5 +1,6 @@
 package com.atelbay.money_manager.domain.importstatement.usecase
 
+import com.atelbay.money_manager.core.ai.FailedAttempt
 import com.atelbay.money_manager.core.ai.GeminiService
 import com.atelbay.money_manager.core.database.dao.CategoryDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
@@ -102,6 +103,7 @@ class ParseStatementUseCaseTest {
         every { statementParser.extractHeaderSnippet(pdfTextWithEnoughLines) } returns headerSnippet
         every { statementParser.extractSampleRows(pdfTextWithEnoughLines) } returns sampleRows
         every { parserConfigProvider.isAiFullParseEnabled() } returns true
+        coEvery { parserConfigProvider.getConfigs() } returns emptyList()
 
         useCase = ParseStatementUseCase(
             statementParser = statementParser,
@@ -125,11 +127,11 @@ class ParseStatementUseCaseTest {
 
         // Step 3: Gemini generates a valid config
         coEvery {
-            geminiService.generateParserConfig(headerSnippet, sampleRows)
+            geminiService.generateParserConfig(headerSnippet, sampleRows, any(), any())
         } returns testConfig
 
         // Step 4: Regex is safe
-        every { regexValidator.isReDoSSafe(testConfig.transactionPattern) } returns true
+        every { regexValidator.getReDoSViolation(testConfig.transactionPattern) } returns null
 
         // Step 5: Config parses transactions successfully
         every { statementParser.tryParseWithConfig(pdfBytes, testConfig) } returns RegexParseResult(
@@ -146,7 +148,7 @@ class ParseStatementUseCaseTest {
         assertNotNull(result.aiGeneratedConfig)
         assertEquals("test_bank", result.aiGeneratedConfig?.bankId)
         assertNotNull(result.sampleRows)
-        coVerify { geminiService.generateParserConfig(headerSnippet, sampleRows) }
+        coVerify { geminiService.generateParserConfig(headerSnippet, sampleRows, any(), any()) }
     }
 
     @Test
@@ -157,7 +159,7 @@ class ParseStatementUseCaseTest {
 
         // Gemini config generation fails
         coEvery {
-            geminiService.generateParserConfig(headerSnippet, sampleRows)
+            geminiService.generateParserConfig(headerSnippet, sampleRows, any(), any())
         } throws RuntimeException("AI error")
 
         // Fallback: full AI parsing
@@ -179,11 +181,11 @@ class ParseStatementUseCaseTest {
 
         // Gemini generates config
         coEvery {
-            geminiService.generateParserConfig(headerSnippet, sampleRows)
+            geminiService.generateParserConfig(headerSnippet, sampleRows, any(), any())
         } returns testConfig
 
         // ReDoS check fails
-        every { regexValidator.isReDoSSafe(testConfig.transactionPattern) } returns false
+        every { regexValidator.getReDoSViolation(testConfig.transactionPattern) } returns "Nested quantifier detected"
 
         // Fallback: full AI parsing
         coEvery { geminiService.parseContent(pdfBlobs, any()) } returns geminiJsonResponse
@@ -204,11 +206,11 @@ class ParseStatementUseCaseTest {
 
         // Gemini generates config
         coEvery {
-            geminiService.generateParserConfig(headerSnippet, sampleRows)
+            geminiService.generateParserConfig(headerSnippet, sampleRows, any(), any())
         } returns testConfig
 
         // Regex is safe
-        every { regexValidator.isReDoSSafe(testConfig.transactionPattern) } returns true
+        every { regexValidator.getReDoSViolation(testConfig.transactionPattern) } returns null
 
         // Config parses 0 transactions
         every { statementParser.tryParseWithConfig(pdfBytes, testConfig) } returns RegexParseResult(
@@ -247,7 +249,7 @@ class ParseStatementUseCaseTest {
         val result = useCase(pdfBlobs)
 
         // AI should NOT be called
-        coVerify(exactly = 0) { geminiService.generateParserConfig(any(), any()) }
+        coVerify(exactly = 0) { geminiService.generateParserConfig(any(), any(), any(), any()) }
         coVerify(exactly = 0) { geminiService.parseContent(any(), any()) }
 
         assertEquals(1, result.importResult.newTransactions.size)
@@ -264,11 +266,11 @@ class ParseStatementUseCaseTest {
 
         // Gemini generates config
         coEvery {
-            geminiService.generateParserConfig(headerSnippet, sampleRows)
+            geminiService.generateParserConfig(headerSnippet, sampleRows, any(), any())
         } returns testConfig
 
         // Regex is safe (passes heuristic but will hang at runtime)
-        every { regexValidator.isReDoSSafe(testConfig.transactionPattern) } returns true
+        every { regexValidator.getReDoSViolation(testConfig.transactionPattern) } returns null
 
         // tryParseWithConfig blocks via Thread.sleep — runInterruptible will interrupt it
         every { statementParser.tryParseWithConfig(pdfBytes, testConfig) } answers {
@@ -298,9 +300,9 @@ class ParseStatementUseCaseTest {
 
         val generatedVariant = testConfig.copy(transactionPattern = "new-pattern")
         coEvery {
-            geminiService.generateParserConfig(headerSnippet, sampleRows)
+            geminiService.generateParserConfig(headerSnippet, sampleRows, any(), any())
         } returns generatedVariant
-        every { regexValidator.isReDoSSafe(generatedVariant.transactionPattern) } returns true
+        every { regexValidator.getReDoSViolation(generatedVariant.transactionPattern) } returns null
         every { statementParser.tryParseWithConfig(pdfBytes, generatedVariant) } returns RegexParseResult(
             transactions = listOf(testTransaction),
             bankId = generatedVariant.bankId,
@@ -319,5 +321,165 @@ class ParseStatementUseCaseTest {
         assertEquals(2, storedConfigs.size)
         assertTrue(storedConfigs.any { it.transactionPattern == "existing-pattern" })
         assertTrue(storedConfigs.any { it.transactionPattern == "new-pattern" })
+    }
+
+    // ---- Retry loop tests ----
+
+    @Test
+    fun `retry - success on first attempt does not retry`() = runTest {
+        coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
+        coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
+
+        coEvery {
+            geminiService.generateParserConfig(headerSnippet, sampleRows, any(), any())
+        } returns testConfig
+
+        every { regexValidator.getReDoSViolation(testConfig.transactionPattern) } returns null
+        every { statementParser.tryParseWithConfig(pdfBytes, testConfig) } returns RegexParseResult(
+            transactions = listOf(testTransaction),
+            bankId = testConfig.bankId,
+        )
+
+        val result = useCase(pdfBlobs)
+
+        assertEquals(1, result.importResult.newTransactions.size)
+        assertEquals(AiMethod.REGEX_GENERATED, result.aiMethod)
+        // Should only be called once (no retry needed)
+        coVerify(exactly = 1) { geminiService.generateParserConfig(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `retry - first attempt fails with invalid regex, second succeeds`() = runTest {
+        coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
+        coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
+
+        val badConfig = testConfig.copy(transactionPattern = "[invalid(regex")
+        val goodConfig = testConfig.copy(transactionPattern = "\\d{2}\\.\\d{2}\\.\\d{4}\\s+(.+)")
+
+        // First call returns bad config, second returns good config
+        coEvery {
+            geminiService.generateParserConfig(headerSnippet, sampleRows, any(), any())
+        } returnsMany listOf(badConfig, goodConfig)
+
+        // First config fails regex validation
+        every { regexValidator.getReDoSViolation(badConfig.transactionPattern) } returns null
+        every { regexValidator.getReDoSViolation(goodConfig.transactionPattern) } returns null
+
+        // Second config succeeds
+        every { statementParser.tryParseWithConfig(pdfBytes, goodConfig) } returns RegexParseResult(
+            transactions = listOf(testTransaction),
+            bankId = goodConfig.bankId,
+        )
+
+        val result = useCase(pdfBlobs)
+
+        assertEquals(1, result.importResult.newTransactions.size)
+        assertEquals(AiMethod.REGEX_GENERATED, result.aiMethod)
+        coVerify(exactly = 2) { geminiService.generateParserConfig(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `retry - all 3 attempts fail falls through to full AI`() = runTest {
+        coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
+        coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
+
+        // All 3 attempts return config that fails ReDoS
+        coEvery {
+            geminiService.generateParserConfig(headerSnippet, sampleRows, any(), any())
+        } returns testConfig
+
+        every { regexValidator.getReDoSViolation(testConfig.transactionPattern) } returns "Nested quantifier detected"
+
+        // Fallback: full AI parsing
+        coEvery { geminiService.parseContent(pdfBlobs, any()) } returns geminiJsonResponse
+
+        val result = useCase(pdfBlobs)
+
+        // Should have tried 3 times
+        coVerify(exactly = 3) { geminiService.generateParserConfig(any(), any(), any(), any()) }
+        // Should fall back to full AI
+        coVerify { geminiService.parseContent(pdfBlobs, any()) }
+        assertEquals(AiMethod.FULL_PARSE, result.aiMethod)
+    }
+
+    @Test
+    fun `retry - network exception on first attempt counts as failed and continues`() = runTest {
+        coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
+        coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
+
+        // First call throws, second returns valid config
+        coEvery {
+            geminiService.generateParserConfig(headerSnippet, sampleRows, any(), any())
+        } throws RuntimeException("Network error") andThen testConfig
+
+        every { regexValidator.getReDoSViolation(testConfig.transactionPattern) } returns null
+        every { statementParser.tryParseWithConfig(pdfBytes, testConfig) } returns RegexParseResult(
+            transactions = listOf(testTransaction),
+            bankId = testConfig.bankId,
+        )
+
+        val result = useCase(pdfBlobs)
+
+        assertEquals(1, result.importResult.newTransactions.size)
+        assertEquals(AiMethod.REGEX_GENERATED, result.aiMethod)
+        coVerify(exactly = 2) { geminiService.generateParserConfig(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `retry - 0 match includes sample lines in error`() = runTest {
+        coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
+        coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
+
+        // All attempts return config that parses 0 transactions
+        coEvery {
+            geminiService.generateParserConfig(headerSnippet, sampleRows, any(), any())
+        } returns testConfig
+
+        every { regexValidator.getReDoSViolation(testConfig.transactionPattern) } returns null
+        every { statementParser.tryParseWithConfig(pdfBytes, testConfig) } returns RegexParseResult(
+            transactions = emptyList(),
+            bankId = testConfig.bankId,
+        )
+
+        // Fallback: full AI parsing
+        coEvery { geminiService.parseContent(pdfBlobs, any()) } returns geminiJsonResponse
+
+        val result = useCase(pdfBlobs)
+
+        // Should have tried 3 times
+        coVerify(exactly = 3) { geminiService.generateParserConfig(any(), any(), any(), any()) }
+        // Should fall back to full AI
+        coVerify { geminiService.parseContent(pdfBlobs, any()) }
+    }
+
+    @Test
+    fun `retry - passes existingConfigs and failedAttempts to subsequent calls`() = runTest {
+        coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
+        coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
+
+        // Capture snapshots of failedAttempts at each call (the list is mutated between calls)
+        val attemptSizes = mutableListOf<Int>()
+
+        coEvery {
+            geminiService.generateParserConfig(headerSnippet, sampleRows, any(), any())
+        } answers {
+            attemptSizes.add(arg<List<FailedAttempt>>(3).size)
+            testConfig
+        }
+
+        // All 3 fail ReDoS
+        every { regexValidator.getReDoSViolation(testConfig.transactionPattern) } returns "Nested quantifier detected"
+
+        // Fallback
+        coEvery { geminiService.parseContent(pdfBlobs, any()) } returns geminiJsonResponse
+
+        useCase(pdfBlobs)
+
+        // First call should have 0 failed attempts
+        assertEquals(0, attemptSizes[0])
+        // Second call should have 1 failed attempt
+        assertEquals(1, attemptSizes[1])
+        // Third call should have 2 failed attempts
+        assertEquals(2, attemptSizes[2])
     }
 }
