@@ -17,7 +17,7 @@ class PdfTextExtractor @Inject constructor(
 
     private var initialized = false
 
-    private fun ensureInitialized() {
+    internal fun ensureInitialized() {
         if (!initialized) {
             PDFBoxResourceLoader.init(context)
             initialized = true

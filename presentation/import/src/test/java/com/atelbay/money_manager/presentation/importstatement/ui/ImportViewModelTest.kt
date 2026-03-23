@@ -137,7 +137,7 @@ class ImportViewModelTest {
             aiGeneratedConfig = testAiConfig,
             sampleRows = "sample row data",
         )
-        coEvery { parseStatementUseCase(any()) } returns parseResult
+        coEvery { parseStatementUseCase(any(), any()) } returns parseResult
         coEvery { importTransactionsUseCase(any(), any(), any()) } returns 1
 
         val viewModel = createViewModel()
@@ -169,7 +169,7 @@ class ImportViewModelTest {
             aiGeneratedConfig = null,
             sampleRows = null,
         )
-        coEvery { parseStatementUseCase(any()) } returns parseResult
+        coEvery { parseStatementUseCase(any(), any()) } returns parseResult
         coEvery { importTransactionsUseCase(any(), any(), any()) } returns 1
 
         val viewModel = createViewModel()
@@ -195,7 +195,7 @@ class ImportViewModelTest {
             aiGeneratedConfig = testAiConfig,
             sampleRows = "sample row data",
         )
-        coEvery { parseStatementUseCase(any()) } returns parseResult
+        coEvery { parseStatementUseCase(any(), any()) } returns parseResult
         coEvery { importTransactionsUseCase(any(), any(), any()) } returns 1
         coEvery {
             submitParserCandidateUseCase(any(), any(), any())

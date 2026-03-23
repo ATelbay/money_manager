@@ -5,6 +5,9 @@ plugins {
 
 android {
     namespace = "com.atelbay.money_manager.core.parser"
+    defaultConfig {
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
 }
 
 dependencies {
@@ -19,4 +22,7 @@ dependencies {
     testImplementation(libs.bundles.testing)
     testImplementation(libs.kotlinx.serialization.json)
     testImplementation(libs.pdfbox)
+
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.bundles.testing)
 }

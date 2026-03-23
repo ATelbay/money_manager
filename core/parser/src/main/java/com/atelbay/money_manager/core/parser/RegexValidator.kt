@@ -10,51 +10,59 @@ class RegexValidator @Inject constructor() {
      * known dangerous constructs (nested quantifiers, overlapping alternations,
      * adjacent overlapping quantified groups).
      */
-    fun isReDoSSafe(pattern: String): Boolean {
-        return !hasNestedQuantifiers(pattern) &&
-            !hasOverlappingAlternations(pattern) &&
-            !hasAdjacentOverlappingGroups(pattern)
+    fun isReDoSSafe(pattern: String): Boolean = getReDoSViolation(pattern) == null
+
+    /**
+     * Returns a human-readable description of the ReDoS vulnerability found
+     * in [pattern], or `null` if the pattern appears safe.
+     */
+    fun getReDoSViolation(pattern: String): String? {
+        findNestedQuantifier(pattern)?.let { fragment ->
+            return "Nested quantifier detected: '$fragment'. A quantified group containing +/* must not itself be followed by a quantifier. Flatten the repetition instead."
+        }
+        findOverlappingAlternation(pattern)?.let { fragment ->
+            return "Overlapping alternation detected: '$fragment'. Both branches match the same input."
+        }
+        findAdjacentOverlappingGroups(pattern)?.let { fragment ->
+            return "Adjacent overlapping groups detected: '$fragment'. Consecutive identical character classes with quantifiers cause catastrophic backtracking."
+        }
+        return null
     }
 
     /**
      * Detects nested quantifiers like `(a+)+`, `(a*)*`, `(a+)*`, `(a*)+`.
-     * A group whose body contains a quantifier, followed by another quantifier.
+     * Only flags groups followed by `+`, `*`, or `{` — NOT `?` (0-or-1 is safe).
+     * Returns the matched fragment or null.
      */
-    private fun hasNestedQuantifiers(pattern: String): Boolean {
-        // Match a parenthesized group containing +, *, or {n,m} inside,
-        // followed by an outer quantifier (+, *, ?, {).
-        val nested = Regex("""\([^)]*[+*][^)]*\)[+*?]|\([^)]*[+*][^)]*\)\{""")
-        return nested.containsMatchIn(pattern)
+    private fun findNestedQuantifier(pattern: String): String? {
+        val nested = Regex("""\([^)]*[+*][^)]*\)[+*]|\([^)]*[+*][^)]*\)\{""")
+        return nested.find(pattern)?.value
     }
 
     /**
      * Detects overlapping alternations like `(a|a)*` where both branches
-     * of an alternation are identical.
+     * of an alternation are identical. Returns the matched fragment or null.
      */
-    private fun hasOverlappingAlternations(pattern: String): Boolean {
+    private fun findOverlappingAlternation(pattern: String): String? {
         val alternation = Regex("""\(([^()]+)\|(\1)\)""")
-        return alternation.containsMatchIn(pattern)
+        return alternation.find(pattern)?.value
     }
 
     /**
      * Detects adjacent overlapping quantified groups like `\d+\d+`, `\w+\w+`,
-     * `[a-z]+[a-z]+` — consecutive identical character classes both with quantifiers.
+     * `[a-z]+[a-z]+`. Returns the matched fragment or null.
      */
-    private fun hasAdjacentOverlappingGroups(pattern: String): Boolean {
-        // Shorthand classes: \d, \w, \s and their uppercase variants
+    private fun findAdjacentOverlappingGroups(pattern: String): String? {
         val shorthand = Regex("""(\\[dDwWsS])[+*](\\[dDwWsS])[+*]""")
-        if (shorthand.find(pattern)?.let { match ->
-                match.groupValues[1] == match.groupValues[2]
-            } == true
-        ) return true
+        shorthand.find(pattern)?.let { match ->
+            if (match.groupValues[1] == match.groupValues[2]) return match.value
+        }
 
-        // Bracket character classes: [a-z]+[a-z]+ etc.
         val bracketClass = Regex("""(\[[^\]]+\])[+*](\[[^\]]+\])[+*]""")
-        if (bracketClass.find(pattern)?.let { match ->
-                match.groupValues[1] == match.groupValues[2]
-            } == true
-        ) return true
+        bracketClass.find(pattern)?.let { match ->
+            if (match.groupValues[1] == match.groupValues[2]) return match.value
+        }
 
-        return false
+        return null
     }
 }

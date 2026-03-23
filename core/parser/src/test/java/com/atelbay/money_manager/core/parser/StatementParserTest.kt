@@ -16,6 +16,7 @@ import org.junit.Test
 class StatementParserTest {
 
     private lateinit var pdfTextExtractor: PdfTextExtractor
+    private lateinit var pdfTableExtractor: PdfTableExtractor
     private lateinit var configProvider: ParserConfigProvider
     private lateinit var statementParser: StatementParser
 
@@ -46,12 +47,15 @@ class StatementParserTest {
     @Before
     fun setUp() {
         pdfTextExtractor = mockk()
+        pdfTableExtractor = mockk(relaxed = true)
         configProvider = mockk()
         statementParser = StatementParser(
             pdfTextExtractor = pdfTextExtractor,
             bankDetector = BankDetector(),
             regexParser = RegexStatementParser(),
             configProvider = configProvider,
+            pdfTableExtractor = pdfTableExtractor,
+            tableStatementParser = TableStatementParser(),
         )
     }
 
@@ -116,16 +120,16 @@ class StatementParserTest {
     // ==================== extractSampleRows TESTS ====================
 
     @Test
-    fun `extractSampleRows returns 10 data lines after skipping 10 header lines`() {
+    fun `extractSampleRows returns up to 60 data lines after skipping 10 header lines`() {
         val headerLines = (1..10).map { "Header line $it" }
-        val dataLines = (1..15).map { "Data line $it" }
+        val dataLines = (1..70).map { "Data line $it" }
         val text = (headerLines + dataLines).joinToString("\n")
 
         val result = statementParser.extractSampleRows(text)
 
-        assertEquals(10, result.lines().size)
+        assertEquals(60, result.lines().size)
         assertEquals("Data line 1", result.lines().first())
-        assertEquals("Data line 10", result.lines().last())
+        assertEquals("Data line 60", result.lines().last())
     }
 
     @Test
@@ -164,6 +168,54 @@ class StatementParserTest {
         val text = (1..10).joinToString("\n") { "Header $it" }
         val result = statementParser.extractSampleRows(text)
         assertEquals("", result)
+    }
+
+    // ==================== extractSampleTableRows TESTS ====================
+
+    @Test
+    fun `extractSampleTableRows filters out single-cell metadata rows from Halyk-like PDFs`() {
+        val rawTable = listOf(
+            listOf("Branch:Headbank", "", "", "", "", "", ""),
+            listOf("Address:Almaty", "", "", "", "", "", ""),
+            listOf("BIC:HSBKKZKX", "", "", "", "", "", ""),
+            listOf("Date", "TxId", "Sign", "Amount", "CCY", "Operation", "Details"),
+            listOf("01.01.2026", "TX001", "-", "5000.00", "KZT", "Purchase", "Shop"),
+            listOf("02.01.2026", "TX002", "+", "10000.00", "KZT", "Transfer", "Salary"),
+        )
+        every { pdfTableExtractor.extractTable(any()) } returns rawTable
+
+        val result = statementParser.extractSampleTableRows(byteArrayOf(1, 2, 3))
+
+        // 3 metadata rows filtered, 1 header dropped → 2 data rows
+        assertEquals(2, result.size)
+        assertEquals("01.01.2026", result[0][0])
+        assertEquals("02.01.2026", result[1][0])
+    }
+
+    @Test
+    fun `extractSampleTableRows handles clean 4-column table without filtering`() {
+        val rawTable = listOf(
+            listOf("Date", "Amount", "Operation", "Details"),
+            listOf("15.03.2024", "-5000.00", "Purchase", "Supermarket"),
+            listOf("16.03.2024", "10000.00", "Transfer", "Salary"),
+            listOf("17.03.2024", "-2500.00", "Payment", "Utility"),
+        )
+        every { pdfTableExtractor.extractTable(any()) } returns rawTable
+
+        val result = statementParser.extractSampleTableRows(byteArrayOf(1, 2, 3))
+
+        // modal=4, threshold=2, all rows pass, header dropped → 3 data rows
+        assertEquals(3, result.size)
+        assertEquals("15.03.2024", result[0][0])
+    }
+
+    @Test
+    fun `extractSampleTableRows returns empty for empty table`() {
+        every { pdfTableExtractor.extractTable(any()) } returns emptyList()
+
+        val result = statementParser.extractSampleTableRows(byteArrayOf(1, 2, 3))
+
+        assertTrue(result.isEmpty())
     }
 
     @Test

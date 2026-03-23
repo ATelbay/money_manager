@@ -6,7 +6,6 @@ import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.core.remoteconfig.ParserConfig
 import kotlinx.datetime.LocalDate
 import timber.log.Timber
-import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 class RegexStatementParser @Inject constructor() {
@@ -18,7 +17,6 @@ class RegexStatementParser @Inject constructor() {
             .joinToString("\n")
         val processedText = if (config.joinLines) joinContinuationLines(filteredText) else filteredText
         val pattern = Regex(config.transactionPattern, RegexOption.MULTILINE)
-        val dateFormatter = DateTimeFormatter.ofPattern(config.dateFormat)
 
         val transactions = mutableListOf<ParsedTransaction>()
 
@@ -27,7 +25,7 @@ class RegexStatementParser @Inject constructor() {
             val match = pattern.find(line) ?: continue
 
             try {
-                val transaction = matchToTransaction(match, dateFormatter, config)
+                val transaction = matchToTransaction(match, config)
                 transactions.add(transaction)
             } catch (e: Exception) {
                 Timber.w(e, "Failed to parse line: %s", line.trim())
@@ -57,7 +55,6 @@ class RegexStatementParser @Inject constructor() {
 
     private fun matchToTransaction(
         match: MatchResult,
-        dateFormatter: DateTimeFormatter,
         config: ParserConfig,
     ): ParsedTransaction {
         val dateStr: String
@@ -68,19 +65,19 @@ class RegexStatementParser @Inject constructor() {
 
         if (config.useNamedGroups) {
             dateStr = match.groups["date"]?.value ?: error("Named group 'date' not found in match")
-            sign = match.groups["sign"]?.value ?: ""
+            sign = safeNamedGroup(match, "sign")
             amountStr = match.groups["amount"]?.value ?: error("Named group 'amount' not found in match")
-            operation = match.groups["operation"]?.value ?: ""
-            details = match.groups["details"]?.value ?: ""
+            operation = safeNamedGroup(match, "operation")
+            details = safeNamedGroup(match, "details")
         } else {
             val (d, s, a, op, det) = match.destructured
             dateStr = d; sign = s; amountStr = a; operation = op; details = det
         }
 
-        val javaParsed = java.time.LocalDate.parse(dateStr.trim(), dateFormatter)
+        val javaParsed = AmountParser.parseDateString(dateStr, config.dateFormat)
         val date = LocalDate(javaParsed.year, javaParsed.monthValue, javaParsed.dayOfMonth)
 
-        val amount = parseAmount(amountStr, config.amountFormat)
+        val amount = AmountParser.parseAmount(amountStr, config.amountFormat)
 
         // NOTE: operationTypeMap is only consulted in the else branch.
         // When useSignForType=true or negativeSignMeansExpense=true, the sign drives type
@@ -110,10 +107,13 @@ class RegexStatementParser @Inject constructor() {
         )
     }
 
-    private fun parseAmount(amountStr: String, format: String): Double = when (format) {
-        "comma_dot" -> amountStr.replace(",", "").toDouble()
-        else -> amountStr.replace("\\s".toRegex(), "").replace(",", ".").toDouble()
-    }
+    /**
+     * Safely extract a named group that may not exist in the pattern.
+     * On Android JVM, `match.groups[name]` throws IllegalArgumentException
+     * if the group name is not defined in the regex (as opposed to returning null).
+     */
+    private fun safeNamedGroup(match: MatchResult, name: String): String =
+        try { match.groups[name]?.value ?: "" } catch (_: IllegalArgumentException) { "" }
 
     /**
      * Joins continuation lines that don't start with a date pattern to the previous line.
