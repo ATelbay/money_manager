@@ -180,8 +180,10 @@ class GeminiServiceImpl @Inject constructor(
     override suspend fun generateTableParserConfig(
         sampleTableRows: List<List<String>>,
         previousAttempts: List<TableFailedAttempt>,
+        metadataRows: List<List<String>>,
+        columnHeaderRow: List<String>?,
     ): TableParserConfig {
-        val prompt = buildTableParserConfigPrompt(sampleTableRows, previousAttempts)
+        val prompt = buildTableParserConfigPrompt(sampleTableRows, previousAttempts, metadataRows, columnHeaderRow)
         Timber.d(">>> Gemini generateTableParserConfig prompt length=%d", prompt.length)
         Timber.d(">>> Gemini prompt:\n%s", prompt)
 
@@ -203,6 +205,8 @@ class GeminiServiceImpl @Inject constructor(
     private fun buildTableParserConfigPrompt(
         sampleTableRows: List<List<String>>,
         previousAttempts: List<TableFailedAttempt>,
+        metadataRows: List<List<String>>,
+        columnHeaderRow: List<String>?,
     ): String = buildString {
         appendLine("You are an expert at parsing bank statement tables. Analyze the sample rows from a PDF table and generate a column-index based parser configuration.")
         appendLine()
@@ -222,7 +226,7 @@ class GeminiServiceImpl @Inject constructor(
         appendLine()
         appendLine("## Other fields")
         appendLine("- bank_id: lowercase latin slug identifying the bank (e.g. forte, bereke, kaspi)")
-        appendLine("- bank_markers: 2-3 unique strings from the table that identify this bank")
+        appendLine("- bank_markers: 2-3 unique strings that identify this bank. Prefer strings from the header/metadata rows (bank name, branch, account label) over transaction data.")
         appendLine("- date_format: Java DateTimeFormatter pattern (e.g. dd.MM.yyyy, MM/dd/yyyy)")
         appendLine("- amount_format: one of \"space_comma\" (10 000,50), \"comma_dot\" (10,000.50), \"dot\" (10000.50)")
         appendLine("- negative_sign_means_expense: true if negative amount = expense, positive = income")
@@ -246,6 +250,19 @@ class GeminiServiceImpl @Inject constructor(
                     attempt.failedRows.forEach { row -> appendLine("  $row") }
                 }
             }
+        }
+
+        if (metadataRows.isNotEmpty() || columnHeaderRow != null) {
+            appendLine()
+            appendLine("## Header and metadata rows from the PDF (NOT transaction data — use these for bank_markers):")
+            appendLine("<DATA>")
+            for (row in metadataRows) {
+                appendLine(row.filter { it.isNotBlank() }.joinToString(" | "))
+            }
+            if (columnHeaderRow != null) {
+                appendLine("Column headers: " + columnHeaderRow.joinToString(" | "))
+            }
+            appendLine("</DATA>")
         }
 
         appendLine()

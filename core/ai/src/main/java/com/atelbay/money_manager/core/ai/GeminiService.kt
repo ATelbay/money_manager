@@ -30,5 +30,7 @@ interface GeminiService {
     suspend fun generateTableParserConfig(
         sampleTableRows: List<List<String>>,
         previousAttempts: List<TableFailedAttempt> = emptyList(),
+        metadataRows: List<List<String>> = emptyList(),
+        columnHeaderRow: List<String>? = null,
     ): TableParserConfig
 }

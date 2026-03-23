@@ -184,12 +184,13 @@ class ParseStatementUseCase @Inject constructor(
         pdfBytes: ByteArray,
         collector: ImportProgressCollector,
     ): RegexThenGeminiResult? {
-        val sampleTableRows = try {
-            statementParser.extractSampleTableRows(pdfBytes)
+        val extraction = try {
+            statementParser.extractSampleTableRowsWithContext(pdfBytes)
         } catch (e: Exception) {
             Timber.w(e, "Table extraction failed, falling through to AI regex")
-            emptyList()
+            return null
         }
+        val sampleTableRows = extraction.sampleRows
         if (sampleTableRows.size < 2) return null
 
         collector.emit(ImportStepEvent.TableExtracted(
@@ -229,6 +230,8 @@ class ParseStatementUseCase @Inject constructor(
                 geminiService.generateTableParserConfig(
                     sampleTableRows = sampleTableRows,
                     previousAttempts = tableFailedAttempts,
+                    metadataRows = extraction.metadataRows,
+                    columnHeaderRow = extraction.columnHeaderRow,
                 )
             } catch (e: Exception) {
                 Timber.w(e, "AI table config generation failed (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)

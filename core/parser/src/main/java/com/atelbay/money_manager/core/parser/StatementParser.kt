@@ -19,6 +19,12 @@ data class TableParseResult(
     val extractedTable: List<List<String>> = emptyList(),
 )
 
+data class TableExtractionResult(
+    val sampleRows: List<List<String>>,
+    val metadataRows: List<List<String>>,
+    val columnHeaderRow: List<String>?,
+)
+
 class StatementParser @Inject constructor(
     private val pdfTextExtractor: PdfTextExtractor,
     private val bankDetector: BankDetector,
@@ -108,8 +114,12 @@ class StatementParser @Inject constructor(
     }
 
     fun extractSampleTableRows(bytes: ByteArray): List<List<String>> {
+        return extractSampleTableRowsWithContext(bytes).sampleRows
+    }
+
+    fun extractSampleTableRowsWithContext(bytes: ByteArray): TableExtractionResult {
         val table = pdfTableExtractor.extractTable(bytes)
-        if (table.isEmpty()) return emptyList()
+        if (table.isEmpty()) return TableExtractionResult(emptyList(), emptyList(), null)
 
         // Determine dominant column structure: most common non-empty cell count.
         // Metadata rows (e.g. "Branch:Headbank") have 1-2 non-empty cells
@@ -121,10 +131,17 @@ class StatementParser @Inject constructor(
             ?.key ?: 1
         val threshold = (modalCount / 2).coerceAtLeast(2)
 
+        val metadataRows = table.filter { row ->
+            row.count { it.isNotBlank() } < threshold
+        }
         val structuralRows = table.filter { row ->
             row.count { it.isNotBlank() } >= threshold
         }
 
-        return structuralRows.drop(1).take(10)
+        return TableExtractionResult(
+            sampleRows = structuralRows.drop(1).take(10),
+            metadataRows = metadataRows,
+            columnHeaderRow = structuralRows.firstOrNull(),
+        )
     }
 }

@@ -58,6 +58,8 @@ class GeminiServiceImplTest {
             "buildTableParserConfigPrompt",
             List::class.java,
             List::class.java,
+            List::class.java,
+            List::class.java,
         ).apply { isAccessible = true }
     }
 
@@ -218,7 +220,11 @@ class GeminiServiceImplTest {
     private fun buildTablePrompt(
         sampleTableRows: List<List<String>>,
         previousAttempts: List<TableFailedAttempt>,
-    ): String = buildTableParserConfigPromptMethod.invoke(service, sampleTableRows, previousAttempts) as String
+        metadataRows: List<List<String>> = emptyList(),
+        columnHeaderRow: List<String>? = null,
+    ): String = buildTableParserConfigPromptMethod.invoke(
+        service, sampleTableRows, previousAttempts, metadataRows, columnHeaderRow,
+    ) as String
 
     // --- generateTableParserConfig tests (via reflection on private methods) ---
 
