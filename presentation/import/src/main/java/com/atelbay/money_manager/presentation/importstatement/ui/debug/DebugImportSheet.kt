@@ -186,4 +186,30 @@ private fun ImportStepEvent.toDisplayInfo(): DisplayInfo = when (this) {
         Icons.Default.Close, ErrorRed,
         "Error", message,
     )
+    is ImportStepEvent.TableExtracted -> DisplayInfo(
+        Icons.Default.Info, InfoGray,
+        "Table extracted", "$rowCount rows × $columnCount columns",
+    )
+    is ImportStepEvent.TableConfigAttempt -> DisplayInfo(
+        Icons.Default.Info, InfoGray,
+        "Trying $source table config", bankId?.let { "Bank: $it" },
+    )
+    is ImportStepEvent.TableConfigResult -> DisplayInfo(
+        if (txCount > 0) Icons.Default.Check else Icons.Default.Close,
+        if (txCount > 0) SuccessGreen else InfoGray,
+        "$source table: $txCount transactions", null,
+    )
+    is ImportStepEvent.AiTableConfigRequest -> DisplayInfo(
+        Icons.Default.Info, WarningAmber,
+        "AI table config generation (attempt $attempt)", null,
+    )
+    is ImportStepEvent.AiTableConfigResponse -> DisplayInfo(
+        Icons.Default.Check, SuccessGreen,
+        "AI table response (attempt $attempt)", "Bank: $bankId",
+    )
+    is ImportStepEvent.AiTableConfigParseResult -> DisplayInfo(
+        if (txCount > 0) Icons.Default.Check else Icons.Default.Close,
+        if (txCount > 0) SuccessGreen else ErrorRed,
+        "AI table config parsed $txCount tx (attempt $attempt)", null,
+    )
 }

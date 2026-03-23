@@ -116,6 +116,9 @@ class ImportViewModel @Inject constructor(
             AiMethod.REGEX_GENERATED -> _debugAiEvent.tryEmit(
                 "AI regex generated for: ${parseResult.aiGeneratedConfig?.bankId}"
             )
+            AiMethod.TABLE_GENERATED -> _debugAiEvent.tryEmit(
+                "AI table config generated for: ${parseResult.aiGeneratedTableConfig?.bankId}"
+            )
             AiMethod.FULL_PARSE -> _debugAiEvent.tryEmit("AI full parse (Gemini)")
             AiMethod.NONE -> { /* regex matched, no AI used */ }
         }

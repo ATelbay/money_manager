@@ -13,6 +13,7 @@ dependencies {
     implementation(libs.firebase.ai)
     implementation(libs.bundles.coroutines)
     implementation(libs.timber)
+    implementation(projects.core.model)
     implementation(projects.core.remoteconfig)
     implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.bundles.testing)

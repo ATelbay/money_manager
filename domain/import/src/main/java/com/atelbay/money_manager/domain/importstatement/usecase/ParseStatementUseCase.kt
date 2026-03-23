@@ -2,6 +2,7 @@ package com.atelbay.money_manager.domain.importstatement.usecase
 
 import com.atelbay.money_manager.core.ai.FailedAttempt
 import com.atelbay.money_manager.core.ai.GeminiService
+import com.atelbay.money_manager.core.ai.TableFailedAttempt
 import com.atelbay.money_manager.core.common.generateTransactionHash
 import com.atelbay.money_manager.core.database.dao.CategoryDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
@@ -10,6 +11,8 @@ import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.ImportResult
 import com.atelbay.money_manager.core.model.ParsedTransaction
+import com.atelbay.money_manager.core.model.TableParserConfig
+import com.atelbay.money_manager.core.model.TableParserConfigList
 import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.core.parser.RegexValidator
 import com.atelbay.money_manager.core.parser.StatementParser
@@ -49,9 +52,11 @@ data class ParseResult(
     val aiGeneratedConfig: ParserConfig? = null,
     val sampleRows: String? = null,
     val aiMethod: AiMethod = AiMethod.NONE,
+    val aiGeneratedTableConfig: TableParserConfig? = null,
+    val sampleTableRows: List<List<String>>? = null,
 )
 
-enum class AiMethod { NONE, REGEX_GENERATED, FULL_PARSE }
+enum class AiMethod { NONE, REGEX_GENERATED, FULL_PARSE, TABLE_GENERATED }
 
 private data class RegexThenGeminiResult(
     val transactions: List<ParsedTransaction>,
@@ -150,6 +155,132 @@ class ParseStatementUseCase @Inject constructor(
                 return RegexThenGeminiResult(assignCategories(cachedResult.transactions, collector))
             }
             collector.emit(ImportStepEvent.RegexConfigResult("cached_ai", 0))
+        }
+
+        // Step 2.5: Try table-based parsing (cached configs → AI generation)
+        val sampleTableRows = try {
+            statementParser.extractSampleTableRows(pdfBytes)
+        } catch (e: Exception) {
+            Timber.w(e, "Table extraction failed, falling through to AI regex")
+            emptyList()
+        }
+        if (sampleTableRows.size >= 2) {
+            collector.emit(ImportStepEvent.TableExtracted(
+                rowCount = sampleTableRows.size,
+                columnCount = sampleTableRows.firstOrNull()?.size ?: 0,
+            ))
+
+            // Step 2.5a: Try cached table configs first
+            val cachedTableConfigs = loadCachedTableConfigs()
+            if (cachedTableConfigs.isNotEmpty()) {
+                collector.emit(ImportStepEvent.TableConfigAttempt("cached_table"))
+                val cachedTableResult = try {
+                    statementParser.tryParseTable(pdfBytes, cachedTableConfigs)
+                } catch (e: Exception) {
+                    Timber.w(e, "Cached table config parsing failed")
+                    null
+                }
+                if (cachedTableResult != null && cachedTableResult.transactions.isNotEmpty()) {
+                    Timber.d("Table import: parsed %d transactions via cached table config (bank=%s)",
+                        cachedTableResult.transactions.size, cachedTableResult.bankId)
+                    collector.emit(ImportStepEvent.TableConfigResult("cached_table", cachedTableResult.transactions.size))
+                    return RegexThenGeminiResult(
+                        transactions = assignCategories(cachedTableResult.transactions, collector),
+                        aiMethod = AiMethod.TABLE_GENERATED,
+                    )
+                }
+                collector.emit(ImportStepEvent.TableConfigResult("cached_table", 0))
+            }
+
+            // Step 2.5b: AI table config generation with retries
+            val tableFailedAttempts = mutableListOf<TableFailedAttempt>()
+
+            repeat(MAX_AI_RETRIES) { attempt ->
+                val attemptNum = attempt + 1
+                collector.emit(ImportStepEvent.AiTableConfigRequest(attemptNum))
+
+                // Call Gemini to generate TableParserConfig
+                val generatedTableConfig = try {
+                    geminiService.generateTableParserConfig(
+                        sampleTableRows = sampleTableRows,
+                        previousAttempts = tableFailedAttempts,
+                    )
+                } catch (e: Exception) {
+                    Timber.w(e, "AI table config generation failed (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
+                    tableFailedAttempts.add(
+                        TableFailedAttempt(
+                            config = TableParserConfig(
+                                bankId = "", bankMarkers = emptyList(),
+                                dateColumn = 0, amountColumn = 1, dateFormat = "",
+                            ),
+                            error = "AI generation failed: ${e.message}",
+                        ),
+                    )
+                    return@repeat
+                }
+                Timber.d("AI generated table config for bank: %s (attempt %d/%d)", generatedTableConfig.bankId, attemptNum, MAX_AI_RETRIES)
+                collector.emit(ImportStepEvent.AiTableConfigResponse(attemptNum, generatedTableConfig.bankId))
+
+                // Validate dateFormat
+                if (!isDateFormatValid(generatedTableConfig.dateFormat)) {
+                    val dateError = try {
+                        java.time.format.DateTimeFormatter.ofPattern(generatedTableConfig.dateFormat)
+                        ""
+                    } catch (e: Exception) {
+                        e.message.orEmpty()
+                    }
+                    Timber.w("AI-generated table dateFormat is invalid (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
+                    tableFailedAttempts.add(
+                        TableFailedAttempt(generatedTableConfig, "DateFormat invalid: $dateError"),
+                    )
+                    return@repeat
+                }
+
+                // Parse with generated table config (with timeout)
+                val tableResult = try {
+                    withTimeout(AI_REGEX_TIMEOUT_MS) {
+                        runInterruptible {
+                            statementParser.tryParseWithTableConfig(pdfBytes, generatedTableConfig)
+                        }
+                    }
+                } catch (_: TimeoutCancellationException) {
+                    Timber.w("AI-generated table config timed out (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
+                    tableFailedAttempts.add(
+                        TableFailedAttempt(generatedTableConfig, "Table parsing timed out"),
+                    )
+                    return@repeat
+                }
+
+                collector.emit(ImportStepEvent.AiTableConfigParseResult(attemptNum, tableResult.transactions.size))
+
+                if (tableResult.transactions.isEmpty()) {
+                    Timber.d("AI-generated table config parsed 0 transactions (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
+                    val failedRows = tableResult.extractedTable
+                        .drop(generatedTableConfig.skipHeaderRows)
+                        .take(5)
+                        .map { it.joinToString(" | ") }
+                    tableFailedAttempts.add(
+                        TableFailedAttempt(
+                            generatedTableConfig,
+                            "Table config parsed 0 transactions",
+                            failedRows,
+                        ),
+                    )
+                    return@repeat
+                }
+
+                // Success! Cache the config and return.
+                Timber.d("AI-generated table config parsed %d transactions (attempt %d/%d)", tableResult.transactions.size, attemptNum, MAX_AI_RETRIES)
+                cacheTableConfig(generatedTableConfig)
+                return RegexThenGeminiResult(
+                    transactions = assignCategories(tableResult.transactions, collector),
+                    aiMethod = AiMethod.TABLE_GENERATED,
+                )
+            }
+
+            if (tableFailedAttempts.isNotEmpty()) {
+                Timber.w("All %d AI table config attempts failed, falling through to AI regex", tableFailedAttempts.size)
+            }
         }
 
         // Step 3: Extract sample rows + try AI config generation with retries
@@ -318,6 +449,31 @@ class ParseStatementUseCase @Inject constructor(
         } catch (e: Exception) {
             Timber.w(e, "Failed to parse cached AI configs")
             emptyList()
+        }
+    }
+
+    private suspend fun loadCachedTableConfigs(): List<TableParserConfig> {
+        val cachedJson = userPreferences.cachedAiTableParserConfigs.firstOrNull()
+        if (cachedJson.isNullOrBlank()) return emptyList()
+        return try {
+            json.decodeFromString<TableParserConfigList>(cachedJson).configs
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to parse cached table configs")
+            emptyList()
+        }
+    }
+
+    private suspend fun cacheTableConfig(config: TableParserConfig) {
+        try {
+            val existing = loadCachedTableConfigs().toMutableList()
+            existing.removeAll { it.bankId == config.bankId }
+            existing.add(config)
+            val configList = TableParserConfigList(configs = existing)
+            val jsonStr = json.encodeToString(TableParserConfigList.serializer(), configList)
+            userPreferences.setCachedAiTableParserConfigs(jsonStr)
+            Timber.d("Cached table config for bank %s", config.bankId)
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to cache table config")
         }
     }
 

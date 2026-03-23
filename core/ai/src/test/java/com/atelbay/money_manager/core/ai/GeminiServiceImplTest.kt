@@ -1,13 +1,18 @@
 package com.atelbay.money_manager.core.ai
 
+import com.atelbay.money_manager.core.model.TableParserConfig
 import com.atelbay.money_manager.core.remoteconfig.ParserConfig
 import com.atelbay.money_manager.core.remoteconfig.ParserConfigProvider
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
+import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 
 class GeminiServiceImplTest {
@@ -19,6 +24,8 @@ class GeminiServiceImplTest {
     private lateinit var parseParserConfigResponseMethod: Method
     private lateinit var selectExamplesMethod: Method
     private lateinit var buildPromptMethod: Method
+    private lateinit var parseTableParserConfigResponseMethod: Method
+    private lateinit var buildTableParserConfigPromptMethod: Method
 
     @Before
     fun setUp() {
@@ -39,6 +46,16 @@ class GeminiServiceImplTest {
             "buildParserConfigPrompt",
             String::class.java,
             String::class.java,
+            List::class.java,
+            List::class.java,
+        ).apply { isAccessible = true }
+
+        parseTableParserConfigResponseMethod = GeminiServiceImpl::class.java.getDeclaredMethod(
+            "parseTableParserConfigResponse", String::class.java
+        ).apply { isAccessible = true }
+
+        buildTableParserConfigPromptMethod = GeminiServiceImpl::class.java.getDeclaredMethod(
+            "buildTableParserConfigPrompt",
             List::class.java,
             List::class.java,
         ).apply { isAccessible = true }
@@ -192,6 +209,98 @@ class GeminiServiceImplTest {
         // Should contain English markers
         assertTrue(prompt.contains("You are an expert"))
         assertTrue(prompt.contains("Rules for"))
+    }
+
+    // Helper invokers for table config methods
+    private fun parseTableResponse(json: String): TableParserConfig =
+        parseTableParserConfigResponseMethod.invoke(service, json) as TableParserConfig
+
+    private fun buildTablePrompt(
+        sampleTableRows: List<List<String>>,
+        previousAttempts: List<TableFailedAttempt>,
+    ): String = buildTableParserConfigPromptMethod.invoke(service, sampleTableRows, previousAttempts) as String
+
+    // --- generateTableParserConfig tests (via reflection on private methods) ---
+
+    @Test
+    fun `generateTableParserConfig returns valid config from AI response`() {
+        val json = """
+        {
+            "bank_id": "forte",
+            "bank_markers": ["Forte Bank", "АО Форте"],
+            "date_column": 0,
+            "amount_column": 3,
+            "operation_column": 1,
+            "details_column": 2,
+            "date_format": "dd.MM.yyyy",
+            "amount_format": "space_comma",
+            "negative_sign_means_expense": true,
+            "skip_header_rows": 1,
+            "deduplicate_max_amount": false
+        }
+        """.trimIndent()
+
+        val config = parseTableResponse(json)
+
+        assertEquals("forte", config.bankId)
+        assertEquals(listOf("Forte Bank", "АО Форте"), config.bankMarkers)
+        assertEquals(0, config.dateColumn)
+        assertEquals(3, config.amountColumn)
+        assertEquals(1, config.operationColumn)
+        assertEquals(2, config.detailsColumn)
+        assertNull(config.signColumn)
+        assertNull(config.currencyColumn)
+        assertEquals("dd.MM.yyyy", config.dateFormat)
+        assertEquals("space_comma", config.amountFormat)
+        assertTrue(config.negativeSignMeansExpense)
+        assertEquals(1, config.skipHeaderRows)
+        assertEquals(false, config.deduplicateMaxAmount)
+    }
+
+    @Test
+    fun `generateTableParserConfig retry prompt includes previous attempts`() {
+        val failedConfig = TableParserConfig(
+            bankId = "bereke",
+            bankMarkers = listOf("Bereke"),
+            dateColumn = 0,
+            amountColumn = 1,
+            dateFormat = "MM/dd/yyyy",
+        )
+        val attempts = listOf(
+            TableFailedAttempt(
+                config = failedConfig,
+                error = "Column index 1 out of bounds for row with 1 column(s)",
+                failedRows = listOf("[\"01/15/2024\"]"),
+            ),
+        )
+        val sampleRows = listOf(
+            listOf("Date", "Debit", "Credit", "Balance", "Description"),
+            listOf("01/15/2024", "1 000,00", "", "50 000,00", "Purchase"),
+        )
+
+        val prompt = buildTablePrompt(sampleRows, attempts)
+
+        assertTrue(prompt.contains("## Previous failed attempts"))
+        assertTrue(prompt.contains("Column index 1 out of bounds for row with 1 column(s)"))
+        assertTrue(prompt.contains("bereke"))
+        assertTrue(prompt.contains("Column index 1 out of bounds"))
+        assertTrue(prompt.contains("01/15/2024"))
+    }
+
+    @Test
+    fun `generateTableParserConfig handles malformed AI response`() {
+        val malformedJson = "{ this is not valid json }"
+
+        try {
+            parseTableResponse(malformedJson)
+            fail("Expected an exception for malformed JSON")
+        } catch (e: InvocationTargetException) {
+            // The private method throws through reflection wrapper; unwrap and verify
+            assertNotNull(e.cause)
+        } catch (e: Exception) {
+            // Any exception from invalid JSON is acceptable
+            assertNotNull(e)
+        }
     }
 
     // Helper
