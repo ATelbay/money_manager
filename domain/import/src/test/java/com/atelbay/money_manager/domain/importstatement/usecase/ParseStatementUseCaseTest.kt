@@ -316,7 +316,7 @@ class ParseStatementUseCaseTest {
     }
 
     @Test
-    fun `generated config is cached alongside existing variant for same bank`() = runTest {
+    fun `generated config is returned for deferred caching`() = runTest {
         val existingVariant = testConfig.copy(transactionPattern = "existing-pattern")
         every { userPreferences.cachedAiParserConfigs } returns flowOf(
             json.encodeToString(ParserConfigList(banks = listOf(existingVariant))),
@@ -334,19 +334,13 @@ class ParseStatementUseCaseTest {
             bankId = generatedVariant.bankId,
         )
 
-        var cachedJson: String? = null
-        coEvery { userPreferences.setCachedAiParserConfigs(any()) } answers {
-            cachedJson = invocation.args[0] as String
-            Unit
-        }
-
         val result = useCase(pdfBlobs)
 
-        val storedConfigs = json.decodeFromString<ParserConfigList>(cachedJson.orEmpty()).banks
+        // Config is returned in ParseResult for deferred caching (not cached immediately)
         assertEquals(1, result.importResult.newTransactions.size)
-        assertEquals(2, storedConfigs.size)
-        assertTrue(storedConfigs.any { it.transactionPattern == "existing-pattern" })
-        assertTrue(storedConfigs.any { it.transactionPattern == "new-pattern" })
+        assertNotNull(result.aiGeneratedConfig)
+        assertEquals("new-pattern", result.aiGeneratedConfig!!.transactionPattern)
+        assertEquals(AiMethod.REGEX_GENERATED, result.aiMethod)
     }
 
     // ---- Retry loop tests ----
@@ -611,23 +605,16 @@ class ParseStatementUseCaseTest {
             bankId = testTableConfig.bankId,
         )
 
-        var cachedJson: String? = null
-        coEvery { userPreferences.setCachedAiTableParserConfigs(any()) } answers {
-            cachedJson = invocation.args[0] as String
-            Unit
-        }
+        val result = useCase(pdfBlobs)
 
-        useCase(pdfBlobs)
-
-        // Config should have been cached
-        assertNotNull(cachedJson)
-        val cached = json.decodeFromString<TableParserConfigList>(cachedJson!!)
-        assertEquals(1, cached.configs.size)
-        assertEquals(testTableConfig.bankId, cached.configs.first().bankId)
+        // Config is returned in ParseResult for deferred caching (not cached immediately)
+        assertNotNull(result.aiGeneratedTableConfig)
+        assertEquals(testTableConfig.bankId, result.aiGeneratedTableConfig!!.bankId)
+        assertEquals(AiMethod.TABLE_GENERATED, result.aiMethod)
     }
 
     @Test
-    fun `cached table config with same bankId - replaced not duplicated`() = runTest {
+    fun `AI table config returned with correct dateFormat for deferred caching`() = runTest {
         val oldConfig = testTableConfig.copy(dateFormat = "yyyy-MM-dd")
         val cachedTableJson = json.encodeToString(
             TableParserConfigList(configs = listOf(oldConfig)),
@@ -653,17 +640,12 @@ class ParseStatementUseCaseTest {
             bankId = newConfig.bankId,
         )
 
-        var cachedJson: String? = null
-        coEvery { userPreferences.setCachedAiTableParserConfigs(any()) } answers {
-            cachedJson = invocation.args[0] as String
-            Unit
-        }
+        val result = useCase(pdfBlobs)
 
-        useCase(pdfBlobs)
-
-        val cached = json.decodeFromString<TableParserConfigList>(cachedJson!!)
-        assertEquals(1, cached.configs.size) // replaced, not duplicated
-        assertEquals("dd.MM.yyyy", cached.configs.first().dateFormat) // new format
+        // Config is returned for deferred caching, not cached immediately
+        assertNotNull(result.aiGeneratedTableConfig)
+        assertEquals("dd.MM.yyyy", result.aiGeneratedTableConfig!!.dateFormat)
+        assertEquals(AiMethod.TABLE_GENERATED, result.aiMethod)
     }
 
     // ---- T021: Phase 5 US3 — Fallback tests ----
