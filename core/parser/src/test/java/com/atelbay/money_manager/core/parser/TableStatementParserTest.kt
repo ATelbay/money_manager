@@ -30,6 +30,7 @@ class TableStatementParserTest {
         negativeSignMeansExpense: Boolean = true,
         skipHeaderRows: Int = 1,
         deduplicateMaxAmount: Boolean = false,
+        operationTypeMap: Map<String, String> = emptyMap(),
     ) = TableParserConfig(
         bankId = bankId,
         bankMarkers = bankMarkers,
@@ -43,6 +44,7 @@ class TableStatementParserTest {
         negativeSignMeansExpense = negativeSignMeansExpense,
         skipHeaderRows = skipHeaderRows,
         deduplicateMaxAmount = deduplicateMaxAmount,
+        operationTypeMap = operationTypeMap,
     )
 
     // ==================== 1. 4-COLUMN TABLE (FORTE-LIKE) ====================
@@ -558,5 +560,45 @@ class TableStatementParserTest {
 
         assertEquals(1, result.size)
         assertEquals(100.0, result[0].amount, 0.01)
+    }
+
+    // ==================== 9. OPERATION TYPE MAP ====================
+
+    @Test
+    fun `operationTypeMap maps operation text to INCOME when no sign info`() {
+        val table = listOf(
+            listOf("Дата", "Сумма", "Операция"),
+            listOf("15.01.2025", "5000.00", "Покупка"),
+            listOf("16.01.2025", "10000.00", "Пополнение"),
+        )
+        val config = buildConfig(
+            operationColumn = 2,
+            negativeSignMeansExpense = false,
+            operationTypeMap = mapOf("Покупка" to "expense", "Пополнение" to "income"),
+        )
+
+        val result = parser.parse(table, config)
+
+        assertEquals(2, result.size)
+        assertEquals(TransactionType.EXPENSE, result[0].type)
+        assertEquals(TransactionType.INCOME, result[1].type)
+    }
+
+    @Test
+    fun `operationTypeMap defaults to EXPENSE for unmapped operation`() {
+        val table = listOf(
+            listOf("Дата", "Сумма", "Операция"),
+            listOf("15.01.2025", "5000.00", "Unknown Op"),
+        )
+        val config = buildConfig(
+            operationColumn = 2,
+            negativeSignMeansExpense = false,
+            operationTypeMap = mapOf("Покупка" to "expense", "Пополнение" to "income"),
+        )
+
+        val result = parser.parse(table, config)
+
+        assertEquals(1, result.size)
+        assertEquals(TransactionType.EXPENSE, result[0].type)
     }
 }

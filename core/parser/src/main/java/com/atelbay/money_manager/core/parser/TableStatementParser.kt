@@ -75,7 +75,10 @@ class TableStatementParser @Inject constructor() {
             signCell.isNotBlank() -> {
                 if (signCell == "+") TransactionType.INCOME else TransactionType.EXPENSE
             }
-            else -> TransactionType.EXPENSE
+            else -> {
+                val typeValue = config.operationTypeMap[operation] ?: "expense"
+                if (typeValue == "income") TransactionType.INCOME else TransactionType.EXPENSE
+            }
         }
 
         val descriptionForHash = details.ifBlank { operation }

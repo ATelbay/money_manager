@@ -18,6 +18,7 @@ data class TableParserConfig(
     @SerialName("negative_sign_means_expense") val negativeSignMeansExpense: Boolean = true,
     @SerialName("skip_header_rows") val skipHeaderRows: Int = 1,
     @SerialName("deduplicate_max_amount") val deduplicateMaxAmount: Boolean = false,
+    @SerialName("operation_type_map") val operationTypeMap: Map<String, String> = emptyMap(),
 )
 
 @Serializable

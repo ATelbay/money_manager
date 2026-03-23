@@ -96,6 +96,14 @@ class GeminiServiceImpl @Inject constructor(
             "negative_sign_means_expense" to Schema.boolean(),
             "skip_header_rows" to Schema.integer(),
             "deduplicate_max_amount" to Schema.boolean(),
+            "operation_type_map" to Schema.array(
+                Schema.obj(
+                    properties = mapOf(
+                        "key" to Schema.string(),
+                        "value" to Schema.enumeration(listOf("income", "expense")),
+                    ),
+                ),
+            ),
         ),
         optionalProperties = listOf(
             "operation_column",
@@ -106,6 +114,7 @@ class GeminiServiceImpl @Inject constructor(
             "negative_sign_means_expense",
             "skip_header_rows",
             "deduplicate_max_amount",
+            "operation_type_map",
         ),
     )
 
@@ -219,6 +228,7 @@ class GeminiServiceImpl @Inject constructor(
         appendLine("- negative_sign_means_expense: true if negative amount = expense, positive = income")
         appendLine("- skip_header_rows: number of header rows to skip (usually 1)")
         appendLine("- deduplicate_max_amount: true if the same transaction appears multiple times (e.g. for currency conversion rows)")
+        appendLine("- operation_type_map: array of {\"key\": \"...\", \"value\": \"income\"|\"expense\"} objects mapping operation text to type. Use ONLY when amounts have no sign and there is no sign column. If the operation column text determines income vs expense, list all distinct operation values here.")
 
         if (previousAttempts.isNotEmpty()) {
             appendLine()
@@ -247,6 +257,17 @@ class GeminiServiceImpl @Inject constructor(
 
     private fun parseTableParserConfigResponse(responseText: String): TableParserConfig {
         val jsonObj = json.parseToJsonElement(responseText).jsonObject
+
+        val operationTypeMap: Map<String, String> = try {
+            jsonObj["operation_type_map"]?.jsonArray?.associate { entry ->
+                val obj = entry.jsonObject
+                obj["key"]!!.jsonPrimitive.content to obj["value"]!!.jsonPrimitive.content
+            }.orEmpty()
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to parse table operation_type_map, using empty map")
+            emptyMap()
+        }
+
         return TableParserConfig(
             bankId = jsonObj.stringField("bank_id"),
             bankMarkers = jsonObj.stringListField("bank_markers"),
@@ -261,6 +282,7 @@ class GeminiServiceImpl @Inject constructor(
             negativeSignMeansExpense = jsonObj.boolFieldOrDefault("negative_sign_means_expense", true),
             skipHeaderRows = jsonObj.intFieldOrDefault("skip_header_rows", 1),
             deduplicateMaxAmount = jsonObj.boolFieldOrDefault("deduplicate_max_amount", false),
+            operationTypeMap = operationTypeMap,
         )
     }
 
