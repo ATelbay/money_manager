@@ -4,6 +4,7 @@ import com.atelbay.money_manager.core.model.TableParserConfig
 import com.atelbay.money_manager.core.model.TransactionType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 class TableStatementParserTest {
@@ -476,6 +477,45 @@ class TableStatementParserTest {
         assertEquals(1, result.size)
         assertEquals(100.0, result[0].amount, 0.01)
         assertEquals("", result[0].details)
+    }
+
+    @Test
+    fun `negative dateColumn throws IllegalArgumentException`() {
+        val table = listOf(listOf("01.01.2025", "100.00"))
+        val config = buildConfig(dateColumn = -1, amountColumn = 1, skipHeaderRows = 0)
+
+        try {
+            parser.parse(table, config)
+            fail("Expected IllegalArgumentException for negative dateColumn")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message!!.contains("dateColumn"))
+        }
+    }
+
+    @Test
+    fun `negative amountColumn throws IllegalArgumentException`() {
+        val table = listOf(listOf("01.01.2025", "100.00"))
+        val config = buildConfig(dateColumn = 0, amountColumn = -2, skipHeaderRows = 0)
+
+        try {
+            parser.parse(table, config)
+            fail("Expected IllegalArgumentException for negative amountColumn")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message!!.contains("amountColumn"))
+        }
+    }
+
+    @Test
+    fun `negative skipHeaderRows throws IllegalArgumentException`() {
+        val table = listOf(listOf("01.01.2025", "100.00"))
+        val config = buildConfig(dateColumn = 0, amountColumn = 1, skipHeaderRows = -1)
+
+        try {
+            parser.parse(table, config)
+            fail("Expected IllegalArgumentException for negative skipHeaderRows")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message!!.contains("skipHeaderRows"))
+        }
     }
 
     // ==================== 8. EMPTY TABLE ====================

@@ -11,6 +11,19 @@ import javax.inject.Inject
 class TableStatementParser @Inject constructor() {
 
     fun parse(table: List<List<String>>, config: TableParserConfig): List<ParsedTransaction> {
+        require(config.dateColumn >= 0) { "dateColumn must be non-negative, got ${config.dateColumn}" }
+        require(config.amountColumn >= 0) { "amountColumn must be non-negative, got ${config.amountColumn}" }
+        require(config.skipHeaderRows >= 0) { "skipHeaderRows must be non-negative, got ${config.skipHeaderRows}" }
+
+        val maxColumnIndex = table.firstOrNull()?.size?.minus(1) ?: return emptyList()
+        if (config.dateColumn > maxColumnIndex || config.amountColumn > maxColumnIndex) {
+            Timber.w(
+                "Column index out of bounds: dateColumn=%d, amountColumn=%d, maxColumn=%d",
+                config.dateColumn, config.amountColumn, maxColumnIndex,
+            )
+            return emptyList()
+        }
+
         val dataRows = table.drop(config.skipHeaderRows)
         val transactions = mutableListOf<ParsedTransaction>()
 

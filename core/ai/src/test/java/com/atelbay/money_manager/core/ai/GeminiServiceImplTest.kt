@@ -288,6 +288,56 @@ class GeminiServiceImplTest {
     }
 
     @Test
+    fun `parseTableParserConfigResponse throws when date_column is missing`() {
+        val json = """
+        {
+            "bank_id": "forte",
+            "bank_markers": ["Forte Bank"],
+            "amount_column": 3,
+            "date_format": "dd.MM.yyyy"
+        }
+        """.trimIndent()
+
+        try {
+            parseTableResponse(json)
+            fail("Expected an exception when date_column is missing")
+        } catch (e: InvocationTargetException) {
+            val cause = e.cause
+            assertNotNull(cause)
+            assertTrue(
+                "Expected IllegalArgumentException but got ${cause?.javaClass?.simpleName}",
+                cause is IllegalArgumentException,
+            )
+            assertTrue(cause!!.message!!.contains("date_column"))
+        }
+    }
+
+    @Test
+    fun `parseTableParserConfigResponse throws when amount_column is missing`() {
+        val json = """
+        {
+            "bank_id": "forte",
+            "bank_markers": ["Forte Bank"],
+            "date_column": 0,
+            "date_format": "dd.MM.yyyy"
+        }
+        """.trimIndent()
+
+        try {
+            parseTableResponse(json)
+            fail("Expected an exception when amount_column is missing")
+        } catch (e: InvocationTargetException) {
+            val cause = e.cause
+            assertNotNull(cause)
+            assertTrue(
+                "Expected IllegalArgumentException but got ${cause?.javaClass?.simpleName}",
+                cause is IllegalArgumentException,
+            )
+            assertTrue(cause!!.message!!.contains("amount_column"))
+        }
+    }
+
+    @Test
     fun `generateTableParserConfig handles malformed AI response`() {
         val malformedJson = "{ this is not valid json }"
 

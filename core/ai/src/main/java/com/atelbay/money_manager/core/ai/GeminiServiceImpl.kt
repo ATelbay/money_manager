@@ -415,7 +415,8 @@ class GeminiServiceImpl @Inject constructor(
         this[key]?.jsonArray?.map { it.jsonPrimitive.content }.orEmpty()
 
     private fun JsonObject.intField(key: String): Int =
-        this[key]?.jsonPrimitive?.intOrNull ?: 0
+        this[key]?.jsonPrimitive?.intOrNull
+            ?: throw IllegalArgumentException("Required field '$key' is missing or not an integer")
 
     private fun JsonObject.intFieldOrNull(key: String): Int? =
         this[key]?.jsonPrimitive?.intOrNull
