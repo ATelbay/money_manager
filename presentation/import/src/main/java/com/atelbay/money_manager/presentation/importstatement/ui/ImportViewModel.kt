@@ -70,6 +70,9 @@ class ImportViewModel @Inject constructor(
     private var lastSampleTableRows: List<List<String>>? = null
     private var lastAiMethod: AiMethod = AiMethod.NONE
 
+    /** Stores the last blobs so the user can retry without re-selecting the file. */
+    private var lastBlobs: List<Pair<ByteArray, String>>? = null
+
     init {
         viewModelScope.launch {
             val allAccounts = getAccountsUseCase().first()
@@ -110,6 +113,7 @@ class ImportViewModel @Inject constructor(
     }
 
     private suspend fun parseAndPreview(blobs: List<Pair<ByteArray, String>>, strings: AppStrings) {
+        lastBlobs = blobs
         debugCollector.clear()
         val parseResult = parseStatementUseCase(blobs, debugCollector)
         val result = parseResult.importResult
@@ -232,8 +236,22 @@ class ImportViewModel @Inject constructor(
         }
     }
 
+    fun retry(strings: AppStrings) {
+        val blobs = lastBlobs ?: return
+        viewModelScope.launch {
+            _state.value = ImportState.Parsing
+            debugCollector.clear()
+            try {
+                parseAndPreview(blobs, strings)
+            } catch (e: Exception) {
+                _state.value = ImportState.Error(e.message ?: strings.errorUnknown)
+            }
+        }
+    }
+
     fun reset() {
         _state.value = ImportState.Idle
+        lastBlobs = null
         lastAiGeneratedConfig = null
         lastSampleRows = null
         lastAiGeneratedTableConfig = null

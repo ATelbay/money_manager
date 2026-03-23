@@ -53,6 +53,7 @@ fun ImportScreen(
     onDateChange: (Int, kotlinx.datetime.LocalDate) -> Unit,
     onCategoryChange: (Int, Long) -> Unit,
     onImport: () -> Unit,
+    onRetry: () -> Unit,
     onReset: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -201,8 +202,20 @@ fun ImportScreen(
                             modifier = Modifier.testTag("import:errorMessage"),
                         )
                         Spacer(modifier = Modifier.height(24.dp))
-                        Button(onClick = onReset) {
+                        Button(
+                            onClick = onRetry,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("import:retry"),
+                        ) {
                             Text(s.tryAgain)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = onReset,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(s.chooseImportMethod)
                         }
                     }
                 }

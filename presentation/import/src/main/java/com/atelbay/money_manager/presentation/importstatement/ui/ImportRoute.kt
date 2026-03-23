@@ -141,6 +141,7 @@ fun ImportRoute(
             onDateChange = viewModel::updateDate,
             onCategoryChange = viewModel::updateCategory,
             onImport = { viewModel.importTransactions(strings) },
+            onRetry = { viewModel.retry(strings) },
             onReset = viewModel::reset,
             onBack = onBack,
         )
