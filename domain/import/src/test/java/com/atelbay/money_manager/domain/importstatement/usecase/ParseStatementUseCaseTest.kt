@@ -13,6 +13,7 @@ import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.core.parser.RegexParseResult
 import com.atelbay.money_manager.core.parser.RegexValidator
 import com.atelbay.money_manager.core.parser.StatementParser
+import com.atelbay.money_manager.core.parser.TableExtractionResult
 import com.atelbay.money_manager.core.remoteconfig.ParserConfig
 import com.atelbay.money_manager.core.remoteconfig.ParserConfigList
 import com.atelbay.money_manager.core.remoteconfig.ParserConfigProvider
@@ -129,7 +130,7 @@ class ParseStatementUseCaseTest {
         every { parserConfigProvider.isAiFullParseEnabled() } returns true
         coEvery { parserConfigProvider.getConfigs() } returns emptyList()
         // Default: table extraction returns empty (no table path) — individual tests override as needed
-        every { statementParser.extractSampleTableRows(pdfBytes) } returns emptyList()
+        every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(emptyList(), emptyList(), null)
 
         useCase = ParseStatementUseCase(
             statementParser = statementParser,
@@ -476,12 +477,12 @@ class ParseStatementUseCaseTest {
 
     @Test
     fun `table AI generation happy path - returns TABLE_GENERATED`() = runTest {
-        every { statementParser.extractSampleTableRows(pdfBytes) } returns sampleTable
+        every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(sampleTable, emptyList(), null)
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
         coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
 
         coEvery {
-            geminiService.generateTableParserConfig(any(), any())
+            geminiService.generateTableParserConfig(any(), any(), any(), any())
         } returns testTableConfig
         every {
             statementParser.tryParseWithTableConfig(pdfBytes, testTableConfig)
@@ -494,14 +495,14 @@ class ParseStatementUseCaseTest {
 
         assertEquals(AiMethod.TABLE_GENERATED, result.aiMethod)
         assertEquals(1, result.importResult.newTransactions.size)
-        coVerify(exactly = 1) { geminiService.generateTableParserConfig(any(), any()) }
+        coVerify(exactly = 1) { geminiService.generateTableParserConfig(any(), any(), any(), any()) }
         // AI regex generation should NOT have been called
         coVerify(exactly = 0) { geminiService.generateParserConfig(any(), any(), any(), any()) }
     }
 
     @Test
     fun `table AI - first attempt fails, retry succeeds`() = runTest {
-        every { statementParser.extractSampleTableRows(pdfBytes) } returns sampleTable
+        every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(sampleTable, emptyList(), null)
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
         coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
 
@@ -509,7 +510,7 @@ class ParseStatementUseCaseTest {
         val goodTableConfig = testTableConfig.copy(dateFormat = "dd.MM.yyyy")
 
         coEvery {
-            geminiService.generateTableParserConfig(any(), any())
+            geminiService.generateTableParserConfig(any(), any(), any(), any())
         } returnsMany listOf(badTableConfig, goodTableConfig)
 
         // First config: invalid date format (isDateFormatValid returns false)
@@ -524,7 +525,7 @@ class ParseStatementUseCaseTest {
         val result = useCase(pdfBlobs)
 
         assertEquals(AiMethod.TABLE_GENERATED, result.aiMethod)
-        coVerify(exactly = 2) { geminiService.generateTableParserConfig(any(), any()) }
+        coVerify(exactly = 2) { geminiService.generateTableParserConfig(any(), any(), any(), any()) }
     }
 
     // ---- T019: Table config caching tests ----
@@ -535,7 +536,7 @@ class ParseStatementUseCaseTest {
             TableParserConfigList(configs = listOf(testTableConfig)),
         )
         every { userPreferences.cachedAiTableParserConfigs } returns flowOf(cachedTableJson)
-        every { statementParser.extractSampleTableRows(pdfBytes) } returns sampleTable
+        every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(sampleTable, emptyList(), null)
 
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
         coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
@@ -552,7 +553,7 @@ class ParseStatementUseCaseTest {
         assertEquals(AiMethod.TABLE_GENERATED, result.aiMethod)
         assertEquals(1, result.importResult.newTransactions.size)
         // No AI calls made
-        coVerify(exactly = 0) { geminiService.generateTableParserConfig(any(), any()) }
+        coVerify(exactly = 0) { geminiService.generateTableParserConfig(any(), any(), any(), any()) }
         coVerify(exactly = 0) { geminiService.generateParserConfig(any(), any(), any(), any()) }
     }
 
@@ -562,7 +563,7 @@ class ParseStatementUseCaseTest {
             TableParserConfigList(configs = listOf(testTableConfig)),
         )
         every { userPreferences.cachedAiTableParserConfigs } returns flowOf(cachedTableJson)
-        every { statementParser.extractSampleTableRows(pdfBytes) } returns sampleTable
+        every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(sampleTable, emptyList(), null)
 
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
         coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
@@ -574,7 +575,7 @@ class ParseStatementUseCaseTest {
 
         // AI table generation succeeds
         coEvery {
-            geminiService.generateTableParserConfig(any(), any())
+            geminiService.generateTableParserConfig(any(), any(), any(), any())
         } returns testTableConfig
         every {
             statementParser.tryParseWithTableConfig(pdfBytes, testTableConfig)
@@ -586,17 +587,17 @@ class ParseStatementUseCaseTest {
         val result = useCase(pdfBlobs)
 
         assertEquals(AiMethod.TABLE_GENERATED, result.aiMethod)
-        coVerify(exactly = 1) { geminiService.generateTableParserConfig(any(), any()) }
+        coVerify(exactly = 1) { geminiService.generateTableParserConfig(any(), any(), any(), any()) }
     }
 
     @Test
     fun `successful AI table generation - config cached`() = runTest {
-        every { statementParser.extractSampleTableRows(pdfBytes) } returns sampleTable
+        every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(sampleTable, emptyList(), null)
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
         coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
 
         coEvery {
-            geminiService.generateTableParserConfig(any(), any())
+            geminiService.generateTableParserConfig(any(), any(), any(), any())
         } returns testTableConfig
         every {
             statementParser.tryParseWithTableConfig(pdfBytes, testTableConfig)
@@ -620,7 +621,7 @@ class ParseStatementUseCaseTest {
             TableParserConfigList(configs = listOf(oldConfig)),
         )
         every { userPreferences.cachedAiTableParserConfigs } returns flowOf(cachedTableJson)
-        every { statementParser.extractSampleTableRows(pdfBytes) } returns sampleTable
+        every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(sampleTable, emptyList(), null)
 
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
         coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
@@ -631,7 +632,7 @@ class ParseStatementUseCaseTest {
         // AI generates new config with same bankId
         val newConfig = testTableConfig.copy(dateFormat = "dd.MM.yyyy")
         coEvery {
-            geminiService.generateTableParserConfig(any(), any())
+            geminiService.generateTableParserConfig(any(), any(), any(), any())
         } returns newConfig
         every {
             statementParser.tryParseWithTableConfig(pdfBytes, newConfig)
@@ -653,7 +654,7 @@ class ParseStatementUseCaseTest {
     @Test
     fun `fallback - table extraction returns empty list - AI regex path runs`() = runTest {
         // Table extraction returns empty — table path must be skipped entirely
-        every { statementParser.extractSampleTableRows(pdfBytes) } returns emptyList()
+        every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(emptyList(), emptyList(), null)
 
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
         coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
@@ -678,8 +679,10 @@ class ParseStatementUseCaseTest {
     @Test
     fun `fallback - table extraction returns 1 row - AI regex path runs`() = runTest {
         // 1 row is below the >=2 threshold — table path must be skipped
-        every { statementParser.extractSampleTableRows(pdfBytes) } returns listOf(
-            listOf("Date", "Amount", "Operation"),
+        every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(
+            sampleRows = listOf(listOf("Date", "Amount", "Operation")),
+            metadataRows = emptyList(),
+            columnHeaderRow = null,
         )
 
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
@@ -703,14 +706,14 @@ class ParseStatementUseCaseTest {
     @Test
     fun `fallback - all table config retries fail - AI regex path runs`() = runTest {
         // Table has enough rows to trigger the table path (>=2 rows)
-        every { statementParser.extractSampleTableRows(pdfBytes) } returns sampleTable
+        every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(sampleTable, emptyList(), null)
 
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
         coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
 
         // All table config attempts return a config that parses 0 transactions
         coEvery {
-            geminiService.generateTableParserConfig(any(), any())
+            geminiService.generateTableParserConfig(any(), any(), any(), any())
         } returns testTableConfig
         every {
             statementParser.tryParseWithTableConfig(pdfBytes, testTableConfig)
@@ -729,7 +732,7 @@ class ParseStatementUseCaseTest {
         val result = useCase(pdfBlobs)
 
         // Table AI was tried 3 times (all failed) then fell through to AI regex
-        coVerify(exactly = 3) { geminiService.generateTableParserConfig(any(), any()) }
+        coVerify(exactly = 3) { geminiService.generateTableParserConfig(any(), any(), any(), any()) }
         coVerify(atLeast = 1) { geminiService.generateParserConfig(any(), any(), any(), any()) }
         assertEquals(AiMethod.REGEX_GENERATED, result.aiMethod)
     }
@@ -737,7 +740,7 @@ class ParseStatementUseCaseTest {
     @Test
     fun `fallback - table path throws exception - caught and falls through to AI regex`() = runTest {
         // Table extraction itself throws — must not propagate out of the use case
-        every { statementParser.extractSampleTableRows(pdfBytes) } throws RuntimeException("PdfBox error")
+        every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } throws RuntimeException("PdfBox error")
 
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
         coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
@@ -770,7 +773,7 @@ class ParseStatementUseCaseTest {
         val result = useCase(pdfBlobs)
 
         // Neither table extraction nor AI should have been called
-        verify(exactly = 0) { statementParser.extractSampleTableRows(any()) }
+        verify(exactly = 0) { statementParser.extractSampleTableRowsWithContext(any()) }
         coVerify(exactly = 0) { geminiService.generateParserConfig(any(), any(), any(), any()) }
         assertEquals(AiMethod.NONE, result.aiMethod)
         assertEquals(1, result.importResult.newTransactions.size)
@@ -793,7 +796,7 @@ class ParseStatementUseCaseTest {
 
         val result = useCase(pdfBlobs)
 
-        verify(exactly = 0) { statementParser.extractSampleTableRows(any()) }
+        verify(exactly = 0) { statementParser.extractSampleTableRowsWithContext(any()) }
         coVerify(exactly = 0) { geminiService.generateParserConfig(any(), any(), any(), any()) }
         assertEquals(AiMethod.NONE, result.aiMethod)
         assertEquals(1, result.importResult.newTransactions.size)
