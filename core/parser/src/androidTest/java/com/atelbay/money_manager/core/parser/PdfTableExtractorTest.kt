@@ -1,52 +1,45 @@
 package com.atelbay.money_manager.core.parser
 
-import io.mockk.mockk
-import org.apache.pdfbox.pdmodel.PDDocument
-import org.apache.pdfbox.pdmodel.PDPage
-import org.apache.pdfbox.pdmodel.PDPageContentStream
-import org.apache.pdfbox.pdmodel.common.PDRectangle
-import org.apache.pdfbox.pdmodel.font.PDType1Font
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
+import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.pdmodel.PDPage
+import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
+import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
+import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
+import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
 
 /**
- * Unit tests for [PdfTableExtractor].
+ * Instrumented tests for [PdfTableExtractor].
  *
- * Uses JVM PdfBox (org.apache.pdfbox) to create PDF fixtures programmatically.
- * PdfTextExtractor is injected as a relaxed mock (ensureInitialized() is a no-op).
- *
- * NOTE: Tests are @Ignore because PdfTableExtractor extends com.tom_roush.pdfbox.text.PDFTextStripper
- * which requires Android-specific LegacyPDFStreamEngine at class-load time. These tests need
- * instrumented (androidTest) execution or Robolectric to function.
+ * Uses Android PdfBox (com.tom_roush.pdfbox) to create PDF fixtures and test
+ * table extraction with the real PdfBox runtime.
  */
-@Ignore("Requires Android PdfBox runtime — move to androidTest or use Robolectric")
+@RunWith(AndroidJUnit4::class)
 class PdfTableExtractorTest {
 
-    private val mockPdfTextExtractor: PdfTextExtractor = mockk(relaxed = true)
     private lateinit var extractor: PdfTableExtractor
 
     @Before
     fun setUp() {
-        extractor = PdfTableExtractor(mockPdfTextExtractor)
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        PDFBoxResourceLoader.init(context)
+        val pdfTextExtractor = PdfTextExtractor(context)
+        extractor = PdfTableExtractor(pdfTextExtractor)
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
 
-    /**
-     * Creates a minimal PDF with a single page containing [lines] of text.
-     * Each string in a line is placed at a fixed X offset (column positions)
-     * and the same Y coordinate, simulating a table row.
-     *
-     * @param rows  List of rows; each row is a list of (x, y, text) triples.
-     */
     private fun buildPdf(rows: List<List<Triple<Float, Float, String>>>): ByteArray {
         val doc = PDDocument()
         val page = PDPage(PDRectangle.A4)
@@ -71,10 +64,6 @@ class PdfTableExtractorTest {
         return out.toByteArray()
     }
 
-    /**
-     * Builds a simple 4-column PDF table.
-     * Rows are spaced 20pt apart vertically; columns at x = 50, 150, 250, 350.
-     */
     private fun buildFourColumnTable(
         dataRows: List<List<String>>,
         startY: Float = 700f,
@@ -93,14 +82,8 @@ class PdfTableExtractorTest {
     // Tests
     // ─────────────────────────────────────────────────────────────────────────
 
-    /**
-     * 1. Simple 4-column table extraction.
-     *
-     * Verifies that extractTable returns the correct number of rows and that
-     * cell values from each column are present in the output.
-     */
     @Test
-    fun `extractTable returns correct rows for simple 4-column table`() {
+    fun extractTable_returnsCorrectRowsForSimple4ColumnTable() {
         val data = listOf(
             listOf("Date", "Description", "Amount", "Balance"),
             listOf("01.01.26", "Supermarket", "5000", "45000"),
@@ -111,25 +94,17 @@ class PdfTableExtractorTest {
         val result = extractor.extractTable(bytes)
 
         assertEquals("Should extract 3 rows", 3, result.size)
-        // Each extracted row must have 4 cells
         result.forEach { row ->
             assertEquals("Each row must have 4 columns", 4, row.size)
         }
     }
 
-    /**
-     * 2. Table with header row.
-     *
-     * The first row is a header; remaining rows are data. Validates that
-     * extractTableOrNull returns a non-null result and that the header values
-     * are present in the first row.
-     */
     @Test
-    fun `extractTableOrNull returns non-null result with header and data rows`() {
+    fun extractTableOrNull_returnsNonNullWithHeaderAndDataRows() {
         val data = listOf(
-            listOf("Дата", "Операция", "Сумма", "Остаток"),
-            listOf("05.03.26", "Покупка", "3500", "100000"),
-            listOf("06.03.26", "Перевод", "10000", "90000"),
+            listOf("Date", "Operation", "Amount", "Balance"),
+            listOf("05.03.26", "Purchase", "3500", "100000"),
+            listOf("06.03.26", "Transfer", "10000", "90000"),
         )
         val bytes = buildFourColumnTable(data)
 
@@ -137,35 +112,22 @@ class PdfTableExtractorTest {
 
         assertNotNull("extractTableOrNull must return non-null for 3 rows", result)
         assertTrue("Result must contain at least 2 rows", result!!.size >= 2)
-
-        val headerRow = result.first()
-        assertEquals(4, headerRow.size)
+        assertEquals(4, result.first().size)
     }
 
-    /**
-     * 3. PDF with no table structure → empty result.
-     *
-     * A single line of text (no columns separated by a gap ≥ X_GAP_THRESHOLD)
-     * should produce either an empty list or a single-row result with one cell,
-     * and extractTableOrNull should return null (fewer than 2 rows that qualify
-     * as multi-column).
-     */
     @Test
-    fun `extractTable on single-line text returns result without crashing`() {
-        // Single line, all characters close together — no column gaps
+    fun extractTable_onSingleLineTextDoesNotCrash() {
         val singleLineRows = listOf(
             listOf(Triple(50f, 700f, "Nobankstatementhere")),
         )
         val bytes = buildPdf(singleLineRows)
 
-        // Must not throw; result may be empty or contain one row
         val result = extractor.extractTable(bytes)
         assertNotNull("extractTable must never return null", result)
     }
 
     @Test
-    fun `extractTableOrNull returns null when only one row is extracted`() {
-        // One row with a couple of columns — still fewer than 2 rows total
+    fun extractTableOrNull_returnsNullWhenOnlyOneRow() {
         val singleRowPdf = buildPdf(
             listOf(
                 listOf(
@@ -176,46 +138,25 @@ class PdfTableExtractorTest {
         )
 
         val result = extractor.extractTableOrNull(singleRowPdf)
-        assertNull(
-            "extractTableOrNull must return null when fewer than 2 rows are found",
-            result,
-        )
+        assertNull("extractTableOrNull must return null when fewer than 2 rows", result)
     }
 
-    /**
-     * 4. Empty / null input handling.
-     *
-     * Passing an empty ByteArray must return an empty list (caught internally)
-     * without throwing an exception.
-     */
     @Test
-    fun `extractTable on empty ByteArray returns empty list`() {
+    fun extractTable_onEmptyByteArrayReturnsEmptyList() {
         val result = extractor.extractTable(ByteArray(0))
-
-        assertTrue(
-            "extractTable must return empty list for empty bytes",
-            result.isEmpty(),
-        )
+        assertTrue("extractTable must return empty list for empty bytes", result.isEmpty())
     }
 
     @Test
-    fun `extractTableOrNull on empty ByteArray returns null`() {
+    fun extractTableOrNull_onEmptyByteArrayReturnsNull() {
         val result = extractor.extractTableOrNull(ByteArray(0))
-        assertNull(
-            "extractTableOrNull must return null for empty bytes",
-            result,
-        )
+        assertNull("extractTableOrNull must return null for empty bytes", result)
     }
 
     @Test
-    fun `extractTable on invalid bytes returns empty list`() {
+    fun extractTable_onInvalidBytesReturnsEmptyList() {
         val garbage = byteArrayOf(0x00, 0x01, 0x02, 0x03, 0x04)
-
         val result = extractor.extractTable(garbage)
-
-        assertTrue(
-            "extractTable must return empty list for non-PDF bytes",
-            result.isEmpty(),
-        )
+        assertTrue("extractTable must return empty list for non-PDF bytes", result.isEmpty())
     }
 }

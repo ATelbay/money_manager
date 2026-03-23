@@ -6,6 +6,7 @@ import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.ImportState
+import com.atelbay.money_manager.core.model.TableParserConfig
 import com.atelbay.money_manager.core.model.TransactionOverride
 import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
@@ -62,9 +63,12 @@ class ImportViewModel @Inject constructor(
     /** Debug progress collector — always created, only consumed in debug UI. */
     val debugCollector = ListImportProgressCollector()
 
-    /** Tracks the AI-generated config from the last parse, if any. */
+    /** Tracks the AI-generated configs from the last parse, if any. */
     private var lastAiGeneratedConfig: ParserConfig? = null
     private var lastSampleRows: String? = null
+    private var lastAiGeneratedTableConfig: TableParserConfig? = null
+    private var lastSampleTableRows: List<List<String>>? = null
+    private var lastAiMethod: AiMethod = AiMethod.NONE
 
     init {
         viewModelScope.launch {
@@ -111,6 +115,9 @@ class ImportViewModel @Inject constructor(
         val result = parseResult.importResult
         lastAiGeneratedConfig = parseResult.aiGeneratedConfig
         lastSampleRows = parseResult.sampleRows
+        lastAiGeneratedTableConfig = parseResult.aiGeneratedTableConfig
+        lastSampleTableRows = parseResult.sampleTableRows
+        lastAiMethod = parseResult.aiMethod
 
         when (parseResult.aiMethod) {
             AiMethod.REGEX_GENERATED -> _debugAiEvent.tryEmit(
@@ -189,6 +196,23 @@ class ImportViewModel @Inject constructor(
                 )
                 _state.value = ImportState.Success(imported)
 
+                // Cache AI-generated configs after user confirms import
+                when (lastAiMethod) {
+                    AiMethod.REGEX_GENERATED -> {
+                        val config = lastAiGeneratedConfig
+                        if (config != null) {
+                            launch { parseStatementUseCase.cacheAiConfig(config) }
+                        }
+                    }
+                    AiMethod.TABLE_GENERATED -> {
+                        val tableConfig = lastAiGeneratedTableConfig
+                        if (tableConfig != null) {
+                            launch { parseStatementUseCase.cacheTableConfig(tableConfig) }
+                        }
+                    }
+                    else -> { /* no config to cache */ }
+                }
+
                 // Submit AI-generated config as candidate (fire-and-forget)
                 val config = lastAiGeneratedConfig
                 val sample = lastSampleRows
@@ -212,6 +236,9 @@ class ImportViewModel @Inject constructor(
         _state.value = ImportState.Idle
         lastAiGeneratedConfig = null
         lastSampleRows = null
+        lastAiGeneratedTableConfig = null
+        lastSampleTableRows = null
+        lastAiMethod = AiMethod.NONE
         debugCollector.clear()
     }
 }

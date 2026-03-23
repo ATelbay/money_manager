@@ -8,7 +8,8 @@ object AmountParser {
     fun parseAmount(amountStr: String, format: String): Double = when (format) {
         "dot" -> amountStr.replace(Regex("[^\\d.\\-]"), "").toDouble()
         "comma_dot" -> amountStr.replace(",", "").toDouble()
-        else -> amountStr.replace("\\s".toRegex(), "").replace(",", ".").toDouble()
+        "space_comma" -> amountStr.replace("\\s".toRegex(), "").replace(",", ".").toDouble()
+        else -> throw IllegalArgumentException("Unknown amount format: $format")
     }
 
     fun parseDateString(dateStr: String, dateFormat: String): LocalDate {

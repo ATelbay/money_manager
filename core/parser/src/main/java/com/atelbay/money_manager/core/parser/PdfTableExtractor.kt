@@ -1,10 +1,8 @@
 package com.atelbay.money_manager.core.parser
 
-import android.content.Context
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.text.PDFTextStripper
 import com.tom_roush.pdfbox.text.TextPosition
-import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
 import java.io.ByteArrayInputStream
 import javax.inject.Inject
@@ -13,7 +11,7 @@ import kotlin.math.abs
 
 @Singleton
 class PdfTableExtractor @Inject constructor(
-    @param:ApplicationContext private val context: Context,
+    private val pdfTextExtractor: PdfTextExtractor,
 ) {
 
     companion object {
@@ -26,7 +24,7 @@ class PdfTableExtractor @Inject constructor(
      */
     fun extractTable(bytes: ByteArray): List<List<String>> {
         return try {
-            PdfTextExtractor(context).ensureInitialized()
+            pdfTextExtractor.ensureInitialized()
             ByteArrayInputStream(bytes).use { stream ->
                 PDDocument.load(stream).use { document ->
                     val allRows = mutableListOf<List<String>>()

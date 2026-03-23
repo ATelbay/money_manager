@@ -63,6 +63,8 @@ private data class RegexThenGeminiResult(
     val aiGeneratedConfig: ParserConfig? = null,
     val sampleRows: String? = null,
     val aiMethod: AiMethod = AiMethod.NONE,
+    val aiGeneratedTableConfig: TableParserConfig? = null,
+    val sampleTableRows: List<List<String>>? = null,
 )
 
 class ParseStatementUseCase @Inject constructor(
@@ -88,12 +90,16 @@ class ParseStatementUseCase @Inject constructor(
         var aiGeneratedConfig: ParserConfig? = null
         var sampleRows: String? = null
         var aiMethod = AiMethod.NONE
+        var aiGeneratedTableConfig: TableParserConfig? = null
+        var sampleTableRows: List<List<String>>? = null
 
         val transactions = if (pdfBlob != null) {
             val result = tryRegexThenGemini(pdfBlob.first, blobs, parseErrors, collector)
             aiGeneratedConfig = result.aiGeneratedConfig
             sampleRows = result.sampleRows
             aiMethod = result.aiMethod
+            aiGeneratedTableConfig = result.aiGeneratedTableConfig
+            sampleTableRows = result.sampleTableRows
             result.transactions
         } else if (parserConfigProvider.isAiFullParseEnabled()) {
             aiMethod = AiMethod.FULL_PARSE
@@ -113,6 +119,8 @@ class ParseStatementUseCase @Inject constructor(
             aiGeneratedConfig = aiGeneratedConfig,
             sampleRows = sampleRows,
             aiMethod = aiMethod,
+            aiGeneratedTableConfig = aiGeneratedTableConfig,
+            sampleTableRows = sampleTableRows,
         )
     }
 
@@ -269,12 +277,13 @@ class ParseStatementUseCase @Inject constructor(
                     return@repeat
                 }
 
-                // Success! Cache the config and return.
+                // Success! Return config for deferred caching after user confirms import.
                 Timber.d("AI-generated table config parsed %d transactions (attempt %d/%d)", tableResult.transactions.size, attemptNum, MAX_AI_RETRIES)
-                cacheTableConfig(generatedTableConfig)
                 return RegexThenGeminiResult(
                     transactions = assignCategories(tableResult.transactions, collector),
                     aiMethod = AiMethod.TABLE_GENERATED,
+                    aiGeneratedTableConfig = generatedTableConfig,
+                    sampleTableRows = sampleTableRows,
                 )
             }
 
@@ -376,10 +385,9 @@ class ParseStatementUseCase @Inject constructor(
                     return@repeat
                 }
 
-                // Success!
+                // Success! Return config for deferred caching after user confirms import.
                 Timber.d("AI-generated config parsed %d transactions (attempt %d/%d)", aiResult.transactions.size, attemptNum, MAX_AI_RETRIES)
                 collector.emit(ImportStepEvent.AiConfigParseResult(attemptNum, aiResult.transactions.size))
-                cacheAiConfig(generatedConfig)
                 return RegexThenGeminiResult(
                     transactions = assignCategories(aiResult.transactions, collector),
                     aiGeneratedConfig = generatedConfig,
@@ -463,7 +471,7 @@ class ParseStatementUseCase @Inject constructor(
         }
     }
 
-    private suspend fun cacheTableConfig(config: TableParserConfig) {
+    suspend fun cacheTableConfig(config: TableParserConfig) {
         try {
             val existing = loadCachedTableConfigs().toMutableList()
             existing.removeAll { it.bankId == config.bankId }
@@ -477,7 +485,7 @@ class ParseStatementUseCase @Inject constructor(
         }
     }
 
-    private suspend fun cacheAiConfig(config: ParserConfig) {
+    suspend fun cacheAiConfig(config: ParserConfig) {
         try {
             val existing = loadCachedAiConfigs().toMutableList()
             // Replace only the exact same variant; keep other configs for the same bank.
