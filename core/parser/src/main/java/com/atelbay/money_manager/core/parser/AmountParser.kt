@@ -9,6 +9,12 @@ object AmountParser {
         "dot" -> amountStr.replace(Regex("[^\\d.\\-]"), "").toDouble()
         "comma_dot" -> amountStr.replace(Regex("[^\\d,.\\-]"), "").replace(",", "").toDouble()
         "space_comma" -> amountStr.replace(Regex("[^\\d\\s.,\\-]"), "").replace("\\s".toRegex(), "").replace(",", ".").toDouble()
+        "space_dot" -> {
+            // Extract first number (handles merged cells like "107 061.00  0.00  0.00 KZT")
+            val match = Regex("-?[\\d ]+\\.\\d+").find(amountStr)
+                ?: throw NumberFormatException("No number found in '$amountStr'")
+            match.value.replace(" ", "").toDouble()
+        }
         else -> throw IllegalArgumentException("Unknown amount format: $format")
     }
 

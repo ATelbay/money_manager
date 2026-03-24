@@ -562,7 +562,140 @@ class TableStatementParserTest {
         assertEquals(100.0, result[0].amount, 0.01)
     }
 
-    // ==================== 9. OPERATION TYPE MAP ====================
+    // ==================== 9. SPACE_DOT AMOUNT FORMAT ====================
+
+    @Test
+    fun `space_dot format parses 100 000 dot 00 correctly`() {
+        val table = listOf(
+            listOf("15.03.2024", "100 000.00", "Purchase", "Details"),
+        )
+        val config = buildConfig(
+            amountFormat = "space_dot",
+            negativeSignMeansExpense = false,
+            skipHeaderRows = 0,
+        )
+
+        val result = parser.parse(table, config)
+
+        assertEquals(1, result.size)
+        assertEquals(100000.0, result[0].amount, 0.001)
+    }
+
+    @Test
+    fun `space_dot format handles negative amount`() {
+        val table = listOf(
+            listOf("15.03.2024", "-10 000.00", "Purchase", "Details"),
+        )
+        val config = buildConfig(
+            amountFormat = "space_dot",
+            negativeSignMeansExpense = true,
+            skipHeaderRows = 0,
+        )
+
+        val result = parser.parse(table, config)
+
+        assertEquals(1, result.size)
+        assertEquals(10000.0, result[0].amount, 0.001)
+        assertEquals(TransactionType.EXPENSE, result[0].type)
+    }
+
+    @Test
+    fun `space_dot format parses amount with currency suffix`() {
+        val table = listOf(
+            listOf("15.03.2024", "100 000.00 KZT", "Purchase", "Details"),
+        )
+        val config = buildConfig(
+            amountFormat = "space_dot",
+            negativeSignMeansExpense = false,
+            skipHeaderRows = 0,
+        )
+
+        val result = parser.parse(table, config)
+
+        assertEquals(1, result.size)
+        assertEquals(100000.0, result[0].amount, 0.001)
+    }
+
+    // ==================== 10. EXTRACT FIRST DATE ====================
+
+    @Test
+    fun `double date cell extracts first date yyyy-MM-dd`() {
+        val table = listOf(
+            listOf("2024-12-31 2024-12-31", "500.00", "Op", "Detail"),
+        )
+        val config = buildConfig(
+            dateFormat = "yyyy-MM-dd",
+            amountFormat = "dot",
+            negativeSignMeansExpense = false,
+            skipHeaderRows = 0,
+        )
+
+        val result = parser.parse(table, config)
+
+        assertEquals(1, result.size)
+        assertEquals(2024, result[0].date.year)
+        assertEquals(12, result[0].date.monthNumber)
+        assertEquals(31, result[0].date.dayOfMonth)
+    }
+
+    @Test
+    fun `date cell with extra text extracts date`() {
+        val table = listOf(
+            listOf("2024-12-31 KZT", "500.00", "Op", "Detail"),
+        )
+        val config = buildConfig(
+            dateFormat = "yyyy-MM-dd",
+            amountFormat = "dot",
+            negativeSignMeansExpense = false,
+            skipHeaderRows = 0,
+        )
+
+        val result = parser.parse(table, config)
+
+        assertEquals(1, result.size)
+        assertEquals(2024, result[0].date.year)
+        assertEquals(12, result[0].date.monthNumber)
+        assertEquals(31, result[0].date.dayOfMonth)
+    }
+
+    @Test
+    fun `single clean date parses normally`() {
+        val table = listOf(
+            listOf("31.03.2024", "500.00", "Op", "Detail"),
+        )
+        val config = buildConfig(
+            dateFormat = "dd.MM.yyyy",
+            amountFormat = "dot",
+            negativeSignMeansExpense = false,
+            skipHeaderRows = 0,
+        )
+
+        val result = parser.parse(table, config)
+
+        assertEquals(1, result.size)
+        assertEquals(2024, result[0].date.year)
+        assertEquals(3, result[0].date.monthNumber)
+        assertEquals(31, result[0].date.dayOfMonth)
+    }
+
+    @Test
+    fun `date cell with no matching date falls back to trim and row returns null`() {
+        val table = listOf(
+            listOf("NoDate", "500.00", "Op", "Detail"),
+        )
+        val config = buildConfig(
+            dateFormat = "dd.MM.yyyy",
+            amountFormat = "dot",
+            negativeSignMeansExpense = false,
+            skipHeaderRows = 0,
+        )
+
+        val result = parser.parse(table, config)
+
+        assertTrue(result.isEmpty())
+    }
+
+    // ==================== 11. OPERATION TYPE MAP ====================
 
     @Test
     fun `operationTypeMap maps operation text to INCOME when no sign info`() {

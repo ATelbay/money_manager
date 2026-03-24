@@ -138,11 +138,11 @@ class ParseStatementUseCase @Inject constructor(
 
         tryCachedRegexConfigs(pdfBytes, regexResult, collector)?.let { return it }
 
-        // Step 2: Try table-based parsing (cached → AI generation)
-        tryTableBasedParsing(pdfBytes, collector)?.let { return it }
-
-        // Step 3: Try AI regex generation with retries
+        // Step 2: Try AI regex generation with retries (raw text produces cleaner descriptions)
         tryAiRegexGeneration(pdfBytes, pdfText, collector)?.let { return it }
+
+        // Step 3: Try table-based parsing as fallback (cached → AI generation)
+        tryTableBasedParsing(pdfBytes, collector)?.let { return it }
 
         // Step 4: Fall back to full-AI parsing (if enabled)
         return fallbackToFullAiParsing(regexResult, blobs, parseErrors, collector)

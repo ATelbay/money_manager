@@ -138,8 +138,24 @@ class StatementParser @Inject constructor(
             row.count { it.isNotBlank() } >= threshold
         }
 
+        val sampleRows = structuralRows.drop(1).take(10)
+
+        val datePattern = Regex("\\d{2,4}[-./]\\d{2}[-./]?\\d{0,4}")
+        val hasDate = sampleRows.any { row -> row.any { cell -> datePattern.containsMatchIn(cell) } }
+
+        if (!hasDate && table.size > 2) {
+            // Fallback: the modal-count heuristic picked metadata rows instead of transaction rows
+            val dateRows = table.filter { row -> row.any { cell -> datePattern.containsMatchIn(cell) } }
+            val nonDateRows = table.filter { row -> row.none { cell -> datePattern.containsMatchIn(cell) } }
+            return TableExtractionResult(
+                sampleRows = dateRows.take(10),
+                metadataRows = nonDateRows,
+                columnHeaderRow = null,
+            )
+        }
+
         return TableExtractionResult(
-            sampleRows = structuralRows.drop(1).take(10),
+            sampleRows = sampleRows,
             metadataRows = metadataRows,
             columnHeaderRow = structuralRows.firstOrNull(),
         )

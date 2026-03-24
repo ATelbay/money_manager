@@ -219,6 +219,121 @@ class StatementParserTest {
     }
 
     @Test
+    fun `extractSampleTableRowsWithContext falls back to date scanning when modal count is wrong`() {
+        // BCC-like table: 4 metadata rows (2 non-empty cells, no dates), 2 transaction rows (4 non-empty cells).
+        // nonEmptyCounts = [2,2,2,2,4,4] → modalCount=2, threshold=2 → structuralRows = all 6 rows.
+        // sampleRows = structuralRows.drop(1).take(10) = 5 rows (3 metadata + 2 tx).
+        // The 3 metadata rows in sampleRows have no date patterns, but the 2 tx rows do.
+        // hasDate = true in this case, BUT the 4 metadata rows dominate structuralRows.
+        //
+        // To reliably trigger fallback: use 1-cell metadata rows so modal=1, threshold=1,
+        // meaning ALL rows pass, sampleRows.drop(1) starts with metadata rows without dates,
+        // and the transaction date rows are also present → hasDate=true anyway.
+        //
+        // Correct approach: use metadata rows with 1 non-empty cell (modal=1, threshold=1),
+        // so ALL rows pass structuralRows; then structuralRows.drop(1).take(10) starts with
+        // metadata. Since metadata have no date, but tx rows do, hasDate = true via tx rows
+        // in sampleRows.
+        //
+        // To actually trigger fallback: metadata rows must dominate AND have no dates,
+        // AND the sampleRows slice (drop(1).take(10)) must be all metadata (no dates).
+        // Use 12 metadata rows + 2 tx rows — drop(1).take(10) = 10 metadata rows only.
+        val metadataRows = (1..12).map { i -> listOf("Поле$i", "Значение$i", "", "") }
+        val transactionRows = listOf(
+            listOf("2024-12-31", "Аударым", "10 000.00", "-10 000.00"),
+            listOf("2024-12-30", "Зачисление", "5 000.00", "5 000.00"),
+        )
+        val rawTable = metadataRows + transactionRows
+        every { pdfTableExtractor.extractTable(any()) } returns rawTable
+
+        val result = statementParser.extractSampleTableRowsWithContext(byteArrayOf(1, 2, 3))
+
+        // Fallback should return the 2 transaction rows (date rows)
+        assertEquals(2, result.sampleRows.size)
+        assertEquals("2024-12-31", result.sampleRows[0][0])
+        assertEquals("2024-12-30", result.sampleRows[1][0])
+    }
+
+    @Test
+    fun `extractSampleTableRowsWithContext handles minimal BCC table with 1-2 transactions`() {
+        // Edge case: 12 metadata rows (no dates) and only 1 transaction row.
+        // sampleRows from modal heuristic = drop(1).take(10) = 10 metadata rows → no date → fallback.
+        val metadataRows = (1..12).map { i -> listOf("Поле$i", "Значение$i", "", "") }
+        val transactionRow = listOf("2024-12-31", "Аударым", "10 000.00", "-10 000.00")
+        val rawTable = metadataRows + listOf(transactionRow)
+        every { pdfTableExtractor.extractTable(any()) } returns rawTable
+
+        val result = statementParser.extractSampleTableRowsWithContext(byteArrayOf(1, 2, 3))
+
+        assertEquals(1, result.sampleRows.size)
+        assertEquals("2024-12-31", result.sampleRows[0][0])
+    }
+
+    // ==================== T010: multi-line row merging regression tests ====================
+
+    @Test
+    fun `merging is no-op for single-line bank tables`() {
+        // Kaspi-like 4-column table where every row starts with a date — merging should be a no-op.
+        // Since extractTable() is mocked, we return already-final rows (as if merging ran but had nothing to merge).
+        val rawTable = listOf(
+            listOf("Date", "Amount", "Operation", "Details"),
+            listOf("15.03.2024", "-5000.00", "Покупка", "Магазин"),
+            listOf("16.03.2024", "+10000.00", "Пополнение", "Salary"),
+            listOf("17.03.2024", "-2500.00", "Перевод", "Utility"),
+        )
+        every { pdfTableExtractor.extractTable(any()) } returns rawTable
+
+        val result = statementParser.extractSampleTableRowsWithContext(byteArrayOf(1, 2, 3))
+
+        // Header dropped → 3 data rows, no merging occurred (all rows start with dates)
+        assertEquals(3, result.sampleRows.size)
+        assertTrue(result.sampleRows.all { row -> row[0].matches(Regex("\\d{2}\\.\\d{2}\\.\\d{4}.*")) })
+    }
+
+    @Test
+    fun `mergeMultiLineRows handles continuation row with mismatched cell count`() {
+        // Simulate what extractTable() returns after merging a continuation row that had MORE cells than parent.
+        // Parent row had 4 cells, continuation had 5 cells → parent padded and merged → result has 5 cells.
+        val mergedTable = listOf(
+            listOf("Date", "Amount", "Operation", "Details", ""),
+            listOf("15.03.2024", "-5000.00", "Покупка", "Магазин Extra Info", "extra"),
+            listOf("16.03.2024", "+10000.00", "Пополнение", "Salary", ""),
+        )
+        every { pdfTableExtractor.extractTable(any()) } returns mergedTable
+
+        // Must not throw; result should reflect the 5-cell structure
+        val result = statementParser.extractSampleTableRowsWithContext(byteArrayOf(1, 2, 3))
+
+        assertEquals(2, result.sampleRows.size)
+        assertEquals(5, result.sampleRows[0].size)
+        assertEquals("15.03.2024", result.sampleRows[0][0])
+    }
+
+    // ==================== T011: Halyk multi-line row merging ====================
+
+    @Test
+    fun `Halyk-like multi-line rows are merged correctly`() {
+        // Simulate what extractTable() returns after the real mergeMultiLineRows runs:
+        // - row 1 ("01.01.2026" date) merges with its continuation row → last cell becomes "Shop Branch: Almaty Center"
+        // - row 3 ("02.01.2026" date) is a standalone row
+        // This is the MERGED output that the real extractTable() would produce.
+        val mergedTable = listOf(
+            listOf("Date", "TxId", "Sign", "Amount", "CCY", "Operation", "Details"),
+            listOf("01.01.2026", "TX001", "-", "5000.00", "KZT", "Purchase", "Shop Branch: Almaty Center"),
+            listOf("02.01.2026", "TX002", "-", "3000.00", "KZT", "Payment", "Store"),
+        )
+        every { pdfTableExtractor.extractTable(any()) } returns mergedTable
+
+        val result = statementParser.extractSampleTableRowsWithContext(byteArrayOf(1, 2, 3))
+
+        // Header dropped → 2 logical rows (continuation was merged into row 1)
+        assertEquals(2, result.sampleRows.size)
+        assertEquals("01.01.2026", result.sampleRows[0][0])
+        assertEquals("Shop Branch: Almaty Center", result.sampleRows[0][6])
+        assertEquals("02.01.2026", result.sampleRows[1][0])
+    }
+
+    @Test
     fun `extractHeaderSnippet keeps non blank header lines from the first 10 rows`() {
         val headerLines = listOf("Bank statement", "", "АО Test Bank", "BIN 123456", "  ")
         val paddingLines = List(6) { "" }

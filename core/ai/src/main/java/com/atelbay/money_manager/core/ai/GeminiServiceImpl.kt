@@ -45,7 +45,7 @@ class GeminiServiceImpl @Inject constructor(
             "skip_patterns" to Schema.array(Schema.string()),
             "join_lines" to Schema.boolean(),
             "amount_format" to Schema.enumeration(
-                listOf("space_comma", "comma_dot", "dot"),
+                listOf("space_comma", "comma_dot", "dot", "space_dot"),
             ),
             "use_sign_for_type" to Schema.boolean(),
             "negative_sign_means_expense" to Schema.boolean(),
@@ -92,7 +92,7 @@ class GeminiServiceImpl @Inject constructor(
             "sign_column" to Schema.integer(),
             "currency_column" to Schema.integer(),
             "date_format" to Schema.string(),
-            "amount_format" to Schema.enumeration(listOf("space_comma", "comma_dot", "dot")),
+            "amount_format" to Schema.enumeration(listOf("space_comma", "comma_dot", "dot", "space_dot")),
             "negative_sign_means_expense" to Schema.boolean(),
             "skip_header_rows" to Schema.integer(),
             "deduplicate_max_amount" to Schema.boolean(),
@@ -228,7 +228,7 @@ class GeminiServiceImpl @Inject constructor(
         appendLine("- bank_id: lowercase latin slug identifying the bank (e.g. forte, bereke, kaspi)")
         appendLine("- bank_markers: 2-3 unique strings that identify this bank. Prefer strings from the header/metadata rows (bank name, branch, account label) over transaction data.")
         appendLine("- date_format: Java DateTimeFormatter pattern (e.g. dd.MM.yyyy, MM/dd/yyyy)")
-        appendLine("- amount_format: one of \"space_comma\" (10 000,50), \"comma_dot\" (10,000.50), \"dot\" (10000.50)")
+        appendLine("- amount_format: one of \"space_comma\" (10 000,50), \"comma_dot\" (10,000.50), \"dot\" (10000.50), \"space_dot\" (100 000.50)")
         appendLine("- negative_sign_means_expense: true if negative amount = expense, positive = income")
         appendLine("- skip_header_rows: number of header rows to skip (usually 1)")
         appendLine("- deduplicate_max_amount: true if the same transaction appears multiple times (e.g. for currency conversion rows)")
@@ -353,6 +353,7 @@ class GeminiServiceImpl @Inject constructor(
         appendLine("- \"space_comma\": \"10 000,50\"")
         appendLine("- \"comma_dot\": \"10,000.50\"")
         appendLine("- \"dot\": \"10000.50\"")
+        appendLine("- \"space_dot\": \"100 000.50\"")
         appendLine()
         appendLine("## Rules for operation_type_map")
         appendLine("An array of {\"key\": \"...\", \"value\": \"income\"|\"expense\"} objects mapping operation names to types.")

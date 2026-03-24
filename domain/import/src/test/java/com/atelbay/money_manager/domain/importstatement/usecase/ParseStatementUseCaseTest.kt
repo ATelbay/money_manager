@@ -496,8 +496,6 @@ class ParseStatementUseCaseTest {
         assertEquals(AiMethod.TABLE_GENERATED, result.aiMethod)
         assertEquals(1, result.importResult.newTransactions.size)
         coVerify(exactly = 1) { geminiService.generateTableParserConfig(any(), any(), any(), any()) }
-        // AI regex generation should NOT have been called
-        coVerify(exactly = 0) { geminiService.generateParserConfig(any(), any(), any(), any()) }
     }
 
     @Test
@@ -552,9 +550,8 @@ class ParseStatementUseCaseTest {
 
         assertEquals(AiMethod.TABLE_GENERATED, result.aiMethod)
         assertEquals(1, result.importResult.newTransactions.size)
-        // No AI calls made
+        // No table AI calls made (cached table config hit)
         coVerify(exactly = 0) { geminiService.generateTableParserConfig(any(), any(), any(), any()) }
-        coVerify(exactly = 0) { geminiService.generateParserConfig(any(), any(), any(), any()) }
     }
 
     @Test
@@ -652,14 +649,14 @@ class ParseStatementUseCaseTest {
     // ---- T021: Phase 5 US3 — Fallback tests ----
 
     @Test
-    fun `fallback - table extraction returns empty list - AI regex path runs`() = runTest {
-        // Table extraction returns empty — table path must be skipped entirely
+    fun `AI regex generation succeeds - table path not reached`() = runTest {
+        // Table extraction returns empty (but irrelevant — AI regex is tried first)
         every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(emptyList(), emptyList(), null)
 
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
         coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
 
-        // AI regex generation should still run
+        // AI regex generation succeeds (step 2)
         coEvery {
             geminiService.generateParserConfig(headerSnippet, sampleRows, any(), any())
         } returns testConfig
@@ -671,14 +668,15 @@ class ParseStatementUseCaseTest {
 
         val result = useCase(pdfBlobs)
 
-        // AI regex config generation should have run (table path was skipped)
         coVerify(atLeast = 1) { geminiService.generateParserConfig(any(), any(), any(), any()) }
+        // Table path should not be reached since AI regex succeeded
+        coVerify(exactly = 0) { geminiService.generateTableParserConfig(any(), any(), any(), any()) }
         assertEquals(AiMethod.REGEX_GENERATED, result.aiMethod)
     }
 
     @Test
-    fun `fallback - table extraction returns 1 row - AI regex path runs`() = runTest {
-        // 1 row is below the >=2 threshold — table path must be skipped
+    fun `AI regex succeeds even when table has insufficient rows`() = runTest {
+        // 1 row is below the >=2 threshold for table path, but AI regex runs first anyway
         every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(
             sampleRows = listOf(listOf("Date", "Amount", "Operation")),
             metadataRows = emptyList(),
@@ -704,48 +702,51 @@ class ParseStatementUseCaseTest {
     }
 
     @Test
-    fun `fallback - all table config retries fail - AI regex path runs`() = runTest {
+    fun `fallback - all AI regex retries fail - table path runs`() = runTest {
         // Table has enough rows to trigger the table path (>=2 rows)
         every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(sampleTable, emptyList(), null)
 
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
         coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
 
-        // All table config attempts return a config that parses 0 transactions
-        coEvery {
-            geminiService.generateTableParserConfig(any(), any(), any(), any())
-        } returns testTableConfig
-        every {
-            statementParser.tryParseWithTableConfig(pdfBytes, testTableConfig)
-        } returns TableParseResult(transactions = emptyList(), bankId = testTableConfig.bankId)
-
-        // After all table retries fail, AI regex should run
+        // All AI regex attempts parse 0 transactions
         coEvery {
             geminiService.generateParserConfig(headerSnippet, sampleRows, any(), any())
         } returns testConfig
         every { regexValidator.getReDoSViolation(testConfig.transactionPattern) } returns null
         every { statementParser.tryParseWithConfig(pdfBytes, testConfig) } returns RegexParseResult(
-            transactions = listOf(testTransaction),
+            transactions = emptyList(),
             bankId = testConfig.bankId,
+        )
+
+        // After AI regex fails, table path should run and succeed
+        coEvery {
+            geminiService.generateTableParserConfig(any(), any(), any(), any())
+        } returns testTableConfig
+        every {
+            statementParser.tryParseWithTableConfig(pdfBytes, testTableConfig)
+        } returns TableParseResult(
+            transactions = listOf(testTransaction),
+            bankId = testTableConfig.bankId,
         )
 
         val result = useCase(pdfBlobs)
 
-        // Table AI was tried 3 times (all failed) then fell through to AI regex
-        coVerify(exactly = 3) { geminiService.generateTableParserConfig(any(), any(), any(), any()) }
-        coVerify(atLeast = 1) { geminiService.generateParserConfig(any(), any(), any(), any()) }
-        assertEquals(AiMethod.REGEX_GENERATED, result.aiMethod)
+        // AI regex was tried 3 times (all parsed 0 tx) then fell through to table path
+        coVerify(exactly = 3) { geminiService.generateParserConfig(any(), any(), any(), any()) }
+        coVerify(exactly = 1) { geminiService.generateTableParserConfig(any(), any(), any(), any()) }
+        assertEquals(AiMethod.TABLE_GENERATED, result.aiMethod)
     }
 
     @Test
-    fun `fallback - table path throws exception - caught and falls through to AI regex`() = runTest {
-        // Table extraction itself throws — must not propagate out of the use case
+    fun `fallback - AI regex succeeds even when table extraction would throw`() = runTest {
+        // Table extraction would throw — but AI regex runs first and succeeds
         every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } throws RuntimeException("PdfBox error")
 
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
         coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
 
-        // AI regex should still run after the exception is caught
+        // AI regex succeeds (step 2) — table path (step 3) is never reached
         coEvery {
             geminiService.generateParserConfig(headerSnippet, sampleRows, any(), any())
         } returns testConfig

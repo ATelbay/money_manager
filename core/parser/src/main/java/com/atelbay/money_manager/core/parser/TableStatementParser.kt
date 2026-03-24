@@ -48,7 +48,7 @@ class TableStatementParser @Inject constructor() {
         if (dateStr.isNullOrBlank() || amountStr.isNullOrBlank()) return null
 
         val javaParsed = try {
-            AmountParser.parseDateString(dateStr, config.dateFormat)
+            AmountParser.parseDateString(extractFirstDate(dateStr, config.dateFormat), config.dateFormat)
         } catch (e: Exception) {
             Timber.w(e, "Failed to parse date '%s' with format '%s'", dateStr, config.dateFormat)
             return null
@@ -96,6 +96,15 @@ class TableStatementParser @Inject constructor() {
             needsReview = false,
             uniqueHash = hash,
         )
+    }
+
+    private fun extractFirstDate(cell: String, dateFormat: String): String {
+        val pattern = dateFormat
+            .replace(".", "\\.")
+            .replace("-", "\\-")
+            .replace(Regex("[yMd]+"), "\\\\d+")
+        val match = Regex(pattern).find(cell)
+        return match?.value ?: cell.trim()
     }
 
     private fun deduplicateByMaxAmount(transactions: List<ParsedTransaction>): List<ParsedTransaction> {
