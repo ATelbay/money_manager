@@ -3,6 +3,7 @@ package com.atelbay.money_manager.domain.importstatement.usecase
 import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
 import com.atelbay.money_manager.core.firestore.dto.ParserCandidateDto
+import com.atelbay.money_manager.core.model.TableParserConfig
 import com.atelbay.money_manager.core.parser.RegexValidator
 import com.atelbay.money_manager.core.parser.SampleAnonymizer
 import com.atelbay.money_manager.core.remoteconfig.ParserConfig
@@ -172,5 +173,102 @@ class SubmitParserCandidateUseCaseTest {
                 },
             )
         }
+    }
+
+    // ==================== submitTableConfig ====================
+
+    private val testTableConfig = TableParserConfig(
+        bankId = "bcc",
+        bankMarkers = listOf("BCC"),
+        dateColumn = 0,
+        amountColumn = 1,
+        dateFormat = "dd.MM.yyyy",
+        amountFormat = "space_dot",
+    )
+
+    private val testTableRows = listOf(
+        listOf("25.03.2026", "107 061.00", "Purchase", "Store"),
+        listOf("26.03.2026", "5 000.00", "ATM", "Cash"),
+    )
+
+    @Test
+    fun `submitTableConfig creates new candidate when no existing match`() = runTest {
+        every { sampleAnonymizer.anonymize(any()) } returns "anonymized table"
+        coEvery { firestoreDataSource.findTableParserCandidate(bankId = "bcc") } returns null
+
+        useCase.submitTableConfig(testTableConfig, testTableRows, "user123")
+
+        coVerify(exactly = 1) {
+            firestoreDataSource.pushParserCandidate(
+                match { dto ->
+                    dto.bankId == "bcc" &&
+                        dto.configType == "table" &&
+                        dto.transactionPattern == "" &&
+                        dto.anonymizedSample == "anonymized table" &&
+                        dto.successCount == 1 &&
+                        dto.status == "candidate"
+                },
+            )
+        }
+        coVerify(exactly = 0) { firestoreDataSource.incrementCandidateSuccessCount(any()) }
+    }
+
+    @Test
+    fun `submitTableConfig increments when existing table candidate found`() = runTest {
+        every { sampleAnonymizer.anonymize(any()) } returns "anonymized table"
+        val existingDto = ParserCandidateDto(
+            id = "existing_table_id",
+            bankId = "bcc",
+            transactionPattern = "",
+            successCount = 3,
+            configType = "table",
+        )
+        coEvery { firestoreDataSource.findTableParserCandidate(bankId = "bcc") } returns existingDto
+
+        useCase.submitTableConfig(testTableConfig, testTableRows, "user123")
+
+        coVerify(exactly = 1) { firestoreDataSource.incrementCandidateSuccessCount("existing_table_id") }
+        coVerify(exactly = 0) { firestoreDataSource.pushParserCandidate(any()) }
+    }
+
+    @Test
+    fun `submitTableConfig uses anonymous device ID when userId is null`() = runTest {
+        every { sampleAnonymizer.anonymize(any()) } returns "anonymized table"
+        coEvery { firestoreDataSource.findTableParserCandidate(bankId = "bcc") } returns null
+
+        useCase.submitTableConfig(testTableConfig, testTableRows, null)
+
+        coVerify(exactly = 1) { userPreferences.getOrCreateAnonymousDeviceId() }
+        coVerify(exactly = 1) {
+            firestoreDataSource.pushParserCandidate(
+                match { dto ->
+                    dto.userIdHash.length == 64 &&
+                        dto.userIdHash.all { it in '0'..'9' || it in 'a'..'f' }
+                },
+            )
+        }
+    }
+
+    @Test
+    fun `submitTableConfig uses findTableParserCandidate not findParserCandidate`() = runTest {
+        every { sampleAnonymizer.anonymize(any()) } returns "anonymized table"
+        coEvery { firestoreDataSource.findTableParserCandidate(bankId = "bcc") } returns null
+
+        useCase.submitTableConfig(testTableConfig, testTableRows, "user123")
+
+        coVerify(exactly = 1) { firestoreDataSource.findTableParserCandidate(bankId = "bcc") }
+        coVerify(exactly = 0) { firestoreDataSource.findParserCandidate(any(), any()) }
+    }
+
+    @Test
+    fun `submitTableConfig anonymizes table rows as pipe-separated lines`() = runTest {
+        every { sampleAnonymizer.anonymize(any()) } returns "anonymized"
+        coEvery { firestoreDataSource.findTableParserCandidate(bankId = "bcc") } returns null
+
+        useCase.submitTableConfig(testTableConfig, testTableRows, "user123")
+
+        // Verify the raw input to anonymizer is pipe-separated
+        val expectedRaw = "25.03.2026 | 107 061.00 | Purchase | Store\n26.03.2026 | 5 000.00 | ATM | Cash"
+        coVerify { sampleAnonymizer.anonymize(expectedRaw) }
     }
 }
