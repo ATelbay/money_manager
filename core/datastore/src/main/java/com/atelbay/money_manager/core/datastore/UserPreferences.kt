@@ -208,13 +208,13 @@ class UserPreferences @Inject constructor(
      * Generated on first access and persisted in DataStore.
      */
     suspend fun getOrCreateAnonymousDeviceId(): String {
-        val existing = context.dataStore.data.first()[KEY_ANONYMOUS_DEVICE_ID]
-        if (existing != null) return existing
-        val newId = java.util.UUID.randomUUID().toString()
+        var result: String? = null
         context.dataStore.edit { prefs ->
-            prefs[KEY_ANONYMOUS_DEVICE_ID] = newId
+            result = prefs[KEY_ANONYMOUS_DEVICE_ID] ?: java.util.UUID.randomUUID().toString().also {
+                prefs[KEY_ANONYMOUS_DEVICE_ID] = it
+            }
         }
-        return newId
+        return result!!
     }
 
     private fun androidx.datastore.preferences.core.Preferences.toStoredExchangeRate(): StoredExchangeRate? {

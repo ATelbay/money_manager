@@ -102,6 +102,7 @@ class TableStatementParser @Inject constructor() {
         val pattern = dateFormat
             .replace(".", "\\.")
             .replace("-", "\\-")
+            .replace("/", "\\/")
             .replace(Regex("[yMd]+"), "\\\\d+")
         val match = Regex(pattern).find(cell)
         return match?.value ?: cell.trim()

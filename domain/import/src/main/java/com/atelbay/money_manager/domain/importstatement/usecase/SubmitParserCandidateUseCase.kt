@@ -35,43 +35,16 @@ class SubmitParserCandidateUseCase @Inject constructor(
             return
         }
 
-        // Step 2: Anonymize sample
         val anonymizedSample = sampleAnonymizer.anonymize(sampleRows)
-
-        // Step 3: Hash userId (or anonymous device ID) with HMAC-SHA256
-        val effectiveId = userId ?: userPreferences.getOrCreateAnonymousDeviceId()
-        val userIdHash = hmacHash(effectiveId)
-
-        // Step 4: Serialize config to JSON
         val configJson = json.encodeToString(config)
-
-        // Step 5: Check for existing candidate with same bankId + transactionPattern
-        val existing = firestoreDataSource.findParserCandidate(
+        submitCandidate(
             bankId = config.bankId,
+            configJson = configJson,
+            anonymizedSample = anonymizedSample,
+            userId = userId,
+            configType = "regex",
             transactionPattern = config.transactionPattern,
         )
-
-        if (existing != null) {
-            // Step 6: Increment successCount
-            Timber.d("Found existing candidate for bank %s, incrementing successCount", config.bankId)
-            firestoreDataSource.incrementCandidateSuccessCount(existing.id)
-        } else {
-            // Step 7: Create new candidate
-            Timber.d("Creating new parser candidate for bank %s", config.bankId)
-            val now = System.currentTimeMillis()
-            val dto = ParserCandidateDto(
-                bankId = config.bankId,
-                transactionPattern = config.transactionPattern,
-                parserConfigJson = configJson,
-                anonymizedSample = anonymizedSample,
-                userIdHash = userIdHash,
-                successCount = 1,
-                status = "candidate",
-                createdAt = now,
-                updatedAt = now,
-            )
-            firestoreDataSource.pushParserCandidate(dto)
-        }
     }
 
     suspend fun submitTableConfig(
@@ -79,24 +52,49 @@ class SubmitParserCandidateUseCase @Inject constructor(
         sampleTableRows: List<List<String>>,
         userId: String?,
     ) {
-        val effectiveId = userId ?: userPreferences.getOrCreateAnonymousDeviceId()
-        val userIdHash = hmacHash(effectiveId)
-        val configJson = json.encodeToString(config)
         val anonymizedSample = sampleAnonymizer.anonymize(
             sampleTableRows.joinToString("\n") { it.joinToString(" | ") },
         )
+        val configJson = json.encodeToString(config)
+        submitCandidate(
+            bankId = config.bankId,
+            configJson = configJson,
+            anonymizedSample = anonymizedSample,
+            userId = userId,
+            configType = "table",
+            transactionPattern = "",
+        )
+    }
 
-        val existing = firestoreDataSource.findTableParserCandidate(bankId = config.bankId)
+    private suspend fun submitCandidate(
+        bankId: String,
+        configJson: String,
+        anonymizedSample: String,
+        userId: String?,
+        configType: String,
+        transactionPattern: String,
+    ) {
+        val effectiveId = userId ?: userPreferences.getOrCreateAnonymousDeviceId()
+        val userIdHash = hmacHash(effectiveId)
+
+        val existing = if (configType == "table") {
+            firestoreDataSource.findTableParserCandidate(bankId = bankId)
+        } else {
+            firestoreDataSource.findParserCandidate(
+                bankId = bankId,
+                transactionPattern = transactionPattern,
+            )
+        }
 
         if (existing != null) {
-            Timber.d("Found existing table candidate for bank %s, incrementing successCount", config.bankId)
+            Timber.d("Found existing candidate for bank %s, incrementing successCount", bankId)
             firestoreDataSource.incrementCandidateSuccessCount(existing.id)
         } else {
-            Timber.d("Creating new table parser candidate for bank %s", config.bankId)
+            Timber.d("Creating new parser candidate for bank %s", bankId)
             val now = System.currentTimeMillis()
             val dto = ParserCandidateDto(
-                bankId = config.bankId,
-                transactionPattern = "",
+                bankId = bankId,
+                transactionPattern = transactionPattern,
                 parserConfigJson = configJson,
                 anonymizedSample = anonymizedSample,
                 userIdHash = userIdHash,
@@ -104,7 +102,7 @@ class SubmitParserCandidateUseCase @Inject constructor(
                 status = "candidate",
                 createdAt = now,
                 updatedAt = now,
-                configType = "table",
+                configType = configType,
             )
             firestoreDataSource.pushParserCandidate(dto)
         }

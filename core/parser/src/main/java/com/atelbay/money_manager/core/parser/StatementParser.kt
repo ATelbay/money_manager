@@ -37,6 +37,9 @@ class StatementParser @Inject constructor(
     private companion object {
         const val HEADER_LINE_COUNT = 10
         const val SAMPLE_LINE_COUNT = 60
+        // No anchor: checks whether any cell *contains* a date token anywhere in its text.
+        // Trailing [-./]?\d{0,4} captures the optional year part (e.g., ".2024").
+        val DATE_PATTERN = Regex("${ParserPatterns.DATE_CORE}[-./]?\\d{0,4}")
     }
 
     suspend fun tryParsePdf(
@@ -140,13 +143,12 @@ class StatementParser @Inject constructor(
 
         val sampleRows = structuralRows.drop(1).take(10)
 
-        val datePattern = Regex("\\d{2,4}[-./]\\d{2}[-./]?\\d{0,4}")
-        val hasDate = sampleRows.any { row -> row.any { cell -> datePattern.containsMatchIn(cell) } }
+        val hasDate = sampleRows.any { row -> row.any { cell -> DATE_PATTERN.containsMatchIn(cell) } }
 
         if (!hasDate && table.size > 2) {
             // Fallback: the modal-count heuristic picked metadata rows instead of transaction rows
-            val dateRows = table.filter { row -> row.any { cell -> datePattern.containsMatchIn(cell) } }
-            val nonDateRows = table.filter { row -> row.none { cell -> datePattern.containsMatchIn(cell) } }
+            val dateRows = table.filter { row -> row.any { cell -> DATE_PATTERN.containsMatchIn(cell) } }
+            val nonDateRows = table.filter { row -> row.none { cell -> DATE_PATTERN.containsMatchIn(cell) } }
             return TableExtractionResult(
                 sampleRows = dateRows.take(10),
                 metadataRows = nonDateRows,

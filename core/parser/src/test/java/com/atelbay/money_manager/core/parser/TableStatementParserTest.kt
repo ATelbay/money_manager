@@ -679,6 +679,27 @@ class TableStatementParserTest {
     }
 
     @Test
+    fun `double date with time extracts only first date dd_MM_yyyy`() {
+        // Cell contains date + time + repeated date — extractFirstDate should return "25.03.2026"
+        val table = listOf(
+            listOf("25.03.2026 14:30:00 25.03.2026", "1000.00", "Op", "Detail"),
+        )
+        val config = buildConfig(
+            dateFormat = "dd.MM.yyyy",
+            amountFormat = "dot",
+            negativeSignMeansExpense = false,
+            skipHeaderRows = 0,
+        )
+
+        val result = parser.parse(table, config)
+
+        assertEquals(1, result.size)
+        assertEquals(2026, result[0].date.year)
+        assertEquals(3, result[0].date.monthNumber)
+        assertEquals(25, result[0].date.dayOfMonth)
+    }
+
+    @Test
     fun `date cell with no matching date falls back to trim and row returns null`() {
         val table = listOf(
             listOf("NoDate", "500.00", "Op", "Detail"),

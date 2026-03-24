@@ -217,13 +217,13 @@ class ImportViewModel @Inject constructor(
                     else -> { /* no config to cache */ }
                 }
 
-                // Submit AI-generated config as candidate (fire-and-forget)
+                // Submit AI-generated configs as candidates (fire-and-forget)
+                val userId = authRepository.observeCurrentUser().first()?.userId
                 val config = lastAiGeneratedConfig
                 val sample = lastSampleRows
                 if (config != null && sample != null) {
                     launch {
                         try {
-                            val userId = authRepository.observeCurrentUser().first()?.userId
                             submitParserCandidateUseCase(config, sample, userId)
                         } catch (e: Exception) {
                             Timber.w(e, "Failed to submit parser candidate, ignoring")
@@ -231,13 +231,11 @@ class ImportViewModel @Inject constructor(
                     }
                 }
 
-                // Submit AI-generated TABLE config as candidate (fire-and-forget)
                 val tableConfig = lastAiGeneratedTableConfig
                 val tableSample = lastSampleTableRows
                 if (tableConfig != null && tableSample != null) {
                     launch {
                         try {
-                            val userId = authRepository.observeCurrentUser().first()?.userId
                             submitParserCandidateUseCase.submitTableConfig(tableConfig, tableSample, userId)
                         } catch (e: Exception) {
                             Timber.w(e, "Failed to submit table parser candidate, ignoring")

@@ -21,7 +21,9 @@ class PdfTableExtractor @Inject constructor(
         private const val SPACE_WIDTH_FACTOR = 0.5f
         private const val COLUMN_GAP_SPACE_FACTOR = 3f
         private const val MIN_DATE_ROWS = 3
-        private val DATE_ROW_PATTERN = Regex("^\\d{2,4}[-./]\\d{2}")
+        // Anchored at start: a row that starts with a date token begins a new logical transaction.
+        // Trailing [-./]? allows partial matches like "01.03" before the year part.
+        private val DATE_ROW_PATTERN = Regex("^${ParserPatterns.DATE_CORE}[-./]?")
     }
 
     /**
@@ -70,11 +72,10 @@ class PdfTableExtractor @Inject constructor(
      * the cells that exist in the continuation row are merged.
      */
     private fun mergeMultiLineRows(rows: List<List<String>>): List<List<String>> {
-        val DATE_PATTERN = Regex("^\\d{2,4}[-./]\\d{2}[-./]?")
         val result = mutableListOf<MutableList<String>>()
         for (row in rows) {
             val firstCell = row.firstOrNull()?.trim().orEmpty()
-            if (DATE_PATTERN.containsMatchIn(firstCell)) {
+            if (DATE_ROW_PATTERN.containsMatchIn(firstCell)) {
                 // New logical row — starts with a date-like token
                 result.add(row.map { it }.toMutableList())
             } else if (result.isEmpty()) {

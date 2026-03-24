@@ -10,10 +10,22 @@ object AmountParser {
         "comma_dot" -> amountStr.replace(Regex("[^\\d,.\\-]"), "").replace(",", "").toDouble()
         "space_comma" -> amountStr.replace(Regex("[^\\d\\s.,\\-]"), "").replace("\\s".toRegex(), "").replace(",", ".").toDouble()
         "space_dot" -> {
-            // Extract first number (handles merged cells like "107 061.00  0.00  0.00 KZT")
-            val match = Regex("-?[\\d ]+\\.\\d+").find(amountStr)
-                ?: throw NumberFormatException("No number found in '$amountStr'")
-            match.value.replace(" ", "").toDouble()
+            // Normalize non-breaking spaces before matching
+            val normalized = amountStr.replace('\u00A0', ' ')
+            // Precise grouped-thousands decimal regex — avoids matching partial unrelated numbers.
+            // When multiple matches exist (merged cells), pick the largest absolute value.
+            val decimalMatches = Regex("-?\\d{1,3}( \\d{3})*\\.\\d+").findAll(normalized).toList()
+            if (decimalMatches.isNotEmpty()) {
+                val best = decimalMatches.maxByOrNull { kotlin.math.abs(it.value.replace(" ", "").toDouble()) }!!
+                return best.value.replace(" ", "").toDouble()
+            }
+            // Integer-only: "5 000" or plain "5000"
+            val intMatch = Regex("-?\\d{1,3}( \\d{3})+").find(normalized)
+                ?: Regex("-?\\d+").find(normalized)
+            if (intMatch != null) {
+                return intMatch.value.replace(" ", "").toDouble()
+            }
+            normalized.replace(" ", "").toDouble()
         }
         else -> throw IllegalArgumentException("Unknown amount format: $format")
     }
