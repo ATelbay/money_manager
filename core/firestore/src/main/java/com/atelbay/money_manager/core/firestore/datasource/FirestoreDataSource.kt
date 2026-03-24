@@ -16,6 +16,7 @@ interface FirestoreDataSource {
     suspend fun pullCategories(userId: String): List<CategoryDto>
 
     suspend fun findParserCandidate(bankId: String, transactionPattern: String): ParserCandidateDto?
+    suspend fun findTableParserCandidate(bankId: String): ParserCandidateDto?
     suspend fun pushParserCandidate(dto: ParserCandidateDto)
     suspend fun incrementCandidateSuccessCount(candidateId: String)
 }

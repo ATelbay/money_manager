@@ -127,6 +127,17 @@ class FirestoreDataSourceImpl @Inject constructor(
         return snapshot.documents.firstOrNull()?.toObject(ParserCandidateDto::class.java)
     }
 
+    override suspend fun findTableParserCandidate(bankId: String): ParserCandidateDto? {
+        val snapshot = parserCandidates
+            .whereEqualTo("bankId", bankId)
+            .whereEqualTo("configType", "table")
+            .whereEqualTo("status", "candidate")
+            .limit(1)
+            .get()
+            .await()
+        return snapshot.documents.firstOrNull()?.toObject(ParserCandidateDto::class.java)
+    }
+
     override suspend fun pushParserCandidate(dto: ParserCandidateDto) {
         try {
             parserCandidates.add(dto).await()

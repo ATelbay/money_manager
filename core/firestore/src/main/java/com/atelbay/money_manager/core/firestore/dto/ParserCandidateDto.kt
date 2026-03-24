@@ -13,4 +13,5 @@ data class ParserCandidateDto(
     val status: String = "candidate",
     val createdAt: Long = 0,
     val updatedAt: Long = 0,
+    val configType: String = "regex",
 )

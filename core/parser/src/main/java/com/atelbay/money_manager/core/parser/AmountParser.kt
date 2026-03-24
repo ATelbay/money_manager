@@ -7,8 +7,8 @@ object AmountParser {
 
     fun parseAmount(amountStr: String, format: String): Double = when (format) {
         "dot" -> amountStr.replace(Regex("[^\\d.\\-]"), "").toDouble()
-        "comma_dot" -> amountStr.replace(",", "").toDouble()
-        "space_comma" -> amountStr.replace("\\s".toRegex(), "").replace(",", ".").toDouble()
+        "comma_dot" -> amountStr.replace(Regex("[^\\d,.\\-]"), "").replace(",", "").toDouble()
+        "space_comma" -> amountStr.replace(Regex("[^\\d\\s.,\\-]"), "").replace("\\s".toRegex(), "").replace(",", ".").toDouble()
         else -> throw IllegalArgumentException("Unknown amount format: $format")
     }
 

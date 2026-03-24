@@ -230,6 +230,20 @@ class ImportViewModel @Inject constructor(
                         }
                     }
                 }
+
+                // Submit AI-generated TABLE config as candidate (fire-and-forget)
+                val tableConfig = lastAiGeneratedTableConfig
+                val tableSample = lastSampleTableRows
+                if (tableConfig != null && tableSample != null) {
+                    launch {
+                        try {
+                            val userId = authRepository.observeCurrentUser().first()?.userId
+                            submitParserCandidateUseCase.submitTableConfig(tableConfig, tableSample, userId)
+                        } catch (e: Exception) {
+                            Timber.w(e, "Failed to submit table parser candidate, ignoring")
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 _state.value = ImportState.Error(e.message ?: strings.errorImport)
             }

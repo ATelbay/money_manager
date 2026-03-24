@@ -1,8 +1,10 @@
 package com.atelbay.money_manager.domain.importstatement.usecase
 
 import com.atelbay.money_manager.domain.importstatement.BuildConfig
+import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
 import com.atelbay.money_manager.core.firestore.dto.ParserCandidateDto
+import com.atelbay.money_manager.core.model.TableParserConfig
 import com.atelbay.money_manager.core.parser.RegexValidator
 import com.atelbay.money_manager.core.parser.SampleAnonymizer
 import com.atelbay.money_manager.core.remoteconfig.ParserConfig
@@ -17,6 +19,7 @@ class SubmitParserCandidateUseCase @Inject constructor(
     private val firestoreDataSource: FirestoreDataSource,
     private val sampleAnonymizer: SampleAnonymizer,
     private val regexValidator: RegexValidator,
+    private val userPreferences: UserPreferences,
 ) {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -26,12 +29,6 @@ class SubmitParserCandidateUseCase @Inject constructor(
         sampleRows: String,
         userId: String?,
     ) {
-        // Step 0: Skip if unauthenticated
-        if (userId == null) {
-            Timber.d("Skipping candidate submission: user not authenticated")
-            return
-        }
-
         // Step 1: Validate regex is ReDoS-safe
         if (!regexValidator.isReDoSSafe(config.transactionPattern)) {
             Timber.w("Skipping candidate submission: regex failed ReDoS check")
@@ -41,8 +38,9 @@ class SubmitParserCandidateUseCase @Inject constructor(
         // Step 2: Anonymize sample
         val anonymizedSample = sampleAnonymizer.anonymize(sampleRows)
 
-        // Step 3: Hash userId with HMAC-SHA256
-        val userIdHash = hmacHash(userId)
+        // Step 3: Hash userId (or anonymous device ID) with HMAC-SHA256
+        val effectiveId = userId ?: userPreferences.getOrCreateAnonymousDeviceId()
+        val userIdHash = hmacHash(effectiveId)
 
         // Step 4: Serialize config to JSON
         val configJson = json.encodeToString(config)
@@ -71,6 +69,42 @@ class SubmitParserCandidateUseCase @Inject constructor(
                 status = "candidate",
                 createdAt = now,
                 updatedAt = now,
+            )
+            firestoreDataSource.pushParserCandidate(dto)
+        }
+    }
+
+    suspend fun submitTableConfig(
+        config: TableParserConfig,
+        sampleTableRows: List<List<String>>,
+        userId: String?,
+    ) {
+        val effectiveId = userId ?: userPreferences.getOrCreateAnonymousDeviceId()
+        val userIdHash = hmacHash(effectiveId)
+        val configJson = json.encodeToString(config)
+        val anonymizedSample = sampleAnonymizer.anonymize(
+            sampleTableRows.joinToString("\n") { it.joinToString(" | ") },
+        )
+
+        val existing = firestoreDataSource.findTableParserCandidate(bankId = config.bankId)
+
+        if (existing != null) {
+            Timber.d("Found existing table candidate for bank %s, incrementing successCount", config.bankId)
+            firestoreDataSource.incrementCandidateSuccessCount(existing.id)
+        } else {
+            Timber.d("Creating new table parser candidate for bank %s", config.bankId)
+            val now = System.currentTimeMillis()
+            val dto = ParserCandidateDto(
+                bankId = config.bankId,
+                transactionPattern = "",
+                parserConfigJson = configJson,
+                anonymizedSample = anonymizedSample,
+                userIdHash = userIdHash,
+                successCount = 1,
+                status = "candidate",
+                createdAt = now,
+                updatedAt = now,
+                configType = "table",
             )
             firestoreDataSource.pushParserCandidate(dto)
         }

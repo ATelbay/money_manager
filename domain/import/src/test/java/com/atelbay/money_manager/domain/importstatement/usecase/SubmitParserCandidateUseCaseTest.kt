@@ -1,5 +1,6 @@
 package com.atelbay.money_manager.domain.importstatement.usecase
 
+import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
 import com.atelbay.money_manager.core.firestore.dto.ParserCandidateDto
 import com.atelbay.money_manager.core.parser.RegexValidator
@@ -21,6 +22,7 @@ class SubmitParserCandidateUseCaseTest {
     private lateinit var firestoreDataSource: FirestoreDataSource
     private lateinit var sampleAnonymizer: SampleAnonymizer
     private lateinit var regexValidator: RegexValidator
+    private lateinit var userPreferences: UserPreferences
     private lateinit var useCase: SubmitParserCandidateUseCase
 
     private val testConfig = ParserConfig(
@@ -36,7 +38,9 @@ class SubmitParserCandidateUseCaseTest {
         firestoreDataSource = mockk(relaxUnitFun = true)
         sampleAnonymizer = mockk()
         regexValidator = mockk()
-        useCase = SubmitParserCandidateUseCase(firestoreDataSource, sampleAnonymizer, regexValidator)
+        userPreferences = mockk()
+        coEvery { userPreferences.getOrCreateAnonymousDeviceId() } returns "device-uuid-123"
+        useCase = SubmitParserCandidateUseCase(firestoreDataSource, sampleAnonymizer, regexValidator, userPreferences)
     }
 
     @Test
@@ -150,11 +154,23 @@ class SubmitParserCandidateUseCaseTest {
     }
 
     @Test
-    fun `skipped when userId is null`() = runTest {
+    fun `uses anonymous device ID when userId is null`() = runTest {
+        every { regexValidator.isReDoSSafe(testConfig.transactionPattern) } returns true
+        every { sampleAnonymizer.anonymize("sample row") } returns "anonymized row"
+        coEvery {
+            firestoreDataSource.findParserCandidate(any(), any())
+        } returns null
+
         useCase(testConfig, "sample row", null)
 
-        coVerify(exactly = 0) { firestoreDataSource.pushParserCandidate(any()) }
-        coVerify(exactly = 0) { firestoreDataSource.incrementCandidateSuccessCount(any()) }
-        coVerify(exactly = 0) { firestoreDataSource.findParserCandidate(any(), any()) }
+        coVerify(exactly = 1) { userPreferences.getOrCreateAnonymousDeviceId() }
+        coVerify(exactly = 1) {
+            firestoreDataSource.pushParserCandidate(
+                match { dto ->
+                    dto.userIdHash.length == 64 &&
+                        dto.userIdHash.all { it in '0'..'9' || it in 'a'..'f' }
+                },
+            )
+        }
     }
 }
