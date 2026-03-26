@@ -1,7 +1,5 @@
 package com.atelbay.money_manager.domain.importstatement.usecase
 
-import com.atelbay.money_manager.domain.importstatement.BuildConfig
-import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
 import com.atelbay.money_manager.core.firestore.dto.ParserCandidateDto
 import com.atelbay.money_manager.core.model.TableParserConfig
@@ -11,15 +9,13 @@ import com.atelbay.money_manager.core.remoteconfig.ParserConfig
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import timber.log.Timber
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
 import javax.inject.Inject
 
 class SubmitParserCandidateUseCase @Inject constructor(
     private val firestoreDataSource: FirestoreDataSource,
     private val sampleAnonymizer: SampleAnonymizer,
     private val regexValidator: RegexValidator,
-    private val userPreferences: UserPreferences,
+    private val userIdHasher: UserIdHasher,
 ) {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -74,8 +70,7 @@ class SubmitParserCandidateUseCase @Inject constructor(
         configType: String,
         transactionPattern: String,
     ) {
-        val effectiveId = userId ?: userPreferences.getOrCreateAnonymousDeviceId()
-        val userIdHash = hmacHash(effectiveId)
+        val userIdHash = userIdHasher.computeHash(userId)
 
         val existing = if (configType == "table") {
             firestoreDataSource.findTableParserCandidate(bankId = bankId)
@@ -106,12 +101,5 @@ class SubmitParserCandidateUseCase @Inject constructor(
             )
             firestoreDataSource.pushParserCandidate(dto)
         }
-    }
-
-    private fun hmacHash(input: String): String {
-        val key = BuildConfig.HMAC_KEY
-        val mac = Mac.getInstance("HmacSHA256")
-        mac.init(SecretKeySpec(key.toByteArray(), "HmacSHA256"))
-        return mac.doFinal(input.toByteArray()).joinToString("") { "%02x".format(it) }
     }
 }

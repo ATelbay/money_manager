@@ -1,6 +1,5 @@
 package com.atelbay.money_manager.domain.importstatement.usecase
 
-import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
 import com.atelbay.money_manager.core.firestore.dto.ParserCandidateDto
 import com.atelbay.money_manager.core.model.TableParserConfig
@@ -23,7 +22,7 @@ class SubmitParserCandidateUseCaseTest {
     private lateinit var firestoreDataSource: FirestoreDataSource
     private lateinit var sampleAnonymizer: SampleAnonymizer
     private lateinit var regexValidator: RegexValidator
-    private lateinit var userPreferences: UserPreferences
+    private lateinit var userIdHasher: UserIdHasher
     private lateinit var useCase: SubmitParserCandidateUseCase
 
     private val testConfig = ParserConfig(
@@ -34,14 +33,18 @@ class SubmitParserCandidateUseCaseTest {
         operationTypeMap = mapOf("Purchase" to "expense"),
     )
 
+    // Precomputed HMAC-SHA256 hash used by the mock UserIdHasher
+    private val testUserIdHash = "a]b]c]d]e]f]0]1]2]3]4]5]6]7]8]9]a]b]c]d]e]f]0]1]2]3]4]5]6]7]8]9"
+        .replace("]", "") // 64-char hex placeholder; actual value doesn't matter since we mock
+
     @Before
     fun setUp() {
         firestoreDataSource = mockk(relaxUnitFun = true)
         sampleAnonymizer = mockk()
         regexValidator = mockk()
-        userPreferences = mockk()
-        coEvery { userPreferences.getOrCreateAnonymousDeviceId() } returns "device-uuid-123"
-        useCase = SubmitParserCandidateUseCase(firestoreDataSource, sampleAnonymizer, regexValidator, userPreferences)
+        userIdHasher = mockk()
+        coEvery { userIdHasher.computeHash(any()) } returns "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+        useCase = SubmitParserCandidateUseCase(firestoreDataSource, sampleAnonymizer, regexValidator, userIdHasher)
     }
 
     @Test
@@ -106,7 +109,7 @@ class SubmitParserCandidateUseCaseTest {
     }
 
     @Test
-    fun `userId is hashed with HMAC-SHA256 before submission`() = runTest {
+    fun `userId is passed to UserIdHasher for hashing`() = runTest {
         every { regexValidator.isReDoSSafe(testConfig.transactionPattern) } returns true
         every { sampleAnonymizer.anonymize(any()) } returns "anonymized"
         coEvery {
@@ -115,20 +118,12 @@ class SubmitParserCandidateUseCaseTest {
 
         useCase(testConfig, "sample", "user123")
 
-        // Compute plain SHA-256 to ensure HMAC produces a different result
-        val plainSha256 = java.security.MessageDigest.getInstance("SHA-256")
-            .digest("user123".toByteArray())
-            .joinToString("") { "%02x".format(it) }
-
+        coVerify(exactly = 1) { userIdHasher.computeHash("user123") }
         coVerify {
             firestoreDataSource.pushParserCandidate(
                 match { dto ->
-                    // Must be a valid 64-character hex string
                     dto.userIdHash.length == 64 &&
-                        dto.userIdHash.all { it in '0'..'9' || it in 'a'..'f' } &&
-                        dto.userIdHash != "user123" &&
-                        // Must NOT be plain SHA-256 (HMAC uses a keyed hash)
-                        dto.userIdHash != plainSha256
+                        dto.userIdHash.all { it in '0'..'9' || it in 'a'..'f' }
                 },
             )
         }
@@ -164,7 +159,7 @@ class SubmitParserCandidateUseCaseTest {
 
         useCase(testConfig, "sample row", null)
 
-        coVerify(exactly = 1) { userPreferences.getOrCreateAnonymousDeviceId() }
+        coVerify(exactly = 1) { userIdHasher.computeHash(null) }
         coVerify(exactly = 1) {
             firestoreDataSource.pushParserCandidate(
                 match { dto ->
@@ -238,7 +233,7 @@ class SubmitParserCandidateUseCaseTest {
 
         useCase.submitTableConfig(testTableConfig, testTableRows, null)
 
-        coVerify(exactly = 1) { userPreferences.getOrCreateAnonymousDeviceId() }
+        coVerify(exactly = 1) { userIdHasher.computeHash(null) }
         coVerify(exactly = 1) {
             firestoreDataSource.pushParserCandidate(
                 match { dto ->

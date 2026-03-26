@@ -160,4 +160,17 @@ class FirestoreDataSourceImpl @Inject constructor(
             throw e
         }
     }
+
+    override suspend fun findCandidatesByUser(
+        userIdHash: String,
+        configType: String,
+    ): List<ParserCandidateDto> {
+        val snapshot = parserCandidates
+            .whereEqualTo("userIdHash", userIdHash)
+            .whereEqualTo("configType", configType)
+            .orderBy("updatedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .get()
+            .await()
+        return snapshot.documents.mapNotNull { it.toObject(ParserCandidateDto::class.java) }
+    }
 }

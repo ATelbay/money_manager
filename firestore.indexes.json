@@ -18,6 +18,16 @@
         { "fieldPath": "status", "order": "ASCENDING" }
       ]
     }
+    ,
+    {
+      "collectionGroup": "parser_candidates",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userIdHash", "order": "ASCENDING" },
+        { "fieldPath": "configType", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    }
   ],
   "fieldOverrides": []
 }
