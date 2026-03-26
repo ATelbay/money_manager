@@ -63,9 +63,17 @@ class TableStatementParser @Inject constructor() {
         }
         val amount = kotlin.math.abs(rawAmount)
 
-        val operation = config.operationColumn?.let { row.getOrNull(it)?.trim() }.orEmpty()
-        val details = config.detailsColumn?.let { row.getOrNull(it)?.trim() }.orEmpty()
+        val rawOperation = config.operationColumn?.let { row.getOrNull(it)?.trim() }.orEmpty()
+        val rawDetails = config.detailsColumn?.let { row.getOrNull(it)?.trim() }.orEmpty()
         val signCell = config.signColumn?.let { row.getOrNull(it)?.trim() }.orEmpty()
+
+        // When no separate operation column, try splitting mixed-script details:
+        // Latin part → operationType (for category matching), Cyrillic part → details (user-facing)
+        val (operation, details) = if (rawOperation.isBlank() && rawDetails.isNotBlank()) {
+            splitMixedScriptDetails(rawDetails)
+        } else {
+            rawOperation to rawDetails
+        }
 
         val type = when {
             config.negativeSignMeansExpense -> {
@@ -99,13 +107,41 @@ class TableStatementParser @Inject constructor() {
     }
 
     private fun extractFirstDate(cell: String, dateFormat: String): String {
-        val pattern = dateFormat
-            .replace(".", "\\.")
-            .replace("-", "\\-")
-            .replace("/", "\\/")
-            .replace(Regex("[yMd]+"), "\\\\d+")
-        val match = Regex(pattern).find(cell)
-        return match?.value ?: cell.trim()
+        return try {
+            val pattern = dateFormat
+                .replace(".", "\\.")
+                .replace("-", "\\-")
+                .replace("/", "\\/")
+                .replace(Regex("[yMdHhmsS]+"), "\\\\d+")
+            Regex(pattern).find(cell)?.value ?: cell.trim()
+        } catch (e: java.util.regex.PatternSyntaxException) {
+            Timber.w(e, "Invalid regex pattern from dateFormat '%s', falling back to raw cell", dateFormat)
+            cell.trim()
+        }
+    }
+
+    /**
+     * Splits a details string that contains both Latin and Cyrillic text.
+     * Returns (latinPart, cyrillicPart) for use as (operationType, details).
+     * If only one script is present, returns ("", cleanedText).
+     */
+    private fun splitMixedScriptDetails(text: String): Pair<String, String> {
+        // Strip trailing currency markers like (KZT), (USD), (EUR) and reference numbers
+        val cleaned = text.replace(Regex("""\s*\([A-Z]{3}\)\s*$"""), "")
+            .replace(Regex("""\s+\d{8,}$"""), "")
+            .trim()
+
+        val hasCyrillic = cleaned.any { it in '\u0400'..'\u04FF' }
+        val hasLatin = cleaned.any { it in 'A'..'Z' || it in 'a'..'z' }
+
+        if (!hasCyrillic || !hasLatin) return "" to cleaned
+
+        // Find first Cyrillic character — everything before is the operation (Latin)
+        val firstCyrillicIdx = cleaned.indexOfFirst { it in '\u0400'..'\u04FF' }
+        val latinPart = cleaned.substring(0, firstCyrillicIdx).trim()
+        val cyrillicPart = cleaned.substring(firstCyrillicIdx).trim()
+
+        return latinPart to cyrillicPart.ifBlank { cleaned }
     }
 
     private fun deduplicateByMaxAmount(transactions: List<ParsedTransaction>): List<ParsedTransaction> {

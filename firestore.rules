@@ -9,7 +9,7 @@ service cloud.firestore {
 
     // Parser candidates — shared collection
     match /parser_candidates/{candidateId} {
-      // Any user (authenticated or anonymous via device ID) can create a new candidate
+      // Any Firebase-authenticated user (including Anonymous Auth) can create a new candidate
       allow create: if request.auth != null
                     && request.resource.data.keys().hasAll(['bankId', 'transactionPattern', 'parserConfigJson', 'anonymizedSample', 'userIdHash', 'successCount', 'status', 'createdAt', 'updatedAt', 'configType'])
                     && request.resource.data.configType in ['regex', 'table']
@@ -18,7 +18,7 @@ service cloud.firestore {
                     && request.resource.data.userIdHash is string
                     && request.resource.data.userIdHash.size() > 0;
 
-      // Any user can increment successCount
+      // Any Firebase-authenticated user (including Anonymous Auth) can increment successCount
       allow update: if request.auth != null
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['successCount', 'updatedAt'])
                     && request.resource.data.successCount == resource.data.successCount + 1;

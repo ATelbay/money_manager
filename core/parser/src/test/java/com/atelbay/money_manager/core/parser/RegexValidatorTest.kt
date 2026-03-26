@@ -62,6 +62,21 @@ class RegexValidatorTest {
         assertTrue(validator.isReDoSSafe(eurasian))
     }
 
+    // --- Safe: amount patterns with nested non-capturing groups ---
+
+    @Test
+    fun `safe amount pattern with nested non-capturing group is not flagged`() {
+        // This pattern was falsely flagged before the [^()] fix in RegexValidator
+        val pattern = """^(?<date>\d{2}\.\d{2}\.\d{4})\s+(?<sign>[-]?)(?<amount>\d{1,3}(?:\s\d{3})*,\d{2})\s+KZT.*$"""
+        assertTrue(validator.isReDoSSafe(pattern))
+    }
+
+    @Test
+    fun `amount pattern inside outer quantified group is safe`() {
+        val pattern = """(?:\s+\d{1,3}(?:\s\d{3})*,\d{2})"""
+        assertTrue(validator.isReDoSSafe(pattern))
+    }
+
     // --- Safe: simple valid pattern ---
 
     @Test

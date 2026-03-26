@@ -83,6 +83,13 @@ class FirebaseAuthManager @Inject constructor(
         credentialManager.clearCredentialState(ClearCredentialStateRequest())
     }
 
+    override suspend fun signInAnonymouslyIfNeeded() {
+        if (firebaseAuth.currentUser == null) {
+            Timber.d("No Firebase Auth session — signing in anonymously")
+            firebaseAuth.signInAnonymously().await()
+        }
+    }
+
     private fun FirebaseUser.toAuthUser() = AuthUser(
         userId = uid,
         email = email,

@@ -700,6 +700,48 @@ class TableStatementParserTest {
     }
 
     @Test
+    fun `malformed dateFormat with unescaped metacharacters does not throw and falls back gracefully`() {
+        // AI-generated dateFormat with regex metacharacters that would cause PatternSyntaxException
+        val table = listOf(
+            listOf("15.03.2024", "500.00", "Op", "Detail"),
+        )
+        val config = buildConfig(
+            dateFormat = "dd.MM.yyyy(HH:mm)",  // unescaped ( and ) are regex metacharacters
+            amountFormat = "dot",
+            negativeSignMeansExpense = false,
+            skipHeaderRows = 0,
+        )
+
+        // Must not throw PatternSyntaxException — row may fail to parse date but should not crash
+        val result = parser.parse(table, config)
+
+        // The fallback returns cell.trim() which won't match the format exactly,
+        // so the row will fail date parsing and be skipped — but no exception is thrown
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `dateFormat with time tokens HH mm does not leave unescaped colons`() {
+        // dd.MM.yyyy HH:mm — colon is not a regex metachar but H/m tokens must be replaced
+        val table = listOf(
+            listOf("25.03.2026 14:30", "1000.00", "Op", "Detail"),
+        )
+        val config = buildConfig(
+            dateFormat = "dd.MM.yyyy HH:mm",
+            amountFormat = "dot",
+            negativeSignMeansExpense = false,
+            skipHeaderRows = 0,
+        )
+
+        val result = parser.parse(table, config)
+
+        assertEquals(1, result.size)
+        assertEquals(2026, result[0].date.year)
+        assertEquals(3, result[0].date.monthNumber)
+        assertEquals(25, result[0].date.dayOfMonth)
+    }
+
+    @Test
     fun `date cell with no matching date falls back to trim and row returns null`() {
         val table = listOf(
             listOf("NoDate", "500.00", "Op", "Detail"),

@@ -1,5 +1,6 @@
 package com.atelbay.money_manager.core.parser
 
+import androidx.annotation.VisibleForTesting
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.text.PDFTextStripper
 import com.tom_roush.pdfbox.text.TextPosition
@@ -18,9 +19,10 @@ class PdfTableExtractor @Inject constructor(
         private const val Y_TOLERANCE = 2f
         private const val X_GAP_THRESHOLD = 10f
         private const val CLUSTER_TOLERANCE = 15f
-        private const val SPACE_WIDTH_FACTOR = 0.5f
+        private const val SPACE_WIDTH_FACTOR = 0.3f
         private const val COLUMN_GAP_SPACE_FACTOR = 3f
         private const val MIN_DATE_ROWS = 3
+        private const val MAX_CONTINUATION_ROWS = 3
         // Anchored at start: a row that starts with a date token begins a new logical transaction.
         // Trailing [-./]? allows partial matches like "01.03" before the year part.
         private val DATE_ROW_PATTERN = Regex("^${ParserPatterns.DATE_CORE}[-./]?")
@@ -40,7 +42,8 @@ class PdfTableExtractor @Inject constructor(
                         stripper.startPage = pageIndex + 1
                         stripper.endPage = pageIndex + 1
                         stripper.getText(document)
-                        allRows.addAll(stripper.buildTable())
+                        val pageRows = stripper.buildTable()
+                    allRows.addAll(stripPageHeaders(pageRows, isFirstPage = pageIndex == 0))
                     }
                     mergeMultiLineRows(allRows)
                 }
@@ -60,6 +63,36 @@ class PdfTableExtractor @Inject constructor(
     }
 
     /**
+     * On continuation pages (not the first page), strips rows that appear before the
+     * first date-starting row. These are repeated column headers that PDF renderers
+     * place at the top of every page.
+     *
+     * On the first page, all rows are kept — the original header is preserved and
+     * handled by [TableStatementParser] via skipHeaderRows.
+     *
+     * Footer-only pages (no date rows) return empty to prevent their content from
+     * merging into the previous page's last transaction.
+     */
+    @VisibleForTesting
+    internal fun stripPageHeaders(
+        pageRows: List<List<String>>,
+        isFirstPage: Boolean,
+    ): List<List<String>> {
+        if (isFirstPage || pageRows.isEmpty()) return pageRows
+
+        val firstDateIndex = pageRows.indexOfFirst { row ->
+            val firstCell = row.firstOrNull()?.trim().orEmpty()
+            DATE_ROW_PATTERN.containsMatchIn(firstCell)
+        }
+
+        // No date rows — footer-only page (signatures, QR). Discard to prevent
+        // merging into previous page's last transaction.
+        if (firstDateIndex == -1) return emptyList()
+
+        return pageRows.subList(firstDateIndex, pageRows.size)
+    }
+
+    /**
      * Merges continuation rows (rows whose first cell does not start with a date) into
      * the preceding logical row by appending cell text with a space separator.
      *
@@ -71,8 +104,10 @@ class PdfTableExtractor @Inject constructor(
      * parent is padded with empty strings so indices stay aligned. If it has FEWER cells, only
      * the cells that exist in the continuation row are merged.
      */
-    private fun mergeMultiLineRows(rows: List<List<String>>): List<List<String>> {
+    @VisibleForTesting
+    internal fun mergeMultiLineRows(rows: List<List<String>>): List<List<String>> {
         val result = mutableListOf<MutableList<String>>()
+        val continuationCounts = mutableMapOf<Int, Int>()
         for (row in rows) {
             val firstCell = row.firstOrNull()?.trim().orEmpty()
             if (DATE_ROW_PATTERN.containsMatchIn(firstCell)) {
@@ -82,7 +117,14 @@ class PdfTableExtractor @Inject constructor(
                 // No parent yet (e.g. header rows before any date), treat as standalone
                 result.add(row.map { it }.toMutableList())
             } else {
-                val parent = result.last()
+                val parentIndex = result.lastIndex
+                val count = continuationCounts.getOrDefault(parentIndex, 0)
+                if (count >= MAX_CONTINUATION_ROWS) {
+                    // Likely a footer/summary row — don't merge into last transaction
+                    continue
+                }
+                continuationCounts[parentIndex] = count + 1
+                val parent = result[parentIndex]
                 // Pad parent if continuation row has more cells
                 if (row.size > parent.size) {
                     repeat(row.size - parent.size) { parent.add("") }
@@ -241,7 +283,8 @@ class PdfTableExtractor @Inject constructor(
                         val threshold = if (spaceWidth > 0f) {
                             spaceWidth * SPACE_WIDTH_FACTOR
                         } else {
-                            X_GAP_THRESHOLD
+                            // Fallback: estimate from character width (widthOfSpace=0 in some fonts)
+                            prev.width * SPACE_WIDTH_FACTOR
                         }
                         if (gap > threshold) {
                             cells[colIndex].append(' ')

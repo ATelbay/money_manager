@@ -3,6 +3,10 @@ package com.atelbay.money_manager.core.parser
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
+private val SPACE_DOT_PATTERN = Regex("-?\\d{1,3}( \\d{3})*\\.\\d+")
+private val SPACE_DOT_INTEGER_PATTERN = Regex("-?\\d{1,3}( \\d{3})+")
+private val SPACE_DOT_PLAIN_INTEGER_PATTERN = Regex("-?\\d+")
+
 object AmountParser {
 
     fun parseAmount(amountStr: String, format: String): Double = when (format) {
@@ -14,14 +18,14 @@ object AmountParser {
             val normalized = amountStr.replace('\u00A0', ' ')
             // Precise grouped-thousands decimal regex — avoids matching partial unrelated numbers.
             // When multiple matches exist (merged cells), pick the largest absolute value.
-            val decimalMatches = Regex("-?\\d{1,3}( \\d{3})*\\.\\d+").findAll(normalized).toList()
+            val decimalMatches = SPACE_DOT_PATTERN.findAll(normalized).toList()
             if (decimalMatches.isNotEmpty()) {
                 val best = decimalMatches.maxByOrNull { kotlin.math.abs(it.value.replace(" ", "").toDouble()) }!!
                 return best.value.replace(" ", "").toDouble()
             }
             // Integer-only: "5 000" or plain "5000"
-            val intMatch = Regex("-?\\d{1,3}( \\d{3})+").find(normalized)
-                ?: Regex("-?\\d+").find(normalized)
+            val intMatch = SPACE_DOT_INTEGER_PATTERN.find(normalized)
+                ?: SPACE_DOT_PLAIN_INTEGER_PATTERN.find(normalized)
             if (intMatch != null) {
                 return intMatch.value.replace(" ", "").toDouble()
             }

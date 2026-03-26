@@ -31,6 +31,7 @@ dependencies {
     implementation(projects.core.firestore)
     implementation(projects.core.remoteconfig)
     implementation(projects.domain.categories)
+    implementation(projects.domain.auth)
 
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.datetime)
