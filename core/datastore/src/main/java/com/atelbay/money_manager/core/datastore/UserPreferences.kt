@@ -203,6 +203,20 @@ class UserPreferences @Inject constructor(
         }
     }
 
+    /**
+     * Returns a persistent device-scoped UUID for anonymous candidate submission.
+     * Generated on first access and persisted in DataStore.
+     */
+    suspend fun getOrCreateAnonymousDeviceId(): String {
+        var result: String? = null
+        context.dataStore.edit { prefs ->
+            result = prefs[KEY_ANONYMOUS_DEVICE_ID] ?: java.util.UUID.randomUUID().toString().also {
+                prefs[KEY_ANONYMOUS_DEVICE_ID] = it
+            }
+        }
+        return result!!
+    }
+
     private fun androidx.datastore.preferences.core.Preferences.toStoredExchangeRate(): StoredExchangeRate? {
         val fetchedAt = this[KEY_USD_KZT_RATE_FETCHED_AT] ?: return null
 
@@ -235,6 +249,7 @@ class UserPreferences @Inject constructor(
         val KEY_QUOTE_REFRESH_FAILURE_COUNT = intPreferencesKey("quote_refresh_failure_count")
         val KEY_AI_PARSER_CONFIGS = stringPreferencesKey("ai_parser_configs")
         val KEY_AI_TABLE_PARSER_CONFIGS = stringPreferencesKey("ai_table_parser_configs")
+        val KEY_ANONYMOUS_DEVICE_ID = stringPreferencesKey("anonymous_device_id")
 
         /**
          * Simple JSON serializer for quotes map. Avoids adding org.json / Gson dependency.

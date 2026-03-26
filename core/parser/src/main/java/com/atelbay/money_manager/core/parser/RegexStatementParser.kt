@@ -6,16 +6,32 @@ import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.core.remoteconfig.ParserConfig
 import kotlinx.datetime.LocalDate
 import timber.log.Timber
+import java.util.regex.PatternSyntaxException
 import javax.inject.Inject
 
 class RegexStatementParser @Inject constructor() {
 
     fun parse(text: String, config: ParserConfig): List<ParsedTransaction> {
-        val skipPatterns = config.skipPatterns.map { Regex(Regex.escape(it)) }
-        val filteredText = text.lines()
+        val skipPatterns = config.skipPatterns.map { pattern ->
+            try {
+                Regex(pattern)
+            } catch (_: PatternSyntaxException) {
+                Regex(Regex.escape(pattern))
+            }
+        }
+        // Two-phase skip+join: first remove non-date continuation lines that match skip
+        // patterns (so they don't get joined to the previous transaction), then join
+        // remaining continuation lines, then skip again on joined lines (catches
+        // date-starting header rows whose continuation lines are now merged).
+        val datePattern = Regex("""^\s*${ParserPatterns.DATE_CORE}""")
+        val preFiltered = text.lines().filterNot { line ->
+            line.isNotBlank() && !datePattern.containsMatchIn(line) &&
+                skipPatterns.any { it.containsMatchIn(line) }
+        }
+        val joinedText = if (config.joinLines) joinContinuationLines(preFiltered.joinToString("\n")) else preFiltered.joinToString("\n")
+        val processedText = joinedText.lines()
             .filterNot { line -> skipPatterns.any { it.containsMatchIn(line) } }
             .joinToString("\n")
-        val processedText = if (config.joinLines) joinContinuationLines(filteredText) else filteredText
         val pattern = Regex(config.transactionPattern, RegexOption.MULTILINE)
 
         val transactions = mutableListOf<ParsedTransaction>()
@@ -120,7 +136,7 @@ class RegexStatementParser @Inject constructor() {
      * Used for bank statements where transaction details span multiple lines.
      */
     private fun joinContinuationLines(text: String): String {
-        val datePattern = Regex("""^\s*\d{2}\.\d{2}\.\d{2,4}""")
+        val datePattern = Regex("""^\s*${ParserPatterns.DATE_CORE}""")
         val lines = text.lines()
         val joined = mutableListOf<String>()
 

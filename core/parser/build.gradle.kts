@@ -24,5 +24,6 @@ dependencies {
     testImplementation(libs.pdfbox)
 
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.bundles.testing)
 }

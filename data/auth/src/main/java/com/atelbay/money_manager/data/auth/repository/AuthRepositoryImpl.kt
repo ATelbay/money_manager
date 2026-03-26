@@ -17,4 +17,6 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun signInWithGoogle(): AuthUser = authManager.signInWithGoogle()
 
     override suspend fun signOut() = authManager.signOut()
+
+    override suspend fun signInAnonymouslyIfNeeded() = authManager.signInAnonymouslyIfNeeded()
 }

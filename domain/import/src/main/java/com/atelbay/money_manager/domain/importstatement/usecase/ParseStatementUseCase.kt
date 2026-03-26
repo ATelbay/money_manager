@@ -8,6 +8,7 @@ import com.atelbay.money_manager.core.database.dao.CategoryDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
 import com.atelbay.money_manager.core.database.entity.CategoryEntity
 import com.atelbay.money_manager.core.datastore.UserPreferences
+import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.ImportResult
 import com.atelbay.money_manager.core.model.ParsedTransaction
@@ -77,6 +78,8 @@ class ParseStatementUseCase @Inject constructor(
     private val userPreferences: UserPreferences,
     private val regexValidator: RegexValidator,
     private val parserConfigProvider: ParserConfigProvider,
+    private val userIdHasher: UserIdHasher,
+    private val firestoreDataSource: FirestoreDataSource,
 ) {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -131,20 +134,29 @@ class ParseStatementUseCase @Inject constructor(
         parseErrors: MutableList<String>,
         collector: ImportProgressCollector,
     ): RegexThenGeminiResult {
-        // Step 1: Try Remote Config + cached regex configs
         val regexResult = statementParser.tryParsePdf(pdfBytes)
         val pdfText = regexResult?.extractedText.orEmpty()
         collector.emit(ImportStepEvent.PdfExtracted(pdfText.lines().size))
 
+        // Step 1: Local regex (Remote Config + DataStore cached AI regex)
         tryCachedRegexConfigs(pdfBytes, regexResult, collector)?.let { return it }
 
-        // Step 2: Try table-based parsing (cached → AI generation)
-        tryTableBasedParsing(pdfBytes, collector)?.let { return it }
+        // Step 2: Firestore regex (user's own candidates)
+        tryFirestoreRegexConfigs(pdfBytes, collector)?.let { return it }
 
-        // Step 3: Try AI regex generation with retries
+        // Step 3: Local table (DataStore cached AI table configs)
+        tryCachedTableConfigs(pdfBytes, collector)?.let { return it }
+
+        // Step 4: Firestore table (user's own candidates)
+        tryFirestoreTableConfigs(pdfBytes, collector)?.let { return it }
+
+        // Step 5: AI regex generation (3 retries)
         tryAiRegexGeneration(pdfBytes, pdfText, collector)?.let { return it }
 
-        // Step 4: Fall back to full-AI parsing (if enabled)
+        // Step 6: AI table generation (3 retries)
+        tryAiTableGeneration(pdfBytes, collector)?.let { return it }
+
+        // Step 7: Full AI fallback
         return fallbackToFullAiParsing(regexResult, blobs, parseErrors, collector)
     }
 
@@ -179,15 +191,15 @@ class ParseStatementUseCase @Inject constructor(
         return null
     }
 
-    /** Tries cached table configs, then AI-generated table configs with retries. */
-    private suspend fun tryTableBasedParsing(
+    /** Tries DataStore-cached table configs only. */
+    private suspend fun tryCachedTableConfigs(
         pdfBytes: ByteArray,
         collector: ImportProgressCollector,
     ): RegexThenGeminiResult? {
         val extraction = try {
             statementParser.extractSampleTableRowsWithContext(pdfBytes)
         } catch (e: Exception) {
-            Timber.w(e, "Table extraction failed, falling through to AI regex")
+            Timber.w(e, "Table extraction failed, skipping cached table configs")
             return null
         }
         val sampleTableRows = extraction.sampleRows
@@ -198,7 +210,6 @@ class ParseStatementUseCase @Inject constructor(
             columnCount = sampleTableRows.firstOrNull()?.size ?: 0,
         ))
 
-        // Try cached table configs first
         val cachedTableConfigs = loadCachedTableConfigs()
         if (cachedTableConfigs.isNotEmpty()) {
             collector.emit(ImportStepEvent.TableConfigAttempt("cached_table"))
@@ -219,8 +230,99 @@ class ParseStatementUseCase @Inject constructor(
             }
             collector.emit(ImportStepEvent.TableConfigResult("cached_table", 0))
         }
+        return null
+    }
 
-        // AI table config generation with retries
+    /** Tries user's own regex candidates from Firestore. */
+    private suspend fun tryFirestoreRegexConfigs(
+        pdfBytes: ByteArray,
+        collector: ImportProgressCollector,
+    ): RegexThenGeminiResult? {
+        val firestoreConfigs = try {
+            val hash = userIdHasher.computeHash(null)
+            val candidates = firestoreDataSource.findCandidatesByUser(hash, "regex")
+            candidates.mapNotNull { dto ->
+                try {
+                    json.decodeFromString<ParserConfig>(dto.parserConfigJson)
+                } catch (e: Exception) {
+                    Timber.w(e, "Failed to deserialize Firestore regex candidate")
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Firestore regex candidates fetch failed, falling through")
+            return null
+        }
+        if (firestoreConfigs.isEmpty()) return null
+
+        collector.emit(ImportStepEvent.RegexConfigAttempt("firestore"))
+        val firestoreResult = statementParser.tryParsePdf(pdfBytes, additionalConfigs = firestoreConfigs)
+        if (firestoreResult != null && firestoreResult.transactions.isNotEmpty()) {
+            Timber.d("PDF import: parsed %d transactions via Firestore regex candidate (bank=%s)",
+                firestoreResult.transactions.size, firestoreResult.bankId)
+            collector.emit(ImportStepEvent.RegexConfigResult("firestore", firestoreResult.transactions.size))
+            return RegexThenGeminiResult(assignCategories(firestoreResult.transactions, collector))
+        }
+        collector.emit(ImportStepEvent.RegexConfigResult("firestore", 0))
+        return null
+    }
+
+    /** Tries user's own table candidates from Firestore. */
+    private suspend fun tryFirestoreTableConfigs(
+        pdfBytes: ByteArray,
+        collector: ImportProgressCollector,
+    ): RegexThenGeminiResult? {
+        val firestoreTableConfigs = try {
+            val hash = userIdHasher.computeHash(null)
+            val candidates = firestoreDataSource.findCandidatesByUser(hash, "table")
+            candidates.mapNotNull { dto ->
+                try {
+                    json.decodeFromString<TableParserConfig>(dto.parserConfigJson)
+                } catch (e: Exception) {
+                    Timber.w(e, "Failed to deserialize Firestore table candidate")
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Firestore table candidates fetch failed, falling through")
+            return null
+        }
+        if (firestoreTableConfigs.isEmpty()) return null
+
+        collector.emit(ImportStepEvent.TableConfigAttempt("firestore"))
+        val firestoreTableResult = try {
+            statementParser.tryParseTable(pdfBytes, firestoreTableConfigs)
+        } catch (e: Exception) {
+            Timber.w(e, "Firestore table config parsing failed")
+            null
+        }
+        if (firestoreTableResult != null && firestoreTableResult.transactions.isNotEmpty()) {
+            Timber.d("Table import: parsed %d transactions via Firestore table candidate (bank=%s)",
+                firestoreTableResult.transactions.size, firestoreTableResult.bankId)
+            collector.emit(ImportStepEvent.TableConfigResult("firestore", firestoreTableResult.transactions.size))
+            return RegexThenGeminiResult(
+                transactions = assignCategories(firestoreTableResult.transactions, collector),
+                aiMethod = AiMethod.TABLE_GENERATED,
+            )
+        }
+        collector.emit(ImportStepEvent.TableConfigResult("firestore", 0))
+        return null
+    }
+
+    /** AI table config generation with retries. */
+    private suspend fun tryAiTableGeneration(
+        pdfBytes: ByteArray,
+        collector: ImportProgressCollector,
+    ): RegexThenGeminiResult? {
+        val extraction = try {
+            statementParser.extractSampleTableRowsWithContext(pdfBytes)
+        } catch (e: Exception) {
+            Timber.w(e, "Table extraction failed, skipping AI table generation")
+            return null
+        }
+        val sampleTableRows = extraction.sampleRows
+        if (sampleTableRows.size < 2) return null
+
         val tableFailedAttempts = mutableListOf<TableFailedAttempt>()
         repeat(MAX_AI_RETRIES) { attempt ->
             val attemptNum = attempt + 1
@@ -290,7 +392,7 @@ class ParseStatementUseCase @Inject constructor(
         }
 
         if (tableFailedAttempts.isNotEmpty()) {
-            Timber.w("All %d AI table config attempts failed, falling through to AI regex", tableFailedAttempts.size)
+            Timber.w("All %d AI table config attempts failed, falling through", tableFailedAttempts.size)
         }
         return null
     }
@@ -318,6 +420,7 @@ class ParseStatementUseCase @Inject constructor(
                     sampleRows = extractedSampleRows,
                     existingConfigs = allConfigs,
                     previousAttempts = failedAttempts,
+                    pdfBlob = pdfBytes,
                 )
             } catch (e: Exception) {
                 Timber.w(e, "AI config generation failed (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
@@ -389,6 +492,22 @@ class ParseStatementUseCase @Inject constructor(
                     "Regex matched 0 transaction lines out of $totalLines total lines. Sample lines that should have matched:\n$sampleLines",
                 ))
                 return@repeat
+            }
+
+            // Plausibility gate: reject if match rate is suspiciously high
+            val totalLines = pdfText.lines().drop(HEADER_SKIP_LINES).count { it.isNotBlank() }
+            if (totalLines > 0) {
+                val matchRate = aiResult.transactions.size.toFloat() / totalLines
+                if (matchRate > PLAUSIBILITY_MAX_MATCH_RATE && aiResult.transactions.size > PLAUSIBILITY_MIN_TRANSACTIONS) {
+                    Timber.w("AI config matched %d/%d lines (%.0f%%) — likely too loose (attempt %d/%d)",
+                        aiResult.transactions.size, totalLines, matchRate * 100, attemptNum, MAX_AI_RETRIES)
+                    collector.emit(ImportStepEvent.AiConfigParseResult(attemptNum, aiResult.transactions.size))
+                    failedAttempts.add(FailedAttempt(
+                        generatedConfig,
+                        "Regex matched ${aiResult.transactions.size} of $totalLines non-blank lines (${(matchRate * 100).toInt()}%) — implausibly high match rate, regex is likely too loose",
+                    ))
+                    return@repeat
+                }
             }
 
             Timber.d("AI-generated config parsed %d transactions (attempt %d/%d)", aiResult.transactions.size, attemptNum, MAX_AI_RETRIES)
@@ -590,6 +709,15 @@ class ParseStatementUseCase @Inject constructor(
         "Payment for goods and" to "Покупки",
         "Card replenishment through" to "Пополнение",
         "Transfer from a card" to "Перевод",
+        // Halyk Bank (English) — operation names extracted from mixed-script details
+        "Merchant payment transaction" to "Покупки",
+        "Recharge card account through payment terminal" to "Пополнение",
+        "Recharge card account" to "Пополнение",
+        "Receipt to the card account" to "Пополнение",
+        "Receipt of transfer" to "Пополнение",
+        "Transfer on deposit" to "Перевод",
+        "Transfer from deposit" to "Пополнение",
+        "Transfer to another card" to "Перевод",
         // Eurasian Bank — map to nearest default categories.
         // "Транспорт", "Связь", "Развлечения" match DefaultCategories exactly → no alias needed.
         "Продукты" to "Еда",
@@ -660,6 +788,8 @@ class ParseStatementUseCase @Inject constructor(
         private const val AI_REGEX_TIMEOUT_MS = 5_000L
         private const val MAX_AI_RETRIES = 3
         private const val HEADER_SKIP_LINES = 10
+        private const val PLAUSIBILITY_MAX_MATCH_RATE = 0.7f
+        private const val PLAUSIBILITY_MIN_TRANSACTIONS = 20
         private const val TYPE_EXPENSE = "expense"
         private const val TYPE_INCOME = "income"
     }

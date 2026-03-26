@@ -25,6 +25,7 @@ interface GeminiService {
         sampleRows: String,
         existingConfigs: List<ParserConfig> = emptyList(),
         previousAttempts: List<FailedAttempt> = emptyList(),
+        pdfBlob: ByteArray? = null,
     ): ParserConfig
 
     suspend fun generateTableParserConfig(

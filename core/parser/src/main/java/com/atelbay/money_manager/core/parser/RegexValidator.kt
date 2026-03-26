@@ -35,7 +35,9 @@ class RegexValidator @Inject constructor() {
      * Returns the matched fragment or null.
      */
     private fun findNestedQuantifier(pattern: String): String? {
-        val nested = Regex("""\([^)]*[+*][^)]*\)[+*]|\([^)]*[+*][^)]*\)\{""")
+        // Use [^()]* (not [^)]*) to respect nested groups — only check quantifiers
+        // at the top level of each group, not inside nested subgroups.
+        val nested = Regex("""\([^()]*[+*][^()]*\)[+*]|\([^()]*[+*][^()]*\)\{""")
         return nested.find(pattern)?.value
     }
 

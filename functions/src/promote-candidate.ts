@@ -19,6 +19,7 @@ interface ParserCandidate {
   userIdHash: string;
   successCount: number;
   status: string;
+  configType?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -33,6 +34,12 @@ const nestedQuantifierPattern = /(\((?:[^()]*[+*])[^()]*\))[+*{]/;
 async function promoteCandidate(candidateId: string, candidate: ParserCandidate): Promise<void> {
   const db = admin.firestore();
   const candidateRef = db.collection("parser_candidates").doc(candidateId);
+
+  // Table configs are consumed directly from Firestore, not via Remote Config
+  if (candidate.configType === "table") {
+    logger.info(`Candidate ${candidateId} is a table config — skipping regex promotion path`);
+    return;
+  }
 
   // Fetch Remote Config template once upfront
   const remoteConfig = admin.remoteConfig();

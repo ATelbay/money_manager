@@ -48,6 +48,7 @@ class GeminiServiceImplTest {
             String::class.java,
             List::class.java,
             List::class.java,
+            Boolean::class.java,
         ).apply { isAccessible = true }
 
         parseTableParserConfigResponseMethod = GeminiServiceImpl::class.java.getDeclaredMethod(
@@ -74,7 +75,8 @@ class GeminiServiceImplTest {
     private fun buildPrompt(
         header: String, samples: String,
         configs: List<ParserConfig>, attempts: List<FailedAttempt>,
-    ): String = buildPromptMethod.invoke(service, header, samples, configs, attempts) as String
+        hasPdfBlob: Boolean = false,
+    ): String = buildPromptMethod.invoke(service, header, samples, configs, attempts, hasPdfBlob) as String
 
     // --- parseParserConfigResponse tests ---
 
