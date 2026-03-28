@@ -3,6 +3,7 @@ package com.atelbay.money_manager.presentation.transactions.ui.list
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -33,6 +34,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import java.time.LocalDate
 import java.time.Month
@@ -52,15 +54,19 @@ fun TransactionDatePickerDialog(
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf(s.selectMonth, s.selectRange)
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
         Surface(
             shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surface,
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.9f)
                 .testTag("transactionList:datePickerDialog"),
         ) {
-            Column {
+            Column(modifier = Modifier.fillMaxHeight()) {
                 PrimaryTabRow(selectedTabIndex = selectedTabIndex) {
                     tabs.forEachIndexed { index, title ->
                         Tab(
@@ -183,12 +189,12 @@ private fun RangePickerTab(
 
     val dateRangePickerState = rememberDateRangePickerState()
 
-    Column {
+    Column(modifier = Modifier.fillMaxHeight()) {
         DateRangePicker(
             state = dateRangePickerState,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f, fill = false),
+                .weight(1f),
             showModeToggle = false,
         )
 
