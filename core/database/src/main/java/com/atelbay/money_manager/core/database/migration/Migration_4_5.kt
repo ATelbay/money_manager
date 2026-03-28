@@ -44,9 +44,9 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
             )
             """.trimIndent(),
         )
-        db.execSQL("CREATE INDEX IF NOT EXISTS idx_recurring_account ON recurring_transactions(accountId)")
-        db.execSQL("CREATE INDEX IF NOT EXISTS idx_recurring_category ON recurring_transactions(categoryId)")
-        db.execSQL("CREATE INDEX IF NOT EXISTS idx_recurring_active ON recurring_transactions(isActive, isDeleted)")
-        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_budget_category ON budgets(categoryId)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_recurring_transactions_accountId ON recurring_transactions(accountId)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_recurring_transactions_categoryId ON recurring_transactions(categoryId)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_recurring_transactions_isActive_isDeleted ON recurring_transactions(isActive, isDeleted)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_budgets_categoryId ON budgets(categoryId)")
     }
 }
