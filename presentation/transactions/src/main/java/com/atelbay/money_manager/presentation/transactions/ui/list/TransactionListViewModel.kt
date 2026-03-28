@@ -35,6 +35,7 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.ZoneOffset
 import javax.inject.Inject
 
 private data class CustomDateRange(val startMillis: Long, val endMillis: Long)
@@ -261,8 +262,13 @@ class TransactionListViewModel @Inject constructor(
      * (23:59:59.999) so transactions on the last selected day are included.
      */
     fun setCustomDateRange(startMillis: Long, endMillis: Long) {
-        val adjustedEnd = endMillis + 86_400_000L - 1L  // end of day (23:59:59.999)
-        _customDateRange.value = CustomDateRange(startMillis, adjustedEnd)
+        val zone = ZoneId.systemDefault()
+        // DateRangePicker gives UTC-midnight; convert to local start-of-day
+        val startLocal = Instant.ofEpochMilli(startMillis).atZone(ZoneOffset.UTC).toLocalDate()
+        val endLocal = Instant.ofEpochMilli(endMillis).atZone(ZoneOffset.UTC).toLocalDate()
+        val localStart = startLocal.atStartOfDay(zone).toInstant().toEpochMilli()
+        val localEnd = endLocal.atStartOfDay(zone).toInstant().toEpochMilli() + 86_400_000L - 1L
+        _customDateRange.value = CustomDateRange(localStart, localEnd)
         _selectedPeriod.value = Period.CUSTOM
         _state.update { it.copy(showDatePickerDialog = false) }
     }
