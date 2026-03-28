@@ -7,6 +7,9 @@ import kotlinx.serialization.Serializable
 data object Onboarding
 
 @Serializable
+data object OnboardingSetup
+
+@Serializable
 data object CreateAccount
 
 @Serializable
@@ -55,3 +58,15 @@ data class CurrencyPicker(
 
 @Serializable
 data object SignIn
+
+@Serializable
+data object RecurringList
+
+@Serializable
+data class RecurringEdit(val id: Long? = null)
+
+@Serializable
+data object BudgetList
+
+@Serializable
+data class BudgetEdit(val id: Long? = null)

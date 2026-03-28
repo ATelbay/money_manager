@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atelbay.money_manager.core.datastore.UserPreferences
+import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.core.model.TransactionType
@@ -51,14 +52,19 @@ class TransactionEditViewModel @Inject constructor(
             } else {
                 accounts.firstOrNull()
             }
-            if (account != null) {
-                _state.update { it.copy(accountId = account.id) }
+            _state.update {
+                it.copy(
+                    accountId = account?.id ?: 0,
+                    accountName = account?.name.orEmpty(),
+                    accounts = accounts.toImmutableList(),
+                )
             }
 
             // Load existing transaction if editing
             if (transactionId != null) {
                 val transaction = getTransactionByIdUseCase(transactionId).first()
                 if (transaction != null) {
+                    val txAccount = accounts.find { a -> a.id == transaction.accountId }
                     _state.update {
                         it.copy(
                             type = transaction.type,
@@ -66,6 +72,7 @@ class TransactionEditViewModel @Inject constructor(
                             date = transaction.date,
                             note = transaction.note.orEmpty(),
                             accountId = transaction.accountId,
+                            accountName = txAccount?.name.orEmpty(),
                         )
                     }
                     // Load categories for this type then select the right one
@@ -121,6 +128,11 @@ class TransactionEditViewModel @Inject constructor(
 
     fun setDate(date: Long) {
         _state.update { it.copy(date = date, showDatePicker = false) }
+    }
+
+    fun selectAccount(accountId: Long) {
+        val account = _state.value.accounts.find { it.id == accountId } ?: return
+        _state.update { it.copy(accountId = account.id, accountName = account.name) }
     }
 
     fun setNote(note: String) {

@@ -47,6 +47,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,8 +64,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.TransactionType
+import com.atelbay.money_manager.core.ui.components.AccountSelector
 import com.atelbay.money_manager.core.ui.components.ChipType
 import com.atelbay.money_manager.core.ui.components.GlassCard
 import com.atelbay.money_manager.core.ui.components.MoneyManagerButton
@@ -76,7 +79,6 @@ import com.atelbay.money_manager.core.ui.theme.Teal
 import kotlinx.collections.immutable.ImmutableList
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -91,6 +93,7 @@ fun TransactionEditScreen(
     onDateClick: () -> Unit,
     onDateSelect: (Long) -> Unit,
     onDateDismiss: () -> Unit,
+    onAccountSelect: (Long) -> Unit,
     onNoteChange: (String) -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
@@ -99,6 +102,7 @@ fun TransactionEditScreen(
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
     val s = MoneyManagerTheme.strings
+    val fullDateFormat = remember(s.locale) { SimpleDateFormat("dd MMMM yyyy", s.locale) }
 
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
@@ -212,7 +216,21 @@ fun TransactionEditScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // ── Account Selector ──
+            if (state.accounts.size > 1) {
+                AccountSelector(
+                    accounts = state.accounts,
+                    selectedAccount = state.accounts.find { it.id == state.accountId },
+                    onAccountSelected = onAccountSelect,
+                    label = s.selectAccount,
+                    placeholder = s.selectAccount,
+                    testTag = "transactionEdit:accountSelector",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             // ── Category Selector ──
             Text(
@@ -259,7 +277,7 @@ fun TransactionEditScreen(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = formatDateFull(state.date),
+                        text = fullDateFormat.format(Date(state.date)),
                         style = typography.cardTitle,
                         color = colors.textPrimary,
                     )
@@ -619,10 +637,6 @@ private fun MoneyManagerDatePickerDialog(
     }
 }
 
-private val fullDateFormat = SimpleDateFormat("dd MMMM yyyy", Locale.forLanguageTag("ru"))
-
-private fun formatDateFull(timestamp: Long): String = fullDateFormat.format(Date(timestamp))
-
 @Preview(showBackground = true, backgroundColor = 0xFF0D0D0D)
 @Composable
 private fun TransactionEditScreenPreview() {
@@ -638,6 +652,7 @@ private fun TransactionEditScreenPreview() {
             onDateClick = {},
             onDateSelect = {},
             onDateDismiss = {},
+            onAccountSelect = {},
             onNoteChange = {},
             onSave = {},
         )

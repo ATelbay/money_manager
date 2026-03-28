@@ -3,7 +3,9 @@ package com.atelbay.money_manager.presentation.transactions.ui.list
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -20,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.CircularProgressIndicator
@@ -33,11 +36,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -64,6 +70,7 @@ import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
 import com.atelbay.money_manager.core.ui.util.formatAmount
 import com.atelbay.money_manager.core.ui.util.isUnavailable
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -86,6 +93,9 @@ fun TransactionListScreen(
     onAccountPickerClick: () -> Unit,
     onAccountSelected: (Long?) -> Unit,
     onDismissAccountPicker: () -> Unit,
+    onCalendarClick: () -> Unit,
+    onMonthSelected: (year: Int, month: Int) -> Unit,
+    onRangeSelected: (startMillis: Long, endMillis: Long) -> Unit,
     modifier: Modifier = Modifier,
     contentWindowInsets: WindowInsets = ScaffoldDefaults.contentWindowInsets,
 ) {
@@ -94,14 +104,21 @@ fun TransactionListScreen(
     val locale = s.locale
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
-    val dateHeaderFormat = remember(locale) { SimpleDateFormat("dd MMMM", locale) }
-    val timeFormat = remember(locale) { SimpleDateFormat("HH:mm", locale) }
+    val dateHeaderFormat = remember(locale) {
+        SimpleDateFormat("dd MMMM", locale).also { it.timeZone = java.util.TimeZone.getDefault() }
+    }
+    val timeFormat = remember(locale) {
+        SimpleDateFormat("HH:mm", locale).also { it.timeZone = java.util.TimeZone.getDefault() }
+    }
     val layoutDirection = LocalLayoutDirection.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
         modifier = modifier.testTag("transactionList:screen"),
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = contentWindowInsets,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -129,7 +146,15 @@ fun TransactionListScreen(
         },
         floatingActionButton = {
             MoneyManagerFAB(
-                onClick = onAddClick,
+                onClick = {
+                    if (state.accounts.isEmpty()) {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(s.noAccountsWarning)
+                        }
+                    } else {
+                        onAddClick()
+                    }
+                },
                 testTag = "transactionList:fab",
             )
         },
@@ -173,26 +198,66 @@ fun TransactionListScreen(
                 )
             }
 
-            // 2. Date period chips (Day | Week | Month | Year)
+            // 2. Date period chips (This Month | Day | Week | 30 days | Year) + calendar button
             item(key = "period") {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                         .testTag("transactionList:periodFilter"),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     val periods = listOf(
+                        Period.MONTH to s.currentMonth,
                         Period.TODAY to s.periodDay,
                         Period.WEEK to s.periodWeek,
-                        Period.MONTH to s.periodMonth,
                         Period.YEAR to s.periodYear,
                     )
                     periods.forEach { (period, label) ->
                         MoneyManagerChip(
                             label = label,
-                            selected = state.selectedPeriod == period,
+                            selected = state.customDateRangeStart == null && state.selectedPeriod == period,
                             onClick = { onPeriodSelected(period) },
+                        )
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    IconButton(
+                        onClick = onCalendarClick,
+                        modifier = Modifier.testTag("transactionList:calendarButton"),
+                    ) {
+                        Icon(
+                            Icons.Default.DateRange,
+                            contentDescription = s.selectRange,
+                            tint = if (state.customDateRangeStart != null) {
+                                colors.chart1
+                            } else {
+                                colors.textSecondary
+                            },
+                        )
+                    }
+                }
+            }
+
+            // 2b. Custom date range label (shown when a custom range is active)
+            if (state.customDateRangeStart != null && state.customDateRangeEnd != null) {
+                item(key = "customRangeLabel") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 4.dp),
+                    ) {
+                        val customLabel = remember(state.customDateRangeStart, state.customDateRangeEnd) {
+                            val sdf = java.text.SimpleDateFormat("dd.MM", java.util.Locale.getDefault())
+                            "${sdf.format(java.util.Date(state.customDateRangeStart))} – ${sdf.format(java.util.Date(state.customDateRangeEnd))}"
+                        }
+                        MoneyManagerChip(
+                            label = customLabel,
+                            selected = true,
+                            onClick = onCalendarClick,
+                            modifier = Modifier.testTag("transactionList:customRangeLabel"),
                         )
                     }
                 }
@@ -379,6 +444,7 @@ fun TransactionListScreen(
                             secondaryAmountLabel = s.originalAmount.takeIf {
                                 isShowingConvertedAmount
                             },
+                            accountName = null,
                             onClick = { onTransactionClick(transaction.id) },
                             modifier = sharedModifier
                                 .animateItem(
@@ -401,6 +467,15 @@ fun TransactionListScreen(
             selectedAccountId = state.selectedAccountId,
             onAccountSelected = onAccountSelected,
             onDismiss = onDismissAccountPicker,
+        )
+    }
+
+    // Date picker dialog
+    if (state.showDatePickerDialog) {
+        TransactionDatePickerDialog(
+            onDismiss = onCalendarClick,
+            onMonthSelected = onMonthSelected,
+            onRangeSelected = onRangeSelected,
         )
     }
 }
@@ -644,6 +719,9 @@ private fun TransactionListScreenPreview() {
             onAccountPickerClick = {},
             onAccountSelected = {},
             onDismissAccountPicker = {},
+            onCalendarClick = {},
+            onMonthSelected = { _, _ -> },
+            onRangeSelected = { _, _ -> },
         )
     }
 }
@@ -672,6 +750,9 @@ private fun TransactionListScreenEmptyPreview() {
             onAccountPickerClick = {},
             onAccountSelected = {},
             onDismissAccountPicker = {},
+            onCalendarClick = {},
+            onMonthSelected = { _, _ -> },
+            onRangeSelected = { _, _ -> },
         )
     }
 }

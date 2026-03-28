@@ -73,6 +73,9 @@ class TransactionListScreenInsetsTest {
                     onAccountPickerClick = {},
                     onAccountSelected = {},
                     onDismissAccountPicker = {},
+                    onCalendarClick = {},
+                    onMonthSelected = { _, _ -> },
+                    onRangeSelected = { _, _ -> },
                     contentWindowInsets = WindowInsets(
                         left = leftInsetPx,
                         top = 0,

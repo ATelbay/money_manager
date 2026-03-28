@@ -140,4 +140,11 @@ class TransactionRepositoryImpl @Inject constructor(
 
     override suspend fun getTopCurrenciesByUsage(): List<String> =
         transactionDao.getCurrencyTransactionCounts().map { it.currency }
+
+    override fun observeExpenseSumByCategory(
+        categoryId: Long,
+        startDate: Long,
+        endDate: Long,
+    ): Flow<Double> =
+        transactionDao.observeExpenseSumByCategory(categoryId, startDate, endDate)
 }

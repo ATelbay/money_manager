@@ -49,6 +49,7 @@ class TransactionEditScreenScreenshotTest {
                     onDateClick = {},
                     onDateSelect = {},
                     onDateDismiss = {},
+                    onAccountSelect = {},
                     onNoteChange = {},
                     onSave = {},
                 )
@@ -80,6 +81,7 @@ class TransactionEditScreenScreenshotTest {
                     onDateClick = {},
                     onDateSelect = {},
                     onDateDismiss = {},
+                    onAccountSelect = {},
                     onNoteChange = {},
                     onSave = {},
                 )

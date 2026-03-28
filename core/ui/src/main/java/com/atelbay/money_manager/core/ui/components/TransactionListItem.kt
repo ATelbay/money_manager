@@ -60,6 +60,7 @@ fun TransactionListItem(
     secondaryAmount: Double? = null,
     secondaryMoneyDisplay: MoneyDisplayPresentation? = null,
     secondaryAmountLabel: String? = null,
+    accountName: String? = null,
     onClick: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
 ) {
@@ -128,6 +129,15 @@ fun TransactionListItem(
                         style = typography.caption,
                         color = colors.textSecondary,
                     )
+                    if (accountName != null) {
+                        Text(
+                            text = accountName,
+                            style = typography.caption,
+                            color = colors.textTertiary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
 
                 // Amount and date
@@ -199,7 +209,7 @@ fun TransactionListItem(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Удалить",
+                        contentDescription = MoneyManagerTheme.strings.delete,
                         tint = Color.White,
                     )
                 }

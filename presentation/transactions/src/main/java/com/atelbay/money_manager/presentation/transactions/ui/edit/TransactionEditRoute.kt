@@ -27,6 +27,7 @@ fun TransactionEditRoute(
         onDateClick = { viewModel.toggleDatePicker(true) },
         onDateSelect = viewModel::setDate,
         onDateDismiss = { viewModel.toggleDatePicker(false) },
+        onAccountSelect = viewModel::selectAccount,
         onNoteChange = viewModel::setNote,
         onSave = { viewModel.save(strings, onBack) },
         onDelete = if (state.isEditing) {

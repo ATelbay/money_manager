@@ -10,25 +10,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.model.Account
+import com.atelbay.money_manager.core.ui.components.AccountSelector
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.ImportResult
 import com.atelbay.money_manager.core.model.TransactionOverride
@@ -36,7 +27,6 @@ import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import kotlinx.datetime.LocalDate
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImportPreview(
     result: ImportResult,
@@ -123,6 +113,9 @@ fun ImportPreview(
                 accounts = accounts,
                 selectedAccount = selectedAccount,
                 onAccountSelected = onAccountSelected,
+                label = MoneyManagerTheme.strings.importAccountLabel,
+                placeholder = MoneyManagerTheme.strings.importSelectAccount,
+                testTag = "import:accountSelector",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
@@ -194,52 +187,3 @@ fun ImportPreview(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AccountSelector(
-    accounts: List<Account>,
-    selectedAccount: Account?,
-    onAccountSelected: (Long) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val strings = MoneyManagerTheme.strings
-    var expanded by remember { mutableStateOf(false) }
-
-    Column(modifier = modifier) {
-        Text(
-            text = strings.importAccountLabel,
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(bottom = 4.dp),
-        )
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = it },
-        ) {
-            OutlinedTextField(
-                value = selectedAccount?.let { "${it.name} (${it.currency})" } ?: strings.importSelectAccount,
-                onValueChange = {},
-                readOnly = true,
-                singleLine = true,
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                    .testTag("import:accountSelector"),
-            )
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-            ) {
-                accounts.forEach { account ->
-                    DropdownMenuItem(
-                        text = { Text("${account.name} (${account.currency})") },
-                        onClick = {
-                            onAccountSelected(account.id)
-                            expanded = false
-                        },
-                    )
-                }
-            }
-        }
-    }
-}

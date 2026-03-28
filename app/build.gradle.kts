@@ -71,6 +71,11 @@ dependencies {
     implementation(projects.data.categories)
     implementation(projects.data.accounts)
     implementation(projects.data.exchangerate)
+    implementation(projects.data.recurring)
+    implementation(projects.data.budgets)
+
+    // Domain (for Application-level injection)
+    implementation(projects.domain.recurring)
 
     // Core sync infra
     implementation(projects.core.firestore)
@@ -84,6 +89,8 @@ dependencies {
     implementation(projects.presentation.accounts)
     implementation(projects.presentation.settings)
     implementation(projects.presentation.`import`)
+    implementation(projects.presentation.recurring)
+    implementation(projects.presentation.budgets)
 
     // Core
     implementation(projects.core.auth)

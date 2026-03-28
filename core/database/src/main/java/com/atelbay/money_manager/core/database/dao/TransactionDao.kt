@@ -62,6 +62,9 @@ interface TransactionDao {
     @Query("UPDATE transactions SET isDeleted = 1, updatedAt = :updatedAt WHERE id = :id")
     suspend fun softDeleteById(id: Long, updatedAt: Long)
 
+    @Query("UPDATE transactions SET isDeleted = 1, updatedAt = :updatedAt WHERE accountId = :accountId AND isDeleted = 0")
+    suspend fun softDeleteByAccountId(accountId: Long, updatedAt: Long)
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertOrIgnore(transactions: List<TransactionEntity>): List<Long>
 
@@ -105,4 +108,7 @@ interface TransactionDao {
 
     @Query("UPDATE transactions SET remoteId = NULL")
     suspend fun clearRemoteIds()
+
+    @Query("SELECT COALESCE(SUM(amount), 0.0) FROM transactions WHERE categoryId = :categoryId AND type = 'expense' AND isDeleted = 0 AND date >= :startDate AND date < :endDate")
+    fun observeExpenseSumByCategory(categoryId: Long, startDate: Long, endDate: Long): Flow<Double>
 }

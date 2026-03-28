@@ -21,6 +21,9 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE id = :id")
     fun observeById(id: Long): Flow<CategoryEntity?>
 
+    @Query("SELECT * FROM categories WHERE isDeleted = 0")
+    suspend fun getAll(): List<CategoryEntity>
+
     @Query("SELECT * FROM categories WHERE id = :id")
     suspend fun getById(id: Long): CategoryEntity?
 

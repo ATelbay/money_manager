@@ -23,6 +23,12 @@ data class TransactionListState(
     val accounts: ImmutableList<Account> = persistentListOf(),
     val showAccountPicker: Boolean = false,
     val dailyNetSums: Map<String, Double> = emptyMap(),
+    /** Whether the date range picker dialog is currently visible. */
+    val showDatePickerDialog: Boolean = false,
+    /** Start of the custom date range (epoch millis, inclusive). Null when period != CUSTOM. */
+    val customDateRangeStart: Long? = null,
+    /** End of the custom date range (epoch millis, inclusive end-of-day). Null when period != CUSTOM. */
+    val customDateRangeEnd: Long? = null,
 )
 
 data class TransactionRowState(
@@ -53,4 +59,5 @@ enum class Period {
     WEEK,
     MONTH,
     YEAR,
+    CUSTOM,
 }

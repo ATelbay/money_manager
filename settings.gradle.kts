@@ -49,6 +49,8 @@ include(":domain:statistics")
 include(":domain:import")
 include(":domain:exchangerate")
 include(":domain:sync")
+include(":domain:recurring")
+include(":domain:budgets")
 
 // Data
 include(":data:auth")
@@ -57,6 +59,8 @@ include(":data:transactions")
 include(":data:categories")
 include(":data:accounts")
 include(":data:exchangerate")
+include(":data:recurring")
+include(":data:budgets")
 
 // Presentation
 include(":presentation:auth")
@@ -67,3 +71,5 @@ include(":presentation:statistics")
 include(":presentation:import")
 include(":presentation:settings")
 include(":presentation:onboarding")
+include(":presentation:recurring")
+include(":presentation:budgets")

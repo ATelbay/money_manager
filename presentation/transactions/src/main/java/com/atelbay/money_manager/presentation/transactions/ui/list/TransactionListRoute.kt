@@ -28,6 +28,9 @@ fun TransactionListRoute(
         onAccountPickerClick = viewModel::toggleAccountPicker,
         onAccountSelected = viewModel::selectAccount,
         onDismissAccountPicker = viewModel::dismissAccountPicker,
+        onCalendarClick = viewModel::toggleDatePickerDialog,
+        onMonthSelected = viewModel::setCustomMonth,
+        onRangeSelected = viewModel::setCustomDateRange,
         modifier = modifier,
     )
 }

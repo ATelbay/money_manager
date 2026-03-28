@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.ImportState
+import com.atelbay.money_manager.core.ui.components.AccountSelector
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.presentation.importstatement.ui.components.ImportPreview
 
@@ -82,6 +83,9 @@ fun ImportScreen(
                 IdleContent(
                     onSelectPdf = onSelectPdf,
                     onTakePhoto = onTakePhoto,
+                    accounts = accounts,
+                    selectedAccountId = selectedAccountId,
+                    onAccountSelected = onAccountSelected,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding),
@@ -228,8 +232,12 @@ fun ImportScreen(
 private fun IdleContent(
     onSelectPdf: () -> Unit,
     onTakePhoto: () -> Unit,
+    accounts: List<Account>,
+    selectedAccountId: Long?,
+    onAccountSelected: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val s = MoneyManagerTheme.strings
     Box(
         modifier = modifier,
         contentAlignment = Alignment.Center,
@@ -240,11 +248,23 @@ private fun IdleContent(
             modifier = Modifier.padding(32.dp),
         ) {
             Text(
-                text = MoneyManagerTheme.strings.chooseImportMethod,
+                text = s.chooseImportMethod,
                 style = MaterialTheme.typography.headlineSmall,
                 textAlign = TextAlign.Center,
             )
             Spacer(modifier = Modifier.height(8.dp))
+            if (accounts.isNotEmpty()) {
+                AccountSelector(
+                    accounts = accounts,
+                    selectedAccount = accounts.find { it.id == selectedAccountId },
+                    onAccountSelected = onAccountSelected,
+                    label = s.importAccountLabel,
+                    placeholder = s.importSelectAccount,
+                    testTag = "import:idleAccountSelector",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
             Button(
                 onClick = onSelectPdf,
                 modifier = Modifier

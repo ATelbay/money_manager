@@ -22,4 +22,13 @@ interface TransactionRepository {
      * Ties are broken alphabetically by currency code for deterministic ordering.
      */
     suspend fun getTopCurrenciesByUsage(): List<String>
+
+    /**
+     * Observes the sum of expense amounts for a given category within a date range.
+     */
+    fun observeExpenseSumByCategory(
+        categoryId: Long,
+        startDate: Long,
+        endDate: Long,
+    ): Flow<Double>
 }

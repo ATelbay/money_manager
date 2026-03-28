@@ -1,6 +1,7 @@
 package com.atelbay.money_manager.data.accounts.repository
 
 import com.atelbay.money_manager.core.database.dao.AccountDao
+import com.atelbay.money_manager.core.database.dao.TransactionDao
 import com.atelbay.money_manager.data.accounts.mapper.toDomain
 import com.atelbay.money_manager.data.accounts.mapper.toEntity
 import com.atelbay.money_manager.core.model.Account
@@ -14,6 +15,7 @@ import javax.inject.Singleton
 @Singleton
 class AccountRepositoryImpl @Inject constructor(
     private val accountDao: AccountDao,
+    private val transactionDao: TransactionDao,
     private val syncManager: SyncManager,
 ) : AccountRepository {
 
@@ -46,6 +48,7 @@ class AccountRepositoryImpl @Inject constructor(
 
     override suspend fun delete(id: Long) {
         val now = System.currentTimeMillis()
+        transactionDao.softDeleteByAccountId(id, now)
         accountDao.softDeleteById(id, now)
         syncManager.syncAccount(id)
     }

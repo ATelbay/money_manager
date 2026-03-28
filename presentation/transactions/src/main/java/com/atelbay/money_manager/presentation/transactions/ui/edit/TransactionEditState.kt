@@ -1,5 +1,6 @@
 package com.atelbay.money_manager.presentation.transactions.ui.edit
 
+import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.TransactionType
 import kotlinx.collections.immutable.ImmutableList
@@ -14,6 +15,8 @@ data class TransactionEditState(
     val date: Long = System.currentTimeMillis(),
     val note: String = "",
     val accountId: Long = 0,
+    val accountName: String = "",
+    val accounts: ImmutableList<Account> = persistentListOf(),
     val amountError: String? = null,
     val categoryError: String? = null,
     val isSaving: Boolean = false,
