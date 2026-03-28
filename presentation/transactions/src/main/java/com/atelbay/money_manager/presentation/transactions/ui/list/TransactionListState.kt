@@ -34,6 +34,7 @@ data class TransactionRowState(
     val conversionStatus: ConversionStatus = ConversionStatus.UNAVAILABLE,
     val displayMoneyDisplay: MoneyDisplayPresentation,
     val secondaryMoneyDisplay: MoneyDisplayPresentation? = null,
+    val accountName: String? = null,
 ) {
     val displayAmount: Double
         get() = convertedAmount ?: originalAmount

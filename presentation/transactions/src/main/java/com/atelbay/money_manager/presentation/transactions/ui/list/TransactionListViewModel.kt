@@ -162,6 +162,7 @@ class TransactionListViewModel @Inject constructor(
                 baseCurrency = data.baseCurrency,
                 exchangeRate = data.exchangeRate,
                 canConvertAll = canConvertAll,
+                showAccountName = selectedAccount == null,
             )
             val summaryMetrics = resolveSummaryMetrics(
                 selectedAccount = selectedAccount,
@@ -259,6 +260,7 @@ class TransactionListViewModel @Inject constructor(
         baseCurrency: String,
         exchangeRate: ExchangeRate?,
         canConvertAll: Boolean,
+        showAccountName: Boolean = false,
     ): ImmutableList<TransactionRowState> {
         val currenciesByAccountId = accounts.associateBy(Account::id)
         val normalizedBaseCurrency = normalizeCurrency(baseCurrency)
@@ -302,6 +304,11 @@ class TransactionListViewModel @Inject constructor(
                 secondaryMoneyDisplay = originalCurrency
                     .takeIf { hasConvertedAmount }
                     ?.let(MoneyDisplayFormatter::resolveAndFormat),
+                accountName = if (showAccountName) {
+                    currenciesByAccountId[transaction.accountId]?.name
+                } else {
+                    null
+                },
             )
         }.toImmutableList()
     }

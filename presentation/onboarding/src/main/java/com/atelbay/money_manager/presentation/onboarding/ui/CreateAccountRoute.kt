@@ -10,6 +10,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 fun CreateAccountRoute(
     onAccountCreated: () -> Unit,
     modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null,
     viewModel: CreateAccountViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -20,6 +21,7 @@ fun CreateAccountRoute(
         onCurrencyChange = viewModel::setCurrency,
         onBalanceChange = viewModel::setInitialBalance,
         onCreateClick = { viewModel.createAccount(onAccountCreated) },
+        onBack = onBack,
         modifier = modifier,
     )
 }

@@ -152,6 +152,8 @@ Design file location: `~/Documents/pencil/money_manager_ds/money_manager_screens
 - Preferences DataStore (cached AI configs), Firebase Remote Config (parser configs) (013-ai-parser-config)
 - Kotlin 2.3.0 + PdfBox-Android 2.0.27.0, Firebase AI (Gemini 2.5 Flash), kotlinx-serialization (015-bcc-table-parsing)
 - N/A (no data layer changes) (015-bcc-table-parsing)
+- Kotlin 2.3.0, KSP 2.3.1, AGP 8.13.2 + Jetpack Compose (BOM 2026.01.01), Material 3, Hilt 2.58, Room 2.8.4, Navigation Compose 2.9.7, kotlinx-collections-immutable, Coroutines 1.10.2 (001-pre-ios-features)
+- Room (SQLite) — `money_manager.db` (currently version 4, 3 entities). Preferences DataStore for settings. (001-pre-ios-features)
 
 ## Recent Changes
 - 001-animation-audit: Added Kotlin 2.3.0 + Jetpack Compose (BOM 2026.01.01), Material 3, Navigation Compose 2.9.7

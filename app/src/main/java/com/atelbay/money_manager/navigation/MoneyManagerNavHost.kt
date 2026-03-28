@@ -25,6 +25,7 @@ import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
 import com.atelbay.money_manager.core.ui.util.LocalReduceMotion
 import com.atelbay.money_manager.presentation.onboarding.ui.CreateAccountRoute
 import com.atelbay.money_manager.presentation.onboarding.ui.OnboardingRoute
+import com.atelbay.money_manager.presentation.onboarding.ui.OnboardingSetupRoute
 import com.atelbay.money_manager.presentation.categories.ui.edit.CategoryEditRoute
 import com.atelbay.money_manager.presentation.categories.ui.list.CategoryListRoute
 import com.atelbay.money_manager.presentation.accounts.ui.edit.AccountEditRoute
@@ -75,8 +76,26 @@ fun MoneyManagerNavHost(
                 composable<Onboarding> {
                     OnboardingRoute(
                         onFinished = {
-                            navController.navigate(CreateAccount) {
+                            navController.navigate(OnboardingSetup) {
                                 popUpTo<Onboarding> { inclusive = true }
+                            }
+                        },
+                    )
+                }
+
+                composable<OnboardingSetup> {
+                    OnboardingSetupRoute(
+                        onSignInComplete = {
+                            navController.navigate(Home) {
+                                popUpTo<OnboardingSetup> { inclusive = true }
+                            }
+                        },
+                        onCreateAccount = {
+                            navController.navigate(CreateAccount)
+                        },
+                        onSkip = {
+                            navController.navigate(Home) {
+                                popUpTo<OnboardingSetup> { inclusive = true }
                             }
                         },
                     )
@@ -89,6 +108,7 @@ fun MoneyManagerNavHost(
                                 popUpTo<CreateAccount> { inclusive = true }
                             }
                         },
+                        onBack = { navController.popBackStack() },
                     )
                 }
 

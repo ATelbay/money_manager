@@ -7,6 +7,9 @@ import kotlinx.serialization.Serializable
 data object Onboarding
 
 @Serializable
+data object OnboardingSetup
+
+@Serializable
 data object CreateAccount
 
 @Serializable

@@ -1,12 +1,17 @@
 package com.atelbay.money_manager.presentation.onboarding.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenuItem
@@ -40,6 +45,7 @@ fun CreateAccountScreen(
     onBalanceChange: (String) -> Unit,
     onCreateClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null,
 ) {
     val s = MoneyManagerTheme.strings
     Column(
@@ -50,7 +56,17 @@ fun CreateAccountScreen(
             .testTag("createAccount:screen"),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(modifier = Modifier.height(48.dp))
+        if (onBack != null) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = s.back,
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(if (onBack != null) 16.dp else 48.dp))
 
         Text(
             text = s.createFirstAccount,

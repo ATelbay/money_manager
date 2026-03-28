@@ -96,6 +96,7 @@ fun defaultMoneyNumberFormat(): NumberFormat =
 object MoneyDisplayFormatter {
 
     fun resolve(currencyCode: String): CurrencyDisplayContext {
+        if (currencyCode.isBlank()) return unavailable()
         val normalizedCode = currencyCode.normalizeCurrencyCode(fallback = currencyCode)
         val supportedCurrency = SupportedCurrencyDisplayRegistry.lookup(normalizedCode)
 

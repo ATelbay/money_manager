@@ -33,11 +33,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -64,6 +67,7 @@ import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
 import com.atelbay.money_manager.core.ui.util.formatAmount
 import com.atelbay.money_manager.core.ui.util.isUnavailable
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -97,11 +101,14 @@ fun TransactionListScreen(
     val dateHeaderFormat = remember(locale) { SimpleDateFormat("dd MMMM", locale) }
     val timeFormat = remember(locale) { SimpleDateFormat("HH:mm", locale) }
     val layoutDirection = LocalLayoutDirection.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
         modifier = modifier.testTag("transactionList:screen"),
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = contentWindowInsets,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -129,7 +136,15 @@ fun TransactionListScreen(
         },
         floatingActionButton = {
             MoneyManagerFAB(
-                onClick = onAddClick,
+                onClick = {
+                    if (state.accounts.isEmpty()) {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(s.noAccountsWarning)
+                        }
+                    } else {
+                        onAddClick()
+                    }
+                },
                 testTag = "transactionList:fab",
             )
         },
@@ -379,6 +394,7 @@ fun TransactionListScreen(
                             secondaryAmountLabel = s.originalAmount.takeIf {
                                 isShowingConvertedAmount
                             },
+                            accountName = row.accountName,
                             onClick = { onTransactionClick(transaction.id) },
                             modifier = sharedModifier
                                 .animateItem(

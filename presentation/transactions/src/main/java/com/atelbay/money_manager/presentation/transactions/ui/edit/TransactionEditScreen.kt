@@ -63,8 +63,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.TransactionType
+import com.atelbay.money_manager.core.ui.components.AccountSelector
 import com.atelbay.money_manager.core.ui.components.ChipType
 import com.atelbay.money_manager.core.ui.components.GlassCard
 import com.atelbay.money_manager.core.ui.components.MoneyManagerButton
@@ -91,6 +93,7 @@ fun TransactionEditScreen(
     onDateClick: () -> Unit,
     onDateSelect: (Long) -> Unit,
     onDateDismiss: () -> Unit,
+    onAccountSelect: (Long) -> Unit,
     onNoteChange: (String) -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
@@ -212,7 +215,21 @@ fun TransactionEditScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // ── Account Selector ──
+            if (state.accounts.size > 1) {
+                AccountSelector(
+                    accounts = state.accounts,
+                    selectedAccount = state.accounts.find { it.id == state.accountId },
+                    onAccountSelected = onAccountSelect,
+                    label = s.selectAccount,
+                    placeholder = s.selectAccount,
+                    testTag = "transactionEdit:accountSelector",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             // ── Category Selector ──
             Text(
@@ -638,6 +655,7 @@ private fun TransactionEditScreenPreview() {
             onDateClick = {},
             onDateSelect = {},
             onDateDismiss = {},
+            onAccountSelect = {},
             onNoteChange = {},
             onSave = {},
         )
