@@ -256,6 +256,17 @@ fun RecurringEditScreen(
                 }
             }
 
+            if (state.accountError != null) {
+                Text(
+                    text = state.accountError,
+                    style = typography.caption,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp)
+                        .testTag("recurringEdit:accountError"),
+                )
+            }
+
             // Frequency
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -402,6 +413,17 @@ fun RecurringEditScreen(
                         color = if (state.endDate != null) colors.textPrimary else colors.textSecondary,
                     )
                 }
+            }
+
+            if (state.dateError != null) {
+                Text(
+                    text = state.dateError,
+                    style = typography.caption,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp)
+                        .testTag("recurringEdit:dateError"),
+                )
             }
 
             // Note

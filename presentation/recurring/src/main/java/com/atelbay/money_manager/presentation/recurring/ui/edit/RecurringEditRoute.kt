@@ -36,7 +36,15 @@ fun RecurringEditRoute(
         onEndDateSelect = viewModel::setEndDate,
         onEndDateDismiss = { viewModel.toggleEndDatePicker(false) },
         onNoteChange = viewModel::updateNote,
-        onSave = { viewModel.save(onSaveComplete, strings.errorEnterValidAmount) },
+        onSave = {
+            viewModel.save(
+                onComplete = onSaveComplete,
+                amountError = strings.errorEnterValidAmount,
+                categoryError = strings.errorSelectCategory,
+                accountError = strings.errorSelectAccount,
+                dateError = strings.errorEndDateBeforeStart,
+            )
+        },
         modifier = modifier,
     )
 }

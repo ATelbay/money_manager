@@ -33,6 +33,8 @@ data class RecurringEditState(
     val accounts: ImmutableList<Account> = persistentListOf(),
     val amountError: String? = null,
     val categoryError: String? = null,
+    val accountError: String? = null,
+    val dateError: String? = null,
     val saveError: String? = null,
 ) {
     val isEditing: Boolean get() = recurringId != null

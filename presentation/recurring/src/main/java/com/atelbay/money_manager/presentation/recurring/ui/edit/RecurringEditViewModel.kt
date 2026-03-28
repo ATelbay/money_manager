@@ -8,7 +8,7 @@ import com.atelbay.money_manager.core.model.RecurringTransaction
 import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
 import com.atelbay.money_manager.domain.categories.usecase.GetCategoriesUseCase
-import com.atelbay.money_manager.domain.recurring.repository.RecurringTransactionRepository
+import com.atelbay.money_manager.domain.recurring.usecase.GetRecurringTransactionByIdUseCase
 import com.atelbay.money_manager.domain.recurring.usecase.SaveRecurringTransactionUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.toImmutableList
@@ -25,13 +25,17 @@ import javax.inject.Inject
 @HiltViewModel
 class RecurringEditViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val recurringRepository: RecurringTransactionRepository,
     private val saveRecurringTransactionUseCase: SaveRecurringTransactionUseCase,
+    private val getRecurringTransactionByIdUseCase: GetRecurringTransactionByIdUseCase,
     private val getCategoriesUseCase: GetCategoriesUseCase,
     private val getAccountsUseCase: GetAccountsUseCase,
 ) : ViewModel() {
 
     private val recurringId: Long? = savedStateHandle.get<Long?>("id")?.takeIf { it != 0L }
+
+    /** Preserved from loaded existing recurring to avoid overwriting on save. */
+    private var existingLastGeneratedDate: Long? = null
+    private var existingCreatedAt: Long = 0L
 
     private val _state = MutableStateFlow(RecurringEditState(recurringId = recurringId))
     val state: StateFlow<RecurringEditState> = _state.asStateFlow()
@@ -49,8 +53,10 @@ class RecurringEditViewModel @Inject constructor(
             }
 
             if (recurringId != null) {
-                val existing = recurringRepository.getById(recurringId)
+                val existing = getRecurringTransactionByIdUseCase(recurringId)
                 if (existing != null) {
+                    existingLastGeneratedDate = existing.lastGeneratedDate
+                    existingCreatedAt = existing.createdAt
                     val accountForRecurring = accounts.find { a -> a.id == existing.accountId }
                     _state.update {
                         it.copy(
@@ -119,7 +125,7 @@ class RecurringEditViewModel @Inject constructor(
 
     fun selectAccount(accountId: Long) {
         val account = _state.value.accounts.find { it.id == accountId } ?: return
-        _state.update { it.copy(accountId = account.id, accountName = account.name) }
+        _state.update { it.copy(accountId = account.id, accountName = account.name, accountError = null) }
     }
 
     fun selectFrequency(frequency: Frequency) {
@@ -127,11 +133,11 @@ class RecurringEditViewModel @Inject constructor(
     }
 
     fun setStartDate(date: Long) {
-        _state.update { it.copy(startDate = date, showStartDatePicker = false) }
+        _state.update { it.copy(startDate = date, showStartDatePicker = false, dateError = null) }
     }
 
     fun setEndDate(date: Long?) {
-        _state.update { it.copy(endDate = date, showEndDatePicker = false) }
+        _state.update { it.copy(endDate = date, showEndDatePicker = false, dateError = null) }
     }
 
     fun setDayOfMonth(day: Int) {
@@ -158,18 +164,34 @@ class RecurringEditViewModel @Inject constructor(
         _state.update { it.copy(showEndDatePicker = show) }
     }
 
-    fun save(onComplete: () -> Unit, errorMessage: String) {
+    fun save(
+        onComplete: () -> Unit,
+        amountError: String,
+        categoryError: String,
+        accountError: String,
+        dateError: String,
+    ) {
         val current = _state.value
         var hasError = false
 
         val amount = current.amount.toDoubleOrNull()
         if (amount == null || amount <= 0) {
-            _state.update { it.copy(amountError = errorMessage) }
+            _state.update { it.copy(amountError = amountError) }
             hasError = true
         }
 
         if (current.categoryId == 0L) {
-            _state.update { it.copy(categoryError = "Select a category") }
+            _state.update { it.copy(categoryError = categoryError) }
+            hasError = true
+        }
+
+        if (current.accountId == 0L) {
+            _state.update { it.copy(accountError = accountError) }
+            hasError = true
+        }
+
+        if (current.endDate != null && current.endDate <= current.startDate) {
+            _state.update { it.copy(dateError = dateError) }
             hasError = true
         }
 
@@ -196,9 +218,9 @@ class RecurringEditViewModel @Inject constructor(
                         endDate = current.endDate,
                         dayOfMonth = if (current.frequency == Frequency.MONTHLY) current.dayOfMonth else null,
                         dayOfWeek = if (current.frequency == Frequency.WEEKLY) current.dayOfWeek else null,
-                        lastGeneratedDate = null,
+                        lastGeneratedDate = if (current.isEditing) existingLastGeneratedDate else null,
                         isActive = true,
-                        createdAt = System.currentTimeMillis(),
+                        createdAt = if (current.isEditing) existingCreatedAt else System.currentTimeMillis(),
                     )
                 )
                 onComplete()
