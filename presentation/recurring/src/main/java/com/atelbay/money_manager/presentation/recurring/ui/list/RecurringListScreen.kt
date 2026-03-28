@@ -53,6 +53,10 @@ import com.atelbay.money_manager.core.ui.util.defaultMoneyNumberFormat
 import com.atelbay.money_manager.core.ui.util.formatAmount
 import kotlinx.collections.immutable.ImmutableList
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.ZoneId
 import java.util.Date
 import java.util.Locale
 
@@ -252,12 +256,14 @@ private fun RecurringListItem(
                         color = colors.textSecondary,
                         maxLines = 1,
                     )
-                    val lastGenDate = recurring.lastGeneratedDate
-                    if (lastGenDate != null) {
+                    val nextDate = remember(recurring) {
+                        computeNextOccurrence(recurring)
+                    }
+                    if (nextDate != null) {
                         val dateStr = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
-                            .format(Date(lastGenDate))
+                            .format(Date(nextDate))
                         Text(
-                            text = "${s.lastGeneratedDateLabel}: $dateStr",
+                            text = "${s.nextDate}: $dateStr",
                             style = typography.caption,
                             color = colors.textSecondary,
                             maxLines = 1,
@@ -291,4 +297,61 @@ private fun frequencyLabel(
     Frequency.WEEKLY -> s.weekly
     Frequency.MONTHLY -> s.monthly
     Frequency.YEARLY -> s.yearly
+}
+
+/**
+ * Computes the next occurrence date (epoch millis) for a recurring transaction.
+ * Returns null if the recurring has ended (endDate passed) or is inactive.
+ */
+private fun computeNextOccurrence(recurring: RecurringTransaction): Long? {
+    if (!recurring.isActive) return null
+
+    val zone = ZoneId.systemDefault()
+    val today = LocalDate.now()
+
+    // Determine the base date: lastGeneratedDate or startDate
+    val baseMillis = recurring.lastGeneratedDate ?: recurring.startDate
+    val baseDate = Instant.ofEpochMilli(baseMillis).atZone(zone).toLocalDate()
+
+    val nextDate = if (recurring.lastGeneratedDate == null) {
+        // Never generated — next is startDate itself (if today or future)
+        val startDate = Instant.ofEpochMilli(recurring.startDate).atZone(zone).toLocalDate()
+        if (!startDate.isBefore(today)) startDate else computeNext(recurring, baseDate)
+    } else {
+        computeNext(recurring, baseDate)
+    }
+
+    // Check end date
+    if (nextDate == null) return null
+    val endDate = recurring.endDate?.let {
+        Instant.ofEpochMilli(it).atZone(zone).toLocalDate()
+    }
+    if (endDate != null && nextDate.isAfter(endDate)) return null
+
+    return nextDate.atStartOfDay(zone).toInstant().toEpochMilli()
+}
+
+private fun computeNext(recurring: RecurringTransaction, after: LocalDate): LocalDate? {
+    return when (recurring.frequency) {
+        Frequency.DAILY -> after.plusDays(1)
+
+        Frequency.WEEKLY -> {
+            val targetDow = recurring.dayOfWeek ?: 1
+            var next = after.plusDays(1)
+            while (next.dayOfWeek.value != targetDow) {
+                next = next.plusDays(1)
+            }
+            next
+        }
+
+        Frequency.MONTHLY -> {
+            val targetDay = recurring.dayOfMonth ?: 1
+            val nextMonth = after.plusMonths(1)
+            val yearMonth = YearMonth.of(nextMonth.year, nextMonth.month)
+            val clampedDay = minOf(targetDay, yearMonth.lengthOfMonth())
+            LocalDate.of(nextMonth.year, nextMonth.month, clampedDay)
+        }
+
+        Frequency.YEARLY -> after.plusYears(1)
+    }
 }
