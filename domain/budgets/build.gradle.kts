@@ -9,5 +9,5 @@ android {
 
 dependencies {
     implementation(projects.core.model)
-    implementation(projects.core.database)
+    implementation(projects.domain.transactions)
 }

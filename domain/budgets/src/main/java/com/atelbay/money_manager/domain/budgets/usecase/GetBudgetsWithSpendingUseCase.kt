@@ -1,8 +1,8 @@
 package com.atelbay.money_manager.domain.budgets.usecase
 
-import com.atelbay.money_manager.core.database.dao.TransactionDao
 import com.atelbay.money_manager.core.model.Budget
 import com.atelbay.money_manager.domain.budgets.repository.BudgetRepository
+import com.atelbay.money_manager.domain.transactions.repository.TransactionRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -13,7 +13,7 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 class GetBudgetsWithSpendingUseCase @Inject constructor(
     private val budgetRepository: BudgetRepository,
-    private val transactionDao: TransactionDao,
+    private val transactionRepository: TransactionRepository,
 ) {
     operator fun invoke(): Flow<List<Budget>> =
         budgetRepository.observeAll().flatMapLatest { budgets ->
@@ -22,7 +22,7 @@ class GetBudgetsWithSpendingUseCase @Inject constructor(
             } else {
                 val (monthStart, monthEnd) = currentMonthRange()
                 val spendingFlows = budgets.map { budget ->
-                    transactionDao.observeExpenseSumByCategory(
+                    transactionRepository.observeExpenseSumByCategory(
                         categoryId = budget.categoryId,
                         startDate = monthStart,
                         endDate = monthEnd,
