@@ -4,7 +4,6 @@ import com.atelbay.money_manager.core.model.Frequency
 import com.atelbay.money_manager.core.model.RecurringTransaction
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.domain.recurring.repository.RecurringTransactionRepository
-import com.atelbay.money_manager.domain.transactions.repository.TransactionRepository
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -13,7 +12,6 @@ import javax.inject.Inject
 
 class GeneratePendingTransactionsUseCase @Inject constructor(
     private val recurringRepository: RecurringTransactionRepository,
-    private val transactionRepository: TransactionRepository,
 ) {
     suspend operator fun invoke() {
         val today = LocalDate.now()
@@ -33,43 +31,44 @@ class GeneratePendingTransactionsUseCase @Inject constructor(
         val missedDates = computeMissedDates(recurring, fromDate, today)
         if (missedDates.isEmpty()) {
             // Deactivate if endDate has passed
-            val endDate = recurring.endDate
-            if (endDate != null && today.isAfter(
-                    Instant.ofEpochMilli(endDate).atZone(ZoneId.systemDefault()).toLocalDate()
-                )
-            ) {
-                recurringRepository.toggleActive(recurring.id, false)
-            }
+            deactivateIfExpired(recurring, today)
             return
         }
 
         val now = System.currentTimeMillis()
-        for (date in missedDates) {
+        val transactions = missedDates.map { date ->
             val dateMillis = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            transactionRepository.save(
-                Transaction(
-                    id = 0,
-                    amount = recurring.amount,
-                    type = recurring.type,
-                    categoryId = recurring.categoryId,
-                    categoryName = recurring.categoryName,
-                    categoryIcon = recurring.categoryIcon,
-                    categoryColor = recurring.categoryColor,
-                    accountId = recurring.accountId,
-                    note = recurring.note,
-                    date = dateMillis,
-                    createdAt = now,
-                )
+            Transaction(
+                id = 0,
+                amount = recurring.amount,
+                type = recurring.type,
+                categoryId = recurring.categoryId,
+                categoryName = recurring.categoryName,
+                categoryIcon = recurring.categoryIcon,
+                categoryColor = recurring.categoryColor,
+                accountId = recurring.accountId,
+                note = recurring.note,
+                date = dateMillis,
+                createdAt = now,
             )
         }
 
         val lastDate = missedDates.last()
         val lastDateMillis = lastDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        recurringRepository.updateLastGeneratedDate(recurring.id, lastDateMillis)
 
-        // Deactivate if endDate has passed
-        val endDate = recurring.endDate
-        if (endDate != null && today.isAfter(
+        // Atomic: all transactions + lastGeneratedDate update in a single DB transaction
+        recurringRepository.generateTransactionsAtomically(
+            recurringId = recurring.id,
+            transactions = transactions,
+            lastGeneratedDate = lastDateMillis,
+        )
+
+        deactivateIfExpired(recurring, today)
+    }
+
+    private suspend fun deactivateIfExpired(recurring: RecurringTransaction, today: LocalDate) {
+        val endDate = recurring.endDate ?: return
+        if (today.isAfter(
                 Instant.ofEpochMilli(endDate).atZone(ZoneId.systemDefault()).toLocalDate()
             )
         ) {
