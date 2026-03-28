@@ -43,6 +43,7 @@ class RecurringTransactionRepositoryImpl @Inject constructor(
                     categoryIcon = category?.icon.orEmpty(),
                     categoryColor = category?.color ?: 0xFF90A4AEL,
                     accountName = account?.name.orEmpty(),
+                    accountCurrency = account?.currency ?: "KZT",
                 )
             }
         }
@@ -56,6 +57,7 @@ class RecurringTransactionRepositoryImpl @Inject constructor(
             categoryIcon = category?.icon.orEmpty(),
             categoryColor = category?.color ?: 0xFF90A4AEL,
             accountName = account?.name.orEmpty(),
+            accountCurrency = account?.currency ?: "KZT",
         )
     }
 
@@ -74,6 +76,7 @@ class RecurringTransactionRepositoryImpl @Inject constructor(
                 categoryIcon = category?.icon.orEmpty(),
                 categoryColor = category?.color ?: 0xFF90A4AEL,
                 accountName = account?.name.orEmpty(),
+                accountCurrency = account?.currency ?: "KZT",
             )
         }
     }

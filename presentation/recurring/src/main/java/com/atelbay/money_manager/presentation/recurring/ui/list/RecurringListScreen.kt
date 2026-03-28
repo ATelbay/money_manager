@@ -229,8 +229,8 @@ private fun RecurringListItem(
                 Column(modifier = Modifier.weight(1f)) {
                     val isIncome = recurring.type == TransactionType.INCOME
                     val amountPrefix = if (isIncome) "+" else "\u2212"
-                    val moneyDisplay = remember(recurring.amount) {
-                        MoneyDisplayFormatter.resolveAndFormat("KZT")
+                    val moneyDisplay = remember(recurring.amount, recurring.accountCurrency) {
+                        MoneyDisplayFormatter.resolveAndFormat(recurring.accountCurrency)
                     }
                     val formatter = remember { defaultMoneyNumberFormat() }
                     Text(

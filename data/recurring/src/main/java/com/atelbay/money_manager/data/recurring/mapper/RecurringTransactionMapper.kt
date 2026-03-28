@@ -13,6 +13,7 @@ fun RecurringTransactionEntity.toDomain(
     categoryIcon: String,
     categoryColor: Long,
     accountName: String,
+    accountCurrency: String,
 ): RecurringTransaction = RecurringTransaction(
     id = id,
     amount = amount,
@@ -26,6 +27,7 @@ fun RecurringTransactionEntity.toDomain(
     categoryColor = categoryColor,
     accountId = accountId,
     accountName = accountName,
+    accountCurrency = accountCurrency,
     note = note,
     frequency = Frequency.entries.firstOrNull { it.name == frequency }
         ?: Frequency.MONTHLY.also {

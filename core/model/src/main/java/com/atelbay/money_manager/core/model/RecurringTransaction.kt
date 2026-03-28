@@ -10,6 +10,7 @@ data class RecurringTransaction(
     val categoryColor: Long,
     val accountId: Long,
     val accountName: String,
+    val accountCurrency: String = "KZT",
     val note: String?,
     val frequency: Frequency,
     val startDate: Long,
