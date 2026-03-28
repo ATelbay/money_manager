@@ -66,6 +66,9 @@ fun TransactionDatePickerDialog(
                         Tab(
                             selected = selectedTabIndex == index,
                             onClick = { selectedTabIndex = index },
+                            modifier = Modifier.testTag(
+                                if (index == 0) "transactionList:tabMonth" else "transactionList:tabRange",
+                            ),
                             text = {
                                 Text(
                                     text = title,
@@ -111,7 +114,10 @@ private fun MonthPickerTab(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = { displayYear-- }) {
+            IconButton(
+                onClick = { displayYear-- },
+                modifier = Modifier.testTag("transactionList:yearBack"),
+            ) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = null,
@@ -123,7 +129,10 @@ private fun MonthPickerTab(
                 style = MoneyManagerTheme.typography.cardTitle,
                 color = colors.textPrimary,
             )
-            IconButton(onClick = { displayYear++ }) {
+            IconButton(
+                onClick = { displayYear++ },
+                modifier = Modifier.testTag("transactionList:yearForward"),
+            ) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
@@ -189,7 +198,10 @@ private fun RangePickerTab(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.End,
         ) {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag("transactionList:rangeCancel"),
+            ) {
                 Text(
                     text = s.cancel,
                     color = colors.textSecondary,
@@ -205,6 +217,7 @@ private fun RangePickerTab(
                 },
                 enabled = dateRangePickerState.selectedStartDateMillis != null &&
                     dateRangePickerState.selectedEndDateMillis != null,
+                modifier = Modifier.testTag("transactionList:rangeConfirm"),
             ) {
                 Text(
                     text = s.ok,
