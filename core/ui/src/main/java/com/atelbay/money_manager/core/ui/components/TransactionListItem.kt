@@ -209,7 +209,7 @@ fun TransactionListItem(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Удалить",
+                        contentDescription = MoneyManagerTheme.strings.delete,
                         tint = Color.White,
                     )
                 }

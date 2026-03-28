@@ -47,6 +47,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -78,7 +79,6 @@ import com.atelbay.money_manager.core.ui.theme.Teal
 import kotlinx.collections.immutable.ImmutableList
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -102,6 +102,7 @@ fun TransactionEditScreen(
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
     val s = MoneyManagerTheme.strings
+    val fullDateFormat = remember(s.locale) { SimpleDateFormat("dd MMMM yyyy", s.locale) }
 
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
@@ -276,7 +277,7 @@ fun TransactionEditScreen(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = formatDateFull(state.date),
+                        text = fullDateFormat.format(Date(state.date)),
                         style = typography.cardTitle,
                         color = colors.textPrimary,
                     )
@@ -635,10 +636,6 @@ private fun MoneyManagerDatePickerDialog(
         DatePicker(state = datePickerState)
     }
 }
-
-private val fullDateFormat = SimpleDateFormat("dd MMMM yyyy", Locale.forLanguageTag("ru"))
-
-private fun formatDateFull(timestamp: Long): String = fullDateFormat.format(Date(timestamp))
 
 @Preview(showBackground = true, backgroundColor = 0xFF0D0D0D)
 @Composable

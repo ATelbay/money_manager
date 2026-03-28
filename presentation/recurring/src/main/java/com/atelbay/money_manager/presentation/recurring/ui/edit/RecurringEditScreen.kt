@@ -142,7 +142,7 @@ fun RecurringEditScreen(
                     MoneyManagerTextField(
                         value = state.amount,
                         onValueChange = onAmountChange,
-                        label = s.newTransaction,
+                        label = s.amount,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         errorMessage = state.amountError,
                         modifier = Modifier.fillMaxWidth(),
@@ -591,7 +591,7 @@ private fun DayOfWeekRow(
     selectedDay: Int,
     onDaySelected: (Int) -> Unit,
 ) {
-    val dayLabels = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
+    val dayLabels = MoneyManagerTheme.strings.dayOfWeekShort
     Row(
         modifier = Modifier
             .fillMaxWidth()

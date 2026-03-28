@@ -125,7 +125,7 @@ fun BudgetListScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = s.newBudget,
+                    text = s.noBudgets,
                     style = typography.cardTitle,
                     color = colors.textSecondary,
                     modifier = Modifier.testTag("budgetList:emptyState"),
