@@ -108,4 +108,7 @@ interface TransactionDao {
 
     @Query("UPDATE transactions SET remoteId = NULL")
     suspend fun clearRemoteIds()
+
+    @Query("SELECT COALESCE(SUM(amount), 0.0) FROM transactions WHERE categoryId = :categoryId AND type = 'expense' AND isDeleted = 0 AND date >= :startDate AND date < :endDate")
+    fun observeExpenseSumByCategory(categoryId: Long, startDate: Long, endDate: Long): Flow<Double>
 }
