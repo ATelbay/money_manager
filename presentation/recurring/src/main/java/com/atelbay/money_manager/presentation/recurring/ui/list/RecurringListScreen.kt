@@ -43,10 +43,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.model.Frequency
 import com.atelbay.money_manager.core.model.RecurringTransaction
+import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.core.ui.components.GlassCard
 import com.atelbay.money_manager.core.ui.components.MoneyManagerFAB
 import com.atelbay.money_manager.core.ui.components.categoryIconFromName
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
+import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
+import com.atelbay.money_manager.core.ui.util.defaultMoneyNumberFormat
+import com.atelbay.money_manager.core.ui.util.formatAmount
 import kotlinx.collections.immutable.ImmutableList
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -116,7 +120,7 @@ fun RecurringListScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = s.noTransactions,
+                    text = s.noRecurringTransactions,
                     style = typography.caption,
                     color = colors.textSecondary,
                     modifier = Modifier.testTag("recurringList:empty"),
@@ -223,11 +227,16 @@ private fun RecurringListItem(
                 Spacer(Modifier.width(12.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    val amountPrefix = if (recurring.type.value == "income") "+" else "-"
+                    val isIncome = recurring.type == TransactionType.INCOME
+                    val amountPrefix = if (isIncome) "+" else "\u2212"
+                    val moneyDisplay = remember(recurring.amount) {
+                        MoneyDisplayFormatter.resolveAndFormat("KZT")
+                    }
+                    val formatter = remember { defaultMoneyNumberFormat() }
                     Text(
-                        text = "$amountPrefix${recurring.amount}",
+                        text = moneyDisplay.formatAmount(recurring.amount, amountPrefix, formatter),
                         style = typography.cardTitle,
-                        color = if (recurring.type.value == "income") Color(0xFF4ADE80) else Color(0xFFF87171),
+                        color = if (isIncome) Color(0xFF4ADE80) else Color(0xFFF87171),
                         maxLines = 1,
                     )
                     Text(
@@ -248,7 +257,7 @@ private fun RecurringListItem(
                         val dateStr = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
                             .format(Date(lastGenDate))
                         Text(
-                            text = "${s.nextDate}: $dateStr",
+                            text = "${s.lastGeneratedDateLabel}: $dateStr",
                             style = typography.caption,
                             color = colors.textSecondary,
                             maxLines = 1,

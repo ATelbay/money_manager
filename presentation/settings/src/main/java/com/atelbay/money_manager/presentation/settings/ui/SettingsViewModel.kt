@@ -292,7 +292,8 @@ class SettingsViewModel @Inject constructor(
                 val dateStr = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
                 val fileName = "money_manager_export_$dateStr.csv"
                 val file = withContext(Dispatchers.IO) {
-                    File(context.cacheDir, fileName).also { it.writeText(csvContent) }
+                    val exportsDir = File(context.cacheDir, "exports").also { it.mkdirs() }
+                    File(exportsDir, fileName).also { it.writeText(csvContent) }
                 }
                 val uri = FileProvider.getUriForFile(
                     context,
