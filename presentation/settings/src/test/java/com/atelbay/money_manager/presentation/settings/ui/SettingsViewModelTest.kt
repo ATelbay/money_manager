@@ -9,6 +9,7 @@ import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
 import com.atelbay.money_manager.domain.exchangerate.repository.ExchangeRateRepository
 import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
 import com.atelbay.money_manager.domain.transactions.repository.TransactionRepository
+import com.atelbay.money_manager.domain.transactions.usecase.ExportTransactionsToCsvUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -271,6 +272,7 @@ class SettingsViewModelTest {
             observeAuthUser = observeAuthUser,
             syncRepository = syncRepository,
             application = application,
+            exportTransactionsToCsvUseCase = mockk(relaxed = true),
         )
     }
 

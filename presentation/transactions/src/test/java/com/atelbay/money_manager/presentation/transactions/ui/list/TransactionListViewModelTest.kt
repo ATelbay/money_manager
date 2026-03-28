@@ -496,6 +496,9 @@ class TransactionListViewModelTest {
         override suspend fun delete(id: Long) = Unit
 
         override suspend fun getTopCurrenciesByUsage(): List<String> = emptyList()
+
+        override fun observeExpenseSumByCategory(categoryId: Long, startDate: Long, endDate: Long): Flow<Double> =
+            flowOf(0.0)
     }
 
     private class FakeAccountRepository(

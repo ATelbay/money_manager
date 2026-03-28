@@ -50,6 +50,7 @@ class CategoryBottomSheetScreenshotTest {
                     onDateClick = {},
                     onDateSelect = {},
                     onDateDismiss = {},
+                    onAccountSelect = {},
                     onNoteChange = {},
                     onSave = {},
                 )
@@ -78,6 +79,7 @@ class CategoryBottomSheetScreenshotTest {
                     onDateClick = {},
                     onDateSelect = {},
                     onDateDismiss = {},
+                    onAccountSelect = {},
                     onNoteChange = {},
                     onSave = {},
                 )
@@ -107,6 +109,7 @@ class CategoryBottomSheetScreenshotTest {
                     onDateClick = {},
                     onDateSelect = {},
                     onDateDismiss = {},
+                    onAccountSelect = {},
                     onNoteChange = {},
                     onSave = {},
                 )
