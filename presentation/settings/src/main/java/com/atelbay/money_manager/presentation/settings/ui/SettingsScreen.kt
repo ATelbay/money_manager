@@ -25,12 +25,15 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.SyncProblem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -68,6 +71,9 @@ fun SettingsScreen(
     onCurrencyPickerClick: () -> Unit,
     onSignInClick: () -> Unit,
     onRetrySyncClick: () -> Unit,
+    onExportCsvClick: () -> Unit,
+    onBudgetsClick: () -> Unit,
+    onRecurringClick: () -> Unit,
     modifier: Modifier = Modifier,
     contentWindowInsets: WindowInsets = ScaffoldDefaults.contentWindowInsets,
 ) {
@@ -236,6 +242,62 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                                 .testTag("settings:rateError"),
+                        )
+                    }
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 0.5.dp,
+                        color = colors.borderSubtle,
+                    )
+
+                    SettingRow(
+                        icon = Icons.Default.PieChart,
+                        iconColor = Color(0xFF34D399),
+                        title = s.budgets,
+                        hasChevron = true,
+                        onClick = onBudgetsClick,
+                        modifier = Modifier.testTag("settings:budgets"),
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 0.5.dp,
+                        color = colors.borderSubtle,
+                    )
+
+                    SettingRow(
+                        icon = Icons.Default.Repeat,
+                        iconColor = Color(0xFF818CF8),
+                        title = s.recurringTransactions,
+                        hasChevron = true,
+                        onClick = onRecurringClick,
+                        modifier = Modifier.testTag("settings:recurring"),
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 0.5.dp,
+                        color = colors.borderSubtle,
+                    )
+
+                    SettingRow(
+                        icon = Icons.Default.FileDownload,
+                        iconColor = Color(0xFF60A5FA),
+                        title = s.exportCsv,
+                        subtitle = if (state.isExporting) s.exporting else null,
+                        onClick = onExportCsvClick,
+                        modifier = Modifier.testTag("settings:exportCsv"),
+                    )
+
+                    if (state.exportError != null) {
+                        Text(
+                            text = state.exportError,
+                            style = typography.caption,
+                            color = Color(0xFFFCA5A5),
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .testTag("settings:exportError"),
                         )
                     }
                 }
@@ -567,6 +629,9 @@ private fun SettingsScreenPreview() {
             onCurrencyPickerClick = {},
             onSignInClick = {},
             onRetrySyncClick = {},
+            onExportCsvClick = {},
+            onBudgetsClick = {},
+            onRecurringClick = {},
         )
     }
 }

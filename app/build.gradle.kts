@@ -74,6 +74,9 @@ dependencies {
     implementation(projects.data.recurring)
     implementation(projects.data.budgets)
 
+    // Domain (for Application-level injection)
+    implementation(projects.domain.recurring)
+
     // Core sync infra
     implementation(projects.core.firestore)
 

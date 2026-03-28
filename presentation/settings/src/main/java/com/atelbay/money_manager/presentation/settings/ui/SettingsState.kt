@@ -17,6 +17,8 @@ data class SettingsState(
     val appVersion: String = "",
     val syncStatus: SyncStatus = SyncStatus.Idle,
     val lastSyncDisplay: String = "",
+    val isExporting: Boolean = false,
+    val exportError: String? = null,
 )
 
 enum class ThemeMode {

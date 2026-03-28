@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.CircularProgressIndicator
@@ -90,6 +91,9 @@ fun TransactionListScreen(
     onAccountPickerClick: () -> Unit,
     onAccountSelected: (Long?) -> Unit,
     onDismissAccountPicker: () -> Unit,
+    onCalendarClick: () -> Unit,
+    onMonthSelected: (year: Int, month: Int) -> Unit,
+    onRangeSelected: (startMillis: Long, endMillis: Long) -> Unit,
     modifier: Modifier = Modifier,
     contentWindowInsets: WindowInsets = ScaffoldDefaults.contentWindowInsets,
 ) {
@@ -188,7 +192,7 @@ fun TransactionListScreen(
                 )
             }
 
-            // 2. Date period chips (Day | Week | Month | Year)
+            // 2. Date period chips (This Month | Day | Week | 30 days | Year) + calendar button
             item(key = "period") {
                 Row(
                     modifier = Modifier
@@ -196,18 +200,54 @@ fun TransactionListScreen(
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                         .testTag("transactionList:periodFilter"),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     val periods = listOf(
+                        Period.CURRENT_MONTH to s.currentMonth,
                         Period.TODAY to s.periodDay,
                         Period.WEEK to s.periodWeek,
-                        Period.MONTH to s.periodMonth,
+                        Period.MONTH to s.thirtyDays,
                         Period.YEAR to s.periodYear,
                     )
                     periods.forEach { (period, label) ->
                         MoneyManagerChip(
                             label = label,
-                            selected = state.selectedPeriod == period,
+                            selected = state.customDateRange == null && state.selectedPeriod == period,
                             onClick = { onPeriodSelected(period) },
+                        )
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    IconButton(
+                        onClick = onCalendarClick,
+                        modifier = Modifier.testTag("transactionList:calendarButton"),
+                    ) {
+                        Icon(
+                            Icons.Default.DateRange,
+                            contentDescription = s.selectRange,
+                            tint = if (state.customDateRange != null) {
+                                colors.chart1
+                            } else {
+                                colors.textSecondary
+                            },
+                        )
+                    }
+                }
+            }
+
+            // 2b. Custom date range label (shown when a custom range is active)
+            if (state.customDateRange != null && state.customDateLabel != null) {
+                item(key = "customRangeLabel") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 4.dp),
+                    ) {
+                        MoneyManagerChip(
+                            label = state.customDateLabel,
+                            selected = true,
+                            onClick = onCalendarClick,
+                            modifier = Modifier.testTag("transactionList:customRangeLabel"),
                         )
                     }
                 }
@@ -417,6 +457,15 @@ fun TransactionListScreen(
             selectedAccountId = state.selectedAccountId,
             onAccountSelected = onAccountSelected,
             onDismiss = onDismissAccountPicker,
+        )
+    }
+
+    // Date picker dialog
+    if (state.showDatePickerDialog) {
+        TransactionDatePickerDialog(
+            onDismiss = onCalendarClick,
+            onMonthSelected = onMonthSelected,
+            onRangeSelected = onRangeSelected,
         )
     }
 }
@@ -660,6 +709,9 @@ private fun TransactionListScreenPreview() {
             onAccountPickerClick = {},
             onAccountSelected = {},
             onDismissAccountPicker = {},
+            onCalendarClick = {},
+            onMonthSelected = { _, _ -> },
+            onRangeSelected = { _, _ -> },
         )
     }
 }
@@ -676,7 +728,7 @@ private fun TransactionListScreenEmptyPreview() {
                 selectedAccountName = "Kaspi Gold",
                 periodIncome = 0.0,
                 periodExpense = 0.0,
-                selectedPeriod = Period.MONTH,
+                selectedPeriod = Period.CURRENT_MONTH,
             ),
             onTransactionClick = {},
             onAddClick = {},
@@ -688,6 +740,9 @@ private fun TransactionListScreenEmptyPreview() {
             onAccountPickerClick = {},
             onAccountSelected = {},
             onDismissAccountPicker = {},
+            onCalendarClick = {},
+            onMonthSelected = { _, _ -> },
+            onRangeSelected = { _, _ -> },
         )
     }
 }

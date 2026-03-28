@@ -38,6 +38,10 @@ import com.atelbay.money_manager.presentation.transactions.ui.edit.TransactionEd
 import com.atelbay.money_manager.presentation.transactions.ui.list.TransactionListRoute
 import com.atelbay.money_manager.presentation.auth.ui.SignInRoute
 import com.atelbay.money_manager.presentation.importstatement.ui.ImportRoute
+import com.atelbay.money_manager.presentation.budgets.ui.list.BudgetListRoute
+import com.atelbay.money_manager.presentation.budgets.ui.edit.BudgetEditRoute
+import com.atelbay.money_manager.presentation.recurring.ui.list.RecurringListRoute
+import com.atelbay.money_manager.presentation.recurring.ui.edit.RecurringEditRoute
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -294,6 +298,12 @@ fun MoneyManagerNavHost(
                         onSignInClick = {
                             navController.navigate(SignIn)
                         },
+                        onBudgetsClick = {
+                            navController.navigate(BudgetList)
+                        },
+                        onRecurringClick = {
+                            navController.navigate(RecurringList)
+                        },
                     )
                 }
 
@@ -307,6 +317,43 @@ fun MoneyManagerNavHost(
                     CurrencyPickerRoute(
                         initialActiveSide = backStackEntry.toRoute<CurrencyPicker>().activeSide,
                         onBack = { navController.popBackStack() },
+                    )
+                }
+
+                composable<BudgetList> {
+                    BudgetListRoute(
+                        onAddClick = {
+                            navController.navigate(BudgetEdit())
+                        },
+                        onBudgetClick = { id ->
+                            navController.navigate(BudgetEdit(id = id))
+                        },
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                composable<BudgetEdit> {
+                    BudgetEditRoute(
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                composable<RecurringList> {
+                    RecurringListRoute(
+                        onAddClick = {
+                            navController.navigate(RecurringEdit())
+                        },
+                        onEditClick = { id ->
+                            navController.navigate(RecurringEdit(id = id))
+                        },
+                        onBackClick = { navController.popBackStack() },
+                    )
+                }
+
+                composable<RecurringEdit> {
+                    RecurringEditRoute(
+                        onSaveComplete = { navController.popBackStack() },
+                        onBackClick = { navController.popBackStack() },
                     )
                 }
             }
