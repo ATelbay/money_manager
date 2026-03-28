@@ -7,10 +7,17 @@ import javax.inject.Inject
 class SaveBudgetUseCase @Inject constructor(
     private val budgetRepository: BudgetRepository,
 ) {
-    suspend operator fun invoke(categoryId: Long, monthlyLimit: Double): Long {
-        val existing = budgetRepository.getByCategoryId(categoryId)
+    suspend operator fun invoke(
+        categoryId: Long,
+        monthlyLimit: Double,
+        budgetId: Long? = null,
+    ): Long {
+        val existing = when {
+            budgetId != null -> budgetRepository.getById(budgetId)
+            else -> budgetRepository.getByCategoryId(categoryId)
+        }
         val budget = if (existing != null) {
-            existing.copy(monthlyLimit = monthlyLimit)
+            existing.copy(categoryId = categoryId, monthlyLimit = monthlyLimit)
         } else {
             Budget(
                 categoryId = categoryId,

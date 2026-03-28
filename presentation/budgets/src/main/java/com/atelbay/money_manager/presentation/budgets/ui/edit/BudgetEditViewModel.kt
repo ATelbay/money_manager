@@ -92,18 +92,22 @@ class BudgetEditViewModel @Inject constructor(
         _state.update { it.copy(showCategoryPicker = show) }
     }
 
-    fun save(onComplete: () -> Unit) {
+    fun save(
+        onComplete: () -> Unit,
+        categoryError: String,
+        limitError: String,
+    ) {
         val current = _state.value
         var hasError = false
 
         if (current.categoryId == 0L) {
-            _state.update { it.copy(categoryError = "Select a category") }
+            _state.update { it.copy(categoryError = categoryError) }
             hasError = true
         }
 
         val limit = current.monthlyLimit.toDoubleOrNull()
         if (limit == null || limit <= 0) {
-            _state.update { it.copy(limitError = "Enter a valid limit") }
+            _state.update { it.copy(limitError = limitError) }
             hasError = true
         }
 
@@ -116,6 +120,7 @@ class BudgetEditViewModel @Inject constructor(
                 saveBudgetUseCase(
                     categoryId = current.categoryId,
                     monthlyLimit = limit!!,
+                    budgetId = current.budgetId,
                 )
                 onComplete()
             } catch (e: Exception) {

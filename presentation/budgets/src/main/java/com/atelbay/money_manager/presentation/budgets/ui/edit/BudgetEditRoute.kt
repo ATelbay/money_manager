@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 
 @Composable
 fun BudgetEditRoute(
@@ -13,6 +14,7 @@ fun BudgetEditRoute(
     viewModel: BudgetEditViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val strings = MoneyManagerTheme.strings
 
     BudgetEditScreen(
         state = state,
@@ -21,7 +23,13 @@ fun BudgetEditRoute(
         onCategorySelect = viewModel::selectCategory,
         onCategoryDismiss = { viewModel.toggleCategoryPicker(false) },
         onLimitChange = viewModel::updateLimit,
-        onSave = { viewModel.save(onBack) },
+        onSave = {
+            viewModel.save(
+                onComplete = onBack,
+                categoryError = strings.errorSelectCategory,
+                limitError = strings.errorEnterValidLimit,
+            )
+        },
         modifier = modifier,
     )
 }
