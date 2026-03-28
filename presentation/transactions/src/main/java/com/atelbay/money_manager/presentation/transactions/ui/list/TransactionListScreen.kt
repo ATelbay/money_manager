@@ -3,7 +3,9 @@ package com.atelbay.money_manager.presentation.transactions.ui.list
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -102,8 +104,12 @@ fun TransactionListScreen(
     val locale = s.locale
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
-    val dateHeaderFormat = remember(locale) { SimpleDateFormat("dd MMMM", locale) }
-    val timeFormat = remember(locale) { SimpleDateFormat("HH:mm", locale) }
+    val dateHeaderFormat = remember(locale) {
+        SimpleDateFormat("dd MMMM", locale).also { it.timeZone = java.util.TimeZone.getDefault() }
+    }
+    val timeFormat = remember(locale) {
+        SimpleDateFormat("HH:mm", locale).also { it.timeZone = java.util.TimeZone.getDefault() }
+    }
     val layoutDirection = LocalLayoutDirection.current
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -197,6 +203,7 @@ fun TransactionListScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                         .testTag("transactionList:periodFilter"),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
