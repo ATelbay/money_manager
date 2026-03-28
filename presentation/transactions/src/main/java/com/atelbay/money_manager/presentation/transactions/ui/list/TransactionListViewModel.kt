@@ -35,16 +35,15 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import javax.inject.Inject
+
+private data class CustomDateRange(val startMillis: Long, val endMillis: Long)
 
 private data class FilterParams(
     val tab: TransactionType?,
     val period: Period,
     val searchQuery: String,
-    val customDateRange: Pair<Long, Long>?,
+    val customDateRange: CustomDateRange?,
 )
 
 private data class DataParams(
@@ -83,9 +82,9 @@ class TransactionListViewModel @Inject constructor(
     val state: StateFlow<TransactionListState> = _state.asStateFlow()
 
     private val _selectedTab = MutableStateFlow<TransactionType?>(null)
-    private val _selectedPeriod = MutableStateFlow(Period.CURRENT_MONTH)
+    private val _selectedPeriod = MutableStateFlow(Period.MONTH)
     private val _searchQuery = MutableStateFlow("")
-    private val _customDateRange = MutableStateFlow<Pair<Long, Long>?>(null)
+    private val _customDateRange = MutableStateFlow<CustomDateRange?>(null)
 
     init {
         val dataFlow = combine(
@@ -126,11 +125,12 @@ class TransactionListViewModel @Inject constructor(
             }
 
             val periodFiltered = when {
-                filters.customDateRange != null -> {
-                    val (startMillis, endMillis) = filters.customDateRange
-                    accountFiltered.filter { it.date in startMillis until endMillis }
-                }
                 filters.period == Period.ALL -> accountFiltered
+                filters.period == Period.CUSTOM && filters.customDateRange != null -> {
+                    val startMillis = filters.customDateRange.startMillis
+                    val endMillis = filters.customDateRange.endMillis
+                    accountFiltered.filter { it.date in startMillis..endMillis }
+                }
                 else -> {
                     val (rangeStart, rangeEnd) = periodToRange(filters.period)
                     val startMillis =
@@ -173,7 +173,6 @@ class TransactionListViewModel @Inject constructor(
                 baseCurrency = data.baseCurrency,
                 exchangeRate = data.exchangeRate,
                 canConvertAll = canConvertAll,
-                showAccountName = selectedAccount == null,
             )
             val summaryMetrics = resolveSummaryMetrics(
                 selectedAccount = selectedAccount,
@@ -206,7 +205,10 @@ class TransactionListViewModel @Inject constructor(
                     periodExpense = summaryMetrics.expense,
                     accounts = data.accounts.toImmutableList(),
                     dailyNetSums = dailyNetSums,
-                    customDateRange = filters.customDateRange,
+                    // Preserve UI-driven flags so fast combine emissions don't overwrite them.
+                    showDatePickerDialog = it.showDatePickerDialog,
+                    customDateRangeStart = filters.customDateRange?.startMillis,
+                    customDateRangeEnd = filters.customDateRange?.endMillis,
                 )
             }
         }
@@ -224,44 +226,7 @@ class TransactionListViewModel @Inject constructor(
     }
 
     fun selectPeriod(period: Period) {
-        _customDateRange.value = null
-        _state.update { it.copy(customDateRange = null, customDateLabel = null) }
         _selectedPeriod.value = period
-    }
-
-    fun setCustomDateRange(startMillis: Long, endMillis: Long) {
-        _customDateRange.value = startMillis to endMillis
-        val zone = ZoneId.systemDefault()
-        val startDate = Instant.ofEpochMilli(startMillis).atZone(zone).toLocalDate()
-        val endDate = Instant.ofEpochMilli(endMillis).atZone(zone).toLocalDate()
-        val label = buildCustomRangeLabel(startDate, endDate)
-        _state.update { it.copy(customDateLabel = label, showDatePickerDialog = false) }
-    }
-
-    fun setCustomMonth(year: Int, month: Int) {
-        val zone = ZoneId.systemDefault()
-        val firstDay = LocalDate.of(year, month, 1)
-        val lastDay = firstDay.withDayOfMonth(firstDay.lengthOfMonth())
-        val startMillis = firstDay.atStartOfDay(zone).toInstant().toEpochMilli()
-        val endMillis = lastDay.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        _customDateRange.value = startMillis to endMillis
-        val monthName = firstDay.format(DateTimeFormatter.ofPattern("LLLL yyyy", Locale.getDefault()))
-        val label = monthName.replaceFirstChar { it.uppercaseChar() }
-        _state.update { it.copy(customDateLabel = label, showDatePickerDialog = false) }
-    }
-
-    fun clearCustomDateRange() {
-        _customDateRange.value = null
-        _state.update { it.copy(customDateRange = null, customDateLabel = null) }
-    }
-
-    fun toggleDatePickerDialog() {
-        _state.update { it.copy(showDatePickerDialog = !it.showDatePickerDialog) }
-    }
-
-    private fun buildCustomRangeLabel(startDate: LocalDate, endDate: LocalDate): String {
-        val dayMonthFmt = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
-        return "${startDate.format(dayMonthFmt)} – ${endDate.format(dayMonthFmt)}"
     }
 
     fun deleteTransaction(id: Long) {
@@ -282,6 +247,24 @@ class TransactionListViewModel @Inject constructor(
 
     fun dismissAccountPicker() {
         _state.update { it.copy(showAccountPicker = false) }
+    }
+
+    fun toggleDatePickerDialog() {
+        _state.update { it.copy(showDatePickerDialog = !it.showDatePickerDialog) }
+    }
+
+    /**
+     * Sets a custom date range filter.
+     *
+     * [startMillis] and [endMillis] are UTC-midnight timestamps as returned by
+     * Material [DateRangePicker]. [endMillis] is adjusted to end-of-day
+     * (23:59:59.999) so transactions on the last selected day are included.
+     */
+    fun setCustomDateRange(startMillis: Long, endMillis: Long) {
+        val adjustedEnd = endMillis + 86_400_000L - 1L  // end of day (23:59:59.999)
+        _customDateRange.value = CustomDateRange(startMillis, adjustedEnd)
+        _selectedPeriod.value = Period.CUSTOM
+        _state.update { it.copy(showDatePickerDialog = false) }
     }
 
     private fun computeDailyNetSums(
@@ -309,7 +292,6 @@ class TransactionListViewModel @Inject constructor(
         baseCurrency: String,
         exchangeRate: ExchangeRate?,
         canConvertAll: Boolean,
-        showAccountName: Boolean = false,
     ): ImmutableList<TransactionRowState> {
         val currenciesByAccountId = accounts.associateBy(Account::id)
         val normalizedBaseCurrency = normalizeCurrency(baseCurrency)
@@ -353,11 +335,6 @@ class TransactionListViewModel @Inject constructor(
                 secondaryMoneyDisplay = originalCurrency
                     .takeIf { hasConvertedAmount }
                     ?.let(MoneyDisplayFormatter::resolveAndFormat),
-                accountName = if (showAccountName) {
-                    currenciesByAccountId[transaction.accountId]?.name
-                } else {
-                    null
-                },
             )
         }.toImmutableList()
     }
@@ -366,11 +343,12 @@ class TransactionListViewModel @Inject constructor(
         val today = LocalDate.now()
         return when (period) {
             Period.ALL -> LocalDate.of(2000, 1, 1) to today
-            Period.CURRENT_MONTH -> today.withDayOfMonth(1) to today
             Period.TODAY -> today to today
             Period.WEEK -> today.minusDays(6) to today
             Period.MONTH -> today.minusDays(29) to today
             Period.YEAR -> today.minusYears(1).plusDays(1) to today
+            // CUSTOM range is handled separately via _customDateRange millis; fall back to today.
+            Period.CUSTOM -> today to today
         }
     }
 

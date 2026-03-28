@@ -16,16 +16,19 @@ data class TransactionListState(
     val selectedAccountName: String? = null,
     val selectedAccountId: Long? = null,
     val selectedTab: TransactionType? = null,
-    val selectedPeriod: Period = Period.CURRENT_MONTH,
+    val selectedPeriod: Period = Period.MONTH,
     val periodIncome: Double? = null,
     val periodExpense: Double? = null,
     val searchQuery: String = "",
     val accounts: ImmutableList<Account> = persistentListOf(),
     val showAccountPicker: Boolean = false,
     val dailyNetSums: Map<String, Double> = emptyMap(),
-    val customDateRange: Pair<Long, Long>? = null,
+    /** Whether the date range picker dialog is currently visible. */
     val showDatePickerDialog: Boolean = false,
-    val customDateLabel: String? = null,
+    /** Start of the custom date range (epoch millis, inclusive). Null when period != CUSTOM. */
+    val customDateRangeStart: Long? = null,
+    /** End of the custom date range (epoch millis, inclusive end-of-day). Null when period != CUSTOM. */
+    val customDateRangeEnd: Long? = null,
 )
 
 data class TransactionRowState(
@@ -37,7 +40,6 @@ data class TransactionRowState(
     val conversionStatus: ConversionStatus = ConversionStatus.UNAVAILABLE,
     val displayMoneyDisplay: MoneyDisplayPresentation,
     val secondaryMoneyDisplay: MoneyDisplayPresentation? = null,
-    val accountName: String? = null,
 ) {
     val displayAmount: Double
         get() = convertedAmount ?: originalAmount
@@ -53,9 +55,9 @@ enum class ConversionStatus {
 
 enum class Period {
     ALL,
-    CURRENT_MONTH,
     TODAY,
     WEEK,
     MONTH,
     YEAR,
+    CUSTOM,
 }
