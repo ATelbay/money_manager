@@ -27,7 +27,7 @@ class ExportTransactionsToCsvUseCase @Inject constructor(
         for (tx in transactions) {
             val date = dateFormatter.format(Instant.ofEpochMilli(tx.date))
             val type = tx.type.name.lowercase()
-            val amount = tx.amount.toString()
+            val amount = java.math.BigDecimal(tx.amount).stripTrailingZeros().toPlainString()
             val category = csvQuote(tx.categoryName)
             val account = csvQuote(accountMap[tx.accountId] ?: "")
             val note = csvQuote(tx.note ?: "")
