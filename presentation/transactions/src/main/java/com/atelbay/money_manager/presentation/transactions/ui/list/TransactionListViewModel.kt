@@ -267,6 +267,17 @@ class TransactionListViewModel @Inject constructor(
         _state.update { it.copy(showDatePickerDialog = false) }
     }
 
+    fun setCustomMonth(year: Int, month: Int) {
+        val startLocal = LocalDate.of(year, month, 1)
+        val endLocal = startLocal.withDayOfMonth(startLocal.lengthOfMonth())
+        val zone = ZoneId.systemDefault()
+        val startMillis = startLocal.atStartOfDay(zone).toInstant().toEpochMilli()
+        val endMillis = endLocal.atStartOfDay(zone).toInstant().toEpochMilli() + 86_400_000L - 1L
+        _customDateRange.value = CustomDateRange(startMillis, endMillis)
+        _selectedPeriod.value = Period.CUSTOM
+        _state.update { it.copy(showDatePickerDialog = false) }
+    }
+
     private fun computeDailyNetSums(
         transactionRows: ImmutableList<TransactionRowState>,
     ): Map<String, Double> {

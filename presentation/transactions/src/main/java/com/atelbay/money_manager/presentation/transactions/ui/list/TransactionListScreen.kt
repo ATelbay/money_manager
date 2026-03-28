@@ -210,16 +210,15 @@ fun TransactionListScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     val periods = listOf(
-                        Period.CURRENT_MONTH to s.currentMonth,
+                        Period.MONTH to s.currentMonth,
                         Period.TODAY to s.periodDay,
                         Period.WEEK to s.periodWeek,
-                        Period.MONTH to s.thirtyDays,
                         Period.YEAR to s.periodYear,
                     )
                     periods.forEach { (period, label) ->
                         MoneyManagerChip(
                             label = label,
-                            selected = state.customDateRange == null && state.selectedPeriod == period,
+                            selected = state.customDateRangeStart == null && state.selectedPeriod == period,
                             onClick = { onPeriodSelected(period) },
                         )
                     }
@@ -231,7 +230,7 @@ fun TransactionListScreen(
                         Icon(
                             Icons.Default.DateRange,
                             contentDescription = s.selectRange,
-                            tint = if (state.customDateRange != null) {
+                            tint = if (state.customDateRangeStart != null) {
                                 colors.chart1
                             } else {
                                 colors.textSecondary
@@ -242,7 +241,7 @@ fun TransactionListScreen(
             }
 
             // 2b. Custom date range label (shown when a custom range is active)
-            if (state.customDateRange != null && state.customDateLabel != null) {
+            if (state.customDateRangeStart != null && state.customDateRangeEnd != null) {
                 item(key = "customRangeLabel") {
                     Row(
                         modifier = Modifier
@@ -250,8 +249,12 @@ fun TransactionListScreen(
                             .padding(horizontal = 16.dp)
                             .padding(bottom = 4.dp),
                     ) {
+                        val customLabel = remember(state.customDateRangeStart, state.customDateRangeEnd) {
+                            val sdf = java.text.SimpleDateFormat("dd.MM", java.util.Locale.getDefault())
+                            "${sdf.format(java.util.Date(state.customDateRangeStart))} – ${sdf.format(java.util.Date(state.customDateRangeEnd))}"
+                        }
                         MoneyManagerChip(
-                            label = state.customDateLabel,
+                            label = customLabel,
                             selected = true,
                             onClick = onCalendarClick,
                             modifier = Modifier.testTag("transactionList:customRangeLabel"),
@@ -441,7 +444,7 @@ fun TransactionListScreen(
                             secondaryAmountLabel = s.originalAmount.takeIf {
                                 isShowingConvertedAmount
                             },
-                            accountName = row.accountName,
+                            accountName = null,
                             onClick = { onTransactionClick(transaction.id) },
                             modifier = sharedModifier
                                 .animateItem(
@@ -735,7 +738,7 @@ private fun TransactionListScreenEmptyPreview() {
                 selectedAccountName = "Kaspi Gold",
                 periodIncome = 0.0,
                 periodExpense = 0.0,
-                selectedPeriod = Period.CURRENT_MONTH,
+                selectedPeriod = Period.MONTH,
             ),
             onTransactionClick = {},
             onAddClick = {},
