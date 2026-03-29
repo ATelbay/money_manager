@@ -1,91 +1,91 @@
 ---
-description: "Room Database и DataStore в Money Manager: entities (Account, Category, Transaction), DAO, миграции, ForeignKeys, prepopulation, Preferences DataStore"
+description: "Room Database and DataStore in Money Manager: entities (Account, Category, Transaction), DAO, migrations, ForeignKeys, prepopulation, Preferences DataStore"
 ---
 
 # Room Database & DataStore
 
 ## Context
 
-Проект использует Room (2.8.4) для локального хранения и Preferences DataStore (1.1.7) для настроек пользователя.
+The project uses Room (2.8.4) for local storage and Preferences DataStore (1.1.7) for user settings.
 
-**Ключевые файлы:**
-- `core/database/src/.../MoneyManagerDatabase.kt` — @Database класс
+**Key files:**
+- `core/database/src/.../MoneyManagerDatabase.kt` — @Database class
 - `core/database/src/.../entity/` — AccountEntity.kt, CategoryEntity.kt, TransactionEntity.kt
 - `core/database/src/.../dao/` — AccountDao.kt, CategoryDao.kt, TransactionDao.kt
-- `core/database/src/.../DefaultCategories.kt` — 15 предустановленных категорий
-- `core/database/src/.../di/DatabaseModule.kt` — Hilt-модуль для Room
-- `core/datastore/src/.../UserPreferences.kt` — DataStore обёртка
-- `core/datastore/src/.../di/DataStoreModule.kt` — Hilt-модуль для DataStore
+- `core/database/src/.../DefaultCategories.kt` — 15 pre-installed categories
+- `core/database/src/.../di/DatabaseModule.kt` — Hilt module for Room
+- `core/datastore/src/.../UserPreferences.kt` — DataStore wrapper
+- `core/datastore/src/.../di/DataStoreModule.kt` — Hilt module for DataStore
 
 ## Entities
 
-3 entities с ForeignKeys:
+3 entities with ForeignKeys:
 
-- **AccountEntity** — банковские счета (name, currency, balance)
-- **CategoryEntity** — категории транзакций (name, icon, type: INCOME/EXPENSE)
-- **TransactionEntity** — транзакции (amount, date, description, type, accountId FK, categoryId FK)
+- **AccountEntity** — bank accounts (name, currency, balance)
+- **CategoryEntity** — transaction categories (name, icon, type: INCOME/EXPENSE)
+- **TransactionEntity** — transactions (amount, date, description, type, accountId FK, categoryId FK)
 
 ForeignKeys: TransactionEntity → AccountEntity, TransactionEntity → CategoryEntity
 
 ## Prepopulation
 
-15 предустановленных категорий (10 расход + 5 доход) определены в `DefaultCategories.kt`.
-Загружаются через `RoomDatabase.Callback.onCreate` — вставляются ОДИН раз при первом создании БД.
+15 pre-installed categories (10 expense + 5 income) are defined in `DefaultCategories.kt`.
+Loaded via `RoomDatabase.Callback.onCreate` — inserted ONCE on first database creation.
 
 ## DataStore (UserPreferences)
 
-| Ключ | Тип | Описание |
-|------|-----|----------|
-| `onboarding_completed` | Boolean | Пройден ли онбординг |
-| `selected_account_id` | Long? | Текущий выбранный счёт |
-| `theme_mode` | String | Тема: `"system"`, `"light"`, `"dark"` |
+| Key | Type | Description |
+|-----|------|-------------|
+| `onboarding_completed` | Boolean | Whether onboarding has been completed |
+| `selected_account_id` | Long? | Currently selected account |
+| `theme_mode` | String | Theme: `"system"`, `"light"`, `"dark"` |
 
 ## Cloud Sync (core:firestore + data:sync)
 
-Проект содержит дополнительные модули для облачной синхронизации:
+The project contains additional modules for cloud synchronization:
 
-- **`core:firestore`** — обёртка над Firebase Firestore SDK (Firestore instance, query helpers)
-- **`data:sync`** — SyncManager: двусторонняя синхронизация Room ↔ Firestore
+- **`core:firestore`** — wrapper over Firebase Firestore SDK (Firestore instance, query helpers)
+- **`data:sync`** — SyncManager: bidirectional synchronization Room ↔ Firestore
 
-Зависимость: `data:sync` → `core:firestore` + `core:database`
+Dependency: `data:sync` → `core:firestore` + `core:database`
 
-Эти модули НЕ являются частью стандартного CRUD-слоя — они работают параллельно с Room и не меняют DAO-паттерн. Добавлять `core:firestore` в domain или presentation модули не нужно.
+These modules are NOT part of the standard CRUD layer — they work in parallel with Room and do not change the DAO pattern. There is no need to add `core:firestore` to domain or presentation modules.
 
 ## Process
 
-### Добавление новой Entity
-1. Создать `{Name}Entity.kt` в `core/database/src/.../entity/`
-2. Добавить `@Entity` аннотацию с tableName, indices, foreignKeys
-3. Создать `{Name}Dao.kt` в `core/database/src/.../dao/`
-4. Зарегистрировать entity в `@Database(entities = [...])` в `MoneyManagerDatabase.kt`
-5. Добавить abstract fun для DAO в `MoneyManagerDatabase.kt`
-6. Провайдить DAO через `DatabaseModule.kt`
-7. Увеличить версию БД и **создать миграцию**
+### Adding a New Entity
+1. Create `{Name}Entity.kt` in `core/database/src/.../entity/`
+2. Add `@Entity` annotation with tableName, indices, foreignKeys
+3. Create `{Name}Dao.kt` in `core/database/src/.../dao/`
+4. Register the entity in `@Database(entities = [...])` in `MoneyManagerDatabase.kt`
+5. Add abstract fun for DAO in `MoneyManagerDatabase.kt`
+6. Provide DAO through `DatabaseModule.kt`
+7. Increment the DB version and **create a migration**
 
-### Создание миграции
-1. Увеличить `version` в `@Database(version = N+1)`
-2. Создать `Migration(N, N+1)` с SQL для ALTER TABLE / CREATE TABLE
-3. Добавить миграцию в `.addMigrations()` при построении базы в `DatabaseModule.kt`
-4. Протестировать миграцию
+### Creating a Migration
+1. Increment `version` in `@Database(version = N+1)`
+2. Create `Migration(N, N+1)` with SQL for ALTER TABLE / CREATE TABLE
+3. Add the migration to `.addMigrations()` when building the database in `DatabaseModule.kt`
+4. Test the migration
 
-### Добавление нового DAO-метода
-1. Добавить метод в соответствующий `*Dao.kt`
-2. Для запросов с `Flow` использовать `@Query` + return `Flow<List<Entity>>`
-3. Для вставок использовать `@Insert(onConflict = OnConflictStrategy.REPLACE)`
-4. Для удаления — `@Delete` или `@Query("DELETE FROM ...")`
+### Adding a New DAO Method
+1. Add the method to the corresponding `*Dao.kt`
+2. For queries with `Flow` use `@Query` + return `Flow<List<Entity>>`
+3. For inserts use `@Insert(onConflict = OnConflictStrategy.REPLACE)`
+4. For deletions — `@Delete` or `@Query("DELETE FROM ...")`
 
 ## Quality Bar
 
-- Все DAO-методы с `Flow` для реактивных обновлений UI
-- `@Insert` с `onConflict = REPLACE` для upsert-поведения
-- ForeignKeys с `onDelete = CASCADE` где логически уместно
-- Indices на часто фильтруемые колонки (accountId, categoryId, date)
-- DataStore операции через `suspend` функции
+- All DAO methods with `Flow` for reactive UI updates
+- `@Insert` with `onConflict = REPLACE` for upsert behavior
+- ForeignKeys with `onDelete = CASCADE` where logically appropriate
+- Indices on frequently filtered columns (accountId, categoryId, date)
+- DataStore operations via `suspend` functions
 
 ## Anti-patterns
 
-- НЕ обращайся к Room напрямую из ViewModel — только через Repository
-- НЕ используй `allowMainThreadQueries()` — все запросы через Coroutines
-- НЕ забывай миграцию при изменении схемы — `fallbackToDestructiveMigration` только для debug
-- НЕ хардкодь SQL-строки в нескольких местах — определяй TABLE_NAME как companion const
-- НЕ создавай Entity без `@PrimaryKey(autoGenerate = true)` для auto-increment ID
+- Do NOT access Room directly from ViewModel — only through Repository
+- Do NOT use `allowMainThreadQueries()` — all queries via Coroutines
+- Do NOT forget migrations when changing the schema — `fallbackToDestructiveMigration` only for debug
+- Do NOT hardcode SQL strings in multiple places — define TABLE_NAME as companion const
+- Do NOT create Entity without `@PrimaryKey(autoGenerate = true)` for auto-increment ID

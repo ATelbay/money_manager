@@ -1,41 +1,41 @@
 ---
-description: "Верификация Android API через поиск документации: Jetpack Compose, Navigation 2.9+, Hilt, Material 3, Room — предотвращение галлюцинаций устаревшими методами"
+description: "Verifying Android APIs via documentation search: Jetpack Compose, Navigation 2.9+, Hilt, Material 3, Room — preventing hallucinations with outdated methods"
 ---
 
 # Web Search Android Docs
 
 ## Context
 
-Стек проекта быстро обновляется (Compose BOM 2026.01.01, Navigation 2.9.7, Kotlin 2.3.0). Агент должен верифицировать API через веб-поиск перед использованием, чтобы не предлагать устаревший или несуществующий код.
+The project stack evolves quickly (Compose BOM 2026.01.01, Navigation 2.9.7, Kotlin 2.3.0). Always verify APIs via web search before using them to avoid suggesting outdated or non-existent code.
 
-## Когда использовать
+## When to Use
 
-**ОБЯЗАТЕЛЬНО** проверяй через WebSearch/WebFetch в следующих случаях:
+**ALWAYS** verify via WebSearch/WebFetch in the following cases:
 
-| Триггер | Пример |
-|---------|--------|
-| Navigation Compose API | `composable<T>`, `toRoute<T>`, `NavType` для custom types |
-| Compose API, в котором не уверен | Новые модификаторы, `AnimatedContent`, `Modifier.animateItem()` |
-| Material 3 компоненты | `ExposedDropdownMenuBox`, `SegmentedButton`, `DatePickerDialog` |
-| Hilt + Compose интеграция | `hiltViewModel()`, `@HiltViewModel`, navigation-hilt |
-| Room новые фичи | `@Upsert`, `@MapColumn`, auto-migrations |
-| Kotlin 2.x специфика | context receivers, explicit backing fields, KSP 2 |
-| Vico charts API | Версия 2.x имеет значительные breaking changes vs 1.x |
-| Firebase AI SDK | API может отличаться между версиями |
+| Trigger | Example |
+|---------|---------|
+| Navigation Compose API | `composable<T>`, `toRoute<T>`, `NavType` for custom types |
+| Compose API you're unsure about | New modifiers, `AnimatedContent`, `Modifier.animateItem()` |
+| Material 3 components | `ExposedDropdownMenuBox`, `SegmentedButton`, `DatePickerDialog` |
+| Hilt + Compose integration | `hiltViewModel()`, `@HiltViewModel`, navigation-hilt |
+| Room new features | `@Upsert`, `@MapColumn`, auto-migrations |
+| Kotlin 2.x specifics | context receivers, explicit backing fields, KSP 2 |
+| Vico charts API | Version 2.x has significant breaking changes vs 1.x |
+| Firebase AI SDK | API may differ between versions |
 | Firebase Auth + CredentialManager | `BeginSignInRequest`, `GetGoogleIdOption`, `CredentialManager.getCredential()` |
-| Coil 3 | `AsyncImage`, `ImageRequest` — группа изменилась на `io.coil-kt.coil3` |
+| Coil 3 | `AsyncImage`, `ImageRequest` — group changed to `io.coil-kt.coil3` |
 | Turbine (Flow testing) | `app.cash.turbine.test {}`, `awaitItem()`, `awaitComplete()` |
 
 ## Process
 
-### context7 MCP (предпочтительный метод)
+### context7 MCP (preferred method)
 
-Для поиска документации по библиотекам используй context7 MCP — быстрее и точнее чем WebSearch:
+For library documentation lookups, use the context7 MCP — faster and more precise than WebSearch:
 
-1. `mcp__context7__resolve-library-id` — найди ID библиотеки по названию
-2. `mcp__context7__query-docs` — запроси документацию по libraryId
+1. `mcp__context7__resolve-library-id` — find the library ID by name
+2. `mcp__context7__query-docs` — query documentation by libraryId
 
-Примеры:
+Examples:
 ```
 resolve("navigation-compose") → query("type-safe destinations composable")
 resolve("androidx room")      → query("@Upsert @MapColumn")
@@ -44,18 +44,18 @@ resolve("vico charts")        → query("CartesianChartHost rememberCartesianCha
 resolve("turbine")            → query("test awaitItem awaitComplete")
 ```
 
-Используй WebSearch/WebFetch только если context7 не нашёл нужную информацию.
+Use WebSearch/WebFetch only if context7 did not find the needed information.
 
-### Шаг 1: Определи что нужно проверить
-Сформулируй конкретный вопрос: какой API, какой класс/метод, какая версия.
+### Step 1: Identify what to verify
+Formulate a specific question: which API, which class/method, which version.
 
-### Шаг 2: Поиск
-Используй `WebSearch` с запросом, включающим:
-- Название API + "android" или "jetpack"
-- Версию библиотеки из `libs.versions.toml`
-- Текущий год (2026) для актуальности
+### Step 2: Search
+Use `WebSearch` with a query that includes:
+- API name + "android" or "jetpack"
+- Library version from `libs.versions.toml`
+- Current year (2026) for relevance
 
-Примеры запросов:
+Example queries:
 ```
 "Jetpack Compose Navigation type-safe 2.9 site:developer.android.com"
 "Material 3 ExposedDropdownMenuBox Compose 2026"
@@ -63,23 +63,23 @@ resolve("turbine")            → query("test awaitItem awaitComplete")
 "Vico chart 2.x compose migration"
 ```
 
-### Шаг 3: Чтение документации
-Используй `WebFetch` для чтения:
-- `https://developer.android.com/reference/...` — справочник API
-- `https://developer.android.com/develop/ui/compose/...` — гайды Compose
-- `https://developer.android.com/training/data-storage/room/...` — гайды Room
+### Step 3: Read the documentation
+Use `WebFetch` to read:
+- `https://developer.android.com/reference/...` — API reference
+- `https://developer.android.com/develop/ui/compose/...` — Compose guides
+- `https://developer.android.com/training/data-storage/room/...` — Room guides
 - `https://kotlinlang.org/docs/...` — Kotlin docs
 - `https://dagger.dev/hilt/...` — Hilt docs
 
-### Шаг 4: Применение
-- Если найденный API отличается от того что ты собирался написать — используй документированную версию
-- Если API deprecated — найди замену в тех же docs
-- Если не нашёл — предупреди пользователя о неуверенности
+### Step 4: Apply
+- If the found API differs from what you were about to write — use the documented version
+- If the API is deprecated — find the replacement in the same docs
+- If nothing was found — warn the user about the uncertainty
 
-## Версии проекта (из libs.versions.toml)
+## Project Versions (from libs.versions.toml)
 
-| Библиотека | Версия |
-|------------|--------|
+| Library | Version |
+|---------|---------|
 | Compose BOM | 2026.01.01 |
 | Navigation | 2.9.7 |
 | Hilt | 2.58 |
@@ -97,14 +97,14 @@ resolve("turbine")            → query("test awaitItem awaitComplete")
 
 ## Quality Bar
 
-- Не предлагай код с API, в котором не уверен, без предварительной проверки
-- Указывай источник (ссылку на документацию) когда предлагаешь неочевидный API
-- Если документация противоречит — приоритет у official Android reference
+- Do not suggest code with APIs you are unsure about without verifying first
+- Cite the source (link to documentation) when proposing a non-obvious API
+- If documentation conflicts — the official Android reference takes priority
 
 ## Anti-patterns
 
-- НЕ полагайся на память для API, которые часто меняются (Compose, Navigation, Material 3)
-- НЕ используй примеры из Stack Overflow без проверки версии
-- НЕ предлагай `kapt` для Hilt — проект на KSP
-- НЕ используй deprecated navigation API (`composable(route = "...")`) — проект на type-safe navigation
-- НЕ смешивай Material 2 и Material 3 API (например `TopAppBar` из разных пакетов)
+- Do NOT rely on memory for APIs that change frequently (Compose, Navigation, Material 3)
+- Do NOT use Stack Overflow examples without verifying the version
+- Do NOT suggest `kapt` for Hilt — the project uses KSP
+- Do NOT use the deprecated navigation API (`composable(route = "...")`) — the project uses type-safe navigation
+- Do NOT mix Material 2 and Material 3 APIs (e.g. `TopAppBar` from different packages)

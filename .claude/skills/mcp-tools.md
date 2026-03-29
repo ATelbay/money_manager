@@ -1,127 +1,127 @@
 ---
-description: "MCP-инструменты в Money Manager: context7 для поиска документации, Firebase MCP для операций с проектом, Playwright — не применимо для Android"
+description: "MCP tools in Money Manager: context7 for library documentation lookup, Firebase MCP for project operations, Playwright — not applicable for Android"
 ---
 
 # MCP Tools
 
 ## Context
 
-В проекте доступны несколько MCP-серверов. Используй нужный инструмент для нужной задачи — это быстрее и точнее чем универсальные подходы.
+Several MCP servers are available in the project. Use the right tool for the right task — it's faster and more precise than general-purpose approaches.
 
-## context7 — Документация библиотек (предпочтительный метод)
+## context7 — Library Documentation (preferred method)
 
-**Когда использовать:** поиск API-документации, примеров кода для любой библиотеки в проекте. Быстрее и точнее чем WebSearch для библиотечных docs.
+**When to use:** looking up API documentation and code examples for any library in the project. Faster and more accurate than WebSearch for library docs.
 
-**Два шага:**
+**Two steps:**
 
-### Шаг 1: Найти libraryId
+### Step 1: Find libraryId
 ```
 mcp__context7__resolve-library-id
   query: "jetpack compose navigation"
-  → возвращает libraryId, например "/androidx/navigation"
+  → returns libraryId, e.g. "/androidx/navigation"
 ```
 
-### Шаг 2: Запросить документацию
+### Step 2: Query documentation
 ```
 mcp__context7__query-docs
   libraryId: "/androidx/navigation"
   query: "type-safe destinations composable"
-  → возвращает актуальную документацию с примерами кода
+  → returns up-to-date documentation with code examples
 ```
 
-**Примеры запросов для этого проекта:**
+**Example queries for this project:**
 
-| Задача | resolve query | docs query |
-|--------|--------------|------------|
+| Task | resolve query | docs query |
+|------|--------------|------------|
 | Type-safe Navigation | `"navigation-compose"` | `"type-safe composable destinations"` |
-| Room новые аннотации | `"androidx room"` | `"@Upsert @MapColumn"` |
+| Room new annotations | `"androidx room"` | `"@Upsert @MapColumn"` |
 | Hilt + Compose | `"hilt android"` | `"hiltViewModel ViewModelComponent"` |
 | Vico 2.x charts | `"vico charts compose"` | `"CartesianChartHost rememberCartesianChartModel"` |
 | Turbine Flow testing | `"turbine"` | `"test awaitItem awaitComplete"` |
 | Coil 3 AsyncImage | `"coil"` | `"AsyncImage ImageRequest compose"` |
-| Material 3 компоненты | `"compose material3"` | `"ExposedDropdownMenuBox SegmentedButton"` |
+| Material 3 components | `"compose material3"` | `"ExposedDropdownMenuBox SegmentedButton"` |
 | Firebase AI Gemini | `"firebase-ai-logic"` | `"generateContent GenerativeModel"` |
 | CredentialManager | `"androidx credentials"` | `"GetCredentialRequest GetGoogleIdOption"` |
 
 **context7 vs WebSearch:**
-- context7: API docs, сигнатуры методов, официальные примеры
-- WebSearch: Stack Overflow, GitHub Issues, блог-посты, changelog
+- context7: API docs, method signatures, official examples
+- WebSearch: Stack Overflow, GitHub Issues, blog posts, changelogs
 
-## Firebase MCP — Операции с Firebase проектом
+## Firebase MCP — Firebase Project Operations
 
-**Когда использовать:** настройка Firebase проекта, добавление SHA, проверка конфигурации, чтение security rules.
+**When to use:** configuring the Firebase project, adding SHA fingerprints, checking configuration, reading security rules.
 
-### Доступные инструменты
+### Available tools
 
-| Tool | Назначение |
-|------|-----------|
-| `mcp__plugin_firebase_firebase__firebase_list_projects` | Список Firebase проектов |
-| `mcp__plugin_firebase_firebase__firebase_get_project` | Детали проекта |
-| `mcp__plugin_firebase_firebase__firebase_list_apps` | Список приложений в проекте |
-| `mcp__plugin_firebase_firebase__firebase_get_sdk_config` | Получить google-services.json конфиг |
-| `mcp__plugin_firebase_firebase__firebase_get_security_rules` | Прочитать правила Firestore/Storage |
-| `mcp__plugin_firebase_firebase__firebase_create_android_sha` | Добавить SHA fingerprint |
-| `mcp__plugin_firebase_firebase__firebase_get_environment` | Информация о Firebase окружении |
-| `mcp__plugin_firebase_firebase__firebase_read_resources` | Прочитать ресурсы проекта |
+| Tool | Purpose |
+|------|---------|
+| `mcp__plugin_firebase_firebase__firebase_list_projects` | List Firebase projects |
+| `mcp__plugin_firebase_firebase__firebase_get_project` | Project details |
+| `mcp__plugin_firebase_firebase__firebase_list_apps` | List apps in a project |
+| `mcp__plugin_firebase_firebase__firebase_get_sdk_config` | Get google-services.json config |
+| `mcp__plugin_firebase_firebase__firebase_get_security_rules` | Read Firestore/Storage rules |
+| `mcp__plugin_firebase_firebase__firebase_create_android_sha` | Add SHA fingerprint |
+| `mcp__plugin_firebase_firebase__firebase_get_environment` | Firebase environment info |
+| `mcp__plugin_firebase_firebase__firebase_read_resources` | Read project resources |
 
-### Пример: добавление debug SHA fingerprint
+### Example: adding a debug SHA fingerprint
 
 ```bash
-# Шаг 1: Получить SHA из Gradle
+# Step 1: Get SHA from Gradle
 ./gradlew signingReport
-# Найди SHA-1 и SHA-256 для debug variant
+# Find SHA-1 and SHA-256 for the debug variant
 
-# Шаг 2: Добавить через Firebase MCP
+# Step 2: Add via Firebase MCP
 mcp__plugin_firebase_firebase__firebase_create_android_sha
   appId: "your-app-id"
-  shaHash: "SHA-1 или SHA-256 из signingReport"
-  hashType: "SHA_1"  # или "SHA_256"
+  shaHash: "SHA-1 or SHA-256 from signingReport"
+  hashType: "SHA_1"  # or "SHA_256"
 ```
 
-### Пример: проверка SDK конфигурации
+### Example: verifying SDK configuration
 
 ```
 mcp__plugin_firebase_firebase__firebase_get_sdk_config
   appId: "android-app-id"
-  → возвращает содержимое google-services.json
+  → returns the contents of google-services.json
 ```
 
-## Playwright MCP — НЕ применимо для Android
+## Playwright MCP — NOT applicable for Android
 
-**Playwright инструменты предназначены для веб-браузеров. НЕ используй для Android.**
+**Playwright tools are designed for web browsers. DO NOT use for Android.**
 
-| Нужна задача | Правильный инструмент |
-|-------------|----------------------|
-| Запустить UI-тесты | `./gradlew connectedAndroidTest` |
-| Проверить верстку | Android Studio Layout Inspector или `adb shell screencap` |
-| Взаимодействие с эмулятором | `adb shell input tap X Y` или `./gradlew installDebug` |
+| Task needed | Correct tool |
+|-------------|-------------|
+| Run UI tests | `./gradlew connectedAndroidTest` |
+| Inspect layout | Android Studio Layout Inspector or `adb shell screencap` |
+| Interact with emulator | `adb shell input tap X Y` or `./gradlew installDebug` |
 | Screenshot | `adb exec-out screencap -p > screen.png` |
 
-## IDE MCP — Диагностика
+## IDE MCP — Diagnostics
 
 ```
 mcp__ide__getDiagnostics
-  → возвращает ошибки/предупреждения компилятора без полного Gradle build
+  → returns compiler errors/warnings without a full Gradle build
 ```
 
-Полезно для быстрой проверки типов перед запуском `./gradlew assembleDebug`.
+Useful for a quick type-check before running `./gradlew assembleDebug`.
 
-## Быстрая шпаргалка
+## Quick Reference
 
-| Задача | Инструмент |
-|--------|-----------|
-| API документация библиотеки | context7: resolve → query |
-| Пример кода для Compose API | context7 → resolve "jetpack compose" |
-| Добавить SHA fingerprint | `firebase_create_android_sha` |
-| Проверить Firebase конфиг | `firebase_get_sdk_config` |
-| Прочитать security rules | `firebase_get_security_rules` |
-| Ошибки компилятора | `mcp__ide__getDiagnostics` |
-| Android UI тестирование | `./gradlew connectedAndroidTest` |
+| Task | Tool |
+|------|------|
+| Library API documentation | context7: resolve → query |
+| Code example for Compose API | context7 → resolve "jetpack compose" |
+| Add SHA fingerprint | `firebase_create_android_sha` |
+| Check Firebase config | `firebase_get_sdk_config` |
+| Read security rules | `firebase_get_security_rules` |
+| Compiler errors | `mcp__ide__getDiagnostics` |
+| Android UI testing | `./gradlew connectedAndroidTest` |
 | Stack Overflow / GitHub Issues | WebSearch |
 
 ## Anti-patterns
 
-- НЕ используй Playwright для Android — эти инструменты для веб-браузера
-- НЕ пропускай `resolve-library-id` перед `query-docs` — без libraryId запрос не работает
-- НЕ ищи Android документацию через WebSearch если context7 справится быстрее
-- НЕ используй Firebase MCP для изменения production security rules без review
+- DO NOT use Playwright for Android — these tools are for web browsers
+- DO NOT skip `resolve-library-id` before `query-docs` — without libraryId the query will not work
+- DO NOT search for Android documentation via WebSearch if context7 can handle it faster
+- DO NOT use Firebase MCP to modify production security rules without a review

@@ -85,19 +85,20 @@ MoneyManager/
 
 | Скилл | Описание |
 |-------|----------|
-| `architecture-and-di.md` | Layer-centric многомодульность, Convention Plugins, Hilt DI, Type-Safe Navigation |
-| `clean-architecture-feature-scaffold.md` | Генератор новой фичи: 3 модуля (domain/data/presentation) |
-| `compose-ui-guidelines.md` | Compose паттерны, naming, State Hoisting, testTag |
-| `room-database.md` | Room entities, DAO, миграции, DataStore, Firestore sync |
-| `pdf-and-ai-parsing.md` | Импорт выписок: RegEx → Gemini AI fallback |
-| `generate-ui-test.md` | Генерация UI-тестов с ComposeTestRule |
-| `unit-testing.md` | Unit-тесты: ViewModel + UseCase с MockK и Turbine |
-| `web-search-android-docs.md` | Верификация API через context7 MCP и веб-поиск |
-| `gradle-troubleshooting.md` | Диагностика ошибок сборки Gradle |
-| `git-conventional-commits.md` | Анализ изменений и коммиты в формате Conventional Commits |
+| `architecture-and-di.md` | Layer-centric multi-module architecture, Convention Plugins, Hilt DI, Type-Safe Navigation |
+| `clean-architecture-feature-scaffold.md` | New feature generator: 3 modules (domain/data/presentation) |
+| `compose-ui-guidelines.md` | Compose patterns, naming, State Hoisting, testTag |
+| `room-database.md` | Room entities, DAOs, migrations, DataStore, Firestore sync |
+| `pdf-and-ai-parsing.md` | Bank statement import: RegEx → Gemini AI fallback |
+| `generate-ui-test.md` | UI test generation with ComposeTestRule |
+| `unit-testing.md` | Unit tests: ViewModel + UseCase with MockK and Turbine |
+| `web-search-android-docs.md` | API verification via context7 MCP and web search |
+| `gradle-troubleshooting.md` | Gradle build error diagnostics |
+| `git-conventional-commits.md` | Change analysis and Conventional Commits format |
 | `firebase-auth.md` | Firebase Auth + CredentialManager: Google Sign-In, Coil 3 |
-| `mcp-tools.md` | MCP-инструменты: context7 для документации, Firebase MCP |
+| `mcp-tools.md` | MCP tools: context7 for docs, Firebase MCP |
 | `pencil-design.md` | Pencil MCP: reading, creating, and referencing UI designs in .pen files |
+| `stitch-design.md` | Stitch MCP: AI screen generation, design systems, variants |
 
 ## Полезные команды
 
