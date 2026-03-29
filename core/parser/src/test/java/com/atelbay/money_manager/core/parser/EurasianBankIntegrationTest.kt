@@ -26,7 +26,7 @@ class EurasianBankIntegrationTest {
 
         // config has deduplicateMaxAmount=true — triplet rows for foreign-currency tx are collapsed
         val deduplicatedTransactions = parser.parse(text, config)
-        assertEquals(21, deduplicatedTransactions.size)
+        assertEquals(31, deduplicatedTransactions.size)
         println("Eurasian: ${deduplicatedTransactions.size} transactions after dedup")
         deduplicatedTransactions.take(5).forEach {
             println("  date=${it.date} amount=${it.amount} type=${it.type} details=${it.details}")
@@ -58,9 +58,9 @@ class EurasianBankIntegrationTest {
         val raw = parser.parse(text, configWithoutDedup)
 
         println("Eurasian raw: ${raw.size}, after dedup: ${deduped.size}")
-        // PDF has foreign-currency transactions: raw count (49) > deduped count (21)
-        assertEquals(21, deduped.size)
-        assertEquals(49, raw.size)
+        // PDF has foreign-currency transactions: raw count (69) > deduped count (31)
+        assertEquals(31, deduped.size)
+        assertEquals(69, raw.size)
         assertTrue("Dedup should not increase transaction count", deduped.size <= raw.size)
     }
 }

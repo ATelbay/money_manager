@@ -28,4 +28,6 @@ data class ParserConfig(
     @SerialName("use_named_groups") val useNamedGroups: Boolean = false,
     /** When true: after parsing, keep only the transaction with the max amount per (date, details) group. */
     @SerialName("deduplicate_max_amount") val deduplicateMaxAmount: Boolean = false,
+    /** Post-join line fixups: each entry is [regexPattern, replacement] applied before regex matching. */
+    @SerialName("line_fixups") val lineFixups: List<List<String>> = emptyList(),
 )

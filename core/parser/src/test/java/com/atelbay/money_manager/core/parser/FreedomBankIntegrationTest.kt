@@ -24,7 +24,7 @@ class FreedomBankIntegrationTest {
         val text = PdfTestHelper.extractText("freedom_statement.pdf")
         val config = bankDetector.detect(text, configs)!!
         val transactions = parser.parse(text, config)
-        assertEquals(93, transactions.size)
+        assertEquals(101, transactions.size)
     }
 
     @Test
@@ -34,10 +34,11 @@ class FreedomBankIntegrationTest {
         val transactions = parser.parse(text, config)
         assertTrue("Need at least 1 transaction", transactions.isNotEmpty())
         val first = transactions.first()
-        assertEquals(LocalDate(2026, 2, 24), first.date)
-        assertEquals(28774.53, first.amount, 0.01)
-        assertEquals(TransactionType.INCOME, first.type)
-        assertEquals("KZ12551B529955307KZT. По  договору №SRV-0075537 от", first.details)
+        assertEquals(LocalDate(2026, 2, 25), first.date)
+        assertEquals(9201.44, first.amount, 0.01)
+        assertEquals(TransactionType.EXPENSE, first.type)
+        assertEquals("Сумма в обработке", first.operationType)
+        assertEquals("WOLT.COM ALMATY KZ", first.details)
     }
 
     @Test

@@ -43,6 +43,9 @@ class FreedomBankParserTest {
             joinLines = true,
             amountFormat = "comma_dot",
             useSignForType = true,
+            lineFixups = listOf(
+                listOf("(Сумма в )((?!обработке).+?)\\s+(обработке)", "$1$3 $2")
+            ),
         )
     }
 
@@ -207,9 +210,31 @@ KZ12551B529955307KZT. По
     }
 
     @Test
+    fun `fixup reorders split summa v obrabotke`() {
+        val text = "25.02.2026 -9,201.44 ₸ KZT Сумма в WOLT.COM ALMATY KZ обработке"
+        val result = parser.parse(text, freedomConfig)
+        assertEquals(1, result.size)
+        assertEquals(9201.44, result[0].amount, 0.01)
+        assertEquals(TransactionType.EXPENSE, result[0].type)
+        assertEquals("Сумма в обработке", result[0].operationType)
+        assertEquals("WOLT.COM ALMATY KZ", result[0].details)
+    }
+
+    @Test
     fun `empty text returns empty list`() {
         val result = parser.parse("", freedomConfig)
         assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `malformed fixup replacement does not crash parser`() {
+        val badFixupConfig = freedomConfig.copy(
+            lineFixups = listOf(listOf("(foo)", "$3"))
+        )
+        val text = "25.02.2026 -9,201.44 ₸ KZT Сумма в обработке WOLT.COM ALMATY KZ"
+        val result = parser.parse(text, badFixupConfig)
+        assertEquals(1, result.size)
+        assertEquals(9201.44, result[0].amount, 0.01)
     }
 
     @Test
