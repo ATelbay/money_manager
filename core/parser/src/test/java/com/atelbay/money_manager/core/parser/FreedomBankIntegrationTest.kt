@@ -38,6 +38,7 @@ class FreedomBankIntegrationTest {
         assertEquals(9201.44, first.amount, 0.01)
         assertEquals(TransactionType.EXPENSE, first.type)
         assertEquals("Сумма в обработке", first.operationType)
+        assertEquals("WOLT.COM ALMATY KZ", first.details)
     }
 
     @Test

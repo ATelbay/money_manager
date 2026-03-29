@@ -19,7 +19,7 @@ class EurasianBankParserTest {
         eurasianConfig = ParserConfig(
             bankId = "eurasian",
             bankMarkers = listOf("EURIKZKA", "eubank.kz", "АО \"Евразийский Банк\"", "Евразийский Банк"),
-            transactionPattern = "^(?<date>\\d{2}\\.\\d{2}\\.\\d{4})(?:\\s+\\d{2}:\\d{2}:\\d{2})?\\s+(?<operation>Путешествия|Финансы|Продукты|Кафе и рестораны|Услуги|Развлечения|Государственные услуги|Здоровье и красота|Транспорт|Связь|Магазины|Пополнение|Комиссия|Интернет покупки)\\s+(?<details>.+?)\\s+[\\d.]+\\s+[A-Z]{3}\\s+(?<sign>[+-]?)(?<amount>[\\d.]+)(?:\\s+(?:Карта|Счёт):\\s+\\*{2}\\d{4})?(?:\\s+\\d{2}:\\d{2}:\\d{2})?$",
+            transactionPattern = "^(?<date>\\d{2}\\.\\d{2}\\.\\d{4})(?:\\s+\\d{2}:\\d{2}:\\d{2})?\\s+(?<operation>Путешествия|Финансы|Продукты|Кафе и рестораны|Услуги|Развлечения|Государственные услуги|Здоровье и красота|Транспорт|Связь|Магазины|Пополнение|Комиссия|Интернет покупки)\\s+(?<details>.+?)\\s+[\\d.]+\\s+[A-Z]{3}\\s+(?<sign>[+-]?)(?<amount>[\\d.]+)(?:\\s+(?:Карта|Счёт):\\s+\\*{2}\\d{4})?$",
             dateFormat = "dd.MM.yyyy",
             operationTypeMap = mapOf(
                 "Путешествия" to "expense",
@@ -222,6 +222,8 @@ class EurasianBankParserTest {
         assertEquals(1, result.size)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("Интернет покупки", result[0].operationType)
+        assertEquals(10072.1, result[0].amount, 0.01)
+        assertEquals("Google ChatGPT", result[0].details)
     }
 
     @Test
@@ -231,6 +233,8 @@ class EurasianBankParserTest {
         assertEquals(1, result.size)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("Магазины", result[0].operationType)
+        assertEquals(23470.0, result[0].amount, 0.01)
+        assertEquals("AIRBAPAY.KZ*TECHNODOM.KZ", result[0].details)
     }
 
     @Test
@@ -240,6 +244,8 @@ class EurasianBankParserTest {
         assertEquals(1, result.size)
         assertEquals(TransactionType.INCOME, result[0].type)
         assertEquals("Пополнение", result[0].operationType)
+        assertEquals(15063.0, result[0].amount, 0.01)
+        assertEquals("Пополнение с Бонусов", result[0].details)
     }
 
     @Test
@@ -249,6 +255,8 @@ class EurasianBankParserTest {
         assertEquals(1, result.size)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("Комиссия", result[0].operationType)
+        assertEquals(4000.0, result[0].amount, 0.01)
+        assertEquals("Обслуживание", result[0].details)
     }
 
     @Test

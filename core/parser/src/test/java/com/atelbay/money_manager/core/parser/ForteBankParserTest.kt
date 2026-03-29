@@ -242,5 +242,6 @@ class ForteBankParserTest {
         assertEquals(50000.0, result[0].amount, 0.01)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("Списание средств в рамках сервиса быстрых платежей", result[0].operationType)
+        assertEquals("Выплата на карт.счет работника", result[0].details)
     }
 }

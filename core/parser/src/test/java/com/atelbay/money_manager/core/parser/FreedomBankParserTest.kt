@@ -227,6 +227,17 @@ KZ12551B529955307KZT. По
     }
 
     @Test
+    fun `malformed fixup replacement does not crash parser`() {
+        val badFixupConfig = freedomConfig.copy(
+            lineFixups = listOf(listOf("(foo)", "$3"))
+        )
+        val text = "25.02.2026 -9,201.44 ₸ KZT Сумма в обработке WOLT.COM ALMATY KZ"
+        val result = parser.parse(text, badFixupConfig)
+        assertEquals(1, result.size)
+        assertEquals(9201.44, result[0].amount, 0.01)
+    }
+
+    @Test
     fun `kaspi config still works without new fields`() {
         val kaspiConfig = ParserConfig(
             bankId = "kaspi",

@@ -35,15 +35,26 @@ class RegexStatementParser @Inject constructor() {
         val pattern = Regex(config.transactionPattern, RegexOption.MULTILINE)
         val fixups = config.lineFixups.mapNotNull { entry ->
             if (entry.size == 2) {
-                try { Regex(entry[0]) to entry[1] } catch (_: PatternSyntaxException) { null }
-            } else null
+                try { Regex(entry[0]) to entry[1] } catch (e: PatternSyntaxException) {
+                    Timber.w(e, "lineFixup dropped — invalid regex: %s", entry[0])
+                    null
+                }
+            } else {
+                Timber.w("lineFixup dropped — wrong arity %d (expected 2): %s", entry.size, entry)
+                null
+            }
         }
 
         val transactions = mutableListOf<ParsedTransaction>()
 
         for (line in processedText.lines()) {
-            val fixedLine = fixups.fold(line) { current, (pat, replacement) ->
-                current.replace(pat, replacement)
+            val fixedLine = try {
+                fixups.fold(line) { current, (pat, replacement) ->
+                    current.replace(pat, replacement)
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "lineFixup replacement failed on line: %s", line.trim())
+                line
             }
 
             val match = pattern.find(fixedLine) ?: continue
