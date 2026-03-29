@@ -112,7 +112,7 @@ fun RecurringEditScreen(
                 },
             )
         },
-        containerColor = Color.Transparent,
+        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         if (state.isLoading) {
             Box(

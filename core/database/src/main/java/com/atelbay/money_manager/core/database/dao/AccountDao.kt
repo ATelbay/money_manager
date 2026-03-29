@@ -45,6 +45,9 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE remoteId IS NULL AND isDeleted = 0")
     suspend fun getPendingSync(): List<AccountEntity>
 
+    @Query("SELECT * FROM accounts WHERE isDeleted = 1 AND remoteId IS NOT NULL")
+    suspend fun getDeletedWithRemoteId(): List<AccountEntity>
+
     @Query("SELECT * FROM accounts WHERE remoteId = :remoteId LIMIT 1")
     suspend fun getByRemoteId(remoteId: String): AccountEntity?
 
