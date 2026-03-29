@@ -43,6 +43,9 @@ class FreedomBankParserTest {
             joinLines = true,
             amountFormat = "comma_dot",
             useSignForType = true,
+            lineFixups = listOf(
+                listOf("(Сумма в )((?!обработке).+?)\\s+(обработке)", "$1$3 $2")
+            ),
         )
     }
 
@@ -204,6 +207,17 @@ KZ12551B529955307KZT. По
         assertEquals(2, result.size)
         assertTrue(result[0].uniqueHash != result[1].uniqueHash)
         assertTrue(result[0].uniqueHash.isNotEmpty())
+    }
+
+    @Test
+    fun `fixup reorders split summa v obrabotke`() {
+        val text = "25.02.2026 -9,201.44 ₸ KZT Сумма в WOLT.COM ALMATY KZ обработке"
+        val result = parser.parse(text, freedomConfig)
+        assertEquals(1, result.size)
+        assertEquals(9201.44, result[0].amount, 0.01)
+        assertEquals(TransactionType.EXPENSE, result[0].type)
+        assertEquals("Сумма в обработке", result[0].operationType)
+        assertEquals("WOLT.COM ALMATY KZ", result[0].details)
     }
 
     @Test

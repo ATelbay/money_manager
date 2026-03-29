@@ -19,7 +19,7 @@ class EurasianBankParserTest {
         eurasianConfig = ParserConfig(
             bankId = "eurasian",
             bankMarkers = listOf("EURIKZKA", "eubank.kz", "АО \"Евразийский Банк\"", "Евразийский Банк"),
-            transactionPattern = "^(?<date>\\d{2}\\.\\d{2}\\.\\d{4})(?:\\s+\\d{2}:\\d{2}:\\d{2})?\\s+(?<operation>Путешествия|Финансы|Продукты|Кафе и рестораны|Услуги|Развлечения|Государственные услуги|Здоровье и красота|Транспорт|Связь)\\s+(?<details>.+?)\\s+[\\d.]+\\s+[A-Z]{3}\\s+(?<sign>[+-]?)(?<amount>[\\d.]+)(?:\\s+(?:Карта|Счёт):\\s+\\*{2}\\d{4})?(?:\\s+\\d{2}:\\d{2}:\\d{2})?$",
+            transactionPattern = "^(?<date>\\d{2}\\.\\d{2}\\.\\d{4})(?:\\s+\\d{2}:\\d{2}:\\d{2})?\\s+(?<operation>Путешествия|Финансы|Продукты|Кафе и рестораны|Услуги|Развлечения|Государственные услуги|Здоровье и красота|Транспорт|Связь|Магазины|Пополнение|Комиссия|Интернет покупки)\\s+(?<details>.+?)\\s+[\\d.]+\\s+[A-Z]{3}\\s+(?<sign>[+-]?)(?<amount>[\\d.]+)(?:\\s+(?:Карта|Счёт):\\s+\\*{2}\\d{4})?(?:\\s+\\d{2}:\\d{2}:\\d{2})?$",
             dateFormat = "dd.MM.yyyy",
             operationTypeMap = mapOf(
                 "Путешествия" to "expense",
@@ -32,6 +32,10 @@ class EurasianBankParserTest {
                 "Здоровье и красота" to "expense",
                 "Транспорт" to "expense",
                 "Связь" to "expense",
+                "Магазины" to "expense",
+                "Пополнение" to "income",
+                "Комиссия" to "expense",
+                "Интернет покупки" to "expense",
             ),
             skipPatterns = listOf(
                 "Дата Тип операции",
@@ -45,6 +49,9 @@ class EurasianBankParserTest {
             useNamedGroups = true,
             negativeSignMeansExpense = true,
             deduplicateMaxAmount = true,
+            lineFixups = listOf(
+                listOf("^(\\d{2}\\.\\d{2}\\.\\d{4})\\s+((?:(?!\\d{2}:\\d{2}:\\d{2}).)+?)\\s+(\\d{2}:\\d{2}:\\d{2})\\s+(.+)$", "$1 $3 $2 $4")
+            ),
         )
     }
 
@@ -206,5 +213,50 @@ class EurasianBankParserTest {
     fun `empty text returns empty list`() {
         val result = parser.parse("", eurasianConfig)
         assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `parse expense online purchase (Интернет покупки)`() {
+        val text = "02.03.2026 16:24:48 Интернет покупки Google ChatGPT 9990 KZT -10072.1 Счёт: **3108"
+        val result = parser.parse(text, eurasianConfig)
+        assertEquals(1, result.size)
+        assertEquals(TransactionType.EXPENSE, result[0].type)
+        assertEquals("Интернет покупки", result[0].operationType)
+    }
+
+    @Test
+    fun `parse expense store (Магазины)`() {
+        val text = "27.01.2026 19:03:52 Магазины AIRBAPAY.KZ*TECHNODOM.KZ 23470 KZT -23470 Карта: **7777"
+        val result = parser.parse(text, eurasianConfig)
+        assertEquals(1, result.size)
+        assertEquals(TransactionType.EXPENSE, result[0].type)
+        assertEquals("Магазины", result[0].operationType)
+    }
+
+    @Test
+    fun `parse income top-up (Пополнение)`() {
+        val text = "18.01.2026 18:55:24 Пополнение Пополнение с Бонусов 15063 KZT +15063 Счёт: **3108"
+        val result = parser.parse(text, eurasianConfig)
+        assertEquals(1, result.size)
+        assertEquals(TransactionType.INCOME, result[0].type)
+        assertEquals("Пополнение", result[0].operationType)
+    }
+
+    @Test
+    fun `parse expense commission (Комиссия)`() {
+        val text = "02.03.2026 08:42:39 Комиссия Обслуживание 4000 KZT -4000 Карта: **7777"
+        val result = parser.parse(text, eurasianConfig)
+        assertEquals(1, result.size)
+        assertEquals(TransactionType.EXPENSE, result[0].type)
+        assertEquals("Комиссия", result[0].operationType)
+    }
+
+    @Test
+    fun `fixup relocates misplaced time between category words`() {
+        val text = "13.01.2026 Здоровье и 19:02:30 красота PETRA YAS MALL 150 AED -20876.59 Счёт: **3108"
+        val result = parser.parse(text, eurasianConfig)
+        assertEquals(1, result.size)
+        assertEquals("Здоровье и красота", result[0].operationType)
+        assertEquals(20876.59, result[0].amount, 0.01)
     }
 }

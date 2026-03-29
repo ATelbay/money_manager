@@ -38,6 +38,8 @@ class ForteBankParserTest {
                 "Сервисные Комиссии",
                 "Реквизиты:",
                 "Сформировано в Интернет Банкинге",
+                "^рамках сервиса\\s*$",
+                "^быстрых платежей\\s*$",
             ),
             joinLines = true,
             negativeSignMeansExpense = true,
@@ -226,5 +228,19 @@ class ForteBankParserTest {
     fun `empty text returns empty list`() {
         val result = parser.parse("", forteConfig)
         assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `skip orphan fragments before fast payment`() {
+        val text = """
+04.03.2026 -50000.00 KZT
+рамках сервиса
+Списание средств в рамках сервиса быстрых платежей Выплата на карт.счет работника
+        """.trimIndent()
+        val result = parser.parse(text, forteConfig)
+        assertEquals(1, result.size)
+        assertEquals(50000.0, result[0].amount, 0.01)
+        assertEquals(TransactionType.EXPENSE, result[0].type)
+        assertEquals("Списание средств в рамках сервиса быстрых платежей", result[0].operationType)
     }
 }
