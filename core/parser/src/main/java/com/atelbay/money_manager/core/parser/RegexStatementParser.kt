@@ -33,12 +33,20 @@ class RegexStatementParser @Inject constructor() {
             .filterNot { line -> skipPatterns.any { it.containsMatchIn(line) } }
             .joinToString("\n")
         val pattern = Regex(config.transactionPattern, RegexOption.MULTILINE)
+        val fixups = config.lineFixups.mapNotNull { entry ->
+            if (entry.size == 2) {
+                try { Regex(entry[0]) to entry[1] } catch (_: PatternSyntaxException) { null }
+            } else null
+        }
 
         val transactions = mutableListOf<ParsedTransaction>()
 
         for (line in processedText.lines()) {
+            val fixedLine = fixups.fold(line) { current, (pat, replacement) ->
+                current.replace(pat, replacement)
+            }
 
-            val match = pattern.find(line) ?: continue
+            val match = pattern.find(fixedLine) ?: continue
 
             try {
                 val transaction = matchToTransaction(match, config)
