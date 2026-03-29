@@ -105,6 +105,10 @@ class SyncManager @Inject constructor(
                 val updated = accountDao.getById(entity.id) ?: return@forEach
                 firestoreDataSource.pushAccount(userId, updated.toDto(fieldCipherHolder))
             }
+        // Push soft-deleted accounts so Firestore receives the isDeleted=true tombstone
+        accountDao.getDeletedWithRemoteId().forEach { entity ->
+            firestoreDataSource.pushAccount(userId, entity.toDto(fieldCipherHolder))
+        }
     }
 
     suspend fun pushAllPending() {

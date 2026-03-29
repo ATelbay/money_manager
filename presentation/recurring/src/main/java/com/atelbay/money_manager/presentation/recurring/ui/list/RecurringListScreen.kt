@@ -27,6 +27,7 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -102,7 +103,7 @@ fun RecurringListScreen(
                 testTag = "recurringList:fab",
             )
         },
-        containerColor = Color.Transparent,
+        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         if (state.isLoading) {
             Box(
