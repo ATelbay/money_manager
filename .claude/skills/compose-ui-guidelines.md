@@ -1,31 +1,31 @@
 ---
-description: "Правила Jetpack Compose в Money Manager: naming conventions (Screen/Route/ViewModel/State), State Hoisting, testTag, Material 3, UI-сценарии для тестирования"
+description: "Jetpack Compose rules in Money Manager: naming conventions (Screen/Route/ViewModel/State), State Hoisting, testTag, Material 3, UI scenarios for testing"
 ---
 
 # Compose UI Guidelines
 
 ## Context
 
-Проект использует Jetpack Compose + Material 3 (BOM 2026.01.01). Все UI построены по паттерну Screen (stateless) + Route (stateful). Проект является базой для магистерской по UI-автоматизации, поэтому testTag — обязательный элемент.
+The project uses Jetpack Compose + Material 3 (BOM 2026.01.01). All UIs are built using the Screen (stateless) + Route (stateful) pattern. The project serves as the foundation for a master's thesis on UI automation, so testTag is a mandatory element.
 
-**Ключевые файлы:**
+**Key files:**
 - `core/ui/src/.../theme/` — Color.kt, Type.kt, Theme.kt
-- `core/ui/src/.../components/` — переиспользуемые компоненты (MoneyManagerButton, MoneyManagerTextField, MoneyManagerCard)
-- `presentation/*/src/.../ui/` — экраны каждой фичи
+- `core/ui/src/.../components/` — reusable components (MoneyManagerButton, MoneyManagerTextField, MoneyManagerCard)
+- `presentation/*/src/.../ui/` — screens for each feature
 
 ## Process
 
-### Создание нового экрана
-1. Создать `{Feature}State.kt` — data class со всеми полями экрана
-2. Создать `{Feature}ViewModel.kt` — @HiltViewModel, выставляет `StateFlow<{Feature}State>`
-3. Создать `{Feature}Screen.kt` — stateless `@Composable`, принимает state + callback-лямбды
-4. Создать `{Feature}Route.kt` — stateful wrapper, инжектит ViewModel, собирает state через `collectAsStateWithLifecycle()`
-5. Добавить `testTag` на все интерактивные элементы
+### Creating a new screen
+1. Create `{Feature}State.kt` — data class with all screen fields
+2. Create `{Feature}ViewModel.kt` — @HiltViewModel, exposes `StateFlow<{Feature}State>`
+3. Create `{Feature}Screen.kt` — stateless `@Composable`, accepts state + callback lambdas
+4. Create `{Feature}Route.kt` — stateful wrapper, injects ViewModel, collects state via `collectAsStateWithLifecycle()`
+5. Add `testTag` to all interactive elements
 
-### Добавление testTag
-Формат: `"screen:element"` — camelCase для обеих частей.
+### Adding testTag
+Format: `"screen:element"` — camelCase for both parts.
 
-Примеры:
+Examples:
 ```kotlin
 Modifier.testTag("transactionList:fab")
 Modifier.testTag("transactionEdit:amountField")
@@ -35,8 +35,8 @@ Modifier.testTag("settings:themeSelector")
 
 ## Naming Conventions
 
-| Тип | Паттерн | Пример |
-|-----|---------|--------|
+| Type | Pattern | Example |
+|------|---------|---------|
 | Screen | `{Feature}Screen.kt` | `TransactionListScreen.kt` |
 | Route | `{Feature}Route.kt` | `TransactionListRoute.kt` |
 | ViewModel | `{Feature}ViewModel.kt` | `TransactionListViewModel.kt` |
@@ -47,17 +47,17 @@ Modifier.testTag("settings:themeSelector")
 
 ## Compose Rules
 
-1. **Modifier** — всегда первый необязательный параметр:
+1. **Modifier** — always the first optional parameter:
    ```kotlin
    @Composable
    fun TransactionListScreen(
        state: TransactionListState,
        onTransactionClick: (Long) -> Unit,
-       modifier: Modifier = Modifier,  // ← первый optional
+       modifier: Modifier = Modifier,  // ← first optional
    )
    ```
 
-2. **State Hoisting** — Screen НЕ знает о ViewModel:
+2. **State Hoisting** — Screen does NOT know about ViewModel:
    ```kotlin
    // Route.kt (stateful)
    @Composable
@@ -66,50 +66,50 @@ Modifier.testTag("settings:themeSelector")
        TransactionListScreen(state = state, onTransactionClick = { ... })
    }
 
-   // Screen.kt (stateless) — принимает state + callbacks
+   // Screen.kt (stateless) — accepts state + callbacks
    @Composable
    fun TransactionListScreen(state: TransactionListState, ...) { ... }
    ```
 
-3. **ImmutableList** — для стабильных коллекций в State:
+3. **ImmutableList** — for stable collections in State:
    ```kotlin
    data class TransactionListState(
        val transactions: ImmutableList<Transaction> = persistentListOf(),
    )
    ```
 
-4. **testTag** — обязателен для всех интерактивных элементов (кнопки, поля ввода, списки, FAB, chips и т.д.)
+4. **testTag** — required for all interactive elements (buttons, input fields, lists, FAB, chips, etc.)
 
-## UI-сценарии для тестирования
+## UI Scenarios for Testing
 
-| Сценарий | Экран | Элементы |
-|----------|-------|----------|
-| Multi-step flow | Onboarding | HorizontalPager, кнопки навигации |
-| Form validation | Transaction Edit, Create Account | TextField, валидация, error states |
+| Scenario | Screen | Elements |
+|----------|--------|----------|
+| Multi-step flow | Onboarding | HorizontalPager, navigation buttons |
+| Form validation | Transaction Edit, Create Account | TextField, validation, error states |
 | List operations | Transaction List | LazyColumn, swipe-to-delete |
-| Modal selection | Category picker | ModalBottomSheet с LazyVerticalGrid |
+| Modal selection | Category picker | ModalBottomSheet with LazyVerticalGrid |
 | Date picking | Transaction Edit | DatePickerDialog |
-| Dropdown | Create Account | ExposedDropdownMenuBox для валюты |
+| Dropdown | Create Account | ExposedDropdownMenuBox for currency |
 | Chart interaction | Statistics | Vico charts, touch feedback |
 | CRUD | Categories | Create, Read, Update, Delete flow |
-| Segmented control | Settings | SingleChoiceSegmentedButtonRow для темы |
-| Navigation | Все | Type-safe routes, back stack, bottom nav |
+| Segmented control | Settings | SingleChoiceSegmentedButtonRow for theme |
+| Navigation | All | Type-safe routes, back stack, bottom nav |
 | AI import | Import | PDF picker, camera, Gemini parsing, editable preview |
-| File picker | Import | ActivityResultContracts.OpenDocument для PDF |
+| File picker | Import | ActivityResultContracts.OpenDocument for PDF |
 | Inline editing | Import Preview | Editable fields (amount, date, type, category) |
 
 ## Quality Bar
 
-- Каждый новый интерактивный элемент ДОЛЖЕН иметь `testTag`
-- Screen-функции всегда stateless — никаких `viewModel()` вызовов внутри Screen
-- Используй `MoneyManagerTheme` из `:core:ui` для Preview
-- Переиспользуй компоненты из `core/ui/components/` (MoneyManagerButton, MoneyManagerTextField, MoneyManagerCard)
+- Every new interactive element MUST have a `testTag`
+- Screen functions are always stateless — no `viewModel()` calls inside Screen
+- Use `MoneyManagerTheme` from `:core:ui` for Preview
+- Reuse components from `core/ui/components/` (MoneyManagerButton, MoneyManagerTextField, MoneyManagerCard)
 
 ## Anti-patterns
 
-- НЕ используй `remember { mutableStateOf() }` для данных, которые должны жить во ViewModel
-- НЕ вызывай `hiltViewModel()` внутри Screen — только в Route
-- НЕ забывай `testTag` на интерактивных элементах
-- НЕ используй `List` в State data class — используй `ImmutableList` (kotlinx.collections.immutable)
-- НЕ хардкодь строки — используй string resources
-- НЕ создавай Preview без `MoneyManagerTheme` обёртки
+- DO NOT use `remember { mutableStateOf() }` for data that should live in ViewModel
+- DO NOT call `hiltViewModel()` inside Screen — only in Route
+- DO NOT forget `testTag` on interactive elements
+- DO NOT use `List` in State data class — use `ImmutableList` (kotlinx.collections.immutable)
+- DO NOT hardcode strings — use string resources
+- DO NOT create Preview without `MoneyManagerTheme` wrapper

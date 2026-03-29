@@ -1,22 +1,22 @@
 ---
-description: "Архитектура проекта Money Manager: layer-centric многомодульность, Gradle Convention Plugins, Hilt DI, Type-Safe Navigation, паттерн UI State (MVVM + Clean Architecture)"
+description: "Money Manager project architecture: layer-centric multi-module structure, Gradle Convention Plugins, Hilt DI, Type-Safe Navigation, UI State pattern (MVVM + Clean Architecture)"
 ---
 
 # Architecture & Dependency Injection
 
 ## Context
 
-Проект использует **layer-centric** многомодульную архитектуру (MVVM + Clean Architecture) с Hilt для DI и Convention Plugins для унификации Gradle-конфигов. Каждая фича разбита на **3 отдельных модуля**: `domain/{name}`, `data/{name}`, `presentation/{name}`.
+The project uses a **layer-centric** multi-module architecture (MVVM + Clean Architecture) with Hilt for DI and Convention Plugins to unify Gradle configs. Each feature is split into **3 separate modules**: `domain/{name}`, `data/{name}`, `presentation/{name}`.
 
-**Директория `feature/` была удалена** — не используй её как образец.
+**The `feature/` directory was removed** — do not use it as a reference.
 
-**Ключевые файлы:**
+**Key files:**
 - `build-logic/convention/src/main/kotlin/` — convention plugins
 - `app/src/main/java/.../navigation/` — Destinations.kt, MoneyManagerNavHost.kt, TopLevelDestination.kt
-- `settings.gradle.kts` — список всех модулей
+- `settings.gradle.kts` — list of all modules
 - `gradle/libs.versions.toml` — version catalog
 
-## Gradle-модули
+## Gradle Modules
 
 ```
 MoneyManager/
@@ -29,14 +29,19 @@ MoneyManager/
 │   ├── statistics/                  # :domain:statistics — GetPeriodSummaryUseCase
 │   ├── import/                      # :domain:import — ParseStatement + ImportTransactions
 │   ├── auth/                        # :domain:auth — AuthRepository + SignIn/SignOut UseCases
-│   └── exchangerate/                # :domain:exchangerate — ExchangeRateRepository + UseCases
+│   ├── exchangerate/                # :domain:exchangerate — ExchangeRateRepository + UseCases
+│   ├── sync/                        # :domain:sync
+│   ├── recurring/                   # :domain:recurring
+│   └── budgets/                     # :domain:budgets
 ├── data/                            # Data layer
 │   ├── transactions/                # :data:transactions — TransactionRepositoryImpl + mapper
 │   ├── categories/                  # :data:categories — CategoryRepositoryImpl + mapper
 │   ├── accounts/                    # :data:accounts — AccountRepositoryImpl + mapper
 │   ├── auth/                        # :data:auth — FirebaseAuthRepositoryImpl
 │   ├── exchangerate/                # :data:exchangerate — Exchange rate API client
-│   └── sync/                        # :data:sync — SyncManager: Room ↔ Firestore
+│   ├── sync/                        # :data:sync — SyncManager: Room ↔ Firestore
+│   ├── recurring/                   # :data:recurring
+│   └── budgets/                     # :data:budgets
 ├── presentation/                    # Presentation layer
 │   ├── transactions/                # :presentation:transactions — TransactionList + Edit screens
 │   ├── categories/                  # :presentation:categories — CategoryList + Edit screens
@@ -45,89 +50,94 @@ MoneyManager/
 │   ├── import/                      # :presentation:import — Import + Preview screens
 │   ├── settings/                    # :presentation:settings — Settings screen
 │   ├── onboarding/                  # :presentation:onboarding — Onboarding screen
-│   └── auth/                        # :presentation:auth — SignIn screen
+│   ├── auth/                        # :presentation:auth — SignIn screen
+│   ├── recurring/                   # :presentation:recurring
+│   └── budgets/                     # :presentation:budgets
 ├── core/
-│   ├── model/                       # :core:model — Domain models (чистые data class, без Android)
+│   ├── model/                       # :core:model — Domain models (pure data classes, no Android)
 │   ├── database/                    # :core:database — Room DB, Entities, DAOs
 │   ├── datastore/                   # :core:datastore — Preferences DataStore
-│   ├── ui/                          # :core:ui — Theme, общие Compose-компоненты
+│   ├── ui/                          # :core:ui — Theme, shared Compose components
 │   ├── common/                      # :core:common — Utils, extensions
 │   ├── ai/                          # :core:ai — Gemini AI integration
 │   ├── parser/                      # :core:parser — RegEx statement parser
 │   ├── remoteconfig/                # :core:remoteconfig — Firebase Remote Config
 │   ├── auth/                        # :core:auth — CredentialManager wrapper
-│   └── firestore/                   # :core:firestore — Firestore SDK wrapper
-└── components/                      # Design system
-    ├── design-system/               # :components:design-system
-    ├── ui/                          # :components:ui
-    └── showcase/                    # :components:showcase
+│   ├── firestore/                   # :core:firestore — Firestore SDK wrapper
+│   └── crypto/                      # :core:crypto — Encryption (Tink)
 ```
 
-## Правила зависимостей
+## Dependency Rules
 
 - `presentation/{name}` → `domain/{name}` → `core:model`
 - `data/{name}` → `domain/{name}` + `core:database`
-- Presentation **НИКОГДА** не зависит от `core:database`
-- Domain/data модули НЕ зависят от presentation
-- Presentation-модули не зависят друг от друга — только от domain и core
+- Presentation **NEVER** depends on `core:database`
+- Domain/data modules do NOT depend on presentation
+- Presentation modules do not depend on each other — only on domain and core
 
 ## Convention Plugins
 
-| Plugin ID | Назначение | Слой |
-|-----------|------------|------|
+| Plugin ID | Purpose | Layer |
+|-----------|---------|-------|
 | `moneymanager.android.application` | AGP application + Kotlin, compileSdk=36, targetSdk=36, minSdk=29 | :app |
 | `moneymanager.android.library` | AGP library + Kotlin | domain/, data/, core/ |
 | `moneymanager.android.compose` | Kotlin Compose compiler + Compose BOM + bundles | — |
-| `moneymanager.android.hilt` | Hilt + KSP | data/ (обязательно), domain/ (если нужен) |
-| `moneymanager.android.feature` | library + compose + hilt + lifecycle + navigation | **только presentation/** |
+| `moneymanager.android.hilt` | Hilt + KSP | data/ (required), domain/ (if needed) |
+| `moneymanager.android.feature` | library + compose + hilt + lifecycle + navigation | **presentation/ only** |
 
 ## Process
 
-### Добавление нового core-модуля
-1. Создать директорию `core/{name}/` с `build.gradle.kts`
-2. Применить `moneymanager.android.library` (+ `moneymanager.android.hilt` если нужен DI)
-3. Зарегистрировать в `settings.gradle.kts`: `include(":core:{name}")`
-4. Добавить зависимость в потребителей: `implementation(project(":core:{name}"))`
+### Adding a new core module
+1. Create directory `core/{name}/` with `build.gradle.kts`
+2. Apply `moneymanager.android.library` (+ `moneymanager.android.hilt` if DI is needed)
+3. Register in `settings.gradle.kts`: `include(":core:{name}")`
+4. Add dependency in consumers: `implementation(project(":core:{name}"))`
 
-### Добавление новой фичи (layer-centric: 3 модуля)
+### Adding a new feature (layer-centric: 3 modules)
 
-**Шаг 1: `domain/{name}/`**
+**Step 1: `domain/{name}/`**
 - Plugin: `moneymanager.android.library`
-- Зависимости: только `project(":core:model")`
-- Содержит: repository interface + use cases
-- Регистрация: `include(":domain:{name}")` в `settings.gradle.kts`
+- Dependencies: only `project(":core:model")`
+- Contains: repository interface + use cases
+- Registration: `include(":domain:{name}")` in `settings.gradle.kts`
 
-**Шаг 2: `data/{name}/`**
+**Step 2: `data/{name}/`**
 - Plugins: `moneymanager.android.library` + `moneymanager.android.hilt`
-- Зависимости: `project(":domain:{name}")` + `project(":core:database")`
-- Содержит: RepositoryImpl + mapper + Hilt DI module
-- Регистрация: `include(":data:{name}")` в `settings.gradle.kts`
+- Dependencies: `project(":domain:{name}")` + `project(":core:database")`
+- Contains: RepositoryImpl + mapper + Hilt DI module
+- Registration: `include(":data:{name}")` in `settings.gradle.kts`
 
-**Шаг 3: `presentation/{name}/`**
+**Step 3: `presentation/{name}/`**
 - Plugin: `moneymanager.android.feature`
-- Зависимости: `project(":domain:{name}")` + `project(":core:model")`
-- Содержит: State, ViewModel, Screen, Route
-- Регистрация: `include(":presentation:{name}")` в `settings.gradle.kts`
-- Добавить в `app/build.gradle.kts`: `implementation(project(":presentation:{name}"))`
-- Добавить destination в `Destinations.kt` и route в `MoneyManagerNavHost.kt`
+- Dependencies: `project(":domain:{name}")` + `project(":core:model")`
+- Contains: State, ViewModel, Screen, Route
+- Registration: `include(":presentation:{name}")` in `settings.gradle.kts`
+- Add to `app/build.gradle.kts`: `implementation(project(":presentation:{name}"))`
+- Add destination in `Destinations.kt` and route in `MoneyManagerNavHost.kt`
 
-## Навигация (Type-Safe)
+## Navigation (Type-Safe)
 
-13 destinations в `app/.../navigation/Destinations.kt`:
+19 destinations in `app/.../navigation/Destinations.kt`:
 ```kotlin
 @Serializable data object Onboarding
+@Serializable data object OnboardingSetup
 @Serializable data object CreateAccount
 @Serializable data object Home
 @Serializable data class TransactionEdit(val id: Long? = null)
 @Serializable data object CategoryList
 @Serializable data class CategoryEdit(val id: Long? = null)
 @Serializable data object Statistics
+@Serializable data class StatisticsCategoryTransactions(val categoryId: Long, val categoryName: String, val categoryIcon: String, val categoryColor: Long, val transactionType: String, val period: String, val startMillis: Long, val endMillis: Long)
 @Serializable data object AccountList
 @Serializable data class AccountEdit(val id: Long? = null)
 @Serializable data object Settings
-@Serializable data object Import
+@Serializable data class Import(val pdfUri: String? = null)
 @Serializable data class CurrencyPicker(val activeSide: CurrencyPickerSide = CurrencyPickerSide.BASE)
 @Serializable data object SignIn
+@Serializable data object RecurringList
+@Serializable data class RecurringEdit(val id: Long? = null)
+@Serializable data object BudgetList
+@Serializable data class BudgetEdit(val id: Long? = null)
 ```
 
 4 top-level destinations (Bottom Nav):
@@ -142,8 +152,8 @@ enum class TopLevelDestination {
 
 Navigation flow:
 ```
-App Launch → проверка isOnboardingCompleted
-  ├─ false → Onboarding → CreateAccount → Home
+App Launch → check isOnboardingCompleted
+  ├─ false → Onboarding → OnboardingSetup → CreateAccount → Home
   └─ true  → Home
 
 Home (TransactionList)
@@ -153,34 +163,38 @@ Home (TransactionList)
   └─ Bottom Nav → Statistics | AccountList | Settings
 
 Settings
-  ├─ Категории → CategoryList → CategoryEdit
-  └─ Аккаунт → SignIn (опциональный Google Sign-In)
+  ├─ Categories → CategoryList → CategoryEdit
+  └─ Account → SignIn (optional Google Sign-In)
 
 AccountList → Tap → AccountEdit(id) / FAB → AccountEdit()
-Statistics → CurrencyPicker (выбор базовой/котируемой валюты)
+Statistics → CurrencyPicker (base/quote currency selection)
+           → StatisticsCategoryTransactions (drill-down by category)
+
+RecurringList → RecurringEdit(id) / FAB → RecurringEdit()
+BudgetList → BudgetEdit(id) / FAB → BudgetEdit()
 ```
 
-## Паттерн UI State
+## UI State Pattern
 
-- Единый `data class *State` для каждого экрана
-- ViewModel с прямыми методами (не Intent/Event паттерн)
-- Screen — stateless composable (принимает state + callbacks)
-- Route — stateful wrapper, собирает state из ViewModel через `collectAsStateWithLifecycle()`
+- Single `data class *State` per screen
+- ViewModel with direct methods (not Intent/Event pattern)
+- Screen — stateless composable (receives state + callbacks)
+- Route — stateful wrapper, collects state from ViewModel via `collectAsStateWithLifecycle()`
 
 ## Quality Bar
 
-- Presentation-модули НЕ зависят друг от друга — только от domain и core
-- `:core:model` не имеет Android-зависимостей (чистый Kotlin)
-- Hilt-модули (`@Module @InstallIn`) располагаются в `di/` пакете каждого data-модуля
-- Все новые destinations должны быть `@Serializable`
-- Используй version catalog (`libs.versions.toml`) для всех зависимостей, НЕ хардкодь версии
+- Presentation modules do NOT depend on each other — only on domain and core
+- `:core:model` has no Android dependencies (pure Kotlin)
+- Hilt modules (`@Module @InstallIn`) are placed in the `di/` package of each data module
+- All new destinations must be `@Serializable`
+- Use version catalog (`libs.versions.toml`) for all dependencies — never hardcode versions
 
 ## Anti-patterns
 
-- НЕ создавай `feature/` директорию — её не существует, используй layer-centric структуру
-- НЕ добавляй `core:database` в presentation-модуль
-- НЕ добавляй прямые зависимости между presentation-модулями
-- НЕ размещай domain-логику в `:app` модуле
-- НЕ создавай `@Module` без `@InstallIn` — всегда указывай компонент (SingletonComponent, ViewModelComponent и т.д.)
-- НЕ используй `kapt` — проект использует KSP
-- НЕ хардкодь compileSdk/minSdk в модулях — это задаётся через convention plugins
+- Do NOT create a `feature/` directory — it does not exist; use the layer-centric structure
+- Do NOT add `core:database` to a presentation module
+- Do NOT add direct dependencies between presentation modules
+- Do NOT place domain logic in the `:app` module
+- Do NOT create `@Module` without `@InstallIn` — always specify the component (SingletonComponent, ViewModelComponent, etc.)
+- Do NOT use `kapt` — the project uses KSP
+- Do NOT hardcode compileSdk/minSdk in modules — these are set via convention plugins

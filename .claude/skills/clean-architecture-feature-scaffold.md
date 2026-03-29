@@ -1,32 +1,32 @@
 ---
-description: "Генератор новой фичи в Money Manager: создание 3 Gradle-модулей (domain/data/presentation) с Clean Architecture — Repository, UseCase, ViewModel, Screen, Route, Hilt DI, навигация"
+description: "New feature generator for Money Manager: creates 3 Gradle modules (domain/data/presentation) with Clean Architecture — Repository, UseCase, ViewModel, Screen, Route, Hilt DI, navigation"
 ---
 
 # Clean Architecture Feature Scaffold
 
 ## Context
 
-Каждая фича в проекте — **3 отдельных Gradle-модуля** в layer-centric структуре:
+Each feature in the project is **3 separate Gradle modules** in a layer-centric structure:
 - `domain/{name}/` — repository interface + use cases
 - `data/{name}/` — repository impl + mapper + DI
 - `presentation/{name}/` — State, ViewModel, Screen, Route
 
-**Директории `feature/` не существует** — не используй её как образец.
+**The `feature/` directory does not exist** — do not use it as a reference.
 
-**Эталонные модули для копирования паттернов:**
+**Reference modules for copying patterns:**
 - `domain/transactions/` — TransactionRepository + UseCases
 - `data/transactions/` — TransactionRepositoryImpl + mapper + DI
-- `presentation/transactions/` — полный UI стек (State, ViewModel, Screen, Route)
+- `presentation/transactions/` — full UI stack (State, ViewModel, Screen, Route)
 
 ## Process
 
-### Шаг 1: Создать `domain/{name}/`
+### Step 1: Create `domain/{name}/`
 
-Создать `domain/{name}/build.gradle.kts`:
+Create `domain/{name}/build.gradle.kts`:
 ```kotlin
 plugins {
     alias(libs.plugins.moneymanager.android.library)
-    // alias(libs.plugins.moneymanager.android.hilt)  // добавь только если UseCase требует @Inject deps
+    // alias(libs.plugins.moneymanager.android.hilt)  // add only if UseCase requires @Inject deps
 }
 
 android {
@@ -48,7 +48,7 @@ interface {Entity}Repository {
 }
 ```
 
-**Use Cases** (один UseCase = одна операция, в `domain/{name}/.../usecase/`):
+**Use Cases** (one UseCase = one operation, in `domain/{name}/.../usecase/`):
 ```kotlin
 class Get{Entities}UseCase @Inject constructor(
     private val repository: {Entity}Repository,
@@ -63,9 +63,9 @@ class Save{Entity}UseCase @Inject constructor(
 }
 ```
 
-### Шаг 2: Создать `data/{name}/`
+### Step 2: Create `data/{name}/`
 
-Создать `data/{name}/build.gradle.kts`:
+Create `data/{name}/build.gradle.kts`:
 ```kotlin
 plugins {
     alias(libs.plugins.moneymanager.android.library)
@@ -120,9 +120,9 @@ abstract class {Feature}Module {
 }
 ```
 
-### Шаг 3: Создать `presentation/{name}/`
+### Step 3: Create `presentation/{name}/`
 
-Создать `presentation/{name}/build.gradle.kts`:
+Create `presentation/{name}/build.gradle.kts`:
 ```kotlin
 plugins {
     alias(libs.plugins.moneymanager.android.feature)
@@ -135,7 +135,7 @@ android {
 dependencies {
     implementation(project(":domain:{name}"))
     implementation(project(":core:model"))
-    // НЕ добавляй core:database — presentation не зависит от DB напрямую
+    // Do NOT add core:database — presentation must not depend on DB directly
 }
 ```
 
@@ -204,7 +204,7 @@ fun {Feature}Route(
 }
 ```
 
-### Шаг 4: Зарегистрировать в `settings.gradle.kts`
+### Step 4: Register in `settings.gradle.kts`
 
 ```kotlin
 include(":domain:{name}")
@@ -212,27 +212,27 @@ include(":data:{name}")
 include(":presentation:{name}")
 ```
 
-### Шаг 5: Добавить в `app/build.gradle.kts`
+### Step 5: Add to `app/build.gradle.kts`
 
-Необходимо добавить **оба** модуля — presentation для UI и data для Hilt DI wiring:
+Both modules must be added — presentation for UI and data for Hilt DI wiring:
 
 ```kotlin
-// Presentation (UI + ViewModel + навигация)
+// Presentation (UI + ViewModel + navigation)
 implementation(project(":presentation:{name}"))
-// Data (обязательно для Hilt — data-модуль должен быть на classpath :app)
+// Data (required for Hilt — data module must be on the :app classpath)
 implementation(project(":data:{name}"))
 ```
 
-> Без `data:{name}` в `app/build.gradle.kts` Hilt не найдёт биндинги репозитория и упадёт при сборке.
+> Without `data:{name}` in `app/build.gradle.kts` Hilt cannot find repository bindings and will fail at build time.
 
-### Шаг 6: Навигация
+### Step 6: Navigation
 
-1. Добавить destination в `app/.../navigation/Destinations.kt`:
+1. Add destination in `app/.../navigation/Destinations.kt`:
 ```kotlin
-@Serializable data object {Feature}  // или data class с параметрами
+@Serializable data object {Feature}  // or data class with parameters
 ```
 
-2. Добавить route в `MoneyManagerNavHost.kt`:
+2. Add route in `MoneyManagerNavHost.kt`:
 ```kotlin
 composable<{Feature}> {
     {Feature}Route(
@@ -241,42 +241,42 @@ composable<{Feature}> {
 }
 ```
 
-3. Если top-level — добавить в `TopLevelDestination.kt`
+3. If top-level — add to `TopLevelDestination.kt`
 
-### Шаг 7: testTag
+### Step 7: testTag
 
-Конвенция: `"featureName:element"` (camelCase):
+Convention: `"featureName:element"` (camelCase):
 - FAB: `"{feature}List:fab"`
 - List items: `"{feature}List:item_{id}"`
 - Form fields: `"{feature}Edit:nameField"`, `"{feature}Edit:saveButton"`
 
-## Чек-лист
+## Checklist
 
-- [ ] `domain/{name}/build.gradle.kts` с `moneymanager.android.library`
-- [ ] `data/{name}/build.gradle.kts` с library + hilt
-- [ ] `presentation/{name}/build.gradle.kts` с `moneymanager.android.feature`
-- [ ] Все 3 модуля в `settings.gradle.kts`
-- [ ] Только `:presentation:{name}` в `app/build.gradle.kts`
-- [ ] Repository interface в `domain/{name}/.../repository/`
-- [ ] Use Cases в `domain/{name}/.../usecase/`
-- [ ] Mapper в `data/{name}/.../mapper/`
-- [ ] RepositoryImpl в `data/{name}/.../repository/`
-- [ ] Hilt DI module в `data/{name}/.../di/`
-- [ ] State data class с `ImmutableList`
-- [ ] ViewModel с `StateFlow`
-- [ ] Screen (stateless) с `testTag` на всех интерактивных элементах
-- [ ] Route (stateful) с `hiltViewModel()`
-- [ ] Destination в `Destinations.kt`
-- [ ] Route в `MoneyManagerNavHost.kt`
+- [ ] `domain/{name}/build.gradle.kts` with `moneymanager.android.library`
+- [ ] `data/{name}/build.gradle.kts` with library + hilt
+- [ ] `presentation/{name}/build.gradle.kts` with `moneymanager.android.feature`
+- [ ] All 3 modules in `settings.gradle.kts`
+- [ ] Both `:presentation:{name}` AND `:data:{name}` in `app/build.gradle.kts`
+- [ ] Repository interface in `domain/{name}/.../repository/`
+- [ ] Use Cases in `domain/{name}/.../usecase/`
+- [ ] Mapper in `data/{name}/.../mapper/`
+- [ ] RepositoryImpl in `data/{name}/.../repository/`
+- [ ] Hilt DI module in `data/{name}/.../di/`
+- [ ] State data class with `ImmutableList`
+- [ ] ViewModel with `StateFlow`
+- [ ] Screen (stateless) with `testTag` on all interactive elements
+- [ ] Route (stateful) with `hiltViewModel()`
+- [ ] Destination in `Destinations.kt`
+- [ ] Route in `MoneyManagerNavHost.kt`
 
 ## Anti-patterns
 
-- НЕ создавай единый `feature/{name}/` модуль — всегда 3 слоя: domain + data + presentation
-- НЕ добавляй `core:database` в presentation-модуль
-- НЕ пропускай domain layer — даже для простых CRUD всегда Repository + UseCase
-- НЕ делай God-UseCase — один UseCase = одна операция
-- НЕ используй `ViewModelComponent` для репозиториев — используй `SingletonComponent`
-- НЕ создавай `@Module` без `@InstallIn`
-- НЕ используй `kapt` — проект на KSP
-- НЕ хардкодь версии в build.gradle.kts — используй `libs.versions.toml`
-- НЕ забывай регистрировать все 3 модуля в `settings.gradle.kts`
+- Do NOT create a single `feature/{name}/` module — always 3 layers: domain + data + presentation
+- Do NOT add `core:database` to the presentation module
+- Do NOT skip the domain layer — even for simple CRUD always use Repository + UseCase
+- Do NOT make a God-UseCase — one UseCase = one operation
+- Do NOT use `ViewModelComponent` for repositories — use `SingletonComponent`
+- Do NOT create `@Module` without `@InstallIn`
+- Do NOT use `kapt` — the project uses KSP
+- Do NOT hardcode versions in build.gradle.kts — use `libs.versions.toml`
+- Do NOT forget to register all 3 modules in `settings.gradle.kts`

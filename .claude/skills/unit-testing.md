@@ -1,34 +1,34 @@
 ---
-description: "Unit-тестирование в Money Manager: ViewModel тесты, UseCase тесты, MockK для моков, Turbine для Flow, MainDispatcherRule, размещение тестов по модулям"
+description: "Unit testing in Money Manager: ViewModel tests, UseCase tests, MockK for mocking, Turbine for Flow, MainDispatcherRule, test placement per module"
 ---
 
 # Unit Testing
 
 ## Context
 
-Money Manager — база для магистерской диссертации по UI-автоматизации, поэтому тестовое покрытие критично. Скилл описывает **unit-тесты** (JVM, без Android), в отличие от **UI-тестов** (instrumented, `androidTest/`).
+Money Manager is the foundation for a master's thesis on UI automation, so test coverage is critical. This skill covers **unit tests** (JVM, no Android), as distinct from **UI tests** (instrumented, `androidTest/`).
 
-**Зависимости (из `libs.versions.toml`):**
+**Dependencies (from `libs.versions.toml`):**
 ```toml
 turbine = "1.2.1"        # Flow testing
 mockk = "1.14.9"         # Kotlin mocking
-coroutines = "1.10.2"    # включает kotlinx-coroutines-test
+coroutines = "1.10.2"    # includes kotlinx-coroutines-test
 junit = "4.13.2"
 ```
 
-## Размещение тестов
+## Test Placement
 
-| Тип теста | Директория | Запуск |
-|-----------|-----------|--------|
+| Test type | Directory | Run with |
+|-----------|-----------|----------|
 | Unit (ViewModel, UseCase, Repository) | `{module}/src/test/` | `./gradlew test` (JVM) |
 | UI/Instrumented | `presentation/*/src/androidTest/` | `./gradlew connectedAndroidTest` |
 
-Примеры:
-- `domain/transactions/src/test/` — тесты UseCase
-- `data/transactions/src/test/` — тесты mapper, RepositoryImpl (с моком DAO)
-- `presentation/transactions/src/test/` — тесты ViewModel
+Examples:
+- `domain/transactions/src/test/` — UseCase tests
+- `data/transactions/src/test/` — mapper tests, RepositoryImpl tests (with mocked DAO)
+- `presentation/transactions/src/test/` — ViewModel tests
 
-**build.gradle.kts** (добавить в нужный модуль):
+**build.gradle.kts** (add to the relevant module):
 ```kotlin
 dependencies {
     testImplementation(libs.junit)
@@ -40,7 +40,7 @@ dependencies {
 
 ## MainDispatcherRule
 
-Обязательна для тестов ViewModel — заменяет `Dispatchers.Main` на тестовый диспетчер.
+Required for ViewModel tests — replaces `Dispatchers.Main` with a test dispatcher.
 
 ```kotlin
 class MainDispatcherRule(
@@ -51,7 +51,7 @@ class MainDispatcherRule(
 }
 ```
 
-## Тесты ViewModel
+## ViewModel Tests
 
 ```kotlin
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -109,7 +109,7 @@ class TransactionListViewModelTest {
 }
 ```
 
-## Тесты UseCase
+## UseCase Tests
 
 ```kotlin
 class GetTransactionsUseCaseTest {
@@ -139,9 +139,9 @@ class GetTransactionsUseCaseTest {
 }
 ```
 
-## Тесты Mapper
+## Mapper Tests
 
-Mapper — чистые функции, простейший случай:
+Mappers are pure functions — the simplest case:
 
 ```kotlin
 class TransactionMapperTest {
@@ -174,39 +174,39 @@ class TransactionMapperTest {
 
 ```kotlin
 flow.test {
-    val item = awaitItem()              // получить следующий элемент
-    awaitComplete()                     // дождаться завершения потока
-    awaitError()                        // дождаться ошибки (Flow должен завершиться с ошибкой)
-    cancelAndIgnoreRemainingEvents()    // отмена, оставшиеся события игнорируются
-    expectNoEvents()                    // убедиться что новых событий нет (за короткое время)
-    skipItems(n)                        // пропустить N элементов
+    val item = awaitItem()              // get the next emitted item
+    awaitComplete()                     // wait for the flow to complete
+    awaitError()                        // wait for an error (flow must terminate with an error)
+    cancelAndIgnoreRemainingEvents()    // cancel and ignore any remaining events
+    expectNoEvents()                    // assert no new events arrive (within a short time)
+    skipItems(n)                        // skip N items
 }
 ```
 
 ## MockK Cheatsheet
 
 ```kotlin
-// Mock Flow-возвращающей функции
+// Mock a Flow-returning function
 every { repository.getTransactions() } returns flowOf(listOf(...))
 
-// Mock suspend-функции
+// Mock a suspend function
 coEvery { repository.saveTransaction(any()) } just runs
 coEvery { repository.getById(1L) } returns transaction
 
-// Verify вызов suspend-функции
+// Verify a suspend function call
 coVerify { repository.saveTransaction(match { it.amount == 100.0 }) }
 
-// Verify функция вызвана ровно N раз
+// Verify a function was called exactly N times
 verify(exactly = 1) { useCase.invoke() }
 
-// Spy на реальном объекте
+// Spy on a real object
 val spy = spyk(RealUseCase(repository))
 
-// Relaxed mock (возвращает дефолтные значения без every{})
+// Relaxed mock (returns default values without every{})
 val relaxedMock: TransactionRepository = mockk(relaxed = true)
 ```
 
-## Паттерн AAA (Arrange / Act / Assert)
+## AAA Pattern (Arrange / Act / Assert)
 
 ```kotlin
 @Test
@@ -226,18 +226,18 @@ fun `save transaction persists to repository`() = runTest {
 
 ## Quality Bar
 
-- Каждый ViewModel: минимум 3 теста — начальное состояние, успешная загрузка, ошибка
-- Каждый UseCase: happy path + error case
-- Mapper: прямое и обратное преобразование
-- НЕ тестируй приватные методы — только публичный state и публичные функции
-- Используй `runTest { }` вместо `runBlocking { }` для coroutine-тестов
-- Используй `MainDispatcherRule` в каждом ViewModel-тесте
+- Each ViewModel: minimum 3 tests — initial state, successful load, error
+- Each UseCase: happy path + error case
+- Mapper: forward and inverse transformation
+- Do NOT test private methods — only public state and public functions
+- Use `runTest { }` instead of `runBlocking { }` for coroutine tests
+- Use `MainDispatcherRule` in every ViewModel test
 
 ## Anti-patterns
 
-- НЕ используй `Thread.sleep()` — используй Turbine + TestDispatcher
-- НЕ используй `runBlocking` в тестах с Flow — используй `runTest`
-- НЕ создавай реальные Room-базы в unit-тестах — для Room используй in-memory DB в `androidTest`
-- НЕ тестируй один UseCase через другой — мокай зависимости напрямую
-- НЕ забывай `cancelAndIgnoreRemainingEvents()` если не читаешь все события из Flow
-- НЕ используй `mockk()` без `relaxed = true` для интерфейсов с множеством методов — придётся stub каждый
+- Do NOT use `Thread.sleep()` — use Turbine + TestDispatcher instead
+- Do NOT use `runBlocking` in tests with Flow — use `runTest`
+- Do NOT create real Room databases in unit tests — use in-memory DB in `androidTest` for Room
+- Do NOT test one UseCase through another — mock dependencies directly
+- Do NOT forget `cancelAndIgnoreRemainingEvents()` if you don't consume all events from a Flow
+- Do NOT use `mockk()` without `relaxed = true` for interfaces with many methods — you'll have to stub every one

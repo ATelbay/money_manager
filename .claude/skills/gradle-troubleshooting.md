@@ -1,32 +1,32 @@
 ---
-description: "Траблшутинг сборки Gradle в Money Manager: диагностика ошибок assembleDebug, test, Version Catalogs, Hilt/KSP, Navigation Compose"
+description: "Gradle build troubleshooting in Money Manager: diagnosing assembleDebug, test, Version Catalogs, Hilt/KSP, Navigation Compose errors"
 ---
 
 # Gradle Troubleshooting
 
 ## Context
 
-Проект использует Convention Plugins (`build-logic/`), Version Catalogs (`gradle/libs.versions.toml`), KSP (не kapt), Hilt и Type-Safe Navigation. Ошибки сборки чаще всего связаны с несовместимостью версий или забытыми плагинами.
+The project uses Convention Plugins (`build-logic/`), Version Catalogs (`gradle/libs.versions.toml`), KSP (not kapt), Hilt, and Type-Safe Navigation. Build errors are most commonly caused by version incompatibilities or missing plugins.
 
-**Ключевые файлы:**
-- `gradle/libs.versions.toml` — версии всех зависимостей
+**Key files:**
+- `gradle/libs.versions.toml` — versions of all dependencies
 - `build-logic/convention/src/main/kotlin/` — convention plugins
-- `domain/*/build.gradle.kts` — конфиги domain-модулей
-- `data/*/build.gradle.kts` — конфиги data-модулей
-- `presentation/*/build.gradle.kts` — конфиги presentation-модулей
-- `core/*/build.gradle.kts` — конфиги core-модулей
+- `domain/*/build.gradle.kts` — domain module configs
+- `data/*/build.gradle.kts` — data module configs
+- `presentation/*/build.gradle.kts` — presentation module configs
+- `core/*/build.gradle.kts` — core module configs
 
 ## Process
 
-1. Внимательно прочитай stacktrace ошибки. Если причина неясна, перезапусти упавшую команду с флагом `--info` или `--stacktrace` (например, `./gradlew assembleDebug --stacktrace`).
-2. Если ошибка связана с **Version Catalogs** или зависимостями: проверь файл `gradle/libs.versions.toml`. Убедись, что версии библиотек совместимы (например, Compose Compiler и версия Kotlin).
-3. Если ошибка связана с **Hilt / KSP**: проверь плагины в модуле `build-logic/convention`. Возможно, забыт плагин `moneymanager.android.hilt` в `build.gradle.kts` фича-модуля.
-4. Если ошибка связана с **Navigation Compose (Type-safe)**: убедись, что классы маршрутов помечены аннотацией `@Serializable` из `kotlinx.serialization`.
-5. Если ошибка тебе неизвестна, используй инструмент `WebSearch` для поиска текста ошибки на StackOverflow или в GitHub Issues.
+1. Read the error stacktrace carefully. If the cause is unclear, re-run the failed command with the `--info` or `--stacktrace` flag (e.g., `./gradlew assembleDebug --stacktrace`).
+2. If the error is related to **Version Catalogs** or dependencies: check the `gradle/libs.versions.toml` file. Make sure library versions are compatible (e.g., Compose Compiler and Kotlin version).
+3. If the error is related to **Hilt / KSP**: check the plugins in the `build-logic/convention` module. The `moneymanager.android.hilt` plugin may be missing from the feature module's `build.gradle.kts`.
+4. If the error is related to **Navigation Compose (Type-safe)**: make sure route classes are annotated with `@Serializable` from `kotlinx.serialization`.
+5. If the error is unfamiliar, use the `WebSearch` tool to search for the error text on StackOverflow or GitHub Issues.
 
 ## Anti-patterns
 
-- НЕ предлагай даунгрейдить версию Kotlin или AGP без крайней необходимости.
-- НЕ предлагай удалять плагины из `build-logic`, если они ломают сборку — ищи первопричину в конфигурации.
-- НЕ запускай `./gradlew clean` как первый шаг — сначала разберись в ошибке.
-- НЕ используй `kapt` — проект на KSP.
+- Do NOT suggest downgrading Kotlin or AGP unless absolutely necessary.
+- Do NOT suggest removing plugins from `build-logic` when they break the build — find the root cause in the configuration instead.
+- Do NOT run `./gradlew clean` as the first step — understand the error first.
+- Do NOT use `kapt` — the project uses KSP.

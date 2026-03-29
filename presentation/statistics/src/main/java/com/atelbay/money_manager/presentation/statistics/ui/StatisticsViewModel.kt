@@ -305,6 +305,7 @@ class StatisticsViewModel @Inject constructor(
                     val cal = Calendar.getInstance(TimeZone.getDefault())
                     cal.set(Calendar.YEAR, total.year)
                     cal.set(Calendar.MONTH, total.month)
+                    cal.set(Calendar.DAY_OF_MONTH, 1)
                     val raw = monthLabelFormatter.format(cal.time).removeSuffix(".").take(3)
                     StatisticsChartPoint(
                         bucketStartMillis = monthStart(total.year, total.month),

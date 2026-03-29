@@ -1,16 +1,16 @@
 # Money Manager — Personal Finance Tracker
 
-## Обзор проекта
+## Project Overview
 
-Money Manager — Android-приложение для учёта личных финансов. Разрабатывается как часть магистерской диссертации, посвящённой UI-автоматизации тестирования.
+Money Manager is an Android app for personal finance tracking. Developed as part of a master's thesis focused on UI automation testing.
 
-**Цель:** создать приложение с разнообразными UI-паттернами для последующего покрытия автоматизированными тестами.
+**Goal:** build an app with diverse UI patterns for subsequent coverage with automated tests.
 
 **Package:** `com.atelbay.money_manager`
 
-## Технический стек
+## Tech Stack
 
-| Компонент | Технология | Версия |
+| Component | Technology | Version |
 |-----------|------------|--------|
 | UI | Jetpack Compose + Material 3 | BOM 2026.01.01 |
 | DI | Hilt | 2.58 |
@@ -26,9 +26,9 @@ Money Manager — Android-приложение для учёта личных ф
 | Remote Config | Firebase Remote Config | — |
 | CI/CD | GitHub Actions → Firebase App Distribution → Play Store | — |
 
-## Архитектура (Layer-Centric Modules)
+## Architecture (Layer-Centric Modules)
 
-~36 Gradle-модулей с enforced layer boundaries:
+41 Gradle modules with enforced layer boundaries:
 
 ```
 MoneyManager/
@@ -39,14 +39,19 @@ MoneyManager/
 │   ├── statistics/            # GetPeriodSummaryUseCase + models
 │   ├── import/                # ParseStatement + ImportTransactions use cases
 │   ├── auth/                  # AuthRepository + SignIn/SignOut use cases
-│   └── exchangerate/          # ExchangeRateRepository + use cases
+│   ├── exchangerate/          # ExchangeRateRepository + use cases
+│   ├── sync/                  # SyncUseCase
+│   ├── recurring/             # RecurringTransactionRepository + use cases
+│   └── budgets/               # BudgetRepository + use cases
 ├── data/                      # Repository implementations + Mappers + DI
 │   ├── transactions/
 │   ├── categories/
 │   ├── accounts/
 │   ├── auth/                  # FirebaseAuthRepositoryImpl
 │   ├── exchangerate/          # Exchange rate API client
-│   └── sync/                  # SyncManager: Room ↔ Firestore
+│   ├── sync/                  # SyncManager: Room ↔ Firestore
+│   ├── recurring/
+│   └── budgets/
 ├── presentation/              # Screens, ViewModels, States, Routes
 │   ├── transactions/
 │   ├── categories/
@@ -55,7 +60,9 @@ MoneyManager/
 │   ├── import/
 │   ├── settings/
 │   ├── onboarding/
-│   └── auth/                  # SignInScreen, SignInViewModel
+│   ├── auth/                  # SignInScreen, SignInViewModel
+│   ├── recurring/
+│   └── budgets/
 ├── core/                      # Shared infrastructure
 │   ├── model/                 # Domain models (Account, Transaction, Category...)
 │   ├── database/              # Room DB, Entities, DAOs
@@ -66,40 +73,42 @@ MoneyManager/
 │   ├── parser/                # PDF parsing, bank detection
 │   ├── remoteconfig/          # Firebase Remote Config
 │   ├── auth/                  # CredentialManager wrapper
-│   └── firestore/             # Firestore SDK wrapper
+│   ├── firestore/             # Firestore SDK wrapper
+│   └── crypto/                # Encryption utilities (Tink)
 ├── build-logic/convention/
 └── app/                       # Navigation, DI wiring
 ```
 
-**Правила зависимостей:**
+**Dependency Rules:**
 - `presentation/{name}` → `domain/{name}` → `core:model`
 - `data/{name}` → `domain/{name}` + `core:database`
-- Presentation **НИКОГДА** не зависит от `core:database`
-- Domain/data модули НЕ зависят от presentation
+- Presentation **NEVER** depends on `core:database`
+- Domain/data modules do NOT depend on presentation
 
-**Пакеты:** `com.atelbay.money_manager.{domain|data|presentation}.{feature}.*`
+**Packages:** `com.atelbay.money_manager.{domain|data|presentation}.{feature}.*`
 
-## Skills (технические гайдлайны)
+## Skills (technical guidelines)
 
-Все технические правила, паттерны и алгоритмы разбиты на модульные Skills в `.claude/skills/`. Используй Tool Search для поиска нужного скилла.
+All technical rules, patterns, and algorithms are split into modular Skills in `.claude/skills/`. Use Tool Search to find the relevant skill.
 
-| Скилл | Описание |
+| Skill | Description |
 |-------|----------|
-| `architecture-and-di.md` | Layer-centric многомодульность, Convention Plugins, Hilt DI, Type-Safe Navigation |
-| `clean-architecture-feature-scaffold.md` | Генератор новой фичи: 3 модуля (domain/data/presentation) |
-| `compose-ui-guidelines.md` | Compose паттерны, naming, State Hoisting, testTag |
-| `room-database.md` | Room entities, DAO, миграции, DataStore, Firestore sync |
-| `pdf-and-ai-parsing.md` | Импорт выписок: RegEx → Gemini AI fallback |
-| `generate-ui-test.md` | Генерация UI-тестов с ComposeTestRule |
-| `unit-testing.md` | Unit-тесты: ViewModel + UseCase с MockK и Turbine |
-| `web-search-android-docs.md` | Верификация API через context7 MCP и веб-поиск |
-| `gradle-troubleshooting.md` | Диагностика ошибок сборки Gradle |
-| `git-conventional-commits.md` | Анализ изменений и коммиты в формате Conventional Commits |
+| `architecture-and-di.md` | Layer-centric multi-module architecture, Convention Plugins, Hilt DI, Type-Safe Navigation |
+| `clean-architecture-feature-scaffold.md` | New feature generator: 3 modules (domain/data/presentation) |
+| `compose-ui-guidelines.md` | Compose patterns, naming, State Hoisting, testTag |
+| `room-database.md` | Room entities, DAOs, migrations, DataStore, Firestore sync |
+| `pdf-and-ai-parsing.md` | Bank statement import: RegEx → Gemini AI fallback |
+| `generate-ui-test.md` | UI test generation with ComposeTestRule |
+| `unit-testing.md` | Unit tests: ViewModel + UseCase with MockK and Turbine |
+| `web-search-android-docs.md` | API verification via context7 MCP and web search |
+| `gradle-troubleshooting.md` | Gradle build error diagnostics |
+| `git-conventional-commits.md` | Change analysis and Conventional Commits format |
 | `firebase-auth.md` | Firebase Auth + CredentialManager: Google Sign-In, Coil 3 |
-| `mcp-tools.md` | MCP-инструменты: context7 для документации, Firebase MCP |
+| `mcp-tools.md` | MCP tools: context7 for docs, Firebase MCP |
 | `pencil-design.md` | Pencil MCP: reading, creating, and referencing UI designs in .pen files |
+| `stitch-design.md` | Stitch MCP: AI screen generation, design systems, variants |
 
-## Полезные команды
+## Useful Commands
 
 ```bash
 ./gradlew assembleDebug
@@ -120,19 +129,19 @@ Propagate key node IDs into individual tasks in `tasks.md` so implementing agent
 
 Design file location: `~/Documents/pencil/money_manager_ds/money_manager_screens.pen`
 
-## TODO / Не в MVP
+## TODO / Not in MVP
 
-- [ ] Бюджеты и лимиты по категориям
-- [ ] Повторяющиеся транзакции
-- [ ] Экспорт в CSV/PDF
-- [ ] PIN-код / биометрия
-- [ ] Мультивалютность с конвертацией
-- [ ] Облачная синхронизация
+- [ ] Budgets and category spending limits
+- [ ] Recurring transactions
+- [ ] CSV/PDF export
+- [ ] PIN / biometrics
+- [ ] Multi-currency with conversion
+- [ ] Cloud sync
 - [ ] Widgets
 
 ## Active Technologies
 - Kotlin 2.3.0 + Jetpack Compose (BOM 2026.01.01), Material 3, Navigation Compose 2.9.7 (001-animation-audit)
-- N/A (чисто UI-фича) (001-animation-audit)
+- N/A (pure UI feature) (001-animation-audit)
 - Kotlin 2.3.0 + Jetpack Compose (BOM 2026.01.01), Material 3, Hilt 2.58, Room 2.8.4, kotlinx-collections-immutable (002-statistics-audit)
 - Room (TransactionDao, CategoryDao) (002-statistics-audit)
 - Kotlin 2.3.0 + PdfBox-Android 2.0.27.0, Firebase Remote Config, kotlinx-serialization-json, kotlinx-datetime (003-audit-pdf-import)
