@@ -69,10 +69,10 @@ composeTestRule.onNodeWithTag("transactionList:fab").assertIsDisplayed()
 composeTestRule.onNodeWithTag("transactionEdit:amountField").performTextInput("100.50")
 
 // Search by text
-composeTestRule.onNodeWithText("Сохранить").performClick()
+composeTestRule.onNodeWithText("Save").performClick()
 
 // Search by content description
-composeTestRule.onNodeWithContentDescription("Удалить").performClick()
+composeTestRule.onNodeWithContentDescription("Delete").performClick()
 
 // Lists
 composeTestRule.onNodeWithTag("transactionList:list")
