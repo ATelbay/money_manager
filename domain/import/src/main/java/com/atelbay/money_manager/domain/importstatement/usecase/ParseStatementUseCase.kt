@@ -18,6 +18,7 @@ import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.core.parser.RegexParseResult
 import com.atelbay.money_manager.core.parser.RegexValidator
 import com.atelbay.money_manager.core.parser.StatementParser
+import com.atelbay.money_manager.core.parser.TableExtractionResult
 import com.atelbay.money_manager.core.remoteconfig.ParserConfig
 import com.atelbay.money_manager.core.remoteconfig.ParserConfigList
 import com.atelbay.money_manager.core.remoteconfig.ParserConfigProvider
@@ -150,11 +151,20 @@ class ParseStatementUseCase @Inject constructor(
         // Step 4: Firestore table (user's own candidates)
         tryFirestoreTableConfigs(pdfBytes, collector)?.let { return it }
 
-        // Step 5: AI regex generation (3 retries)
-        tryAiRegexGeneration(pdfBytes, pdfText, collector)?.let { return it }
+        // Classify statement type before AI generation
+        val classification = try {
+            geminiService.classifyStatement(pdfBytes)
+        } catch (e: Exception) {
+            Timber.w(e, "Statement classification failed, defaulting to interleaved")
+            null
+        }
+        val preferTableFirst = classification?.statementType == "table"
+        val expectedCount = classification?.expectedTransactionCount ?: 0
+        Timber.d("Classification: type=%s, expectedCount=%d", classification?.statementType, expectedCount)
+        collector.emit(ImportStepEvent.Classification(classification?.statementType, expectedCount))
 
-        // Step 6: AI table generation (3 retries)
-        tryAiTableGeneration(pdfBytes, collector)?.let { return it }
+        // Steps 5-6 merged: AI generation with interleaved retry
+        tryAiGeneration(pdfBytes, pdfText, preferTableFirst, expectedCount, collector)?.let { return it }
 
         // Step 7: Full AI fallback
         return fallbackToFullAiParsing(regexResult, blobs, parseErrors, collector)
@@ -309,221 +319,297 @@ class ParseStatementUseCase @Inject constructor(
         return null
     }
 
-    /** AI table config generation with retries. */
-    private suspend fun tryAiTableGeneration(
+    /** AI generation with interleaved retry — alternates regex and table attempts based on classification. */
+    private suspend fun tryAiGeneration(
         pdfBytes: ByteArray,
+        pdfText: String,
+        preferTableFirst: Boolean,
+        expectedCount: Int,
         collector: ImportProgressCollector,
     ): RegexThenGeminiResult? {
-        val extraction = try {
+        // Prepare regex context
+        val headerSnippet = statementParser.extractHeaderSnippet(pdfText)
+        val extractedSampleRows = statementParser.extractSampleRows(pdfText)
+        val allConfigs = parserConfigProvider.getConfigs() + loadCachedAiConfigs()
+        val regexFailedAttempts = mutableListOf<FailedAttempt>()
+
+        // Prepare table context
+        val tableExtraction = try {
             statementParser.extractSampleTableRowsWithContext(pdfBytes)
         } catch (e: Exception) {
-            Timber.w(e, "Table extraction failed, skipping AI table generation")
-            return null
+            Timber.w(e, "Table extraction failed, table attempts will be skipped")
+            null
         }
-        val sampleTableRows = extraction.sampleRows
-        if (sampleTableRows.size < 2) return null
-
+        val sampleTableRows = tableExtraction?.sampleRows
         val tableFailedAttempts = mutableListOf<TableFailedAttempt>()
+
+        val canTryRegex = extractedSampleRows.isNotEmpty()
+
         repeat(MAX_AI_RETRIES) { attempt ->
             val attemptNum = attempt + 1
-            collector.emit(ImportStepEvent.AiTableConfigRequest(attemptNum))
 
-            val generatedTableConfig = try {
-                geminiService.generateTableParserConfig(
-                    sampleTableRows = sampleTableRows,
-                    previousAttempts = tableFailedAttempts,
-                    metadataRows = extraction.metadataRows,
-                    columnHeaderRow = extraction.columnHeaderRow,
-                )
-            } catch (e: Exception) {
-                Timber.w(e, "AI table config generation failed (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
-                tableFailedAttempts.add(
-                    TableFailedAttempt(
-                        config = TableParserConfig(
-                            bankId = "", bankMarkers = emptyList(),
-                            dateColumn = 0, amountColumn = 1, dateFormat = "",
-                        ),
-                        error = "AI generation failed: ${e.message}",
-                    ),
-                )
-                return@repeat
-            }
-            Timber.d("AI generated table config for bank: %s (attempt %d/%d)", generatedTableConfig.bankId, attemptNum, MAX_AI_RETRIES)
-            collector.emit(ImportStepEvent.AiTableConfigResponse(attemptNum, generatedTableConfig.bankId))
-
-            if (!isDateFormatValid(generatedTableConfig.dateFormat)) {
-                val dateError = try {
-                    java.time.format.DateTimeFormatter.ofPattern(generatedTableConfig.dateFormat); ""
-                } catch (e: Exception) { e.message.orEmpty() }
-                Timber.w("AI-generated table dateFormat is invalid (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
-                tableFailedAttempts.add(TableFailedAttempt(generatedTableConfig, "DateFormat invalid: $dateError"))
-                return@repeat
-            }
-
-            val tableResult = try {
-                withTimeout(AI_REGEX_TIMEOUT_MS) {
-                    runInterruptible { statementParser.tryParseWithTableConfig(pdfBytes, generatedTableConfig) }
+            if (preferTableFirst) {
+                // Table first, then regex
+                if (sampleTableRows != null && sampleTableRows.size >= 2) {
+                    tryOneTableAttempt(
+                        pdfBytes, sampleTableRows, tableExtraction, attemptNum,
+                        expectedCount, tableFailedAttempts, collector,
+                    )?.let { return it }
                 }
-            } catch (_: TimeoutCancellationException) {
-                Timber.w("AI-generated table config timed out (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
-                tableFailedAttempts.add(TableFailedAttempt(generatedTableConfig, "Table parsing timed out"))
-                return@repeat
+                if (canTryRegex) {
+                    tryOneRegexAttempt(
+                        pdfBytes, pdfText, headerSnippet, extractedSampleRows, allConfigs,
+                        attemptNum, expectedCount, regexFailedAttempts, collector,
+                    )?.let { return it }
+                }
+            } else {
+                // Regex first, then table
+                if (canTryRegex) {
+                    tryOneRegexAttempt(
+                        pdfBytes, pdfText, headerSnippet, extractedSampleRows, allConfigs,
+                        attemptNum, expectedCount, regexFailedAttempts, collector,
+                    )?.let { return it }
+                }
+                if (sampleTableRows != null && sampleTableRows.size >= 2) {
+                    tryOneTableAttempt(
+                        pdfBytes, sampleTableRows, tableExtraction, attemptNum,
+                        expectedCount, tableFailedAttempts, collector,
+                    )?.let { return it }
+                }
             }
-
-            collector.emit(ImportStepEvent.AiTableConfigParseResult(attemptNum, tableResult.transactions.size))
-            if (tableResult.transactions.isEmpty()) {
-                Timber.d("AI-generated table config parsed 0 transactions (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
-                val failedRows = tableResult.extractedTable
-                    .drop(generatedTableConfig.skipHeaderRows).take(5)
-                    .map { it.joinToString(" | ") }
-                tableFailedAttempts.add(
-                    TableFailedAttempt(generatedTableConfig, "Table config parsed 0 transactions", failedRows),
-                )
-                return@repeat
-            }
-
-            Timber.d("AI-generated table config parsed %d transactions (attempt %d/%d)", tableResult.transactions.size, attemptNum, MAX_AI_RETRIES)
-            return RegexThenGeminiResult(
-                transactions = assignCategories(tableResult.transactions, collector),
-                aiMethod = AiMethod.TABLE_GENERATED,
-                aiGeneratedTableConfig = generatedTableConfig,
-                sampleTableRows = sampleTableRows,
-            )
         }
 
-        if (tableFailedAttempts.isNotEmpty()) {
-            Timber.w("All %d AI table config attempts failed, falling through", tableFailedAttempts.size)
+        val totalFailed = regexFailedAttempts.size + tableFailedAttempts.size
+        if (totalFailed > 0) {
+            Timber.w("All %d AI generation attempts failed (regex=%d, table=%d), falling through",
+                totalFailed, regexFailedAttempts.size, tableFailedAttempts.size)
         }
         return null
     }
 
-    /** Tries AI-generated regex config with retries. */
-    private suspend fun tryAiRegexGeneration(
+    /** Single regex generation attempt. Returns result on success, null to continue. */
+    private suspend fun tryOneRegexAttempt(
         pdfBytes: ByteArray,
         pdfText: String,
+        headerSnippet: String,
+        extractedSampleRows: String,
+        allConfigs: List<ParserConfig>,
+        attemptNum: Int,
+        expectedCount: Int,
+        failedAttempts: MutableList<FailedAttempt>,
         collector: ImportProgressCollector,
     ): RegexThenGeminiResult? {
-        val headerSnippet = statementParser.extractHeaderSnippet(pdfText)
-        val extractedSampleRows = statementParser.extractSampleRows(pdfText)
-        if (extractedSampleRows.isEmpty()) return null
+        collector.emit(ImportStepEvent.AiConfigRequest(attemptNum))
 
-        val allConfigs = parserConfigProvider.getConfigs() + loadCachedAiConfigs()
-        val failedAttempts = mutableListOf<FailedAttempt>()
-
-        repeat(MAX_AI_RETRIES) { attempt ->
-            val attemptNum = attempt + 1
-            collector.emit(ImportStepEvent.AiConfigRequest(attemptNum))
-
-            val generatedConfig = try {
-                geminiService.generateParserConfig(
-                    headerSnippet = headerSnippet,
-                    sampleRows = extractedSampleRows,
-                    existingConfigs = allConfigs,
-                    previousAttempts = failedAttempts,
-                    pdfBlob = pdfBytes,
-                )
-            } catch (e: Exception) {
-                Timber.w(e, "AI config generation failed (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
-                collector.emit(ImportStepEvent.Error("AI generation failed (attempt $attemptNum): ${e.message}"))
-                failedAttempts.add(
-                    FailedAttempt(
-                        config = ParserConfig(
-                            bankId = "", bankMarkers = emptyList(),
-                            transactionPattern = "", dateFormat = "",
-                            operationTypeMap = emptyMap(),
-                        ),
-                        error = "AI generation failed: ${e.message}",
+        val generatedConfig = try {
+            geminiService.generateParserConfig(
+                headerSnippet = headerSnippet,
+                sampleRows = extractedSampleRows,
+                existingConfigs = allConfigs,
+                previousAttempts = failedAttempts,
+                pdfBlob = pdfBytes,
+            )
+        } catch (e: Exception) {
+            Timber.w(e, "AI config generation failed (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
+            collector.emit(ImportStepEvent.Error("AI generation failed (attempt $attemptNum): ${e.message}"))
+            failedAttempts.add(
+                FailedAttempt(
+                    config = ParserConfig(
+                        bankId = "", bankMarkers = emptyList(),
+                        transactionPattern = "", dateFormat = "",
+                        operationTypeMap = emptyMap(),
                     ),
-                )
-                return@repeat
-            }
-            Timber.d("AI generated config for bank: %s (attempt %d/%d)", generatedConfig.bankId, attemptNum, MAX_AI_RETRIES)
-            collector.emit(ImportStepEvent.AiConfigResponse(attemptNum, generatedConfig.bankId))
+                    error = "AI generation failed: ${e.message}",
+                ),
+            )
+            return null
+        }
+        Timber.d("AI generated config for bank: %s (attempt %d/%d)", generatedConfig.bankId, attemptNum, MAX_AI_RETRIES)
+        collector.emit(ImportStepEvent.AiConfigResponse(attemptNum, generatedConfig.bankId))
 
-            // Validate: ReDoS + regex syntax + dateFormat
-            val redosViolation = regexValidator.getReDoSViolation(generatedConfig.transactionPattern)
-            if (redosViolation != null) {
-                Timber.w("AI-generated regex failed ReDoS check (attempt %d/%d): %s", attemptNum, MAX_AI_RETRIES, redosViolation)
-                collector.emit(ImportStepEvent.ValidationResult(attemptNum, "ReDoS", false, redosViolation))
-                failedAttempts.add(FailedAttempt(generatedConfig, "Regex failed ReDoS safety check: $redosViolation"))
-                return@repeat
-            }
-            collector.emit(ImportStepEvent.ValidationResult(attemptNum, "ReDoS", true))
+        // Validate: ReDoS + regex syntax + dateFormat
+        val redosViolation = regexValidator.getReDoSViolation(generatedConfig.transactionPattern)
+        if (redosViolation != null) {
+            Timber.w("AI-generated regex failed ReDoS check (attempt %d/%d): %s", attemptNum, MAX_AI_RETRIES, redosViolation)
+            collector.emit(ImportStepEvent.ValidationResult(attemptNum, "ReDoS", false, redosViolation))
+            failedAttempts.add(FailedAttempt(generatedConfig, "Regex failed ReDoS safety check: $redosViolation"))
+            return null
+        }
+        collector.emit(ImportStepEvent.ValidationResult(attemptNum, "ReDoS", true))
 
-            if (!isRegexValid(generatedConfig.transactionPattern)) {
-                val syntaxError = try { Regex(generatedConfig.transactionPattern); "" }
-                    catch (e: Exception) { e.message.orEmpty() }
-                Timber.w("AI-generated regex has invalid syntax (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
-                collector.emit(ImportStepEvent.ValidationResult(attemptNum, "Regex syntax", false, syntaxError))
-                failedAttempts.add(FailedAttempt(generatedConfig, "Regex syntax invalid: $syntaxError"))
-                return@repeat
-            }
-            collector.emit(ImportStepEvent.ValidationResult(attemptNum, "Regex syntax", true))
+        if (!isRegexValid(generatedConfig.transactionPattern)) {
+            val syntaxError = try { Regex(generatedConfig.transactionPattern); "" }
+            catch (e: Exception) { e.message.orEmpty() }
+            Timber.w("AI-generated regex has invalid syntax (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
+            collector.emit(ImportStepEvent.ValidationResult(attemptNum, "Regex syntax", false, syntaxError))
+            failedAttempts.add(FailedAttempt(generatedConfig, "Regex syntax invalid: $syntaxError"))
+            return null
+        }
+        collector.emit(ImportStepEvent.ValidationResult(attemptNum, "Regex syntax", true))
 
-            if (!isDateFormatValid(generatedConfig.dateFormat)) {
-                val dateError = try { java.time.format.DateTimeFormatter.ofPattern(generatedConfig.dateFormat); "" }
-                    catch (e: Exception) { e.message.orEmpty() }
-                Timber.w("AI-generated dateFormat is invalid (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
-                collector.emit(ImportStepEvent.ValidationResult(attemptNum, "Date format", false, dateError))
-                failedAttempts.add(FailedAttempt(generatedConfig, "DateFormat invalid: $dateError"))
-                return@repeat
-            }
-            collector.emit(ImportStepEvent.ValidationResult(attemptNum, "Date format", true))
+        if (!isDateFormatValid(generatedConfig.dateFormat)) {
+            val dateError = try { java.time.format.DateTimeFormatter.ofPattern(generatedConfig.dateFormat); "" }
+            catch (e: Exception) { e.message.orEmpty() }
+            Timber.w("AI-generated dateFormat is invalid (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
+            collector.emit(ImportStepEvent.ValidationResult(attemptNum, "Date format", false, dateError))
+            failedAttempts.add(FailedAttempt(generatedConfig, "DateFormat invalid: $dateError"))
+            return null
+        }
+        collector.emit(ImportStepEvent.ValidationResult(attemptNum, "Date format", true))
 
-            // Parse with generated config (with timeout)
-            val aiResult = try {
-                withTimeout(AI_REGEX_TIMEOUT_MS) {
-                    runInterruptible { statementParser.tryParseWithConfig(pdfBytes, generatedConfig) }
-                }
-            } catch (_: TimeoutCancellationException) {
-                Timber.w("AI-generated regex timed out (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
-                collector.emit(ImportStepEvent.ValidationResult(attemptNum, "Regex timeout", false, "Possible catastrophic backtracking"))
-                failedAttempts.add(FailedAttempt(generatedConfig, "Regex timed out (possible catastrophic backtracking)"))
-                return@repeat
+        // Parse with generated config (with timeout)
+        val aiResult = try {
+            withTimeout(AI_REGEX_TIMEOUT_MS) {
+                runInterruptible { statementParser.tryParseWithConfig(pdfBytes, generatedConfig) }
             }
+        } catch (_: TimeoutCancellationException) {
+            Timber.w("AI-generated regex timed out (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
+            collector.emit(ImportStepEvent.ValidationResult(attemptNum, "Regex timeout", false, "Possible catastrophic backtracking"))
+            failedAttempts.add(FailedAttempt(generatedConfig, "Regex timed out (possible catastrophic backtracking)"))
+            return null
+        }
 
-            if (aiResult == null || aiResult.transactions.isEmpty()) {
-                Timber.d("AI-generated config parsed 0 transactions (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
-                val sampleLines = extractSampleLinesForDiagnostics(pdfText)
-                val totalLines = pdfText.lines().drop(HEADER_SKIP_LINES).count { it.isNotBlank() }
-                collector.emit(ImportStepEvent.AiConfigParseResult(attemptNum, 0))
+        if (aiResult.transactions.isEmpty()) {
+            Timber.d("AI-generated config parsed 0 transactions (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
+            val sampleLines = extractSampleLinesForDiagnostics(pdfText)
+            val totalLines = pdfText.lines().drop(HEADER_SKIP_LINES).count { it.isNotBlank() }
+            collector.emit(ImportStepEvent.AiConfigParseResult(attemptNum, 0))
+            failedAttempts.add(FailedAttempt(
+                generatedConfig,
+                "Regex matched 0 transaction lines out of $totalLines total lines. Sample lines that should have matched:\n$sampleLines",
+            ))
+            return null
+        }
+
+        // Plausibility gate: reject if match rate is suspiciously high
+        val totalLines = pdfText.lines().drop(HEADER_SKIP_LINES).count { it.isNotBlank() }
+        if (totalLines > 0) {
+            val matchRate = aiResult.transactions.size.toFloat() / totalLines
+            if (matchRate > PLAUSIBILITY_MAX_MATCH_RATE && aiResult.transactions.size > PLAUSIBILITY_MIN_TRANSACTIONS) {
+                Timber.w("AI config matched %d/%d lines (%.0f%%) — likely too loose (attempt %d/%d)",
+                    aiResult.transactions.size, totalLines, matchRate * 100, attemptNum, MAX_AI_RETRIES)
+                collector.emit(ImportStepEvent.AiConfigParseResult(attemptNum, aiResult.transactions.size))
                 failedAttempts.add(FailedAttempt(
                     generatedConfig,
-                    "Regex matched 0 transaction lines out of $totalLines total lines. Sample lines that should have matched:\n$sampleLines",
+                    "Regex matched ${aiResult.transactions.size} of $totalLines non-blank lines (${(matchRate * 100).toInt()}%) — implausibly high match rate, regex is likely too loose",
                 ))
-                return@repeat
+                return null
             }
+        }
 
-            // Plausibility gate: reject if match rate is suspiciously high
-            val totalLines = pdfText.lines().drop(HEADER_SKIP_LINES).count { it.isNotBlank() }
-            if (totalLines > 0) {
-                val matchRate = aiResult.transactions.size.toFloat() / totalLines
-                if (matchRate > PLAUSIBILITY_MAX_MATCH_RATE && aiResult.transactions.size > PLAUSIBILITY_MIN_TRANSACTIONS) {
-                    Timber.w("AI config matched %d/%d lines (%.0f%%) — likely too loose (attempt %d/%d)",
-                        aiResult.transactions.size, totalLines, matchRate * 100, attemptNum, MAX_AI_RETRIES)
-                    collector.emit(ImportStepEvent.AiConfigParseResult(attemptNum, aiResult.transactions.size))
-                    failedAttempts.add(FailedAttempt(
-                        generatedConfig,
-                        "Regex matched ${aiResult.transactions.size} of $totalLines non-blank lines (${(matchRate * 100).toInt()}%) — implausibly high match rate, regex is likely too loose",
-                    ))
-                    return@repeat
-                }
+        // Expected count gate: reject if parsed too few vs Gemini's estimate
+        if (expectedCount > 0) {
+            val ratio = aiResult.transactions.size.toFloat() / expectedCount
+            if (ratio < MIN_YIELD_RATE) {
+                Timber.d("AI regex matched %d but expected ~%d (%.0f%%) — low yield (attempt %d/%d)",
+                    aiResult.transactions.size, expectedCount, ratio * 100, attemptNum, MAX_AI_RETRIES)
+                collector.emit(ImportStepEvent.AiConfigParseResult(attemptNum, aiResult.transactions.size))
+                failedAttempts.add(FailedAttempt(
+                    generatedConfig,
+                    "Parsed ${aiResult.transactions.size} but expected ~$expectedCount transactions (${(ratio * 100).toInt()}%) — low yield",
+                ))
+                return null
             }
+        }
 
-            Timber.d("AI-generated config parsed %d transactions (attempt %d/%d)", aiResult.transactions.size, attemptNum, MAX_AI_RETRIES)
-            collector.emit(ImportStepEvent.AiConfigParseResult(attemptNum, aiResult.transactions.size))
-            return RegexThenGeminiResult(
-                transactions = assignCategories(aiResult.transactions, collector),
-                aiGeneratedConfig = generatedConfig,
-                sampleRows = extractedSampleRows,
-                aiMethod = AiMethod.REGEX_GENERATED,
+        Timber.d("AI-generated config parsed %d transactions (attempt %d/%d)", aiResult.transactions.size, attemptNum, MAX_AI_RETRIES)
+        collector.emit(ImportStepEvent.AiConfigParseResult(attemptNum, aiResult.transactions.size))
+        return RegexThenGeminiResult(
+            transactions = assignCategories(aiResult.transactions, collector),
+            aiGeneratedConfig = generatedConfig,
+            sampleRows = extractedSampleRows,
+            aiMethod = AiMethod.REGEX_GENERATED,
+        )
+    }
+
+    /** Single table generation attempt. Returns result on success, null to continue. */
+    @Suppress("LongParameterList")
+    private suspend fun tryOneTableAttempt(
+        pdfBytes: ByteArray,
+        sampleTableRows: List<List<String>>,
+        extraction: TableExtractionResult,
+        attemptNum: Int,
+        expectedCount: Int,
+        tableFailedAttempts: MutableList<TableFailedAttempt>,
+        collector: ImportProgressCollector,
+    ): RegexThenGeminiResult? {
+        collector.emit(ImportStepEvent.AiTableConfigRequest(attemptNum))
+
+        val generatedTableConfig = try {
+            geminiService.generateTableParserConfig(
+                sampleTableRows = sampleTableRows,
+                previousAttempts = tableFailedAttempts,
+                metadataRows = extraction.metadataRows,
+                columnHeaderRow = extraction.columnHeaderRow,
             )
+        } catch (e: Exception) {
+            Timber.w(e, "AI table config generation failed (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
+            tableFailedAttempts.add(
+                TableFailedAttempt(
+                    config = TableParserConfig(
+                        bankId = "", bankMarkers = emptyList(),
+                        dateColumn = 0, amountColumn = 1, dateFormat = "",
+                    ),
+                    error = "AI generation failed: ${e.message}",
+                ),
+            )
+            return null
+        }
+        Timber.d("AI generated table config for bank: %s (attempt %d/%d)", generatedTableConfig.bankId, attemptNum, MAX_AI_RETRIES)
+        collector.emit(ImportStepEvent.AiTableConfigResponse(attemptNum, generatedTableConfig.bankId))
+
+        if (!isDateFormatValid(generatedTableConfig.dateFormat)) {
+            val dateError = try {
+                java.time.format.DateTimeFormatter.ofPattern(generatedTableConfig.dateFormat); ""
+            } catch (e: Exception) { e.message.orEmpty() }
+            Timber.w("AI-generated table dateFormat is invalid (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
+            tableFailedAttempts.add(TableFailedAttempt(generatedTableConfig, "DateFormat invalid: $dateError"))
+            return null
         }
 
-        if (failedAttempts.isNotEmpty()) {
-            Timber.w("All %d AI config generation attempts failed, falling back to full AI", failedAttempts.size)
+        val tableResult = try {
+            withTimeout(AI_REGEX_TIMEOUT_MS) {
+                runInterruptible { statementParser.tryParseWithTableConfig(pdfBytes, generatedTableConfig) }
+            }
+        } catch (_: TimeoutCancellationException) {
+            Timber.w("AI-generated table config timed out (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
+            tableFailedAttempts.add(TableFailedAttempt(generatedTableConfig, "Table parsing timed out"))
+            return null
         }
-        return null
+
+        collector.emit(ImportStepEvent.AiTableConfigParseResult(attemptNum, tableResult.transactions.size))
+        if (tableResult.transactions.isEmpty()) {
+            Timber.d("AI-generated table config parsed 0 transactions (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
+            val failedRows = tableResult.extractedTable
+                .drop(generatedTableConfig.skipHeaderRows).take(5)
+                .map { it.joinToString(" | ") }
+            tableFailedAttempts.add(
+                TableFailedAttempt(generatedTableConfig, "Table config parsed 0 transactions", failedRows),
+            )
+            return null
+        }
+
+        // Expected count gate: reject if parsed too few vs Gemini's estimate
+        if (expectedCount > 0) {
+            val ratio = tableResult.transactions.size.toFloat() / expectedCount
+            if (ratio < MIN_YIELD_RATE) {
+                Timber.d("AI table parsed %d but expected ~%d (%.0f%%) — low yield (attempt %d/%d)",
+                    tableResult.transactions.size, expectedCount, ratio * 100, attemptNum, MAX_AI_RETRIES)
+                tableFailedAttempts.add(
+                    TableFailedAttempt(generatedTableConfig,
+                        "Parsed ${tableResult.transactions.size} but expected ~$expectedCount transactions"),
+                )
+                return null
+            }
+        }
+
+        Timber.d("AI-generated table config parsed %d transactions (attempt %d/%d)", tableResult.transactions.size, attemptNum, MAX_AI_RETRIES)
+        return RegexThenGeminiResult(
+            transactions = assignCategories(tableResult.transactions, collector),
+            aiMethod = AiMethod.TABLE_GENERATED,
+            aiGeneratedTableConfig = generatedTableConfig,
+            sampleTableRows = sampleTableRows,
+        )
     }
 
     /** Falls back to full-AI parsing when all structured approaches fail. */
@@ -790,6 +876,7 @@ class ParseStatementUseCase @Inject constructor(
         private const val HEADER_SKIP_LINES = 10
         private const val PLAUSIBILITY_MAX_MATCH_RATE = 0.7f
         private const val PLAUSIBILITY_MIN_TRANSACTIONS = 20
+        private const val MIN_YIELD_RATE = 0.5f
         private const val TYPE_EXPENSE = "expense"
         private const val TYPE_INCOME = "income"
     }

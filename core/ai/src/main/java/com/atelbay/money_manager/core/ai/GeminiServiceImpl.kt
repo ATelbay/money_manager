@@ -89,6 +89,59 @@ class GeminiServiceImpl @Inject constructor(
         ),
     )
 
+    private val statementClassificationSchema = Schema.obj(
+        properties = mapOf(
+            "statement_type" to Schema.enumeration(
+                listOf("text", "table"),
+                description = "Whether transactions are in free-form text lines ('text') or a structured table with column headers ('table').",
+            ),
+            "expected_transaction_count" to Schema.integer(
+                description = "Total number of individual transactions in the statement. Count each unique date+amount entry as one transaction.",
+            ),
+        ),
+    )
+
+    private fun classificationModel() = Firebase.ai(backend = GenerativeBackend.googleAI())
+        .generativeModel(
+            modelName = configProvider.getGeminiModelName(),
+            generationConfig = generationConfig {
+                responseMimeType = "application/json"
+                responseSchema = statementClassificationSchema
+                temperature = 0f
+                thinkingConfig = thinkingConfig { thinkingBudget = 512 }
+            },
+        )
+
+    // TODO: send only first 2-3 PDF pages instead of full blob to save tokens on large statements
+    override suspend fun classifyStatement(pdfBlob: ByteArray): StatementClassification {
+        Timber.d(">>> Gemini classifyStatement (pdf size=%d bytes)", pdfBlob.size)
+
+        val inputContent = content {
+            inlineData(pdfBlob, "application/pdf")
+            text(
+                """
+                Look at this bank statement PDF. Determine:
+                1. Whether transactions are in free-form text lines (type "text") or a structured table with column headers (type "table").
+                2. Count the total number of individual transactions (each date+amount row = 1 transaction).
+                """.trimIndent(),
+            )
+        }
+
+        return try {
+            val response = classificationModel().generateContent(inputContent)
+            val text = response.text.orEmpty()
+            Timber.d("<<< Gemini classifyStatement response: %s", text)
+            val jsonObj = json.parseToJsonElement(text).jsonObject
+            StatementClassification(
+                statementType = jsonObj.stringFieldOrDefault("statement_type", "text"),
+                expectedTransactionCount = jsonObj.intFieldOrDefault("expected_transaction_count", 0),
+            )
+        } catch (e: Exception) {
+            Timber.e(e, "<<< Gemini classifyStatement failed")
+            throw e
+        }
+    }
+
     private fun generativeModel() = Firebase.ai(backend = GenerativeBackend.googleAI())
         .generativeModel(
             modelName = configProvider.getGeminiModelName(),

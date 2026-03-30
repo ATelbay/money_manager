@@ -207,6 +207,11 @@ private fun ImportStepEvent.toDisplayInfo(): DisplayInfo = when (this) {
         Icons.Default.Check, SuccessGreen,
         "AI table response (attempt $attempt)", "Bank: $bankId",
     )
+    is ImportStepEvent.Classification -> DisplayInfo(
+        Icons.Default.Info, WarningAmber,
+        "Classification: ${statementType ?: "unknown"}",
+        if (expectedCount > 0) "Expected ~$expectedCount transactions" else null,
+    )
     is ImportStepEvent.AiTableConfigParseResult -> DisplayInfo(
         if (txCount > 0) Icons.Default.Check else Icons.Default.Close,
         if (txCount > 0) SuccessGreen else ErrorRed,
