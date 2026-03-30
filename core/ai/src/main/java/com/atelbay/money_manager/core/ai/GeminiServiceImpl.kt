@@ -112,7 +112,6 @@ class GeminiServiceImpl @Inject constructor(
             },
         )
 
-    // TODO: send only first 2-3 PDF pages instead of full blob to save tokens on large statements
     override suspend fun classifyStatement(pdfBlob: ByteArray): StatementClassification {
         Timber.d(">>> Gemini classifyStatement (pdf size=%d bytes)", pdfBlob.size)
 
