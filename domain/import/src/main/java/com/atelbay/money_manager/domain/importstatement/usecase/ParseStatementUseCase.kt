@@ -1,5 +1,6 @@
 package com.atelbay.money_manager.domain.importstatement.usecase
 
+import com.atelbay.money_manager.core.ai.CategoryNames
 import com.atelbay.money_manager.core.ai.FailedAttempt
 import com.atelbay.money_manager.core.ai.GeminiService
 import com.atelbay.money_manager.core.ai.TableFailedAttempt
@@ -68,6 +69,7 @@ private data class RegexThenGeminiResult(
     val aiMethod: AiMethod = AiMethod.NONE,
     val aiGeneratedTableConfig: TableParserConfig? = null,
     val sampleTableRows: List<List<String>>? = null,
+    val categoryMap: Map<String, String> = emptyMap(),
 )
 
 class ParseStatementUseCase @Inject constructor(
@@ -181,7 +183,7 @@ class ParseStatementUseCase @Inject constructor(
                 regexResult.bankId, regexResult.transactions.size)
             collector.emit(ImportStepEvent.RegexConfigAttempt("remote_config", regexResult.bankId))
             collector.emit(ImportStepEvent.RegexConfigResult("remote_config", regexResult.transactions.size))
-            return RegexThenGeminiResult(assignCategories(regexResult.transactions, collector))
+            return RegexThenGeminiResult(assignCategories(regexResult.transactions, collector = collector))
         }
         collector.emit(ImportStepEvent.RegexConfigAttempt("remote_config"))
         collector.emit(ImportStepEvent.RegexConfigResult("remote_config", 0))
@@ -194,7 +196,7 @@ class ParseStatementUseCase @Inject constructor(
                 Timber.d("PDF import: bank=%s parsed %d transactions via cached AI config",
                     cachedResult.bankId, cachedResult.transactions.size)
                 collector.emit(ImportStepEvent.RegexConfigResult("cached_ai", cachedResult.transactions.size))
-                return RegexThenGeminiResult(assignCategories(cachedResult.transactions, collector))
+                return RegexThenGeminiResult(assignCategories(cachedResult.transactions, collector = collector))
             }
             collector.emit(ImportStepEvent.RegexConfigResult("cached_ai", 0))
         }
@@ -234,7 +236,7 @@ class ParseStatementUseCase @Inject constructor(
                     cachedTableResult.transactions.size, cachedTableResult.bankId)
                 collector.emit(ImportStepEvent.TableConfigResult("cached_table", cachedTableResult.transactions.size))
                 return RegexThenGeminiResult(
-                    transactions = assignCategories(cachedTableResult.transactions, collector),
+                    transactions = assignCategories(cachedTableResult.transactions, collector = collector),
                     aiMethod = AiMethod.TABLE_GENERATED,
                 )
             }
@@ -271,7 +273,7 @@ class ParseStatementUseCase @Inject constructor(
             Timber.d("PDF import: parsed %d transactions via Firestore regex candidate (bank=%s)",
                 firestoreResult.transactions.size, firestoreResult.bankId)
             collector.emit(ImportStepEvent.RegexConfigResult("firestore", firestoreResult.transactions.size))
-            return RegexThenGeminiResult(assignCategories(firestoreResult.transactions, collector))
+            return RegexThenGeminiResult(assignCategories(firestoreResult.transactions, collector = collector))
         }
         collector.emit(ImportStepEvent.RegexConfigResult("firestore", 0))
         return null
@@ -311,7 +313,7 @@ class ParseStatementUseCase @Inject constructor(
                 firestoreTableResult.transactions.size, firestoreTableResult.bankId)
             collector.emit(ImportStepEvent.TableConfigResult("firestore", firestoreTableResult.transactions.size))
             return RegexThenGeminiResult(
-                transactions = assignCategories(firestoreTableResult.transactions, collector),
+                transactions = assignCategories(firestoreTableResult.transactions, collector = collector),
                 aiMethod = AiMethod.TABLE_GENERATED,
             )
         }
@@ -327,6 +329,12 @@ class ParseStatementUseCase @Inject constructor(
         expectedCount: Int,
         collector: ImportProgressCollector,
     ): RegexThenGeminiResult? {
+        // Load category names for Gemini's category_map
+        val categoryNames = CategoryNames(
+            expense = categoryDao.getByType(TYPE_EXPENSE).map { it.name },
+            income = categoryDao.getByType(TYPE_INCOME).map { it.name },
+        )
+
         // Prepare regex context
         val headerSnippet = statementParser.extractHeaderSnippet(pdfText)
         val extractedSampleRows = statementParser.extractSampleRows(pdfText)
@@ -353,13 +361,13 @@ class ParseStatementUseCase @Inject constructor(
                 if (sampleTableRows != null && sampleTableRows.size >= 2) {
                     tryOneTableAttempt(
                         pdfBytes, sampleTableRows, tableExtraction, attemptNum,
-                        expectedCount, tableFailedAttempts, collector,
+                        expectedCount, tableFailedAttempts, categoryNames, collector,
                     )?.let { return it }
                 }
                 if (canTryRegex) {
                     tryOneRegexAttempt(
                         pdfBytes, pdfText, headerSnippet, extractedSampleRows, allConfigs,
-                        attemptNum, expectedCount, regexFailedAttempts, collector,
+                        attemptNum, expectedCount, regexFailedAttempts, categoryNames, collector,
                     )?.let { return it }
                 }
             } else {
@@ -367,13 +375,13 @@ class ParseStatementUseCase @Inject constructor(
                 if (canTryRegex) {
                     tryOneRegexAttempt(
                         pdfBytes, pdfText, headerSnippet, extractedSampleRows, allConfigs,
-                        attemptNum, expectedCount, regexFailedAttempts, collector,
+                        attemptNum, expectedCount, regexFailedAttempts, categoryNames, collector,
                     )?.let { return it }
                 }
                 if (sampleTableRows != null && sampleTableRows.size >= 2) {
                     tryOneTableAttempt(
                         pdfBytes, sampleTableRows, tableExtraction, attemptNum,
-                        expectedCount, tableFailedAttempts, collector,
+                        expectedCount, tableFailedAttempts, categoryNames, collector,
                     )?.let { return it }
                 }
             }
@@ -397,6 +405,7 @@ class ParseStatementUseCase @Inject constructor(
         attemptNum: Int,
         expectedCount: Int,
         failedAttempts: MutableList<FailedAttempt>,
+        categoryNames: CategoryNames,
         collector: ImportProgressCollector,
     ): RegexThenGeminiResult? {
         collector.emit(ImportStepEvent.AiConfigRequest(attemptNum))
@@ -408,6 +417,7 @@ class ParseStatementUseCase @Inject constructor(
                 existingConfigs = allConfigs,
                 previousAttempts = failedAttempts,
                 pdfBlob = pdfBytes,
+                categoryNames = categoryNames,
             )
         } catch (e: Exception) {
             Timber.w(e, "AI config generation failed (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
@@ -515,10 +525,11 @@ class ParseStatementUseCase @Inject constructor(
         Timber.d("AI-generated config parsed %d transactions (attempt %d/%d)", aiResult.transactions.size, attemptNum, MAX_AI_RETRIES)
         collector.emit(ImportStepEvent.AiConfigParseResult(attemptNum, aiResult.transactions.size))
         return RegexThenGeminiResult(
-            transactions = assignCategories(aiResult.transactions, collector),
+            transactions = assignCategories(aiResult.transactions, generatedConfig.categoryMap, collector),
             aiGeneratedConfig = generatedConfig,
             sampleRows = extractedSampleRows,
             aiMethod = AiMethod.REGEX_GENERATED,
+            categoryMap = generatedConfig.categoryMap,
         )
     }
 
@@ -531,6 +542,7 @@ class ParseStatementUseCase @Inject constructor(
         attemptNum: Int,
         expectedCount: Int,
         tableFailedAttempts: MutableList<TableFailedAttempt>,
+        categoryNames: CategoryNames,
         collector: ImportProgressCollector,
     ): RegexThenGeminiResult? {
         collector.emit(ImportStepEvent.AiTableConfigRequest(attemptNum))
@@ -541,6 +553,7 @@ class ParseStatementUseCase @Inject constructor(
                 previousAttempts = tableFailedAttempts,
                 metadataRows = extraction.metadataRows,
                 columnHeaderRow = extraction.columnHeaderRow,
+                categoryNames = categoryNames,
             )
         } catch (e: Exception) {
             Timber.w(e, "AI table config generation failed (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
@@ -605,10 +618,11 @@ class ParseStatementUseCase @Inject constructor(
 
         Timber.d("AI-generated table config parsed %d transactions (attempt %d/%d)", tableResult.transactions.size, attemptNum, MAX_AI_RETRIES)
         return RegexThenGeminiResult(
-            transactions = assignCategories(tableResult.transactions, collector),
+            transactions = assignCategories(tableResult.transactions, generatedTableConfig.categoryMap, collector),
             aiMethod = AiMethod.TABLE_GENERATED,
             aiGeneratedTableConfig = generatedTableConfig,
             sampleTableRows = sampleTableRows,
+            categoryMap = generatedTableConfig.categoryMap,
         )
     }
 
@@ -817,6 +831,7 @@ class ParseStatementUseCase @Inject constructor(
 
     private suspend fun assignCategories(
         transactions: List<ParsedTransaction>,
+        categoryMap: Map<String, String> = emptyMap(),
         collector: ImportProgressCollector = NoOpCollector,
     ): List<ParsedTransaction> {
         val expenseCategories = categoryDao.getByType(TYPE_EXPENSE).toMutableList()
@@ -824,12 +839,12 @@ class ParseStatementUseCase @Inject constructor(
 
         val neededOperations = transactions
             .filter { it.categoryId == null }
-            .map { it.operationType to it.type }
+            .map { Triple(it.operationType, it.details, it.type) }
             .distinct()
 
-        for ((operation, type) in neededOperations) {
+        for ((operation, details, type) in neededOperations) {
             val categories = if (type == TransactionType.EXPENSE) expenseCategories else incomeCategories
-            val resolvedName = operationAliases[operation] ?: operation
+            val resolvedName = resolveCategoryName(operation, details, categoryMap)
             if (categories.any { it.name == resolvedName }) continue
 
             val dbType = if (type == TransactionType.EXPENSE) TYPE_EXPENSE else TYPE_INCOME
@@ -857,7 +872,7 @@ class ParseStatementUseCase @Inject constructor(
             if (tx.categoryId != null) return@map tx
 
             val categories = if (tx.type == TransactionType.EXPENSE) expenseCategories else incomeCategories
-            val resolvedName = operationAliases[tx.operationType] ?: tx.operationType
+            val resolvedName = resolveCategoryName(tx.operationType, tx.details, categoryMap)
             val matched = categories.find { it.name == resolvedName }
 
             tx.copy(
@@ -867,6 +882,27 @@ class ParseStatementUseCase @Inject constructor(
         }
         collector.emit(ImportStepEvent.CategoryAssignment(result.size))
         return result
+    }
+
+    /**
+     * Resolves category name: hardcoded aliases → Gemini's categoryMap (prefix match) → raw fallback.
+     */
+    private fun resolveCategoryName(
+        operationType: String,
+        details: String,
+        categoryMap: Map<String, String>,
+    ): String {
+        operationAliases[operationType]?.let { return it }
+        categoryMap.findByPrefix(operationType)?.let { return it }
+        categoryMap.findByPrefix(details)?.let { return it }
+        return operationType.ifBlank { details }
+    }
+
+    private fun Map<String, String>.findByPrefix(text: String): String? {
+        if (text.isBlank()) return null
+        return this[text] ?: entries.firstOrNull { (key, _) ->
+            key.startsWith(text) || text.startsWith(key)
+        }?.value
     }
 
     companion object {

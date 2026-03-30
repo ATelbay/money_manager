@@ -19,6 +19,7 @@ data class TableParserConfig(
     @SerialName("skip_header_rows") val skipHeaderRows: Int = 1,
     @SerialName("deduplicate_max_amount") val deduplicateMaxAmount: Boolean = false,
     @SerialName("operation_type_map") val operationTypeMap: Map<String, String> = emptyMap(),
+    @SerialName("category_map") val categoryMap: Map<String, String> = emptyMap(),
 )
 
 @Serializable

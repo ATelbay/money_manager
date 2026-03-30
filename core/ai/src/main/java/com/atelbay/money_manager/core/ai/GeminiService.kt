@@ -14,6 +14,11 @@ data class TableFailedAttempt(
     val failedRows: List<String> = emptyList(),
 )
 
+data class CategoryNames(
+    val expense: List<String> = emptyList(),
+    val income: List<String> = emptyList(),
+)
+
 data class StatementClassification(
     val statementType: String, // "text" or "table"
     val expectedTransactionCount: Int,
@@ -33,6 +38,7 @@ interface GeminiService {
         existingConfigs: List<ParserConfig> = emptyList(),
         previousAttempts: List<FailedAttempt> = emptyList(),
         pdfBlob: ByteArray? = null,
+        categoryNames: CategoryNames = CategoryNames(),
     ): ParserConfig
 
     suspend fun generateTableParserConfig(
@@ -40,5 +46,6 @@ interface GeminiService {
         previousAttempts: List<TableFailedAttempt> = emptyList(),
         metadataRows: List<List<String>> = emptyList(),
         columnHeaderRow: List<String>? = null,
+        categoryNames: CategoryNames = CategoryNames(),
     ): TableParserConfig
 }

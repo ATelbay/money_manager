@@ -49,6 +49,7 @@ class GeminiServiceImplTest {
             List::class.java,
             List::class.java,
             Boolean::class.java,
+            CategoryNames::class.java,
         ).apply { isAccessible = true }
 
         parseTableParserConfigResponseMethod = GeminiServiceImpl::class.java.getDeclaredMethod(
@@ -61,6 +62,7 @@ class GeminiServiceImplTest {
             List::class.java,
             List::class.java,
             List::class.java,
+            CategoryNames::class.java,
         ).apply { isAccessible = true }
     }
 
@@ -76,7 +78,8 @@ class GeminiServiceImplTest {
         header: String, samples: String,
         configs: List<ParserConfig>, attempts: List<FailedAttempt>,
         hasPdfBlob: Boolean = false,
-    ): String = buildPromptMethod.invoke(service, header, samples, configs, attempts, hasPdfBlob) as String
+        categoryNames: CategoryNames = CategoryNames(),
+    ): String = buildPromptMethod.invoke(service, header, samples, configs, attempts, hasPdfBlob, categoryNames) as String
 
     // --- parseParserConfigResponse tests ---
 
@@ -224,8 +227,9 @@ class GeminiServiceImplTest {
         previousAttempts: List<TableFailedAttempt>,
         metadataRows: List<List<String>> = emptyList(),
         columnHeaderRow: List<String>? = null,
+        categoryNames: CategoryNames = CategoryNames(),
     ): String = buildTableParserConfigPromptMethod.invoke(
-        service, sampleTableRows, previousAttempts, metadataRows, columnHeaderRow,
+        service, sampleTableRows, previousAttempts, metadataRows, columnHeaderRow, categoryNames,
     ) as String
 
     // --- generateTableParserConfig tests (via reflection on private methods) ---

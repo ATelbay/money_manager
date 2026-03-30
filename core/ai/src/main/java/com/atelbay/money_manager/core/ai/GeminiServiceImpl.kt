@@ -76,6 +76,15 @@ class GeminiServiceImpl @Inject constructor(
             "deduplicate_max_amount" to Schema.boolean(
                 description = "True if the same transaction appears multiple times (e.g. currency conversion rows) — keep only the max amount."
             ),
+            "category_map" to Schema.array(
+                Schema.obj(
+                    properties = mapOf(
+                        "key" to Schema.string(description = "Operation text as it appears in the statement."),
+                        "value" to Schema.string(description = "Target category name from the provided list."),
+                    ),
+                ),
+                description = "Maps each distinct operation/description from the statement to an app category name. Include ALL distinct operation types."
+            ),
         ),
         optionalProperties = listOf(
             "operation_type_map",
@@ -86,6 +95,7 @@ class GeminiServiceImpl @Inject constructor(
             "negative_sign_means_expense",
             "use_named_groups",
             "deduplicate_max_amount",
+            "category_map",
         ),
     )
 
@@ -214,6 +224,15 @@ class GeminiServiceImpl @Inject constructor(
                 ),
                 description = "Maps operation names to income/expense. Only use when amounts have no sign and no sign column."
             ),
+            "category_map" to Schema.array(
+                Schema.obj(
+                    properties = mapOf(
+                        "key" to Schema.string(description = "Operation/description text as it appears in the table."),
+                        "value" to Schema.string(description = "Target category name from the provided list."),
+                    ),
+                ),
+                description = "Maps each distinct operation/description from the statement to an app category name. Include ALL distinct operation types."
+            ),
         ),
         optionalProperties = listOf(
             "operation_column",
@@ -225,6 +244,7 @@ class GeminiServiceImpl @Inject constructor(
             "skip_header_rows",
             "deduplicate_max_amount",
             "operation_type_map",
+            "category_map",
         ),
     )
 
@@ -272,8 +292,9 @@ class GeminiServiceImpl @Inject constructor(
         existingConfigs: List<ParserConfig>,
         previousAttempts: List<FailedAttempt>,
         pdfBlob: ByteArray?,
+        categoryNames: CategoryNames,
     ): ParserConfig {
-        val prompt = buildParserConfigPrompt(headerSnippet, sampleRows, existingConfigs, previousAttempts, hasPdfBlob = pdfBlob != null)
+        val prompt = buildParserConfigPrompt(headerSnippet, sampleRows, existingConfigs, previousAttempts, hasPdfBlob = pdfBlob != null, categoryNames = categoryNames)
         Timber.d(">>> Gemini generateParserConfig prompt length=%d", prompt.length)
         Timber.d(">>> Gemini prompt:\n%s", prompt)
 
@@ -300,8 +321,9 @@ class GeminiServiceImpl @Inject constructor(
         previousAttempts: List<TableFailedAttempt>,
         metadataRows: List<List<String>>,
         columnHeaderRow: List<String>?,
+        categoryNames: CategoryNames,
     ): TableParserConfig {
-        val prompt = buildTableParserConfigPrompt(sampleTableRows, previousAttempts, metadataRows, columnHeaderRow)
+        val prompt = buildTableParserConfigPrompt(sampleTableRows, previousAttempts, metadataRows, columnHeaderRow, categoryNames)
         Timber.d(">>> Gemini generateTableParserConfig prompt length=%d", prompt.length)
         Timber.d(">>> Gemini prompt:\n%s", prompt)
 
@@ -325,6 +347,7 @@ class GeminiServiceImpl @Inject constructor(
         previousAttempts: List<TableFailedAttempt>,
         metadataRows: List<List<String>>,
         columnHeaderRow: List<String>?,
+        categoryNames: CategoryNames,
     ): String = buildString {
         appendLine("You are an expert at parsing bank statement tables. Analyze the sample rows from a PDF table and generate a column-index based parser configuration.")
         appendLine()
@@ -351,6 +374,19 @@ class GeminiServiceImpl @Inject constructor(
         appendLine("- skip_header_rows: number of header rows to skip (usually 1)")
         appendLine("- deduplicate_max_amount: true if the same transaction appears multiple times (e.g. for currency conversion rows)")
         appendLine("- operation_type_map: array of {\"key\": \"...\", \"value\": \"income\"|\"expense\"} objects mapping operation text to type. Use ONLY when amounts have no sign and there is no sign column. If the operation column text determines income vs expense, list all distinct operation values here.")
+        if (categoryNames.expense.isNotEmpty() || categoryNames.income.isNotEmpty()) {
+            appendLine()
+            appendLine("## Rules for category_map")
+            appendLine("Map every distinct operation/description pattern visible in the statement to one of these app category names:")
+            if (categoryNames.expense.isNotEmpty()) {
+                appendLine("Expense categories: ${categoryNames.expense.joinToString(", ")}")
+            }
+            if (categoryNames.income.isNotEmpty()) {
+                appendLine("Income categories: ${categoryNames.income.joinToString(", ")}")
+            }
+            appendLine("Use the operation/description text exactly as it appears in the table. Include ALL distinct operations found in the sample rows.")
+            appendLine("Format: array of {\"key\": \"operation text\", \"value\": \"category name\"}")
+        }
 
         if (previousAttempts.isNotEmpty()) {
             appendLine()
@@ -403,6 +439,16 @@ class GeminiServiceImpl @Inject constructor(
             emptyMap()
         }
 
+        val categoryMap: Map<String, String> = try {
+            jsonObj["category_map"]?.jsonArray?.associate { entry ->
+                val obj = entry.jsonObject
+                obj["key"]!!.jsonPrimitive.content to obj["value"]!!.jsonPrimitive.content
+            }.orEmpty()
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to parse table category_map, using empty map")
+            emptyMap()
+        }
+
         return TableParserConfig(
             bankId = jsonObj.stringField("bank_id"),
             bankMarkers = jsonObj.stringListField("bank_markers"),
@@ -418,6 +464,7 @@ class GeminiServiceImpl @Inject constructor(
             skipHeaderRows = jsonObj.intFieldOrDefault("skip_header_rows", 1),
             deduplicateMaxAmount = jsonObj.boolFieldOrDefault("deduplicate_max_amount", false),
             operationTypeMap = operationTypeMap,
+            categoryMap = categoryMap,
         )
     }
 
@@ -448,6 +495,7 @@ class GeminiServiceImpl @Inject constructor(
         existingConfigs: List<ParserConfig>,
         previousAttempts: List<FailedAttempt>,
         hasPdfBlob: Boolean = false,
+        categoryNames: CategoryNames = CategoryNames(),
     ): String = buildString {
         appendLine("You are an expert at parsing bank statement PDFs. Analyze the header and sample rows from a PDF statement and generate a parser configuration.")
         appendLine()
@@ -501,6 +549,19 @@ class GeminiServiceImpl @Inject constructor(
         appendLine("NEVER use [\\d\\s]+ or \\d[\\d\\s]* for amount matching — it crosses column boundaries on multi-column statements.")
         appendLine("For sign capture, place (?<sign>[-+]?) immediately BEFORE the amount group, not inside the operation group.")
         appendLine("For the (?<operation>...) group, use a FLEXIBLE pattern like .+? — NEVER hardcode specific operation names as alternation (e.g. Покупка|Перевод|...). Hardcoded names miss operations not in the list. Use operation_type_map to classify operations AFTER matching instead.")
+        if (categoryNames.expense.isNotEmpty() || categoryNames.income.isNotEmpty()) {
+            appendLine()
+            appendLine("## Rules for category_map")
+            appendLine("Map every distinct operation/description pattern visible in the statement to one of these app category names:")
+            if (categoryNames.expense.isNotEmpty()) {
+                appendLine("Expense categories: ${categoryNames.expense.joinToString(", ")}")
+            }
+            if (categoryNames.income.isNotEmpty()) {
+                appendLine("Income categories: ${categoryNames.income.joinToString(", ")}")
+            }
+            appendLine("Use the operation text exactly as it appears in the statement. Include ALL distinct operations found in the sample rows.")
+            appendLine("Format: array of {\"key\": \"operation text\", \"value\": \"category name\"}")
+        }
 
         // Working examples section
         val examples = selectExamplesForPrompt(existingConfigs)
@@ -556,6 +617,16 @@ class GeminiServiceImpl @Inject constructor(
             emptyMap()
         }
 
+        val categoryMap: Map<String, String> = try {
+            jsonObj["category_map"]?.jsonArray?.associate { entry ->
+                val obj = entry.jsonObject
+                obj["key"]!!.jsonPrimitive.content to obj["value"]!!.jsonPrimitive.content
+            }.orEmpty()
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to parse category_map, using empty map")
+            emptyMap()
+        }
+
         return ParserConfig(
             bankId = jsonObj.stringField("bank_id"),
             bankMarkers = jsonObj.stringListField("bank_markers"),
@@ -571,6 +642,7 @@ class GeminiServiceImpl @Inject constructor(
             negativeSignMeansExpense = jsonObj.boolFieldOrDefault("negative_sign_means_expense", false),
             useNamedGroups = jsonObj.boolFieldOrDefault("use_named_groups", false),
             deduplicateMaxAmount = jsonObj.boolFieldOrDefault("deduplicate_max_amount", false),
+            categoryMap = categoryMap,
         )
     }
 

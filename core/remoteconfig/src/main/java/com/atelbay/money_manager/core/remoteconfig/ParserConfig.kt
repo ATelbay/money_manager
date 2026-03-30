@@ -30,4 +30,5 @@ data class ParserConfig(
     @SerialName("deduplicate_max_amount") val deduplicateMaxAmount: Boolean = false,
     /** Post-join line fixups: each entry is [regexPattern, replacement] applied before regex matching. */
     @SerialName("line_fixups") val lineFixups: List<List<String>> = emptyList(),
+    @SerialName("category_map") val categoryMap: Map<String, String> = emptyMap(),
 )
