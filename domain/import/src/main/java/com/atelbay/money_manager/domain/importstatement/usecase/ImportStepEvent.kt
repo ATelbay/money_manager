@@ -24,4 +24,5 @@ sealed class ImportStepEvent {
     data class AiTableConfigRequest(val attempt: Int) : ImportStepEvent()
     data class AiTableConfigResponse(val attempt: Int, val bankId: String) : ImportStepEvent()
     data class AiTableConfigParseResult(val attempt: Int, val txCount: Int) : ImportStepEvent()
+    data class Classification(val statementType: String?, val expectedCount: Int) : ImportStepEvent()
 }

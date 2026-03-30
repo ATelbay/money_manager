@@ -30,7 +30,7 @@ class GeminiServiceImplTest {
     @Before
     fun setUp() {
         configProvider = mockk()
-        every { configProvider.getGeminiModelName() } returns "gemini-2.5-flash"
+        every { configProvider.getGeminiModelName() } returns "gemini-3-flash-preview"
         service = GeminiServiceImpl(configProvider)
 
         // Access private methods via reflection

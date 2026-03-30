@@ -14,7 +14,14 @@ data class TableFailedAttempt(
     val failedRows: List<String> = emptyList(),
 )
 
+data class StatementClassification(
+    val statementType: String, // "text" or "table"
+    val expectedTransactionCount: Int,
+)
+
 interface GeminiService {
+    suspend fun classifyStatement(pdfBlob: ByteArray): StatementClassification
+
     suspend fun parseContent(
         blobs: List<Pair<ByteArray, String>>,
         prompt: String,

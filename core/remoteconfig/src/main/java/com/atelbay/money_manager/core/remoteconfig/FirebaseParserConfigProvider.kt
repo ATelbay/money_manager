@@ -17,7 +17,7 @@ import kotlinx.coroutines.sync.withLock
 private const val CONFIG_KEY = "parser_configs"
 private const val AI_FULL_PARSE_KEY = "ai_full_parse_enabled"
 private const val GEMINI_MODEL_KEY = "gemini_model_name"
-private const val DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+private const val DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview"
 private const val FETCH_INTERVAL_SECONDS = 3600L
 
 @Singleton

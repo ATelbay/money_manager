@@ -2,6 +2,7 @@ package com.atelbay.money_manager.domain.importstatement.usecase
 
 import com.atelbay.money_manager.core.ai.FailedAttempt
 import com.atelbay.money_manager.core.ai.GeminiService
+import com.atelbay.money_manager.core.ai.StatementClassification
 import com.atelbay.money_manager.core.model.TableParserConfig
 import com.atelbay.money_manager.core.model.TableParserConfigList
 import com.atelbay.money_manager.core.parser.TableParseResult
@@ -137,6 +138,8 @@ class ParseStatementUseCaseTest {
         coEvery { parserConfigProvider.getConfigs() } returns emptyList()
         // Default: table extraction returns empty (no table path) — individual tests override as needed
         every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(emptyList(), emptyList(), null)
+        // Default: classification returns text type with 0 expected count
+        coEvery { geminiService.classifyStatement(any()) } returns StatementClassification("text", 0)
         // Default: Firestore returns no candidates
         coEvery { userIdHasher.computeHash(any()) } returns "testhash0123456789abcdef0123456789abcdef0123456789abcdef01234567"
         coEvery { firestoreDataSource.findCandidatesByUser(any(), any()) } returns emptyList()
@@ -713,14 +716,14 @@ class ParseStatementUseCaseTest {
     }
 
     @Test
-    fun `fallback - all AI regex retries fail - table path runs`() = runTest {
+    fun `fallback - AI regex fails then interleaved table succeeds`() = runTest {
         // Table has enough rows to trigger the table path (>=2 rows)
         every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(sampleTable, emptyList(), null)
 
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
         coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
 
-        // All AI regex attempts parse 0 transactions
+        // AI regex parses 0 transactions
         coEvery {
             geminiService.generateParserConfig(headerSnippet, sampleRows, any(), any(), any())
         } returns testConfig
@@ -730,7 +733,7 @@ class ParseStatementUseCaseTest {
             bankId = testConfig.bankId,
         )
 
-        // After AI regex fails, table path should run and succeed
+        // Interleaved: after regex fails on attempt 1, table runs and succeeds
         coEvery {
             geminiService.generateTableParserConfig(any(), any(), any(), any())
         } returns testTableConfig
@@ -743,8 +746,8 @@ class ParseStatementUseCaseTest {
 
         val result = useCase(pdfBlobs)
 
-        // AI regex was tried 3 times (all parsed 0 tx) then fell through to table path
-        coVerify(exactly = 3) { geminiService.generateParserConfig(any(), any(), any(), any(), any()) }
+        // With interleaved retry (text-first): regex attempt 1 fails → table attempt 1 succeeds
+        coVerify(exactly = 1) { geminiService.generateParserConfig(any(), any(), any(), any(), any()) }
         coVerify(exactly = 1) { geminiService.generateTableParserConfig(any(), any(), any(), any()) }
         assertEquals(AiMethod.TABLE_GENERATED, result.aiMethod)
     }
