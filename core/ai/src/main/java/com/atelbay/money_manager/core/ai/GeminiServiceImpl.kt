@@ -80,10 +80,10 @@ class GeminiServiceImpl @Inject constructor(
                 Schema.obj(
                     properties = mapOf(
                         "key" to Schema.string(description = "Operation text as it appears in the statement."),
-                        "value" to Schema.string(description = "Target category name from the provided list."),
+                        "value" to Schema.string(description = "Target category name — MUST be from the existing category list. Only create a short Russian label if no existing category fits."),
                     ),
                 ),
-                description = "Maps each distinct operation/description from the statement to an app category name. Include ALL distinct operation types."
+                description = "Maps each operation/description to an EXISTING app category name. Prefer existing categories; only create new short Russian labels if no match."
             ),
         ),
         optionalProperties = listOf(
@@ -228,10 +228,10 @@ class GeminiServiceImpl @Inject constructor(
                 Schema.obj(
                     properties = mapOf(
                         "key" to Schema.string(description = "Operation/description text as it appears in the table."),
-                        "value" to Schema.string(description = "Target category name from the provided list."),
+                        "value" to Schema.string(description = "Target category name — MUST be from the existing category list. Only create a short Russian label if no existing category fits."),
                     ),
                 ),
-                description = "Maps each distinct operation/description from the statement to an app category name. Include ALL distinct operation types."
+                description = "Maps each operation/description to an EXISTING app category name. Prefer existing categories; only create new short Russian labels if no match."
             ),
         ),
         optionalProperties = listOf(
@@ -376,16 +376,7 @@ class GeminiServiceImpl @Inject constructor(
         appendLine("- operation_type_map: array of {\"key\": \"...\", \"value\": \"income\"|\"expense\"} objects mapping operation text to type. Use ONLY when amounts have no sign and there is no sign column. If the operation column text determines income vs expense, list all distinct operation values here.")
         if (categoryNames.expense.isNotEmpty() || categoryNames.income.isNotEmpty()) {
             appendLine()
-            appendLine("## Rules for category_map")
-            appendLine("Map every distinct operation/description pattern visible in the statement to one of these app category names:")
-            if (categoryNames.expense.isNotEmpty()) {
-                appendLine("Expense categories: ${categoryNames.expense.joinToString(", ")}")
-            }
-            if (categoryNames.income.isNotEmpty()) {
-                appendLine("Income categories: ${categoryNames.income.joinToString(", ")}")
-            }
-            appendLine("Use the operation/description text exactly as it appears in the table. Include ALL distinct operations found in the sample rows.")
-            appendLine("Format: array of {\"key\": \"operation text\", \"value\": \"category name\"}")
+            appendCategoryMapRules(categoryNames)
         }
 
         if (previousAttempts.isNotEmpty()) {
@@ -551,16 +542,7 @@ class GeminiServiceImpl @Inject constructor(
         appendLine("For the (?<operation>...) group, use a FLEXIBLE pattern like .+? — NEVER hardcode specific operation names as alternation (e.g. Покупка|Перевод|...). Hardcoded names miss operations not in the list. Use operation_type_map to classify operations AFTER matching instead.")
         if (categoryNames.expense.isNotEmpty() || categoryNames.income.isNotEmpty()) {
             appendLine()
-            appendLine("## Rules for category_map")
-            appendLine("Map every distinct operation/description pattern visible in the statement to one of these app category names:")
-            if (categoryNames.expense.isNotEmpty()) {
-                appendLine("Expense categories: ${categoryNames.expense.joinToString(", ")}")
-            }
-            if (categoryNames.income.isNotEmpty()) {
-                appendLine("Income categories: ${categoryNames.income.joinToString(", ")}")
-            }
-            appendLine("Use the operation text exactly as it appears in the statement. Include ALL distinct operations found in the sample rows.")
-            appendLine("Format: array of {\"key\": \"operation text\", \"value\": \"category name\"}")
+            appendCategoryMapRules(categoryNames)
         }
 
         // Working examples section
@@ -602,6 +584,36 @@ class GeminiServiceImpl @Inject constructor(
         appendLine("<DATA>")
         appendLine(sampleRows.ifBlank { "(no data)" })
         appendLine("</DATA>")
+    }
+
+    private fun StringBuilder.appendCategoryMapRules(categoryNames: CategoryNames) {
+        appendLine("## Rules for category_map")
+        appendLine("CRITICAL: You MUST map every operation/description to an EXISTING category from the lists below.")
+        appendLine("Do NOT invent new category names unless absolutely none of the existing categories fit semantically.")
+        appendLine()
+        if (categoryNames.expense.isNotEmpty()) {
+            appendLine("Existing expense categories: ${categoryNames.expense.joinToString(", ")}")
+        }
+        if (categoryNames.income.isNotEmpty()) {
+            appendLine("Existing income categories: ${categoryNames.income.joinToString(", ")}")
+        }
+        appendLine()
+        appendLine("### Mapping rules (follow strictly):")
+        appendLine("1. ALWAYS prefer an existing category. Use semantic matching across languages:")
+        appendLine("   - \"Пополнение счета\", \"Толыќтыру\", \"Card replenishment\" → \"Пополнение\"")
+        appendLine("   - \"Покупка\", \"Оплата\", \"Payment\", \"Merchant payment\" → \"Покупки\"")
+        appendLine("   - \"Перевод\", \"Платёж\", \"Transfer\" → \"Перевод\"")
+        appendLine("   - Food/restaurant/cafe merchants → \"Еда\"")
+        appendLine("   - Transport/taxi/fuel → \"Транспорт\"")
+        appendLine("2. The \"value\" MUST be one of the existing category names whenever possible.")
+        appendLine("3. Only if NO existing category is semantically close, create a new one:")
+        appendLine("   - Short (1-2 words max), in Russian")
+        appendLine("   - Semantic category label (e.g. \"Такси\"), NOT raw merchant/operation text")
+        appendLine("4. BAD values (never use): \"STARBUCKS COFFEE SHOP ALMATY KZ\", \"полнение счета\", raw amounts")
+        appendLine("5. GOOD values: \"Покупки\", \"Еда\", \"Транспорт\", \"Пополнение\"")
+        appendLine()
+        appendLine("Format: array of {\"key\": \"raw operation text from statement\", \"value\": \"existing category name\"}")
+        appendLine("Map ALL distinct operations found in the sample rows.")
     }
 
     private fun parseParserConfigResponse(responseText: String): ParserConfig {

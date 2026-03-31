@@ -300,10 +300,10 @@ class ParseStatementUseCase @Inject constructor(
         expectedCount: Int,
         collector: ImportProgressCollector,
     ): RegexThenGeminiResult? {
-        // Load category names for Gemini's category_map
+        // Load category names for Gemini's category_map (filtered to exclude garbage from bad imports)
         val categoryNames = CategoryNames(
-            expense = categoryDao.getByType(TYPE_EXPENSE).map { it.name },
-            income = categoryDao.getByType(TYPE_INCOME).map { it.name },
+            expense = sanitizeCategoryNames(categoryDao.getByType(TYPE_EXPENSE)),
+            income = sanitizeCategoryNames(categoryDao.getByType(TYPE_INCOME)),
         )
 
         // Prepare regex context
@@ -735,6 +735,22 @@ class ParseStatementUseCase @Inject constructor(
         }
         parseErrors.addAll(errors)
         return result
+    }
+
+    /**
+     * Filters out garbage category names created by previous bad imports before sending to Gemini.
+     * Real categories are short semantic labels ("Еда", "Транспорт", "Кафе и рестораны").
+     * Garbage examples: "Аударым 100 000.0 0 KZT", "Пополнение от А Финансовый центр, ИИН...", "полнение счета".
+     */
+    private fun sanitizeCategoryNames(categories: List<CategoryEntity>): List<String> {
+        return categories
+            .map { it.name }
+            .filter { name ->
+                name.length <= 30 &&
+                    !name.any { it.isDigit() } &&
+                    !name.contains(',')
+            }
+            .distinct()
     }
 
     // Maps raw operation names from bank statements to existing default category names.
