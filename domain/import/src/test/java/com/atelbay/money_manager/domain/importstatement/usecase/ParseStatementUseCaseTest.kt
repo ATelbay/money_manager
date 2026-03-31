@@ -4,11 +4,10 @@ import com.atelbay.money_manager.core.ai.FailedAttempt
 import com.atelbay.money_manager.core.ai.GeminiService
 import com.atelbay.money_manager.core.ai.StatementClassification
 import com.atelbay.money_manager.core.model.TableParserConfig
-import com.atelbay.money_manager.core.model.TableParserConfigList
 import com.atelbay.money_manager.core.parser.TableParseResult
 import com.atelbay.money_manager.core.database.dao.CategoryDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
-import com.atelbay.money_manager.core.datastore.UserPreferences
+import com.atelbay.money_manager.core.database.dao.ParserConfigDao
 import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
 import com.atelbay.money_manager.core.firestore.dto.ParserCandidateDto
 import com.atelbay.money_manager.core.model.ParsedTransaction
@@ -18,7 +17,6 @@ import com.atelbay.money_manager.core.parser.RegexValidator
 import com.atelbay.money_manager.core.parser.StatementParser
 import com.atelbay.money_manager.core.parser.TableExtractionResult
 import com.atelbay.money_manager.core.remoteconfig.ParserConfig
-import com.atelbay.money_manager.core.remoteconfig.ParserConfigList
 import com.atelbay.money_manager.core.remoteconfig.ParserConfigProvider
 import com.atelbay.money_manager.domain.categories.usecase.SaveCategoryUseCase
 import io.mockk.coEvery
@@ -26,7 +24,6 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.decodeFromString
@@ -46,11 +43,11 @@ class ParseStatementUseCaseTest {
     private lateinit var categoryDao: CategoryDao
     private lateinit var transactionDao: TransactionDao
     private lateinit var saveCategoryUseCase: SaveCategoryUseCase
-    private lateinit var userPreferences: UserPreferences
     private lateinit var regexValidator: RegexValidator
     private lateinit var parserConfigProvider: ParserConfigProvider
     private lateinit var userIdHasher: UserIdHasher
     private lateinit var firestoreDataSource: FirestoreDataSource
+    private lateinit var parserConfigDao: ParserConfigDao
 
     private lateinit var useCase: ParseStatementUseCase
     private val json = Json { ignoreUnknownKeys = true }
@@ -117,17 +114,14 @@ class ParseStatementUseCaseTest {
         categoryDao = mockk()
         transactionDao = mockk()
         saveCategoryUseCase = mockk()
-        userPreferences = mockk()
         regexValidator = mockk()
         parserConfigProvider = mockk()
         userIdHasher = mockk()
         firestoreDataSource = mockk()
+        parserConfigDao = mockk()
 
         // Common default stubs
-        every { userPreferences.cachedAiParserConfigs } returns flowOf(null)
-        every { userPreferences.cachedAiTableParserConfigs } returns flowOf(null)
-        coEvery { userPreferences.setCachedAiParserConfigs(any()) } returns Unit
-        coEvery { userPreferences.setCachedAiTableParserConfigs(any()) } returns Unit
+        coEvery { parserConfigDao.upsertAll(any()) } returns Unit
         coEvery { categoryDao.getByType(any()) } returns emptyList()
         coEvery { transactionDao.getExistingHashes(any()) } returns emptyList()
         coEvery { statementParser.tryParsePdf(any(), any()) } returns emptyRegexResult
@@ -136,6 +130,7 @@ class ParseStatementUseCaseTest {
         every { statementParser.extractSampleRows(pdfTextWithEnoughLines) } returns sampleRows
         every { parserConfigProvider.isAiFullParseEnabled() } returns true
         coEvery { parserConfigProvider.getConfigs() } returns emptyList()
+        coEvery { parserConfigProvider.getTableConfigs() } returns emptyList()
         // Default: table extraction returns empty (no table path) — individual tests override as needed
         every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(emptyList(), emptyList(), null)
         // Default: classification returns text type with 0 expected count
@@ -150,11 +145,11 @@ class ParseStatementUseCaseTest {
             categoryDao = categoryDao,
             transactionDao = transactionDao,
             saveCategoryUseCase = saveCategoryUseCase,
-            userPreferences = userPreferences,
             regexValidator = regexValidator,
             parserConfigProvider = parserConfigProvider,
             userIdHasher = userIdHasher,
             firestoreDataSource = firestoreDataSource,
+            parserConfigDao = parserConfigDao,
         )
     }
 
@@ -180,8 +175,8 @@ class ParseStatementUseCaseTest {
             bankId = testConfig.bankId,
         )
 
-        // Step 6: Cache config (stub the setter)
-        coEvery { userPreferences.setCachedAiParserConfigs(any()) } returns Unit
+        // Step 6: Cache config to Room (stub the DAO)
+        coEvery { parserConfigDao.upsertAll(any()) } returns Unit
 
         val result = useCase(pdfBlobs)
 
@@ -271,18 +266,11 @@ class ParseStatementUseCaseTest {
 
     @Test
     fun `cached config is used on second call - AI is NOT called`() = runTest {
-        val cachedConfigJson = """{"banks":[{"bank_id":"test_bank","bank_markers":["Test Bank"],"transaction_pattern":"\\d{2}\\.\\d{2}\\.\\d{4}\\s+(.+)","date_format":"dd.MM.yyyy","operation_type_map":{"Purchase":"expense"}}]}"""
+        // Room-backed provider returns configs (seed + AI cached)
+        coEvery { parserConfigProvider.getConfigs() } returns listOf(testConfig)
 
-        // Cached configs exist in DataStore
-        every { userPreferences.cachedAiParserConfigs } returns flowOf(cachedConfigJson)
-
-        // Step 1: Remote config regex returns empty (no bank)
-        coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
-
-        // Step 2: Cached config matches and parses
-        coEvery {
-            statementParser.tryParsePdf(pdfBytes, additionalConfigs = any())
-        } returns RegexParseResult(
+        // Step 1: Regex configs from Room match the PDF
+        coEvery { statementParser.tryParsePdf(pdfBytes) } returns RegexParseResult(
             transactions = listOf(testTransaction),
             bankId = "test_bank",
         )
@@ -333,11 +321,8 @@ class ParseStatementUseCaseTest {
     @Test
     fun `generated config is returned for deferred caching`() = runTest {
         val existingVariant = testConfig.copy(transactionPattern = "existing-pattern")
-        every { userPreferences.cachedAiParserConfigs } returns flowOf(
-            json.encodeToString(ParserConfigList(banks = listOf(existingVariant))),
-        )
+        coEvery { parserConfigProvider.getConfigs() } returns listOf(existingVariant)
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
-        coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
 
         val generatedVariant = testConfig.copy(transactionPattern = "new-pattern")
         coEvery {
@@ -544,14 +529,10 @@ class ParseStatementUseCaseTest {
 
     @Test
     fun `cached table config hit - no AI call`() = runTest {
-        val cachedTableJson = json.encodeToString(
-            TableParserConfigList(configs = listOf(testTableConfig)),
-        )
-        every { userPreferences.cachedAiTableParserConfigs } returns flowOf(cachedTableJson)
-        every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(sampleTable, emptyList(), null)
+        // Room-backed provider returns table configs
+        coEvery { parserConfigProvider.getTableConfigs() } returns listOf(testTableConfig)
 
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
-        coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
 
         every {
             statementParser.tryParseTable(pdfBytes, any())
@@ -570,14 +551,11 @@ class ParseStatementUseCaseTest {
 
     @Test
     fun `cached table config miss - falls through to AI generation`() = runTest {
-        val cachedTableJson = json.encodeToString(
-            TableParserConfigList(configs = listOf(testTableConfig)),
-        )
-        every { userPreferences.cachedAiTableParserConfigs } returns flowOf(cachedTableJson)
+        // Room-backed provider returns table configs
+        coEvery { parserConfigProvider.getTableConfigs() } returns listOf(testTableConfig)
         every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(sampleTable, emptyList(), null)
 
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
-        coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
 
         // Cached table config returns 0 transactions
         every {
@@ -628,14 +606,11 @@ class ParseStatementUseCaseTest {
     @Test
     fun `AI table config returned with correct dateFormat for deferred caching`() = runTest {
         val oldConfig = testTableConfig.copy(dateFormat = "yyyy-MM-dd")
-        val cachedTableJson = json.encodeToString(
-            TableParserConfigList(configs = listOf(oldConfig)),
-        )
-        every { userPreferences.cachedAiTableParserConfigs } returns flowOf(cachedTableJson)
+        // Room-backed provider returns old table config
+        coEvery { parserConfigProvider.getTableConfigs() } returns listOf(oldConfig)
         every { statementParser.extractSampleTableRowsWithContext(pdfBytes) } returns TableExtractionResult(sampleTable, emptyList(), null)
 
         coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
-        coEvery { statementParser.tryParsePdf(pdfBytes, additionalConfigs = any()) } returns emptyRegexResult
 
         // Cached config returns null (miss)
         every { statementParser.tryParseTable(pdfBytes, any()) } returns null
@@ -795,16 +770,12 @@ class ParseStatementUseCaseTest {
     }
 
     @Test
-    fun `fallback - cached AI regex configs tried before table path`() = runTest {
-        val cachedConfigJson = """{"banks":[{"bank_id":"test_bank","bank_markers":["Test Bank"],"transaction_pattern":"\\d{2}\\.\\d{2}\\.\\d{4}\\s+(.+)","date_format":"dd.MM.yyyy","operation_type_map":{"Purchase":"expense"}}]}"""
-        every { userPreferences.cachedAiParserConfigs } returns flowOf(cachedConfigJson)
+    fun `fallback - regex configs tried before table path`() = runTest {
+        // Room-backed provider returns configs (including AI cached)
+        coEvery { parserConfigProvider.getConfigs() } returns listOf(testConfig)
 
-        // Step 1: Remote config fails
-        coEvery { statementParser.tryParsePdf(pdfBytes) } returns emptyRegexResult
-        // Step 2: Cached AI regex config succeeds — table path should not be reached
-        coEvery {
-            statementParser.tryParsePdf(pdfBytes, additionalConfigs = any())
-        } returns RegexParseResult(
+        // Step 1: Regex configs from Room succeed — table path should not be reached
+        coEvery { statementParser.tryParsePdf(pdfBytes) } returns RegexParseResult(
             transactions = listOf(testTransaction),
             bankId = "test_bank",
         )
