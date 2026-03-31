@@ -6,6 +6,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.remoteconfig.remoteConfig
 import com.google.firebase.remoteconfig.remoteConfigSettings
 import kotlinx.serialization.json.Json
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -40,22 +41,37 @@ class FirebaseParserConfigProvider @Inject constructor(
 
     override suspend fun getConfigs(): List<ParserConfig> {
         syncer.ensureInitialized()
-        return parserConfigDao.getActiveByType("regex").map {
-            json.decodeFromString<ParserConfig>(it.configJson)
+        return parserConfigDao.getActiveByType("regex").mapNotNull {
+            try {
+                json.decodeFromString<ParserConfig>(it.configJson)
+            } catch (e: Exception) {
+                Timber.w(e, "Skipping malformed regex config: %s", it.id)
+                null
+            }
         }
     }
 
     override suspend fun getTableConfigs(): List<TableParserConfig> {
         syncer.ensureInitialized()
-        return parserConfigDao.getActiveByType("table").map {
-            json.decodeFromString<TableParserConfig>(it.configJson)
+        return parserConfigDao.getActiveByType("table").mapNotNull {
+            try {
+                json.decodeFromString<TableParserConfig>(it.configJson)
+            } catch (e: Exception) {
+                Timber.w(e, "Skipping malformed table config: %s", it.id)
+                null
+            }
         }
     }
 
     override suspend fun getConfigForBank(bankId: String): ParserConfig? {
         syncer.ensureInitialized()
         return parserConfigDao.getByBankIdAndType(bankId, "regex")?.let {
-            json.decodeFromString<ParserConfig>(it.configJson)
+            try {
+                json.decodeFromString<ParserConfig>(it.configJson)
+            } catch (e: Exception) {
+                Timber.w(e, "Skipping malformed config for bank: %s", bankId)
+                null
+            }
         }
     }
 

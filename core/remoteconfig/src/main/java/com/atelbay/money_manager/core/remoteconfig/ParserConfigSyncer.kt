@@ -168,7 +168,7 @@ class ParserConfigSyncer @Inject constructor(
         }
 
         parserConfigDao.upsertAll(entities)
-        parserConfigDao.deleteStale(entities.map { it.id })
+        parserConfigDao.deleteStaleExceptLocal(entities.map { it.id })
 
         val remoteVersion = firestoreDataSource.getParserConfigsVersion()
         if (remoteVersion != null) {

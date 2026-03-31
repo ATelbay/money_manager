@@ -23,6 +23,9 @@ interface ParserConfigDao {
     @Query("DELETE FROM parser_configs WHERE id NOT IN (:activeIds)")
     suspend fun deleteStale(activeIds: List<String>)
 
+    @Query("DELETE FROM parser_configs WHERE id NOT IN (:activeIds) AND source NOT IN ('ai_cached')")
+    suspend fun deleteStaleExceptLocal(activeIds: List<String>)
+
     @Query("DELETE FROM parser_configs")
     suspend fun deleteAll()
 }
