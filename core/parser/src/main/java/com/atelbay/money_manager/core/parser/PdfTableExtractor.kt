@@ -58,13 +58,19 @@ class PdfTableExtractor @Inject constructor(
                     val allRows = mutableListOf<List<String>>()
                     for (pageIndex in 0 until document.numberOfPages) {
                         val stripper = TableTextStripper(
-                            overrideBoundaries = if (pageIndex > 0) resolvedBoundaries else null,
+                            overrideBoundaries = if (pageIndex > 0) {
+                                resolvedBoundaries?.takeIf { it.isNotEmpty() }
+                            } else {
+                                null
+                            },
                         )
                         stripper.startPage = pageIndex + 1
                         stripper.endPage = pageIndex + 1
                         stripper.getText(document)
                         val pageRows = stripper.buildTable()
-                        if (pageIndex == 0) {
+                        // Only propagate header-derived boundaries — voting-based
+                        // boundaries from a cover/summary page are unreliable.
+                        if (pageIndex == 0 && stripper.boundariesFromHeader) {
                             resolvedBoundaries = stripper.lastUsedBoundaries
                         }
                         allRows.addAll(stripPageHeaders(pageRows, isFirstPage = pageIndex == 0))
@@ -174,7 +180,7 @@ class PdfTableExtractor @Inject constructor(
     )
 
     @VisibleForTesting
-    internal val minHeaderKeywords = 2
+    internal val minHeaderKeywords = 3
 
     /**
      * Scans the first [MAX_HEADER_SCAN_ROWS] rows for a header row containing
@@ -384,6 +390,10 @@ class PdfTableExtractor @Inject constructor(
         var lastUsedBoundaries: List<Float>? = null
             private set
 
+        /** Whether [lastUsedBoundaries] were derived from header detection (authoritative). */
+        var boundariesFromHeader: Boolean = false
+            private set
+
         init {
             sortByPosition = true
         }
@@ -430,6 +440,7 @@ class PdfTableExtractor @Inject constructor(
                 if (headerIndex >= 0) {
                     val headerBoundaries = detectColumnBoundariesFromHeader(glyphRows[headerIndex])
                     if (headerBoundaries.isNotEmpty()) {
+                        boundariesFromHeader = true
                         Timber.d("buildTable: using header-anchored boundaries from row %d: %d columns",
                             headerIndex, headerBoundaries.size + 1)
                         headerBoundaries

@@ -138,6 +138,18 @@ class PdfTableExtractorColumnDetectionTest {
         assertEquals(-1, index)
     }
 
+    @Test
+    fun `two keyword metadata line is not detected as header`() {
+        // "Дата выписки: остаток 500,000 KZT" — contains "дата" and "остаток" but is metadata
+        val row = buildGlyphRow(
+            listOf(0f to "Дата", 80f to "выписки:", 180f to "остаток", 300f to "500,000"),
+        )
+        val rows = listOf(row)
+
+        val index = extractor.detectHeaderRow(rows)
+        assertEquals(-1, index)
+    }
+
     // ─── detectColumnBoundariesFromHeader ────────────────────────────────────
 
     @Test
