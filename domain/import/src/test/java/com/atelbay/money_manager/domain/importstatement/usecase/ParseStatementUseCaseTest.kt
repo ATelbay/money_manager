@@ -16,6 +16,7 @@ import com.atelbay.money_manager.core.parser.RegexParseResult
 import com.atelbay.money_manager.core.parser.RegexValidator
 import com.atelbay.money_manager.core.parser.StatementParser
 import com.atelbay.money_manager.core.parser.TableExtractionResult
+import com.atelbay.money_manager.core.parser.TableQualityValidator
 import com.atelbay.money_manager.core.remoteconfig.ParserConfig
 import com.atelbay.money_manager.core.remoteconfig.ParserConfigProvider
 import com.atelbay.money_manager.domain.categories.usecase.SaveCategoryUseCase
@@ -48,6 +49,7 @@ class ParseStatementUseCaseTest {
     private lateinit var userIdHasher: UserIdHasher
     private lateinit var firestoreDataSource: FirestoreDataSource
     private lateinit var parserConfigDao: ParserConfigDao
+    private val tableQualityValidator = TableQualityValidator()
 
     private lateinit var useCase: ParseStatementUseCase
     private val json = Json { ignoreUnknownKeys = true }
@@ -146,6 +148,7 @@ class ParseStatementUseCaseTest {
             transactionDao = transactionDao,
             saveCategoryUseCase = saveCategoryUseCase,
             regexValidator = regexValidator,
+            tableQualityValidator = tableQualityValidator,
             parserConfigProvider = parserConfigProvider,
             userIdHasher = userIdHasher,
             firestoreDataSource = firestoreDataSource,
