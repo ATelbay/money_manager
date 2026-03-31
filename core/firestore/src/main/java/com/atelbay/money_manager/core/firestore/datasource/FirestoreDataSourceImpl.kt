@@ -3,6 +3,7 @@ package com.atelbay.money_manager.core.firestore.datasource
 import com.atelbay.money_manager.core.firestore.dto.AccountDto
 import com.atelbay.money_manager.core.firestore.dto.CategoryDto
 import com.atelbay.money_manager.core.firestore.dto.ParserCandidateDto
+import com.atelbay.money_manager.core.firestore.dto.ParserConfigFirestoreDto
 import com.atelbay.money_manager.core.firestore.dto.TransactionDto
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -27,6 +28,9 @@ class FirestoreDataSourceImpl @Inject constructor(
 
     private val parserCandidates
         get() = firestore.collection("parser_candidates")
+
+    private val parserConfigs
+        get() = firestore.collection("parser_configs")
 
     override suspend fun pushTransaction(userId: String, dto: TransactionDto) {
         try {
@@ -172,5 +176,32 @@ class FirestoreDataSourceImpl @Inject constructor(
             .get()
             .await()
         return snapshot.documents.mapNotNull { it.toObject(ParserCandidateDto::class.java) }
+    }
+
+    override suspend fun pullActiveParserConfigs(): List<ParserConfigFirestoreDto> {
+        return try {
+            parserConfigs
+                .whereEqualTo("status", "active")
+                .orderBy("updatedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .get()
+                .await()
+                .toObjects(ParserConfigFirestoreDto::class.java)
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to pull active parser configs from Firestore")
+            emptyList()
+        }
+    }
+
+    override suspend fun getParserConfigsVersion(): Long? {
+        return try {
+            val doc = firestore.collection("parser_configs_meta")
+                .document("latest")
+                .get()
+                .await()
+            (doc.data?.get("globalVersion") as? Number)?.toLong()
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to get parser configs version from Firestore")
+            null
+        }
     }
 }

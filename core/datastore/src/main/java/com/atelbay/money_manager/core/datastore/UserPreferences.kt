@@ -203,6 +203,17 @@ class UserPreferences @Inject constructor(
         }
     }
 
+    val parserConfigsGlobalVersion: Flow<Long> =
+        context.dataStore.data.map { prefs ->
+            prefs[KEY_PARSER_CONFIGS_VERSION] ?: 0L
+        }
+
+    suspend fun setParserConfigsGlobalVersion(version: Long) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_PARSER_CONFIGS_VERSION] = version
+        }
+    }
+
     /**
      * Returns a persistent device-scoped UUID for anonymous candidate submission.
      * Generated on first access and persisted in DataStore.
@@ -249,6 +260,7 @@ class UserPreferences @Inject constructor(
         val KEY_QUOTE_REFRESH_FAILURE_COUNT = intPreferencesKey("quote_refresh_failure_count")
         val KEY_AI_PARSER_CONFIGS = stringPreferencesKey("ai_parser_configs")
         val KEY_AI_TABLE_PARSER_CONFIGS = stringPreferencesKey("ai_table_parser_configs")
+        val KEY_PARSER_CONFIGS_VERSION = longPreferencesKey("parser_configs_global_version")
         val KEY_ANONYMOUS_DEVICE_ID = stringPreferencesKey("anonymous_device_id")
 
         /**
