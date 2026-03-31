@@ -9,11 +9,13 @@ import com.atelbay.money_manager.core.database.MoneyManagerDatabase
 import com.atelbay.money_manager.core.database.dao.AccountDao
 import com.atelbay.money_manager.core.database.dao.BudgetDao
 import com.atelbay.money_manager.core.database.dao.CategoryDao
+import com.atelbay.money_manager.core.database.dao.ParserConfigDao
 import com.atelbay.money_manager.core.database.dao.RecurringTransactionDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
 import com.atelbay.money_manager.core.database.migration.MIGRATION_2_3
 import com.atelbay.money_manager.core.database.migration.MIGRATION_3_4
 import com.atelbay.money_manager.core.database.migration.MIGRATION_4_5
+import com.atelbay.money_manager.core.database.migration.MIGRATION_5_6
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -49,7 +51,7 @@ object DatabaseModule {
                     }
                 }
             })
-            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             .build()
     }
 
@@ -67,4 +69,7 @@ object DatabaseModule {
 
     @Provides
     fun provideBudgetDao(db: MoneyManagerDatabase): BudgetDao = db.budgetDao()
+
+    @Provides
+    fun provideParserConfigDao(db: MoneyManagerDatabase): ParserConfigDao = db.parserConfigDao()
 }
