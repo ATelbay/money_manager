@@ -5,6 +5,7 @@ import com.atelbay.money_manager.core.ai.FailedAttempt
 import com.atelbay.money_manager.core.ai.GeminiService
 import com.atelbay.money_manager.core.ai.TableFailedAttempt
 import com.atelbay.money_manager.core.common.generateTransactionHash
+import com.atelbay.money_manager.core.database.DefaultCategories
 import com.atelbay.money_manager.core.database.dao.CategoryDao
 import com.atelbay.money_manager.core.database.dao.ParserConfigDao
 import com.atelbay.money_manager.core.database.entity.ParserConfigEntity
@@ -20,6 +21,7 @@ import com.atelbay.money_manager.core.parser.RegexParseResult
 import com.atelbay.money_manager.core.parser.RegexValidator
 import com.atelbay.money_manager.core.parser.StatementParser
 import com.atelbay.money_manager.core.parser.TableExtractionResult
+import com.atelbay.money_manager.core.parser.TableQualityValidator
 import com.atelbay.money_manager.core.remoteconfig.ParserConfig
 import com.atelbay.money_manager.core.remoteconfig.ParserConfigProvider
 import com.atelbay.money_manager.domain.categories.usecase.SaveCategoryUseCase
@@ -77,6 +79,7 @@ class ParseStatementUseCase @Inject constructor(
     private val transactionDao: TransactionDao,
     private val saveCategoryUseCase: SaveCategoryUseCase,
     private val regexValidator: RegexValidator,
+    private val tableQualityValidator: TableQualityValidator,
     private val parserConfigProvider: ParserConfigProvider,
     private val userIdHasher: UserIdHasher,
     private val firestoreDataSource: FirestoreDataSource,
@@ -587,6 +590,14 @@ class ParseStatementUseCase @Inject constructor(
             }
         }
 
+        // Quality gate: reject if table extraction produced garbled data
+        val quality = tableQualityValidator.validate(tableResult.extractedTable)
+        if (!quality.isAcceptable) {
+            Timber.d("AI table quality rejected (attempt %d/%d): %s", attemptNum, MAX_AI_RETRIES, quality.reason)
+            tableFailedAttempts.add(TableFailedAttempt(generatedTableConfig, "Quality: ${quality.reason}"))
+            return null
+        }
+
         Timber.d("AI-generated table config parsed %d transactions (attempt %d/%d)", tableResult.transactions.size, attemptNum, MAX_AI_RETRIES)
         return RegexThenGeminiResult(
             transactions = assignCategories(tableResult.transactions, generatedTableConfig.categoryMap, collector),
@@ -739,17 +750,26 @@ class ParseStatementUseCase @Inject constructor(
 
     /**
      * Filters out garbage category names created by previous bad imports before sending to Gemini.
-     * Real categories are short semantic labels ("Еда", "Транспорт", "Кафе и рестораны").
-     * Garbage examples: "Аударым 100 000.0 0 KZT", "Пополнение от А Финансовый центр, ИИН...", "полнение счета".
+     * Only keeps: default categories + user-created categories that look like real semantic labels.
+     * Garbage examples: "Merchant payment ansaction", "полнение счета", "Сумма в обработке".
      */
     private fun sanitizeCategoryNames(categories: List<CategoryEntity>): List<String> {
+        val defaultNames = DefaultCategories.all().map { it.name }.toSet()
         return categories
-            .map { it.name }
-            .filter { name ->
-                name.length <= 30 &&
-                    !name.any { it.isDigit() } &&
-                    !name.contains(',')
+            .filter { entity ->
+                val name = entity.name
+                // Always keep default categories
+                name in defaultNames ||
+                    // Keep user-created categories that look like real semantic labels
+                    (entity.isDefault.not() &&
+                        name.isNotBlank() &&
+                        name.length <= 25 &&
+                        !name.any { it.isDigit() } &&
+                        !name.contains(',') &&
+                        // Filter English-only names (likely raw Halyk/Bereke operation text)
+                        name.any { it in '\u0400'..'\u04FF' })
             }
+            .map { it.name }
             .distinct()
     }
 

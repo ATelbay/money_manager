@@ -32,6 +32,7 @@ class StatementParser @Inject constructor(
     private val configProvider: ParserConfigProvider,
     private val pdfTableExtractor: PdfTableExtractor,
     private val tableStatementParser: TableStatementParser,
+    private val tableQualityValidator: TableQualityValidator,
 ) {
 
     private companion object {
@@ -95,6 +96,13 @@ class StatementParser @Inject constructor(
 
     fun tryParseTable(bytes: ByteArray, tableConfigs: List<TableParserConfig>): TableParseResult? {
         val table = pdfTableExtractor.extractTableOrNull(bytes) ?: return null
+
+        val quality = tableQualityValidator.validate(table)
+        if (!quality.isAcceptable) {
+            Timber.d("Table quality rejected before config matching: %s", quality.reason)
+            return null
+        }
+
         val allCellText = table.flatten().joinToString(" ")
         for (config in tableConfigs) {
             val matches = config.bankMarkers.any { marker -> allCellText.contains(marker, ignoreCase = true) }
@@ -112,6 +120,13 @@ class StatementParser @Inject constructor(
 
     fun tryParseWithTableConfig(bytes: ByteArray, config: TableParserConfig): TableParseResult {
         val table = pdfTableExtractor.extractTable(bytes)
+
+        val quality = tableQualityValidator.validate(table)
+        if (!quality.isAcceptable) {
+            Timber.d("Table quality rejected for bank %s: %s", config.bankId, quality.reason)
+            return TableParseResult(transactions = emptyList(), bankId = config.bankId, extractedTable = table)
+        }
+
         val transactions = tableStatementParser.parse(table, config)
         return TableParseResult(transactions = transactions, bankId = config.bankId, extractedTable = table)
     }

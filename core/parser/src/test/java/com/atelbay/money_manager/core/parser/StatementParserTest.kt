@@ -56,6 +56,7 @@ class StatementParserTest {
             configProvider = configProvider,
             pdfTableExtractor = pdfTableExtractor,
             tableStatementParser = TableStatementParser(),
+            tableQualityValidator = TableQualityValidator(),
         )
     }
 

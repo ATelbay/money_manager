@@ -23,10 +23,28 @@ class PdfTableExtractor @Inject constructor(
         private const val COLUMN_GAP_SPACE_FACTOR = 3f
         private const val MIN_DATE_ROWS = 3
         private const val MAX_CONTINUATION_ROWS = 3
+        private const val MAX_HEADER_SCAN_ROWS = 10
+
+        /** Gap ≤ spaceWidth * this factor → same word. */
+        private const val HEADER_WORD_GAP_FACTOR = 1.5f
+        /** Gap > spaceWidth * this factor → column boundary. */
+        private const val HEADER_COLUMN_GAP_FACTOR = 2.0f
+
         // Anchored at start: a row that starts with a date token begins a new logical transaction.
         // Trailing [-./]? allows partial matches like "01.03" before the year part.
         private val DATE_ROW_PATTERN = Regex("^${ParserPatterns.DATE_CORE}[-./]?")
     }
+
+    @VisibleForTesting
+    internal data class GlyphInfo(
+        val x: Float,
+        val width: Float,
+        val spaceWidth: Float,
+        val char: String,
+    )
+
+    /** Column boundaries resolved from page 0, reused for subsequent pages. */
+    private var resolvedBoundaries: List<Float>? = null
 
     /**
      * Extracts a table from the PDF bytes. Returns an empty list on failure or if no table found.
@@ -34,16 +52,22 @@ class PdfTableExtractor @Inject constructor(
     fun extractTable(bytes: ByteArray): List<List<String>> {
         return try {
             pdfTextExtractor.ensureInitialized()
+            resolvedBoundaries = null
             ByteArrayInputStream(bytes).use { stream ->
                 PDDocument.load(stream).use { document ->
                     val allRows = mutableListOf<List<String>>()
                     for (pageIndex in 0 until document.numberOfPages) {
-                        val stripper = TableTextStripper()
+                        val stripper = TableTextStripper(
+                            overrideBoundaries = if (pageIndex > 0) resolvedBoundaries else null,
+                        )
                         stripper.startPage = pageIndex + 1
                         stripper.endPage = pageIndex + 1
                         stripper.getText(document)
                         val pageRows = stripper.buildTable()
-                    allRows.addAll(stripPageHeaders(pageRows, isFirstPage = pageIndex == 0))
+                        if (pageIndex == 0) {
+                            resolvedBoundaries = stripper.lastUsedBoundaries
+                        }
+                        allRows.addAll(stripPageHeaders(pageRows, isFirstPage = pageIndex == 0))
                     }
                     mergeMultiLineRows(allRows)
                 }
@@ -139,6 +163,127 @@ class PdfTableExtractor @Inject constructor(
         return result.map { row -> row.map { it.trim() } }
     }
 
+    // ─── Header-Anchored Column Detection ────────────────────────────────────
+
+    @VisibleForTesting
+    internal val headerKeywords = setOf(
+        "дата", "сумма", "валюта", "операция", "детали", "описание",
+        "остаток", "баланс",
+        "date", "amount", "currency", "operation", "details",
+        "description", "balance", "type",
+    )
+
+    @VisibleForTesting
+    internal val minHeaderKeywords = 2
+
+    /**
+     * Scans the first [MAX_HEADER_SCAN_ROWS] rows for a header row containing
+     * at least [minHeaderKeywords] known column header keywords.
+     *
+     * Reconstructs words from glyphs by inserting spaces at large gaps.
+     *
+     * @return Index of the header row, or -1 if not found.
+     */
+    @VisibleForTesting
+    internal fun detectHeaderRow(rows: List<List<GlyphInfo>>): Int {
+        val limit = rows.size.coerceAtMost(MAX_HEADER_SCAN_ROWS)
+        for (i in 0 until limit) {
+            val rowText = reconstructTextFromGlyphs(rows[i])
+            val words = rowText.split(Regex("\\s+")).filter { it.isNotBlank() }
+            val matchCount = words.count { it in headerKeywords }
+            if (matchCount >= minHeaderKeywords) return i
+        }
+        return -1
+    }
+
+    /**
+     * Rebuilds text from glyphs, inserting spaces where gaps exceed spaceWidth threshold.
+     */
+    @VisibleForTesting
+    internal fun reconstructTextFromGlyphs(glyphs: List<GlyphInfo>): String {
+        if (glyphs.isEmpty()) return ""
+        val sorted = glyphs.sortedBy { it.x }
+        val sb = StringBuilder()
+        sb.append(sorted[0].char)
+        for (i in 1 until sorted.size) {
+            val prev = sorted[i - 1]
+            val curr = sorted[i]
+            val gap = curr.x - (prev.x + prev.width)
+            val spaceWidth = if (curr.spaceWidth > 0f) curr.spaceWidth else prev.spaceWidth
+            if (gap > spaceWidth * HEADER_WORD_GAP_FACTOR) {
+                sb.append(' ')
+            }
+            sb.append(curr.char)
+        }
+        return sb.toString().lowercase()
+    }
+
+    /**
+     * Detects column boundaries from a header row's glyphs.
+     *
+     * 1. Groups glyphs into "words" (gap ≤ spaceWidth * [HEADER_WORD_GAP_FACTOR])
+     * 2. Finds gaps between words > spaceWidth * [HEADER_COLUMN_GAP_FACTOR]
+     * 3. Returns midpoints of those gaps as column boundaries
+     */
+    @VisibleForTesting
+    internal fun detectColumnBoundariesFromHeader(headerGlyphs: List<GlyphInfo>): List<Float> {
+        if (headerGlyphs.isEmpty()) return emptyList()
+
+        val sorted = headerGlyphs.sortedBy { it.x }
+
+        // Group into words
+        data class Word(val left: Float, val right: Float, val avgSpaceWidth: Float)
+
+        val words = mutableListOf<Word>()
+        var wordLeft = sorted[0].x
+        var wordRight = sorted[0].x + sorted[0].width
+        var spaceWidthSum = sorted[0].spaceWidth
+        var glyphCount = 1
+
+        for (i in 1 until sorted.size) {
+            val prev = sorted[i - 1]
+            val curr = sorted[i]
+            val gap = curr.x - (prev.x + prev.width)
+            val spaceWidth = if (curr.spaceWidth > 0f) curr.spaceWidth else prev.spaceWidth
+            val wordGapThreshold = spaceWidth * HEADER_WORD_GAP_FACTOR
+
+            if (gap <= wordGapThreshold) {
+                // Same word
+                wordRight = curr.x + curr.width
+                spaceWidthSum += curr.spaceWidth
+                glyphCount++
+            } else {
+                // New word — save previous
+                words.add(Word(wordLeft, wordRight, spaceWidthSum / glyphCount))
+                wordLeft = curr.x
+                wordRight = curr.x + curr.width
+                spaceWidthSum = curr.spaceWidth
+                glyphCount = 1
+            }
+        }
+        words.add(Word(wordLeft, wordRight, spaceWidthSum / glyphCount))
+
+        if (words.size < 2) return emptyList()
+
+        // Find column gaps between words
+        val boundaries = mutableListOf<Float>()
+        for (i in 1 until words.size) {
+            val prevWord = words[i - 1]
+            val currWord = words[i]
+            val gap = currWord.left - prevWord.right
+            val avgSpaceWidth = (prevWord.avgSpaceWidth + currWord.avgSpaceWidth) / 2
+            val columnGapThreshold = avgSpaceWidth * HEADER_COLUMN_GAP_FACTOR
+
+            if (gap > columnGapThreshold) {
+                boundaries.add((prevWord.right + currWord.left) / 2f)
+            }
+        }
+
+        return boundaries
+    }
+
+    // ─── Voting-Based Column Detection (fallback) ────────────────────────────
+
     /**
      * Detects column boundaries by finding inter-glyph gaps per row
      * and voting across rows for consistent boundary positions.
@@ -229,9 +374,15 @@ class PdfTableExtractor @Inject constructor(
         return DATE_ROW_PATTERN.containsMatchIn(prefix)
     }
 
-    private inner class TableTextStripper : PDFTextStripper() {
+    private inner class TableTextStripper(
+        private val overrideBoundaries: List<Float>? = null,
+    ) : PDFTextStripper() {
 
         private val positions = mutableListOf<TextPosition>()
+
+        /** The column boundaries used in the last [buildTable] call. */
+        var lastUsedBoundaries: List<Float>? = null
+            private set
 
         init {
             sortByPosition = true
@@ -262,8 +413,35 @@ class PdfTableExtractor @Inject constructor(
 
             if (rows.isEmpty()) return emptyList()
 
-            // Detect column boundaries via per-row gap detection + cross-row voting
-            val columnBoundaries = detectColumnBoundaries(rows)
+            // Determine column boundaries: override > header-anchored > voting fallback
+            val columnBoundaries = overrideBoundaries ?: run {
+                // Try header-anchored detection first
+                val glyphRows = rows.map { row ->
+                    row.sortedBy { it.xDirAdj }.map { pos ->
+                        GlyphInfo(
+                            x = pos.xDirAdj,
+                            width = pos.width,
+                            spaceWidth = pos.widthOfSpace,
+                            char = pos.unicode,
+                        )
+                    }
+                }
+                val headerIndex = detectHeaderRow(glyphRows)
+                if (headerIndex >= 0) {
+                    val headerBoundaries = detectColumnBoundariesFromHeader(glyphRows[headerIndex])
+                    if (headerBoundaries.isNotEmpty()) {
+                        Timber.d("buildTable: using header-anchored boundaries from row %d: %d columns",
+                            headerIndex, headerBoundaries.size + 1)
+                        headerBoundaries
+                    } else {
+                        detectColumnBoundaries(rows)
+                    }
+                } else {
+                    detectColumnBoundaries(rows)
+                }
+            }
+
+            lastUsedBoundaries = columnBoundaries
 
             Timber.d("buildTable: %d rows, %d columns", rows.size, columnBoundaries.size + 1)
 
