@@ -9,6 +9,11 @@ android {
 }
 
 dependencies {
+    implementation(projects.core.database)
+    implementation(projects.core.datastore)
+    implementation(projects.core.firestore)
+    implementation(projects.core.model)
+
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.config)
     implementation(libs.kotlinx.serialization.json)

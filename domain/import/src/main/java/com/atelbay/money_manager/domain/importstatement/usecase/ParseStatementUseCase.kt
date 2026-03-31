@@ -6,26 +6,24 @@ import com.atelbay.money_manager.core.ai.GeminiService
 import com.atelbay.money_manager.core.ai.TableFailedAttempt
 import com.atelbay.money_manager.core.common.generateTransactionHash
 import com.atelbay.money_manager.core.database.dao.CategoryDao
+import com.atelbay.money_manager.core.database.dao.ParserConfigDao
+import com.atelbay.money_manager.core.database.entity.ParserConfigEntity
 import com.atelbay.money_manager.core.database.dao.TransactionDao
 import com.atelbay.money_manager.core.database.entity.CategoryEntity
-import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.ImportResult
 import com.atelbay.money_manager.core.model.ParsedTransaction
 import com.atelbay.money_manager.core.model.TableParserConfig
-import com.atelbay.money_manager.core.model.TableParserConfigList
 import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.core.parser.RegexParseResult
 import com.atelbay.money_manager.core.parser.RegexValidator
 import com.atelbay.money_manager.core.parser.StatementParser
 import com.atelbay.money_manager.core.parser.TableExtractionResult
 import com.atelbay.money_manager.core.remoteconfig.ParserConfig
-import com.atelbay.money_manager.core.remoteconfig.ParserConfigList
 import com.atelbay.money_manager.core.remoteconfig.ParserConfigProvider
 import com.atelbay.money_manager.domain.categories.usecase.SaveCategoryUseCase
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.LocalDate
@@ -78,11 +76,11 @@ class ParseStatementUseCase @Inject constructor(
     private val categoryDao: CategoryDao,
     private val transactionDao: TransactionDao,
     private val saveCategoryUseCase: SaveCategoryUseCase,
-    private val userPreferences: UserPreferences,
     private val regexValidator: RegexValidator,
     private val parserConfigProvider: ParserConfigProvider,
     private val userIdHasher: UserIdHasher,
     private val firestoreDataSource: FirestoreDataSource,
+    private val parserConfigDao: ParserConfigDao,
 ) {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -172,7 +170,7 @@ class ParseStatementUseCase @Inject constructor(
         return fallbackToFullAiParsing(regexResult, blobs, parseErrors, collector)
     }
 
-    /** Tries Remote Config regex configs and cached AI regex configs. */
+    /** Tries Room-backed regex configs (seed + promoted + AI cached). */
     private suspend fun tryCachedRegexConfigs(
         pdfBytes: ByteArray,
         regexResult: RegexParseResult?,
@@ -181,67 +179,40 @@ class ParseStatementUseCase @Inject constructor(
         if (regexResult != null && regexResult.transactions.isNotEmpty()) {
             Timber.d("PDF import: bank=%s parsed %d transactions via regex",
                 regexResult.bankId, regexResult.transactions.size)
-            collector.emit(ImportStepEvent.RegexConfigAttempt("remote_config", regexResult.bankId))
-            collector.emit(ImportStepEvent.RegexConfigResult("remote_config", regexResult.transactions.size))
+            collector.emit(ImportStepEvent.RegexConfigAttempt("local_db", regexResult.bankId))
+            collector.emit(ImportStepEvent.RegexConfigResult("local_db", regexResult.transactions.size))
             return RegexThenGeminiResult(assignCategories(regexResult.transactions, collector = collector))
         }
-        collector.emit(ImportStepEvent.RegexConfigAttempt("remote_config"))
-        collector.emit(ImportStepEvent.RegexConfigResult("remote_config", 0))
-
-        val cachedConfigs = loadCachedAiConfigs()
-        if (cachedConfigs.isNotEmpty()) {
-            collector.emit(ImportStepEvent.RegexConfigAttempt("cached_ai"))
-            val cachedResult = statementParser.tryParsePdf(pdfBytes, additionalConfigs = cachedConfigs)
-            if (cachedResult != null && cachedResult.transactions.isNotEmpty()) {
-                Timber.d("PDF import: bank=%s parsed %d transactions via cached AI config",
-                    cachedResult.bankId, cachedResult.transactions.size)
-                collector.emit(ImportStepEvent.RegexConfigResult("cached_ai", cachedResult.transactions.size))
-                return RegexThenGeminiResult(assignCategories(cachedResult.transactions, collector = collector))
-            }
-            collector.emit(ImportStepEvent.RegexConfigResult("cached_ai", 0))
-        }
+        collector.emit(ImportStepEvent.RegexConfigAttempt("local_db"))
+        collector.emit(ImportStepEvent.RegexConfigResult("local_db", 0))
         return null
     }
 
-    /** Tries DataStore-cached table configs only. */
+    /** Tries Room-backed table configs (seed + promoted + AI cached). */
     private suspend fun tryCachedTableConfigs(
         pdfBytes: ByteArray,
         collector: ImportProgressCollector,
     ): RegexThenGeminiResult? {
-        val extraction = try {
-            statementParser.extractSampleTableRowsWithContext(pdfBytes)
+        val tableConfigs = parserConfigProvider.getTableConfigs()
+        if (tableConfigs.isEmpty()) return null
+
+        collector.emit(ImportStepEvent.TableConfigAttempt("local_db"))
+        val tableResult = try {
+            statementParser.tryParseTable(pdfBytes, tableConfigs)
         } catch (e: Exception) {
-            Timber.w(e, "Table extraction failed, skipping cached table configs")
-            return null
+            Timber.w(e, "Table config parsing failed")
+            null
         }
-        val sampleTableRows = extraction.sampleRows
-        if (sampleTableRows.size < 2) return null
-
-        collector.emit(ImportStepEvent.TableExtracted(
-            rowCount = sampleTableRows.size,
-            columnCount = sampleTableRows.firstOrNull()?.size ?: 0,
-        ))
-
-        val cachedTableConfigs = loadCachedTableConfigs()
-        if (cachedTableConfigs.isNotEmpty()) {
-            collector.emit(ImportStepEvent.TableConfigAttempt("cached_table"))
-            val cachedTableResult = try {
-                statementParser.tryParseTable(pdfBytes, cachedTableConfigs)
-            } catch (e: Exception) {
-                Timber.w(e, "Cached table config parsing failed")
-                null
-            }
-            if (cachedTableResult != null && cachedTableResult.transactions.isNotEmpty()) {
-                Timber.d("Table import: parsed %d transactions via cached table config (bank=%s)",
-                    cachedTableResult.transactions.size, cachedTableResult.bankId)
-                collector.emit(ImportStepEvent.TableConfigResult("cached_table", cachedTableResult.transactions.size))
-                return RegexThenGeminiResult(
-                    transactions = assignCategories(cachedTableResult.transactions, collector = collector),
-                    aiMethod = AiMethod.TABLE_GENERATED,
-                )
-            }
-            collector.emit(ImportStepEvent.TableConfigResult("cached_table", 0))
+        if (tableResult != null && tableResult.transactions.isNotEmpty()) {
+            Timber.d("Table import: parsed %d transactions via local table config (bank=%s)",
+                tableResult.transactions.size, tableResult.bankId)
+            collector.emit(ImportStepEvent.TableConfigResult("local_db", tableResult.transactions.size))
+            return RegexThenGeminiResult(
+                transactions = assignCategories(tableResult.transactions, collector = collector),
+                aiMethod = AiMethod.TABLE_GENERATED,
+            )
         }
+        collector.emit(ImportStepEvent.TableConfigResult("local_db", 0))
         return null
     }
 
@@ -338,7 +309,7 @@ class ParseStatementUseCase @Inject constructor(
         // Prepare regex context
         val headerSnippet = statementParser.extractHeaderSnippet(pdfText)
         val extractedSampleRows = statementParser.extractSampleRows(pdfText)
-        val allConfigs = parserConfigProvider.getConfigs() + loadCachedAiConfigs()
+        val allConfigs = parserConfigProvider.getConfigs()
         val regexFailedAttempts = mutableListOf<FailedAttempt>()
 
         // Prepare table context
@@ -678,37 +649,21 @@ class ParseStatementUseCase @Inject constructor(
         }
     }
 
-    private suspend fun loadCachedAiConfigs(): List<ParserConfig> {
-        val cachedJson = userPreferences.cachedAiParserConfigs.firstOrNull()
-        if (cachedJson.isNullOrBlank()) return emptyList()
-        return try {
-            json.decodeFromString<ParserConfigList>(cachedJson).banks
-        } catch (e: Exception) {
-            Timber.w(e, "Failed to parse cached AI configs")
-            emptyList()
-        }
-    }
-
-    private suspend fun loadCachedTableConfigs(): List<TableParserConfig> {
-        val cachedJson = userPreferences.cachedAiTableParserConfigs.firstOrNull()
-        if (cachedJson.isNullOrBlank()) return emptyList()
-        return try {
-            json.decodeFromString<TableParserConfigList>(cachedJson).configs
-        } catch (e: Exception) {
-            Timber.w(e, "Failed to parse cached table configs")
-            emptyList()
-        }
-    }
-
     suspend fun cacheTableConfig(config: TableParserConfig) {
         try {
-            val existing = loadCachedTableConfigs().toMutableList()
-            existing.removeAll { it.bankId == config.bankId }
-            existing.add(config)
-            val configList = TableParserConfigList(configs = existing)
-            val jsonStr = json.encodeToString(TableParserConfigList.serializer(), configList)
-            userPreferences.setCachedAiTableParserConfigs(jsonStr)
-            Timber.d("Cached table config for bank %s", config.bankId)
+            val configJson = json.encodeToString(TableParserConfig.serializer(), config)
+            val entity = ParserConfigEntity(
+                id = "ai_table_${config.bankId}_${System.currentTimeMillis()}",
+                bankId = config.bankId,
+                configType = "table",
+                configJson = configJson,
+                version = 0,
+                status = "active",
+                source = "ai_cached",
+                updatedAt = System.currentTimeMillis(),
+            )
+            parserConfigDao.upsertAll(listOf(entity))
+            Timber.d("Cached table config for bank %s in Room", config.bankId)
         } catch (e: Exception) {
             Timber.w(e, "Failed to cache table config")
         }
@@ -716,17 +671,19 @@ class ParseStatementUseCase @Inject constructor(
 
     suspend fun cacheAiConfig(config: ParserConfig) {
         try {
-            val existing = loadCachedAiConfigs().toMutableList()
-            // Replace only the exact same variant; keep other configs for the same bank.
-            existing.removeAll {
-                it.bankId == config.bankId &&
-                    it.transactionPattern == config.transactionPattern
-            }
-            existing.add(config)
-            val configList = ParserConfigList(banks = existing)
-            val jsonStr = json.encodeToString(ParserConfigList.serializer(), configList)
-            userPreferences.setCachedAiParserConfigs(jsonStr)
-            Timber.d("Cached AI config for bank %s", config.bankId)
+            val configJson = json.encodeToString(ParserConfig.serializer(), config)
+            val entity = ParserConfigEntity(
+                id = "ai_regex_${config.bankId}_${System.currentTimeMillis()}",
+                bankId = config.bankId,
+                configType = "regex",
+                configJson = configJson,
+                version = 0,
+                status = "active",
+                source = "ai_cached",
+                updatedAt = System.currentTimeMillis(),
+            )
+            parserConfigDao.upsertAll(listOf(entity))
+            Timber.d("Cached AI config for bank %s in Room", config.bankId)
         } catch (e: Exception) {
             Timber.w(e, "Failed to cache AI config")
         }
