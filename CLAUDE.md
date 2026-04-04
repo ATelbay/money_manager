@@ -131,38 +131,8 @@ Design file location: `~/Documents/pencil/money_manager_ds/money_manager_screens
 
 ## TODO / Not in MVP
 
-- [ ] Budgets and category spending limits
-- [ ] Recurring transactions
-- [ ] CSV/PDF export
 - [ ] PIN / biometrics
 - [ ] Multi-currency with conversion
 - [ ] Cloud sync
 - [ ] Widgets
 
-## Active Technologies
-- Kotlin 2.3.0 + Jetpack Compose (BOM 2026.01.01), Material 3, Navigation Compose 2.9.7 (001-animation-audit)
-- N/A (pure UI feature) (001-animation-audit)
-- Kotlin 2.3.0 + Jetpack Compose (BOM 2026.01.01), Material 3, Hilt 2.58, Room 2.8.4, kotlinx-collections-immutable (002-statistics-audit)
-- Room (TransactionDao, CategoryDao) (002-statistics-audit)
-- Kotlin 2.3.0 + PdfBox-Android 2.0.27.0, Firebase Remote Config, kotlinx-serialization-json, kotlinx-datetime (003-audit-pdf-import)
-- Room (no changes); Firebase Remote Config (Bereke config update) (003-audit-pdf-import)
-- Kotlin 2.3.0 (Android), TypeScript (Cloud Function) + Firebase AI SDK (Gemini 2.5 Flash), Firestore, Remote Config, PdfBox-Android 2.0.27.0, kotlinx-serialization 1.10.0 (004-ai-regex-autoupdate)
-- Room (existing transactions/categories), Firestore (parser_candidates collection), DataStore (cached AI configs), Remote Config (promoted configs) (004-ai-regex-autoupdate)
-- Kotlin 2.3.0 + Jetpack Compose BOM 2026.01.01, Material 3, `TextAutoSize` (Foundation 1.8+, built-in) (005-ui-overflow-audit)
-- N/A (no data changes) (005-ui-overflow-audit)
-- Kotlin 2.3.0 + Google Tink Android 1.8.0 (`AesGcmJce`, `Hkdf`), Firebase Firestore (via BOM 34.8.0), Hilt 2.58 (007-firestore-encryption)
-- Room 2.8.4 (unchanged), Firestore (encrypted DTOs) (007-firestore-encryption)
-- Kotlin 2.3.0 + Jetpack Compose (BOM 2026.01.01), Vico 2.4.3 (`compose-m3`), Hilt 2.58 (009-statistics-chart-vico)
-- Kotlin 2.3.0 + Jetpack Compose (BOM 2026.01.01), Material 3, Vico 2.4.3, Hilt 2.58 (010-statistics-ui-redesign)
-- Room 2.8.4 (unchanged), Preferences DataStore 1.1.7 (010-statistics-ui-redesign)
-- Kotlin 2.3.0 + Jetpack Compose (BOM 2026.01.01), Hilt 2.58, Room 2.8.4, Navigation Compose 2.9.7 (011-app-audit-phase1)
-- Room (SQLite) — `money_manager.db`, Preferences DataStore (011-app-audit-phase1)
-- Kotlin 2.3.0 + Firebase AI SDK (Gemini 2.5 Flash), kotlinx-serialization-json, Hilt 2.58, PdfBox-Android 2.0.27.0 (013-ai-parser-config)
-- Preferences DataStore (cached AI configs), Firebase Remote Config (parser configs) (013-ai-parser-config)
-- Kotlin 2.3.0 + PdfBox-Android 2.0.27.0, Firebase AI (Gemini 2.5 Flash), kotlinx-serialization (015-bcc-table-parsing)
-- N/A (no data layer changes) (015-bcc-table-parsing)
-- Kotlin 2.3.0, KSP 2.3.1, AGP 8.13.2 + Jetpack Compose (BOM 2026.01.01), Material 3, Hilt 2.58, Room 2.8.4, Navigation Compose 2.9.7, kotlinx-collections-immutable, Coroutines 1.10.2 (001-pre-ios-features)
-- Room (SQLite) — `money_manager.db` (currently version 4, 3 entities). Preferences DataStore for settings. (001-pre-ios-features)
-
-## Recent Changes
-- 001-animation-audit: Added Kotlin 2.3.0 + Jetpack Compose (BOM 2026.01.01), Material 3, Navigation Compose 2.9.7
