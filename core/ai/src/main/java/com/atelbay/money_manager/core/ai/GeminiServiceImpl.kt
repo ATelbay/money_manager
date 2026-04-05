@@ -599,18 +599,18 @@ class GeminiServiceImpl @Inject constructor(
         }
         appendLine()
         appendLine("### Mapping rules (follow strictly):")
-        appendLine("1. ALWAYS prefer an existing category. Use semantic matching across languages:")
-        appendLine("   - \"Пополнение счета\", \"Толыќтыру\", \"Card replenishment\" → \"Пополнение\"")
-        appendLine("   - \"Покупка\", \"Оплата\", \"Payment\", \"Merchant payment\" → \"Покупки\"")
-        appendLine("   - \"Перевод\", \"Платёж\", \"Transfer\" → \"Перевод\"")
-        appendLine("   - Food/restaurant/cafe merchants → \"Еда\"")
-        appendLine("   - Transport/taxi/fuel → \"Транспорт\"")
-        appendLine("2. The \"value\" MUST be one of the existing category names whenever possible.")
+        appendLine("1. ALWAYS prefer an existing category from the lists above. Use semantic matching across languages.")
+        appendLine("   Example: if \"Покупки\" exists, map \"Покупка\", \"Оплата\", \"Payment\", \"Merchant payment\" → \"Покупки\".")
+        appendLine("   Example: if a food/restaurant category exists, map cafe/restaurant merchants → that category.")
+        appendLine("2. The \"value\" MUST be one of the existing category names listed above whenever possible.")
         appendLine("3. Only if NO existing category is semantically close, create a new one:")
         appendLine("   - Short (1-2 words max), in Russian")
         appendLine("   - Semantic category label (e.g. \"Такси\"), NOT raw merchant/operation text")
-        appendLine("4. BAD values (never use): \"STARBUCKS COFFEE SHOP ALMATY KZ\", \"полнение счета\", raw amounts")
-        appendLine("5. GOOD values: \"Покупки\", \"Еда\", \"Транспорт\", \"Пополнение\"")
+        appendLine("4. BAD values (never use): raw merchant names like \"STARBUCKS COFFEE SHOP ALMATY KZ\", truncated text like \"полнение счета\", raw amounts")
+        val allNames = categoryNames.expense + categoryNames.income
+        if (allNames.isNotEmpty()) {
+            appendLine("5. GOOD values (use these): ${allNames.take(5).joinToString(", ") { "\"$it\"" }}")
+        }
         appendLine()
         appendLine("Format: array of {\"key\": \"raw operation text from statement\", \"value\": \"existing category name\"}")
         appendLine("Map ALL distinct operations found in the sample rows.")

@@ -704,8 +704,8 @@ class ParseStatementUseCase @Inject constructor(
         blobs: List<Pair<ByteArray, String>>,
         parseErrors: MutableList<String>,
     ): List<ParsedTransaction> {
-        val expenseCategories = categoryDao.getByType(TYPE_EXPENSE)
-        val incomeCategories = categoryDao.getByType(TYPE_INCOME)
+        val expenseCategories = sanitizeCategoryEntities(categoryDao.getByType(TYPE_EXPENSE))
+        val incomeCategories = sanitizeCategoryEntities(categoryDao.getByType(TYPE_INCOME))
 
         val prompt = buildPrompt(expenseCategories, incomeCategories)
         val responseText = geminiService.parseContent(blobs, prompt)
@@ -753,22 +753,25 @@ class ParseStatementUseCase @Inject constructor(
      * Only keeps: default categories + user-created categories that look like real semantic labels.
      * Garbage examples: "Merchant payment ansaction", "полнение счета", "Сумма в обработке".
      */
-    private fun sanitizeCategoryNames(categories: List<CategoryEntity>): List<String> {
+    private fun sanitizeCategoryEntities(categories: List<CategoryEntity>): List<CategoryEntity> {
         val defaultNames = DefaultCategories.all().map { it.name }.toSet()
-        return categories
-            .filter { entity ->
-                val name = entity.name
-                // Always keep default categories
-                name in defaultNames ||
-                    // Keep user-created categories that look like real semantic labels
-                    (entity.isDefault.not() &&
-                        name.isNotBlank() &&
-                        name.length <= 25 &&
-                        !name.any { it.isDigit() } &&
-                        !name.contains(',') &&
-                        // Filter English-only names (likely raw Halyk/Bereke operation text)
-                        name.any { it in '\u0400'..'\u04FF' })
-            }
+        return categories.filter { entity ->
+            val name = entity.name
+            // Always keep default categories
+            name in defaultNames ||
+                // Keep user-created categories that look like real semantic labels
+                (entity.isDefault.not() &&
+                    name.isNotBlank() &&
+                    name.length <= 25 &&
+                    !name.any { it.isDigit() } &&
+                    !name.contains(',') &&
+                    // Filter English-only names (likely raw Halyk/Bereke operation text)
+                    name.any { it in '\u0400'..'\u04FF' })
+        }
+    }
+
+    private fun sanitizeCategoryNames(categories: List<CategoryEntity>): List<String> {
+        return sanitizeCategoryEntities(categories)
             .map { it.name }
             .distinct()
     }
