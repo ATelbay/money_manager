@@ -5,6 +5,7 @@ import com.atelbay.money_manager.core.database.dao.CategoryDao
 import com.atelbay.money_manager.core.model.Budget
 import com.atelbay.money_manager.data.budgets.mapper.toDomain
 import com.atelbay.money_manager.data.budgets.mapper.toEntity
+import com.atelbay.money_manager.data.sync.SyncManager
 import com.atelbay.money_manager.domain.budgets.repository.BudgetRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -16,6 +17,7 @@ import javax.inject.Singleton
 class BudgetRepositoryImpl @Inject constructor(
     private val budgetDao: BudgetDao,
     private val categoryDao: CategoryDao,
+    private val syncManager: SyncManager,
 ) : BudgetRepository {
 
     override fun observeAll(): Flow<List<Budget>> =
@@ -44,7 +46,7 @@ class BudgetRepositoryImpl @Inject constructor(
     override suspend fun save(budget: Budget): Long {
         val now = System.currentTimeMillis()
         val baseEntity = budget.toEntity()
-        return if (baseEntity.id == 0L) {
+        val savedId = if (baseEntity.id == 0L) {
             val newEntity = baseEntity.copy(createdAt = now, updatedAt = now)
             budgetDao.insert(newEntity)
         } else {
@@ -58,9 +60,12 @@ class BudgetRepositoryImpl @Inject constructor(
             budgetDao.update(updatedEntity)
             updatedEntity.id
         }
+        syncManager.syncBudget(savedId)
+        return savedId
     }
 
     override suspend fun delete(id: Long) {
         budgetDao.softDelete(id, System.currentTimeMillis())
+        syncManager.syncBudget(id)
     }
 }

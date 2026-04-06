@@ -1,8 +1,10 @@
 package com.atelbay.money_manager.core.firestore.datasource
 
 import com.atelbay.money_manager.core.firestore.dto.AccountDto
+import com.atelbay.money_manager.core.firestore.dto.BudgetDto
 import com.atelbay.money_manager.core.firestore.dto.CategoryDto
 import com.atelbay.money_manager.core.firestore.dto.ParserCandidateDto
+import com.atelbay.money_manager.core.firestore.dto.RecurringTransactionDto
 import com.atelbay.money_manager.core.firestore.dto.RegexParserProfileFirestoreDto
 import com.atelbay.money_manager.core.firestore.dto.TransactionDto
 import com.google.firebase.firestore.FieldValue
@@ -25,6 +27,12 @@ class FirestoreDataSourceImpl @Inject constructor(
 
     private fun categories(userId: String) =
         firestore.collection("users").document(userId).collection("categories")
+
+    private fun budgets(userId: String) =
+        firestore.collection("users").document(userId).collection("budgets")
+
+    private fun recurringTransactions(userId: String) =
+        firestore.collection("users").document(userId).collection("recurring_transactions")
 
     private val parserCandidates
         get() = firestore.collection("parser_candidates")
@@ -55,6 +63,24 @@ class FirestoreDataSourceImpl @Inject constructor(
             categories(userId).document(dto.remoteId).set(dto).await()
         } catch (e: Exception) {
             Timber.e(e, "Failed to push category ${dto.remoteId}")
+            throw e
+        }
+    }
+
+    override suspend fun pushBudget(userId: String, dto: BudgetDto) {
+        try {
+            budgets(userId).document(dto.remoteId).set(dto).await()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to push budget ${dto.remoteId}")
+            throw e
+        }
+    }
+
+    override suspend fun pushRecurringTransaction(userId: String, dto: RecurringTransactionDto) {
+        try {
+            recurringTransactions(userId).document(dto.remoteId).set(dto).await()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to push recurring transaction ${dto.remoteId}")
             throw e
         }
     }
@@ -111,6 +137,50 @@ class FirestoreDataSourceImpl @Inject constructor(
                         ?: (data["color"] as? Number)?.toLong()?.toString()
                         ?: "",
                     type = data["type"] as? String ?: "",
+                    updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0,
+                    isDeleted = data["isDeleted"] as? Boolean ?: false,
+                    encryptionVersion = (data["encryptionVersion"] as? Number)?.toInt() ?: 0,
+                )
+            }
+
+    override suspend fun pullBudgets(userId: String): List<BudgetDto> =
+        budgets(userId).get().await()
+            .documents.mapNotNull { doc ->
+                val data = doc.data ?: return@mapNotNull null
+                BudgetDto(
+                    remoteId = doc.id,
+                    categoryRemoteId = data["categoryRemoteId"] as? String ?: "",
+                    monthlyLimit = (data["monthlyLimit"] as? String)
+                        ?: (data["monthlyLimit"] as? Number)?.toDouble()?.toString()
+                        ?: "",
+                    createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0,
+                    updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0,
+                    isDeleted = data["isDeleted"] as? Boolean ?: false,
+                    encryptionVersion = (data["encryptionVersion"] as? Number)?.toInt() ?: 0,
+                )
+            }
+
+    override suspend fun pullRecurringTransactions(userId: String): List<RecurringTransactionDto> =
+        recurringTransactions(userId).get().await()
+            .documents.mapNotNull { doc ->
+                val data = doc.data ?: return@mapNotNull null
+                RecurringTransactionDto(
+                    remoteId = doc.id,
+                    amount = (data["amount"] as? String)
+                        ?: (data["amount"] as? Number)?.toDouble()?.toString()
+                        ?: "",
+                    type = data["type"] as? String ?: "",
+                    categoryRemoteId = data["categoryRemoteId"] as? String ?: "",
+                    accountRemoteId = data["accountRemoteId"] as? String ?: "",
+                    note = data["note"] as? String,
+                    frequency = data["frequency"] as? String ?: "",
+                    startDate = (data["startDate"] as? Number)?.toLong() ?: 0,
+                    endDate = (data["endDate"] as? Number)?.toLong(),
+                    dayOfMonth = (data["dayOfMonth"] as? Number)?.toInt(),
+                    dayOfWeek = (data["dayOfWeek"] as? Number)?.toInt(),
+                    lastGeneratedDate = (data["lastGeneratedDate"] as? Number)?.toLong(),
+                    isActive = data["isActive"] as? Boolean ?: true,
+                    createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0,
                     updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0,
                     isDeleted = data["isDeleted"] as? Boolean ?: false,
                     encryptionVersion = (data["encryptionVersion"] as? Number)?.toInt() ?: 0,

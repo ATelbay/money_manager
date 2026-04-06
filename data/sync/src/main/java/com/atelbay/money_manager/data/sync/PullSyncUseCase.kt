@@ -3,7 +3,9 @@ package com.atelbay.money_manager.data.sync
 import com.atelbay.money_manager.core.crypto.FieldCipher.Companion.CURRENT_ENCRYPTION_VERSION
 import com.atelbay.money_manager.core.crypto.FieldCipherHolder
 import com.atelbay.money_manager.core.database.dao.AccountDao
+import com.atelbay.money_manager.core.database.dao.BudgetDao
 import com.atelbay.money_manager.core.database.dao.CategoryDao
+import com.atelbay.money_manager.core.database.dao.RecurringTransactionDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
 import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
 import com.atelbay.money_manager.core.firestore.mapper.toEntity
@@ -23,11 +25,15 @@ class PullSyncUseCase @Inject constructor(
     private val transactionDao: TransactionDao,
     private val accountDao: AccountDao,
     private val categoryDao: CategoryDao,
+    private val budgetDao: BudgetDao,
+    private val recurringDao: RecurringTransactionDao,
 ) {
     suspend operator fun invoke(userId: String) {
         Timber.d("PullSync: starting for userId=$userId")
         pullAccounts(userId)
         pullCategories(userId)
+        pullBudgets(userId)
+        pullRecurringTransactions(userId)
         pullTransactions(userId)
         Timber.d("PullSync: done")
     }
@@ -82,6 +88,66 @@ class PullSyncUseCase @Inject constructor(
                 categoryDao.insert(entity)
             } else {
                 categoryDao.upsertSync(listOf(entity.copy(id = local.id)))
+            }
+        }
+    }
+
+    private suspend fun pullBudgets(userId: String) {
+        val remoteBudgets = firestoreDataSource.pullBudgets(userId)
+        for (dto in remoteBudgets) {
+            val local = budgetDao.getByRemoteId(dto.remoteId)
+            if (dto.isDeleted) {
+                if (local != null) budgetDao.softDeleteById(local.id, dto.updatedAt)
+                continue
+            }
+            if (local != null && local.updatedAt >= dto.updatedAt) continue
+
+            val categoryLocalId = resolveCategory(dto.categoryRemoteId)
+            if (categoryLocalId == null) {
+                Timber.w("PullSync: skipping budget ${dto.remoteId} — missing category ${dto.categoryRemoteId}")
+                continue
+            }
+
+            val entity = dto.toEntity(
+                localId = local?.id ?: 0,
+                fieldCipherHolder = fieldCipherHolder,
+                localCategoryId = categoryLocalId,
+            ) ?: continue
+            if (local == null) {
+                budgetDao.insert(entity)
+            } else {
+                budgetDao.upsertSync(listOf(entity.copy(id = local.id)))
+            }
+        }
+    }
+
+    private suspend fun pullRecurringTransactions(userId: String) {
+        val remoteRecurrings = firestoreDataSource.pullRecurringTransactions(userId)
+        for (dto in remoteRecurrings) {
+            val local = recurringDao.getByRemoteId(dto.remoteId)
+            if (dto.isDeleted) {
+                if (local != null) recurringDao.softDeleteById(local.id, dto.updatedAt)
+                continue
+            }
+            if (local != null && local.updatedAt >= dto.updatedAt) continue
+
+            val categoryLocalId = resolveCategory(dto.categoryRemoteId)
+            val accountLocalId = accountDao.getByRemoteId(dto.accountRemoteId)?.id
+            if (categoryLocalId == null || accountLocalId == null) {
+                Timber.w("PullSync: skipping recurring ${dto.remoteId} — missing account or category")
+                continue
+            }
+
+            val entity = dto.toEntity(
+                localId = local?.id ?: 0,
+                categoryLocalId = categoryLocalId,
+                accountLocalId = accountLocalId,
+                fieldCipherHolder = fieldCipherHolder,
+            ) ?: continue
+            if (local == null) {
+                recurringDao.insert(entity)
+            } else {
+                recurringDao.upsertSync(listOf(entity.copy(id = local.id)))
             }
         }
     }

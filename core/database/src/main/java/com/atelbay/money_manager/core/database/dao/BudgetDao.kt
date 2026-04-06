@@ -28,4 +28,24 @@ interface BudgetDao {
 
     @Query("UPDATE budgets SET isDeleted = 1, updatedAt = :updatedAt WHERE id = :id")
     suspend fun softDelete(id: Long, updatedAt: Long)
+
+    // ── Sync ──
+
+    @Query("SELECT * FROM budgets WHERE remoteId = :remoteId LIMIT 1")
+    suspend fun getByRemoteId(remoteId: String): BudgetEntity?
+
+    @Query("SELECT * FROM budgets WHERE remoteId IS NULL AND isDeleted = 0")
+    suspend fun getPendingSync(): List<BudgetEntity>
+
+    @Query("SELECT * FROM budgets WHERE isDeleted = 1 AND remoteId IS NOT NULL")
+    suspend fun getDeletedWithRemoteId(): List<BudgetEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSync(budgets: List<BudgetEntity>)
+
+    @Query("UPDATE budgets SET remoteId = NULL")
+    suspend fun clearRemoteIds()
+
+    @Query("UPDATE budgets SET isDeleted = 1, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun softDeleteById(id: Long, updatedAt: Long)
 }
