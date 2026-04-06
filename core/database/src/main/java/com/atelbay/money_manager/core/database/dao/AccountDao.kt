@@ -51,6 +51,9 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE remoteId = :remoteId LIMIT 1")
     suspend fun getByRemoteId(remoteId: String): AccountEntity?
 
+    @Query("SELECT * FROM accounts WHERE name = :name AND currency = :currency AND isDeleted = 0 AND remoteId IS NULL LIMIT 1")
+    suspend fun getByNameAndCurrency(name: String, currency: String): AccountEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSync(accounts: List<AccountEntity>)
 

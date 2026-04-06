@@ -55,8 +55,8 @@ class LoginSyncOrchestrator @Inject constructor(
     private suspend fun runSync(userId: String) {
         syncManager.updateStatus(SyncStatus.Syncing)
         try {
-            pullSyncUseCase(userId)
             syncManager.pushAllPending()
+            pullSyncUseCase(userId)
             syncManager.pushAllAccounts()
             syncManager.updateStatus(SyncStatus.Synced(System.currentTimeMillis()))
             Timber.d("LoginSyncOrchestrator: sync complete for userId=$userId")

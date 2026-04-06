@@ -1,5 +1,6 @@
 package com.atelbay.money_manager.data.sync
 
+import com.atelbay.money_manager.core.crypto.FieldCipher.Companion.CURRENT_ENCRYPTION_VERSION
 import com.atelbay.money_manager.core.crypto.FieldCipherHolder
 import com.atelbay.money_manager.core.database.dao.AccountDao
 import com.atelbay.money_manager.core.database.dao.CategoryDao
@@ -34,10 +35,26 @@ class PullSyncUseCase @Inject constructor(
     private suspend fun pullAccounts(userId: String) {
         val remoteAccounts = firestoreDataSource.pullAccounts(userId)
         for (dto in remoteAccounts) {
-            val local = accountDao.getByRemoteId(dto.remoteId)
+            var local = accountDao.getByRemoteId(dto.remoteId)
             if (dto.isDeleted) {
                 if (local != null) accountDao.softDeleteById(local.id, dto.updatedAt)
                 continue
+            }
+            if (local == null) {
+                val cipher = fieldCipherHolder.cipher
+                val decryptedName = if (dto.encryptionVersion == CURRENT_ENCRYPTION_VERSION && cipher != null) {
+                    try { cipher.decrypt(dto.name) } catch (e: Exception) { null }
+                } else {
+                    dto.name
+                }
+                if (decryptedName != null) {
+                    val fallback = accountDao.getByNameAndCurrency(decryptedName, dto.currency)
+                    if (fallback != null) {
+                        Timber.d("PullSync: fallback match for account '${decryptedName}' — linking remoteId ${dto.remoteId}")
+                        accountDao.update(fallback.copy(remoteId = dto.remoteId))
+                        local = accountDao.getByRemoteId(dto.remoteId)
+                    }
+                }
             }
             if (local != null && local.updatedAt >= dto.updatedAt) continue
             val entity = dto.toEntity(localId = local?.id ?: 0, fieldCipherHolder = fieldCipherHolder)
