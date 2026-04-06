@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.flowOn
@@ -102,7 +103,7 @@ class TransactionListViewModel @Inject constructor(
                 baseCurrency = baseCurrency,
                 exchangeRate = exchangeRate,
             )
-        }
+        }.distinctUntilChanged()
 
         @OptIn(FlowPreview::class)
         val filterFlow = combine(
@@ -192,10 +193,18 @@ class TransactionListViewModel @Inject constructor(
             }
 
             _state.update {
+                // When exchange rate is unavailable for a multi-currency setup, summaryMetrics.balance
+                // will be null. Retain the previous non-null balance to avoid a null→value flicker.
+                // On initial state (previous balance is also null), fall through to the raw value.
+                val resolvedBalance = if (data.exchangeRate == null && summaryMetrics.balance == null) {
+                    it.balance
+                } else {
+                    summaryMetrics.balance
+                }
                 it.copy(
                     transactionRows = transactionRows,
                     searchQuery = filters.searchQuery,
-                    balance = summaryMetrics.balance,
+                    balance = resolvedBalance,
                     summaryMoneyDisplay = summaryMetrics.moneyDisplay,
                     isLoading = false,
                     selectedAccountName = selectedAccount?.name,

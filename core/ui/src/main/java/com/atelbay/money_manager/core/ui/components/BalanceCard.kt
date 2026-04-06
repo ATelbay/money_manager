@@ -69,20 +69,27 @@ fun BalanceCard(
 
     val animatable = remember { Animatable(balance, DoubleToVector) }
     var displayBalance by remember { mutableStateOf(balance) }
+    var isFirstEmission by remember { mutableStateOf(true) }
 
     LaunchedEffect(balance) {
-        animatable.animateTo(
-            targetValue = balance,
-            animationSpec = tween(
-                durationMillis = MoneyManagerMotion.duration(
-                    MoneyManagerMotion.DurationExtraLong,
-                    reduceMotion,
+        if (isFirstEmission) {
+            animatable.snapTo(balance)
+            displayBalance = balance
+            isFirstEmission = false
+        } else {
+            animatable.animateTo(
+                targetValue = balance,
+                animationSpec = tween(
+                    durationMillis = MoneyManagerMotion.duration(
+                        MoneyManagerMotion.DurationExtraLong,
+                        reduceMotion,
+                    ),
                 ),
-            ),
-        ) {
-            displayBalance = value
+            ) {
+                displayBalance = value
+            }
+            displayBalance = balance
         }
-        displayBalance = balance
     }
 
     val formatter = remember {
