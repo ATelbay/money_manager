@@ -983,25 +983,42 @@ private fun UnifiedChartCard(
             )
 
             if (state.chart.points.isNotEmpty()) {
-                Box(modifier = Modifier.height(180.dp)) {
-                    VicoBarChartSection(
-                        chart = state.chart,
-                        modelProducer = chartModelProducer,
-                        barColor = barColor,
-                        isUnavailable = state.currencyUiState.isUnavailable,
-                        unavailableText = strings.mixedCurrencyUnavailable,
-                        period = state.period,
-                        scrollState = scrollState,
-                        points = state.chart.points,
-                        onVisibleMaxChanged = onVisibleMaxChanged,
-                        modifier = Modifier.fillMaxWidth(),
+                if (state.chart.allAmountsZero) {
+                    val emptyText = if (isExpense) strings.chartNoExpenses else strings.chartNoIncome
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = emptyText,
+                            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                } else {
+                    Box(modifier = Modifier.height(180.dp)) {
+                        VicoBarChartSection(
+                            chart = state.chart,
+                            modelProducer = chartModelProducer,
+                            barColor = barColor,
+                            isUnavailable = state.currencyUiState.isUnavailable,
+                            unavailableText = strings.mixedCurrencyUnavailable,
+                            period = state.period,
+                            scrollState = scrollState,
+                            points = state.chart.points,
+                            onVisibleMaxChanged = onVisibleMaxChanged,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+
+                    ChartScrollIndicator(
+                        scrollFraction = scrollFraction,
+                        isVisible = true,
                     )
                 }
-
-                ChartScrollIndicator(
-                    scrollFraction = scrollFraction,
-                    isVisible = true,
-                )
             }
 
             val totalLabel = if (isExpense) strings.totalExpenses else strings.totalIncome

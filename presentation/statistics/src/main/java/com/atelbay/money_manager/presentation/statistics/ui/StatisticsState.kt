@@ -20,6 +20,7 @@ data class StatisticsChartPoint(
 data class StatisticsChartState(
     val points: ImmutableList<StatisticsChartPoint> = persistentListOf(),
     val isScrollable: Boolean = false,
+    val allAmountsZero: Boolean = false,
 )
 
 data class StatisticsCategoryDisplayItem(
