@@ -273,7 +273,7 @@ private fun MoneyManagerApp(
     // has been closed (no Import destination in back stack), finish the activity so the
     // user returns to whatever app they shared from.
     val launchedFromExternal by pendingNavigationManager.launchedFromExternal.collectAsStateWithLifecycle()
-    val activity = LocalContext.current as? android.app.Activity
+    val activity = androidx.activity.compose.LocalActivity.current
     LaunchedEffect(backStackEntry?.id, launchedFromExternal) {
         if (!launchedFromExternal) return@LaunchedEffect
         val isOnImportScreen = navController.currentBackStackEntry
