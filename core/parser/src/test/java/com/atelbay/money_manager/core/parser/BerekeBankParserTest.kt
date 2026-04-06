@@ -1,7 +1,7 @@
 package com.atelbay.money_manager.core.parser
 
 import com.atelbay.money_manager.core.model.TransactionType
-import com.atelbay.money_manager.core.remoteconfig.ParserConfig
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfile
 import kotlinx.datetime.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -28,12 +28,12 @@ import org.junit.Test
 class BerekeBankParserTest {
 
     private lateinit var parser: RegexStatementParser
-    private lateinit var berekeConfig: ParserConfig
+    private lateinit var berekeConfig: RegexParserProfile
 
     @Before
     fun setUp() {
         parser = RegexStatementParser()
-        berekeConfig = ParserConfig(
+        berekeConfig = RegexParserProfile(
             bankId = "bereke",
             bankMarkers = listOf("Bereke Bank", "BRKEKZKA", "berekebank.kz"),
             transactionPattern = "^(?<date>\\d{2}\\.\\d{2}\\.\\d{4})\\s+(?<operation>Operation|Payment for goods and(?:\\s+services)?|Card replenishment through(?:\\s+Bereke Bank|\\s+payment terminal)?|Transfer from a card(?:\\s+through Bereke Bank)?)\\s+(?<details>.+?)\\s+(?<sign>[-]?)(?<amount>[\\d,]+\\.\\d{2})(?:\\s.*)?$",

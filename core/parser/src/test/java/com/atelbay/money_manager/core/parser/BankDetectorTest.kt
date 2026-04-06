@@ -1,6 +1,6 @@
 package com.atelbay.money_manager.core.parser
 
-import com.atelbay.money_manager.core.remoteconfig.ParserConfig
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
@@ -9,20 +9,20 @@ import org.junit.Test
 class BankDetectorTest {
 
     private lateinit var detector: BankDetector
-    private lateinit var kaspiConfig: ParserConfig
-    private lateinit var halykConfig: ParserConfig
+    private lateinit var kaspiConfig: RegexParserProfile
+    private lateinit var halykConfig: RegexParserProfile
 
     @Before
     fun setUp() {
         detector = BankDetector()
-        kaspiConfig = ParserConfig(
+        kaspiConfig = RegexParserProfile(
             bankId = "kaspi",
             bankMarkers = listOf("Kaspi Gold", "АО «Kaspi Bank»", "CASPKZKA"),
             transactionPattern = "",
             dateFormat = "dd.MM.yy",
             operationTypeMap = emptyMap(),
         )
-        halykConfig = ParserConfig(
+        halykConfig = RegexParserProfile(
             bankId = "halyk",
             bankMarkers = listOf("Halyk Bank", "АО «Народный Банк Казахстана»"),
             transactionPattern = "",

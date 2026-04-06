@@ -3,7 +3,7 @@ package com.atelbay.money_manager.core.firestore.datasource
 import com.atelbay.money_manager.core.firestore.dto.AccountDto
 import com.atelbay.money_manager.core.firestore.dto.CategoryDto
 import com.atelbay.money_manager.core.firestore.dto.ParserCandidateDto
-import com.atelbay.money_manager.core.firestore.dto.ParserConfigFirestoreDto
+import com.atelbay.money_manager.core.firestore.dto.RegexParserProfileFirestoreDto
 import com.atelbay.money_manager.core.firestore.dto.TransactionDto
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -178,14 +178,14 @@ class FirestoreDataSourceImpl @Inject constructor(
         return snapshot.documents.mapNotNull { it.toObject(ParserCandidateDto::class.java) }
     }
 
-    override suspend fun pullActiveParserConfigs(): List<ParserConfigFirestoreDto> {
+    override suspend fun pullActiveParserConfigs(): List<RegexParserProfileFirestoreDto> {
         return try {
             parserConfigs
                 .whereEqualTo("status", "active")
                 .orderBy("updatedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
                 .get()
                 .await()
-                .toObjects(ParserConfigFirestoreDto::class.java)
+                .toObjects(RegexParserProfileFirestoreDto::class.java)
         } catch (e: Exception) {
             Timber.w(e, "Failed to pull active parser configs from Firestore")
             emptyList()

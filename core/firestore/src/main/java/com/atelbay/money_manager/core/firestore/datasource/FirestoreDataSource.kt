@@ -3,7 +3,7 @@ package com.atelbay.money_manager.core.firestore.datasource
 import com.atelbay.money_manager.core.firestore.dto.AccountDto
 import com.atelbay.money_manager.core.firestore.dto.CategoryDto
 import com.atelbay.money_manager.core.firestore.dto.ParserCandidateDto
-import com.atelbay.money_manager.core.firestore.dto.ParserConfigFirestoreDto
+import com.atelbay.money_manager.core.firestore.dto.RegexParserProfileFirestoreDto
 import com.atelbay.money_manager.core.firestore.dto.TransactionDto
 
 interface FirestoreDataSource {
@@ -22,6 +22,6 @@ interface FirestoreDataSource {
     suspend fun incrementCandidateSuccessCount(candidateId: String)
     suspend fun findCandidatesByUser(userIdHash: String, configType: String): List<ParserCandidateDto>
 
-    suspend fun pullActiveParserConfigs(): List<ParserConfigFirestoreDto>
+    suspend fun pullActiveParserConfigs(): List<RegexParserProfileFirestoreDto>
     suspend fun getParserConfigsVersion(): Long?
 }

@@ -2,10 +2,10 @@ package com.atelbay.money_manager.domain.importstatement.usecase
 
 import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
 import com.atelbay.money_manager.core.firestore.dto.ParserCandidateDto
-import com.atelbay.money_manager.core.model.TableParserConfig
+import com.atelbay.money_manager.core.model.TableParserProfile
 import com.atelbay.money_manager.core.parser.RegexValidator
 import com.atelbay.money_manager.core.parser.SampleAnonymizer
-import com.atelbay.money_manager.core.remoteconfig.ParserConfig
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfile
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -25,7 +25,7 @@ class SubmitParserCandidateUseCaseTest {
     private lateinit var userIdHasher: UserIdHasher
     private lateinit var useCase: SubmitParserCandidateUseCase
 
-    private val testConfig = ParserConfig(
+    private val testConfig = RegexParserProfile(
         bankId = "test_bank",
         bankMarkers = listOf("Test Bank"),
         transactionPattern = "\\d+",
@@ -172,7 +172,7 @@ class SubmitParserCandidateUseCaseTest {
 
     // ==================== submitTableConfig ====================
 
-    private val testTableConfig = TableParserConfig(
+    private val testTableConfig = TableParserProfile(
         bankId = "bcc",
         bankMarkers = listOf("BCC"),
         dateColumn = 0,

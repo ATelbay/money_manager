@@ -1,6 +1,6 @@
 package com.atelbay.money_manager.core.parser
 
-import com.atelbay.money_manager.core.model.TableParserConfig
+import com.atelbay.money_manager.core.model.TableParserProfile
 import com.atelbay.money_manager.core.model.TransactionType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -14,7 +14,7 @@ class TableStatementParserTest {
     // ==================== HELPER ====================
 
     /**
-     * Builds a [TableParserConfig] with sensible defaults for testing.
+     * Builds a [TableParserProfile] with sensible defaults for testing.
      * Callers override only the fields relevant to the scenario under test.
      */
     private fun buildConfig(
@@ -31,7 +31,7 @@ class TableStatementParserTest {
         skipHeaderRows: Int = 1,
         deduplicateMaxAmount: Boolean = false,
         operationTypeMap: Map<String, String> = emptyMap(),
-    ) = TableParserConfig(
+    ) = TableParserProfile(
         bankId = bankId,
         bankMarkers = bankMarkers,
         dateColumn = dateColumn,

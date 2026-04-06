@@ -1,12 +1,12 @@
 package com.atelbay.money_manager.core.remoteconfig
 
 import android.content.Context
-import com.atelbay.money_manager.core.database.dao.ParserConfigDao
-import com.atelbay.money_manager.core.database.entity.ParserConfigEntity
+import com.atelbay.money_manager.core.database.dao.RegexParserProfileDao
+import com.atelbay.money_manager.core.database.entity.RegexParserProfileEntity
 import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
-import com.atelbay.money_manager.core.model.TableParserConfig
-import com.atelbay.money_manager.core.model.TableParserConfigList
+import com.atelbay.money_manager.core.model.TableParserProfile
+import com.atelbay.money_manager.core.model.TableParserProfileList
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.sync.Mutex
@@ -17,9 +17,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class ParserConfigSyncer @Inject constructor(
+class RegexParserProfileSyncer @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val parserConfigDao: ParserConfigDao,
+    private val regexParserProfileDao: RegexParserProfileDao,
     private val firestoreDataSource: FirestoreDataSource,
     private val userPreferences: UserPreferences,
 ) {
@@ -32,7 +32,7 @@ class ParserConfigSyncer @Inject constructor(
         if (initialized) return
         mutex.withLock {
             if (initialized) return@withLock
-            val existing = parserConfigDao.getAllActive()
+            val existing = regexParserProfileDao.getAllActive()
             if (existing.isEmpty()) {
                 seedFromBundledDefaults()
                 migrateDataStoreAiCaches()
@@ -59,18 +59,18 @@ class ParserConfigSyncer @Inject constructor(
             .use { it.readText() }
 
         val configs = try {
-            json.decodeFromString<ParserConfigList>(defaultJson).banks
+            json.decodeFromString<RegexParserProfileList>(defaultJson).banks
         } catch (e: Exception) {
             Timber.e(e, "Failed to parse bundled parser configs")
             return
         }
 
         val entities = configs.map { config ->
-            ParserConfigEntity(
+            RegexParserProfileEntity(
                 id = "seed_${config.bankId}",
                 bankId = config.bankId,
                 configType = "regex",
-                configJson = json.encodeToString(ParserConfig.serializer(), config),
+                configJson = json.encodeToString(RegexParserProfile.serializer(), config),
                 version = 0,
                 status = "active",
                 source = "seed",
@@ -78,26 +78,26 @@ class ParserConfigSyncer @Inject constructor(
             )
         }
 
-        parserConfigDao.upsertAll(entities)
+        regexParserProfileDao.upsertAll(entities)
         Timber.d("Seeded %d parser configs from bundled defaults", entities.size)
     }
 
     private suspend fun migrateDataStoreAiCaches() {
-        val entities = mutableListOf<ParserConfigEntity>()
+        val entities = mutableListOf<RegexParserProfileEntity>()
         val now = System.currentTimeMillis()
 
         // Migrate cached AI regex configs
         val regexJson = userPreferences.cachedAiParserConfigs.firstOrNull()
         if (!regexJson.isNullOrBlank()) {
             try {
-                val configs = json.decodeFromString<ParserConfigList>(regexJson).banks
+                val configs = json.decodeFromString<RegexParserProfileList>(regexJson).banks
                 configs.forEach { config ->
                     entities.add(
-                        ParserConfigEntity(
+                        RegexParserProfileEntity(
                             id = "ai_regex_${config.bankId}_$now",
                             bankId = config.bankId,
                             configType = "regex",
-                            configJson = json.encodeToString(ParserConfig.serializer(), config),
+                            configJson = json.encodeToString(RegexParserProfile.serializer(), config),
                             version = 0,
                             status = "active",
                             source = "ai_cached",
@@ -116,14 +116,14 @@ class ParserConfigSyncer @Inject constructor(
         val tableJson = userPreferences.cachedAiTableParserConfigs.firstOrNull()
         if (!tableJson.isNullOrBlank()) {
             try {
-                val configs = json.decodeFromString<TableParserConfigList>(tableJson).configs
+                val configs = json.decodeFromString<TableParserProfileList>(tableJson).configs
                 configs.forEach { config ->
                     entities.add(
-                        ParserConfigEntity(
+                        RegexParserProfileEntity(
                             id = "ai_table_${config.bankId}_$now",
                             bankId = config.bankId,
                             configType = "table",
-                            configJson = json.encodeToString(TableParserConfig.serializer(), config),
+                            configJson = json.encodeToString(TableParserProfile.serializer(), config),
                             version = 0,
                             status = "active",
                             source = "ai_cached",
@@ -139,7 +139,7 @@ class ParserConfigSyncer @Inject constructor(
         }
 
         if (entities.isNotEmpty()) {
-            parserConfigDao.upsertAll(entities)
+            regexParserProfileDao.upsertAll(entities)
         }
     }
 
@@ -155,7 +155,7 @@ class ParserConfigSyncer @Inject constructor(
         if (remoteDtos.isEmpty()) return
 
         val entities = remoteDtos.map { dto ->
-            ParserConfigEntity(
+            RegexParserProfileEntity(
                 id = dto.id,
                 bankId = dto.bankId,
                 configType = dto.configType,
@@ -167,8 +167,8 @@ class ParserConfigSyncer @Inject constructor(
             )
         }
 
-        parserConfigDao.upsertAll(entities)
-        parserConfigDao.deleteStaleExceptLocal(entities.map { it.id })
+        regexParserProfileDao.upsertAll(entities)
+        regexParserProfileDao.deleteStaleExceptLocal(entities.map { it.id })
 
         val remoteVersion = firestoreDataSource.getParserConfigsVersion()
         if (remoteVersion != null) {

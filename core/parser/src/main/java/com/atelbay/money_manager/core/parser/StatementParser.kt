@@ -1,9 +1,9 @@
 package com.atelbay.money_manager.core.parser
 
-import com.atelbay.money_manager.core.remoteconfig.ParserConfig
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfile
 import com.atelbay.money_manager.core.model.ParsedTransaction
-import com.atelbay.money_manager.core.model.TableParserConfig
-import com.atelbay.money_manager.core.remoteconfig.ParserConfigProvider
+import com.atelbay.money_manager.core.model.TableParserProfile
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfileProvider
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -29,7 +29,7 @@ class StatementParser @Inject constructor(
     private val pdfTextExtractor: PdfTextExtractor,
     private val bankDetector: BankDetector,
     private val regexParser: RegexStatementParser,
-    private val configProvider: ParserConfigProvider,
+    private val configProvider: RegexParserProfileProvider,
     private val pdfTableExtractor: PdfTableExtractor,
     private val tableStatementParser: TableStatementParser,
     private val tableQualityValidator: TableQualityValidator,
@@ -45,7 +45,7 @@ class StatementParser @Inject constructor(
 
     suspend fun tryParsePdf(
         bytes: ByteArray,
-        additionalConfigs: List<ParserConfig> = emptyList(),
+        additionalConfigs: List<RegexParserProfile> = emptyList(),
     ): RegexParseResult? {
         val text = pdfTextExtractor.extract(bytes)
         if (text.isBlank()) {
@@ -74,7 +74,7 @@ class StatementParser @Inject constructor(
         return RegexParseResult(transactions = emptyList(), bankId = firstBankId, extractedText = text)
     }
 
-    fun tryParseWithConfig(bytes: ByteArray, config: ParserConfig): RegexParseResult {
+    fun tryParseWithConfig(bytes: ByteArray, config: RegexParserProfile): RegexParseResult {
         val text = pdfTextExtractor.extract(bytes)
         val transactions = regexParser.parse(text, config)
         return RegexParseResult(transactions = transactions, bankId = config.bankId)
@@ -94,7 +94,7 @@ class StatementParser @Inject constructor(
             .joinToString("\n")
     }
 
-    fun tryParseTable(bytes: ByteArray, tableConfigs: List<TableParserConfig>): TableParseResult? {
+    fun tryParseTable(bytes: ByteArray, tableConfigs: List<TableParserProfile>): TableParseResult? {
         val table = pdfTableExtractor.extractTableOrNull(bytes) ?: return null
 
         val quality = tableQualityValidator.validate(table)
@@ -118,7 +118,7 @@ class StatementParser @Inject constructor(
         return null
     }
 
-    fun tryParseWithTableConfig(bytes: ByteArray, config: TableParserConfig): TableParseResult {
+    fun tryParseWithTableConfig(bytes: ByteArray, config: TableParserProfile): TableParseResult {
         val table = pdfTableExtractor.extractTable(bytes)
 
         val quality = tableQualityValidator.validate(table)

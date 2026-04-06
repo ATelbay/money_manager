@@ -2,7 +2,7 @@ package com.atelbay.money_manager.core.parser
 
 import com.atelbay.money_manager.core.common.generateTransactionHash
 import com.atelbay.money_manager.core.model.ParsedTransaction
-import com.atelbay.money_manager.core.model.TableParserConfig
+import com.atelbay.money_manager.core.model.TableParserProfile
 import com.atelbay.money_manager.core.model.TransactionType
 import kotlinx.datetime.LocalDate
 import timber.log.Timber
@@ -10,7 +10,7 @@ import javax.inject.Inject
 
 class TableStatementParser @Inject constructor() {
 
-    fun parse(table: List<List<String>>, config: TableParserConfig): List<ParsedTransaction> {
+    fun parse(table: List<List<String>>, config: TableParserProfile): List<ParsedTransaction> {
         require(config.dateColumn >= 0) { "dateColumn must be non-negative, got ${config.dateColumn}" }
         require(config.amountColumn >= 0) { "amountColumn must be non-negative, got ${config.amountColumn}" }
         require(config.skipHeaderRows >= 0) { "skipHeaderRows must be non-negative, got ${config.skipHeaderRows}" }
@@ -41,7 +41,7 @@ class TableStatementParser @Inject constructor() {
         return if (config.deduplicateMaxAmount) deduplicateByMaxAmount(transactions) else transactions
     }
 
-    private fun parseRow(row: List<String>, config: TableParserConfig): ParsedTransaction? {
+    private fun parseRow(row: List<String>, config: TableParserProfile): ParsedTransaction? {
         val dateStr = row.getOrNull(config.dateColumn)?.trim()
         val amountStr = row.getOrNull(config.amountColumn)?.trim()
 

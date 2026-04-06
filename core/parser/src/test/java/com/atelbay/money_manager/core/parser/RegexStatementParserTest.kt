@@ -1,7 +1,7 @@
 package com.atelbay.money_manager.core.parser
 
 import com.atelbay.money_manager.core.model.TransactionType
-import com.atelbay.money_manager.core.remoteconfig.ParserConfig
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfile
 import kotlinx.datetime.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -11,12 +11,12 @@ import org.junit.Test
 class RegexStatementParserTest {
 
     private lateinit var parser: RegexStatementParser
-    private lateinit var kaspiConfig: ParserConfig
+    private lateinit var kaspiConfig: RegexParserProfile
 
     @Before
     fun setUp() {
         parser = RegexStatementParser()
-        kaspiConfig = ParserConfig(
+        kaspiConfig = RegexParserProfile(
             bankId = "kaspi",
             bankMarkers = listOf("Kaspi Gold"),
             transactionPattern = "^\\s*(\\d{2}\\.\\d{2}\\.\\d{2})\\s+([+-])\\s+([\\d\\s]+,\\d{2})\\s*₸\\s+(Покупка|Перевод|Пополнение)\\s+(.+?)\\s*$",
@@ -205,7 +205,7 @@ Amount [KZT
 
     @Test
     fun `multi-page PDF with regex skip patterns parses all transactions`() {
-        val halykConfig = ParserConfig(
+        val halykConfig = RegexParserProfile(
             bankId = "halyk_test",
             bankMarkers = listOf("Halyk"),
             transactionPattern = "^\\s*(?<date>\\d{2}\\.\\d{2}\\.\\d{4})\\s+\\d{2}\\.\\d{2}\\.\\d{4}\\s+(?<details>.+?)\\s+(?<sign>-?)(?<amount>[\\d\\s]+,\\d{2})\\s+KZT.*$",
@@ -246,7 +246,7 @@ KZ696010002029688291
 
     @Test
     fun `two-phase skip removes page headers without corrupting transactions`() {
-        val config = ParserConfig(
+        val config = RegexParserProfile(
             bankId = "halyk_test",
             bankMarkers = listOf("Halyk"),
             transactionPattern = "^\\s*(?<date>\\d{2}\\.\\d{2}\\.\\d{4})\\s+\\d{2}\\.\\d{2}\\.\\d{4}\\s+(?<operation>.+?)\\s+(?<sign>-?)(?<amount>\\d{1,3}(?:\\s\\d{3})*,\\d{2})\\s+KZT.*$",

@@ -1,7 +1,7 @@
 package com.atelbay.money_manager.core.remoteconfig
 
-import com.atelbay.money_manager.core.database.dao.ParserConfigDao
-import com.atelbay.money_manager.core.model.TableParserConfig
+import com.atelbay.money_manager.core.database.dao.RegexParserProfileDao
+import com.atelbay.money_manager.core.model.TableParserProfile
 import com.google.firebase.Firebase
 import com.google.firebase.remoteconfig.remoteConfig
 import com.google.firebase.remoteconfig.remoteConfigSettings
@@ -16,10 +16,10 @@ private const val DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview"
 private const val FETCH_INTERVAL_SECONDS = 3600L
 
 @Singleton
-class FirebaseParserConfigProvider @Inject constructor(
-    private val syncer: ParserConfigSyncer,
-    private val parserConfigDao: ParserConfigDao,
-) : ParserConfigProvider {
+class FirebaseRegexParserProfileProvider @Inject constructor(
+    private val syncer: RegexParserProfileSyncer,
+    private val regexParserProfileDao: RegexParserProfileDao,
+) : RegexParserProfileProvider {
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -39,11 +39,11 @@ class FirebaseParserConfigProvider @Inject constructor(
         }
     }
 
-    override suspend fun getConfigs(): List<ParserConfig> {
+    override suspend fun getConfigs(): List<RegexParserProfile> {
         syncer.ensureInitialized()
-        return parserConfigDao.getActiveByType("regex").mapNotNull {
+        return regexParserProfileDao.getActiveByType("regex").mapNotNull {
             try {
-                json.decodeFromString<ParserConfig>(it.configJson)
+                json.decodeFromString<RegexParserProfile>(it.configJson)
             } catch (e: Exception) {
                 Timber.w(e, "Skipping malformed regex config: %s", it.id)
                 null
@@ -51,11 +51,11 @@ class FirebaseParserConfigProvider @Inject constructor(
         }
     }
 
-    override suspend fun getTableConfigs(): List<TableParserConfig> {
+    override suspend fun getTableConfigs(): List<TableParserProfile> {
         syncer.ensureInitialized()
-        return parserConfigDao.getActiveByType("table").mapNotNull {
+        return regexParserProfileDao.getActiveByType("table").mapNotNull {
             try {
-                json.decodeFromString<TableParserConfig>(it.configJson)
+                json.decodeFromString<TableParserProfile>(it.configJson)
             } catch (e: Exception) {
                 Timber.w(e, "Skipping malformed table config: %s", it.id)
                 null
@@ -63,11 +63,11 @@ class FirebaseParserConfigProvider @Inject constructor(
         }
     }
 
-    override suspend fun getConfigForBank(bankId: String): ParserConfig? {
+    override suspend fun getConfigForBank(bankId: String): RegexParserProfile? {
         syncer.ensureInitialized()
-        return parserConfigDao.getByBankIdAndType(bankId, "regex")?.let {
+        return regexParserProfileDao.getByBankIdAndType(bankId, "regex")?.let {
             try {
-                json.decodeFromString<ParserConfig>(it.configJson)
+                json.decodeFromString<RegexParserProfile>(it.configJson)
             } catch (e: Exception) {
                 Timber.w(e, "Skipping malformed config for bank: %s", bankId)
                 null

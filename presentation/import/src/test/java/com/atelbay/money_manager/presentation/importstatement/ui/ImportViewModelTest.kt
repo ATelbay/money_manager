@@ -9,7 +9,7 @@ import com.atelbay.money_manager.core.model.ImportResult
 import com.atelbay.money_manager.core.model.ImportState
 import com.atelbay.money_manager.core.model.ParsedTransaction
 import com.atelbay.money_manager.core.model.TransactionType
-import com.atelbay.money_manager.core.remoteconfig.ParserConfig
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfile
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
 import com.atelbay.money_manager.domain.auth.repository.AuthRepository
 import com.atelbay.money_manager.domain.categories.usecase.GetCategoriesUseCase
@@ -87,7 +87,7 @@ class ImportViewModelTest {
         duplicates = 0,
         errors = emptyList(),
     )
-    private val testAiConfig = ParserConfig(
+    private val testAiConfig = RegexParserProfile(
         bankId = "ai_bank",
         bankMarkers = listOf("AI Bank"),
         transactionPattern = "\\d+",

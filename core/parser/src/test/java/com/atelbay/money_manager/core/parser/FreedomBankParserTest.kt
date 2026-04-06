@@ -1,7 +1,7 @@
 package com.atelbay.money_manager.core.parser
 
 import com.atelbay.money_manager.core.model.TransactionType
-import com.atelbay.money_manager.core.remoteconfig.ParserConfig
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfile
 import kotlinx.datetime.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -11,12 +11,12 @@ import org.junit.Test
 class FreedomBankParserTest {
 
     private lateinit var parser: RegexStatementParser
-    private lateinit var freedomConfig: ParserConfig
+    private lateinit var freedomConfig: RegexParserProfile
 
     @Before
     fun setUp() {
         parser = RegexStatementParser()
-        freedomConfig = ParserConfig(
+        freedomConfig = RegexParserProfile(
             bankId = "freedom",
             bankMarkers = listOf("Фридом Банк", "Freedom Bank", "bankffin.kz", "KSNVKZKA", "Super Card"),
             transactionPattern = "^\\s*(\\d{2}\\.\\d{2}\\.\\d{4})\\s+([+-])\\s?([\\d,]+\\.\\d{2})\\s*₸\\s+[A-Z]{3}\\s+(Покупка|Перевод|Пополнение|Сумма в обработке|Другое|Платеж|Снятие|Платеж по кредиту|Погашение|Овердрафт)\\s+(.+?)\\s*$",
@@ -239,7 +239,7 @@ KZ12551B529955307KZT. По
 
     @Test
     fun `kaspi config still works without new fields`() {
-        val kaspiConfig = ParserConfig(
+        val kaspiConfig = RegexParserProfile(
             bankId = "kaspi",
             bankMarkers = listOf("Kaspi Gold"),
             transactionPattern = "^\\s*(\\d{2}\\.\\d{2}\\.\\d{2})\\s+([+-])\\s+([\\d\\s]+,\\d{2})\\s*₸\\s+(Покупка|Перевод|Пополнение)\\s+(.+?)\\s*$",

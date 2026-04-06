@@ -11,7 +11,7 @@ import androidx.room.PrimaryKey
         Index("status"),
     ],
 )
-data class ParserConfigEntity(
+data class RegexParserProfileEntity(
     @PrimaryKey val id: String,
     val bankId: String,
     val configType: String,

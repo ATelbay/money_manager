@@ -1,8 +1,8 @@
 package com.atelbay.money_manager.core.ai
 
-import com.atelbay.money_manager.core.model.TableParserConfig
-import com.atelbay.money_manager.core.remoteconfig.ParserConfig
-import com.atelbay.money_manager.core.remoteconfig.ParserConfigProvider
+import com.atelbay.money_manager.core.model.TableParserProfile
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfile
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfileProvider
 import com.google.firebase.Firebase
 import com.google.firebase.ai.ai
 import com.google.firebase.ai.type.GenerativeBackend
@@ -24,7 +24,7 @@ import javax.inject.Singleton
 
 @Singleton
 class GeminiServiceImpl @Inject constructor(
-    private val configProvider: ParserConfigProvider,
+    private val configProvider: RegexParserProfileProvider,
 ) : GeminiService {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -172,7 +172,7 @@ class GeminiServiceImpl @Inject constructor(
             },
         )
 
-    private val tableParserConfigSchema = Schema.obj(
+    private val tableRegexParserProfileSchema = Schema.obj(
         properties = mapOf(
             "bank_id" to Schema.string(
                 description = "Lowercase latin slug identifying the bank (e.g. forte, bereke, halyk)."
@@ -253,7 +253,7 @@ class GeminiServiceImpl @Inject constructor(
             modelName = configProvider.getGeminiModelName(),
             generationConfig = generationConfig {
                 responseMimeType = "application/json"
-                responseSchema = tableParserConfigSchema
+                responseSchema = tableRegexParserProfileSchema
                 temperature = 0f
                 thinkingConfig = thinkingConfig {
                     thinkingBudget = 1024
@@ -286,16 +286,16 @@ class GeminiServiceImpl @Inject constructor(
         }
     }
 
-    override suspend fun generateParserConfig(
+    override suspend fun generateRegexParserProfile(
         headerSnippet: String,
         sampleRows: String,
-        existingConfigs: List<ParserConfig>,
+        existingConfigs: List<RegexParserProfile>,
         previousAttempts: List<FailedAttempt>,
         pdfBlob: ByteArray?,
         categoryNames: CategoryNames,
-    ): ParserConfig {
-        val prompt = buildParserConfigPrompt(headerSnippet, sampleRows, existingConfigs, previousAttempts, hasPdfBlob = pdfBlob != null, categoryNames = categoryNames)
-        Timber.d(">>> Gemini generateParserConfig prompt length=%d", prompt.length)
+    ): RegexParserProfile {
+        val prompt = buildRegexParserProfilePrompt(headerSnippet, sampleRows, existingConfigs, previousAttempts, hasPdfBlob = pdfBlob != null, categoryNames = categoryNames)
+        Timber.d(">>> Gemini generateRegexParserProfile prompt length=%d", prompt.length)
         Timber.d(">>> Gemini prompt:\n%s", prompt)
 
         val inputContent = content {
@@ -308,23 +308,23 @@ class GeminiServiceImpl @Inject constructor(
         return try {
             val response = parserConfigModel().generateContent(inputContent)
             val text = response.text.orEmpty()
-            Timber.d("<<< Gemini generateParserConfig response (length=%d):\n%s", text.length, text)
-            parseParserConfigResponse(text)
+            Timber.d("<<< Gemini generateRegexParserProfile response (length=%d):\n%s", text.length, text)
+            parseRegexParserProfileResponse(text)
         } catch (e: Exception) {
-            Timber.e(e, "<<< Gemini generateParserConfig failed")
+            Timber.e(e, "<<< Gemini generateRegexParserProfile failed")
             throw e
         }
     }
 
-    override suspend fun generateTableParserConfig(
+    override suspend fun generateTableParserProfile(
         sampleTableRows: List<List<String>>,
         previousAttempts: List<TableFailedAttempt>,
         metadataRows: List<List<String>>,
         columnHeaderRow: List<String>?,
         categoryNames: CategoryNames,
-    ): TableParserConfig {
-        val prompt = buildTableParserConfigPrompt(sampleTableRows, previousAttempts, metadataRows, columnHeaderRow, categoryNames)
-        Timber.d(">>> Gemini generateTableParserConfig prompt length=%d", prompt.length)
+    ): TableParserProfile {
+        val prompt = buildTableParserProfilePrompt(sampleTableRows, previousAttempts, metadataRows, columnHeaderRow, categoryNames)
+        Timber.d(">>> Gemini generateTableParserProfile prompt length=%d", prompt.length)
         Timber.d(">>> Gemini prompt:\n%s", prompt)
 
         val inputContent = content {
@@ -334,15 +334,15 @@ class GeminiServiceImpl @Inject constructor(
         return try {
             val response = tableConfigModel().generateContent(inputContent)
             val text = response.text.orEmpty()
-            Timber.d("<<< Gemini generateTableParserConfig response (length=%d):\n%s", text.length, text)
-            parseTableParserConfigResponse(text)
+            Timber.d("<<< Gemini generateTableParserProfile response (length=%d):\n%s", text.length, text)
+            parseTableParserProfileResponse(text)
         } catch (e: Exception) {
-            Timber.e(e, "<<< Gemini generateTableParserConfig failed")
+            Timber.e(e, "<<< Gemini generateTableParserProfile failed")
             throw e
         }
     }
 
-    private fun buildTableParserConfigPrompt(
+    private fun buildTableParserProfilePrompt(
         sampleTableRows: List<List<String>>,
         previousAttempts: List<TableFailedAttempt>,
         metadataRows: List<List<String>>,
@@ -387,7 +387,7 @@ class GeminiServiceImpl @Inject constructor(
                 appendLine()
                 appendLine("Config:")
                 appendLine("```json")
-                appendLine(json.encodeToString(TableParserConfig.serializer(), attempt.config))
+                appendLine(json.encodeToString(TableParserProfile.serializer(), attempt.config))
                 appendLine("```")
                 appendLine("Error: ${attempt.error}")
                 if (attempt.failedRows.isNotEmpty()) {
@@ -417,7 +417,7 @@ class GeminiServiceImpl @Inject constructor(
         appendLine("</DATA>")
     }
 
-    private fun parseTableParserConfigResponse(responseText: String): TableParserConfig {
+    private fun parseTableParserProfileResponse(responseText: String): TableParserProfile {
         val jsonObj = json.parseToJsonElement(responseText).jsonObject
 
         val operationTypeMap: Map<String, String> = try {
@@ -440,7 +440,7 @@ class GeminiServiceImpl @Inject constructor(
             emptyMap()
         }
 
-        return TableParserConfig(
+        return TableParserProfile(
             bankId = jsonObj.stringField("bank_id"),
             bankMarkers = jsonObj.stringListField("bank_markers"),
             dateColumn = jsonObj.intField("date_column"),
@@ -459,13 +459,13 @@ class GeminiServiceImpl @Inject constructor(
         )
     }
 
-    private fun selectExamplesForPrompt(configs: List<ParserConfig>): List<ParserConfig> {
+    private fun selectExamplesForPrompt(configs: List<RegexParserProfile>): List<RegexParserProfile> {
         if (configs.size <= 3) return configs
         // Select up to 3 with diverse amountFormat values and boolean flag combinations
         val grouped = configs.groupBy {
             Triple(it.amountFormat, it.useSignForType, it.negativeSignMeansExpense)
         }
-        val selected = mutableListOf<ParserConfig>()
+        val selected = mutableListOf<RegexParserProfile>()
         for ((_, group) in grouped) {
             if (selected.size >= 3) break
             selected.add(group.first())
@@ -480,10 +480,10 @@ class GeminiServiceImpl @Inject constructor(
         return selected
     }
 
-    private fun buildParserConfigPrompt(
+    private fun buildRegexParserProfilePrompt(
         headerSnippet: String,
         sampleRows: String,
-        existingConfigs: List<ParserConfig>,
+        existingConfigs: List<RegexParserProfile>,
         previousAttempts: List<FailedAttempt>,
         hasPdfBlob: Boolean = false,
         categoryNames: CategoryNames = CategoryNames(),
@@ -554,7 +554,7 @@ class GeminiServiceImpl @Inject constructor(
             for (example in examples) {
                 appendLine()
                 appendLine("```json")
-                appendLine(json.encodeToString(ParserConfig.serializer(), example))
+                appendLine(json.encodeToString(RegexParserProfile.serializer(), example))
                 appendLine("```")
             }
         }
@@ -568,7 +568,7 @@ class GeminiServiceImpl @Inject constructor(
                 appendLine()
                 appendLine("Config:")
                 appendLine("```json")
-                appendLine(json.encodeToString(ParserConfig.serializer(), attempt.config))
+                appendLine(json.encodeToString(RegexParserProfile.serializer(), attempt.config))
                 appendLine("```")
                 appendLine("Error: ${attempt.error}")
             }
@@ -616,7 +616,7 @@ class GeminiServiceImpl @Inject constructor(
         appendLine("Map ALL distinct operations found in the sample rows.")
     }
 
-    private fun parseParserConfigResponse(responseText: String): ParserConfig {
+    private fun parseRegexParserProfileResponse(responseText: String): RegexParserProfile {
         val jsonObj = json.parseToJsonElement(responseText).jsonObject
 
         val operationTypeMap: Map<String, String> = try {
@@ -639,7 +639,7 @@ class GeminiServiceImpl @Inject constructor(
             emptyMap()
         }
 
-        return ParserConfig(
+        return RegexParserProfile(
             bankId = jsonObj.stringField("bank_id"),
             bankMarkers = jsonObj.stringListField("bank_markers"),
             // Convert Python-style named groups (?P<name>...) to Java/Kotlin (?<name>...)

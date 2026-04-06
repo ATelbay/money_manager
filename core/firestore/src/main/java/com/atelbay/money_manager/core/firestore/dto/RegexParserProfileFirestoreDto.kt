@@ -2,7 +2,7 @@ package com.atelbay.money_manager.core.firestore.dto
 
 import com.google.firebase.firestore.DocumentId
 
-data class ParserConfigFirestoreDto(
+data class RegexParserProfileFirestoreDto(
     @DocumentId val id: String = "",
     val bankId: String = "",
     val configType: String = "",
