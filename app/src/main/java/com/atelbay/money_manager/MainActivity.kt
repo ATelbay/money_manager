@@ -23,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -77,7 +78,10 @@ class MainActivity : ComponentActivity() {
 
         splashScreen.setKeepOnScreenCondition { !onboardingLoadCompleted }
 
-        extractPdfUri(intent)?.let { pendingNavigationManager.enqueue(NavigationAction.OpenImport(it)) }
+        extractPdfUri(intent)?.let {
+            pendingNavigationManager.enqueue(NavigationAction.OpenImport(it))
+            pendingNavigationManager.markExternalLaunch()
+        }
         enableEdgeToEdge()
         setContent {
             val themeMode by userPreferences.themeMode
@@ -200,7 +204,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        extractPdfUri(intent)?.let { pendingNavigationManager.enqueue(NavigationAction.OpenImport(it)) }
+        extractPdfUri(intent)?.let {
+            pendingNavigationManager.enqueue(NavigationAction.OpenImport(it))
+            pendingNavigationManager.markExternalLaunch()
+        }
     }
 
     private fun extractPdfUri(intent: Intent): String? = when (intent.action) {
@@ -259,6 +266,21 @@ private fun MoneyManagerApp(
                 }
                 pendingNavigationManager.consume()
             }
+        }
+    }
+
+    // When the app was launched externally (via PDF share/view) and the import screen
+    // has been closed (no Import destination in back stack), finish the activity so the
+    // user returns to whatever app they shared from.
+    val launchedFromExternal by pendingNavigationManager.launchedFromExternal.collectAsStateWithLifecycle()
+    val activity = LocalContext.current as? android.app.Activity
+    LaunchedEffect(backStackEntry?.id, launchedFromExternal) {
+        if (!launchedFromExternal) return@LaunchedEffect
+        val isOnImportScreen = navController.currentBackStackEntry
+            ?.destination?.hasRoute(Import::class) == true
+        if (!isOnImportScreen) {
+            pendingNavigationManager.clearExternalLaunch()
+            activity?.finish()
         }
     }
 
