@@ -5,7 +5,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -36,7 +35,7 @@ class CurrencyPickerScreenTest {
         composeTestRule.setContent {
             var baseCurrency by remember { mutableStateOf(SupportedCurrencies.fromCode("KZT")) }
             var targetCurrency by remember { mutableStateOf(SupportedCurrencies.fromCode("USD")) }
-            var activeSide by remember { mutableStateOf(CurrencyPickerSide.BASE) }
+            var activeSide by remember { mutableStateOf(CurrencyPickerSide.FIRST) }
 
             MoneyManagerTheme(dynamicColor = false) {
                 CurrencyPickerScreen(
@@ -45,7 +44,7 @@ class CurrencyPickerScreenTest {
                     activeSide = activeSide,
                     onSideChange = { activeSide = it },
                     onSelect = { currency ->
-                        if (activeSide == CurrencyPickerSide.BASE) {
+                        if (activeSide == CurrencyPickerSide.FIRST) {
                             baseCurrency = currency
                         } else {
                             targetCurrency = currency
@@ -57,19 +56,19 @@ class CurrencyPickerScreenTest {
         }
 
         composeTestRule.onNodeWithText("Валютная пара").assertIsDisplayed()
-        composeTestRule.onNodeWithText("KZT -> USD").assertIsDisplayed()
+        composeTestRule.onNodeWithText("KZT · USD").assertIsDisplayed()
 
-        composeTestRule.onNodeWithTag("currencyPicker:sideTarget").performClick()
+        composeTestRule.onNodeWithTag("currencyPicker:sideSecond").performClick()
         composeTestRule.onNodeWithTag("currencyPicker:search").performTextInput("евро")
         composeTestRule.onNodeWithText("EUR · Евро").performClick()
 
-        composeTestRule.onNodeWithText("KZT -> EUR").assertIsDisplayed()
+        composeTestRule.onNodeWithText("KZT · EUR").assertIsDisplayed()
 
-        composeTestRule.onNodeWithTag("currencyPicker:sideBase").performClick()
+        composeTestRule.onNodeWithTag("currencyPicker:sideFirst").performClick()
         composeTestRule.onNodeWithTag("currencyPicker:search").performTextClearance()
         composeTestRule.onNodeWithTag("currencyPicker:search").performTextInput("JPY")
         composeTestRule.onNodeWithText("JPY · Японская иена").performClick()
 
-        composeTestRule.onNodeWithText("JPY -> EUR").assertIsDisplayed()
+        composeTestRule.onNodeWithText("JPY · EUR").assertIsDisplayed()
     }
 }

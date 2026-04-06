@@ -53,7 +53,7 @@ data class Import(val pdfUri: String? = null)
 
 @Serializable
 data class CurrencyPicker(
-    val activeSide: CurrencyPickerSide = CurrencyPickerSide.BASE,
+    val activeSide: CurrencyPickerSide = CurrencyPickerSide.FIRST,
 )
 
 @Serializable

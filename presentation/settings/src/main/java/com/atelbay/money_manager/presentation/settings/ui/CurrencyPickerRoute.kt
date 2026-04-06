@@ -25,7 +25,7 @@ fun CurrencyPickerRoute(
         activeSide = activeSide,
         onSideChange = { activeSide = it },
         onSelect = { currency ->
-            if (activeSide == CurrencyPickerSide.BASE) {
+            if (activeSide == CurrencyPickerSide.FIRST) {
                 viewModel.setBaseCurrency(currency)
             } else {
                 viewModel.setTargetCurrency(currency)

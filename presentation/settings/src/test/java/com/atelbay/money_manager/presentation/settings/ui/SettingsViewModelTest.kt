@@ -173,6 +173,58 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun `auto-sort puts more expensive currency first regardless of stored order`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+
+        // USD stored as base, EUR as target — but EUR (520) > USD (475) so display should auto-sort
+        val prefs = createPreferenceHarness(baseCurrency = "USD", targetCurrency = "EUR")
+        val viewModel = createViewModel(
+            preferenceHarness = prefs,
+            exchangeRateRepository = mockExchangeRateRepository(
+                observedRates = flowOf(
+                    snapshot(
+                        mapOf(
+                            "KZT" to 1.0,
+                            "USD" to 475.0,
+                            "EUR" to 520.0,
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        advanceUntilIdle()
+
+        // EUR has higher KZT quote, so it should be on the left regardless of stored order
+        assertEquals("1 EUR = 1.09 USD", viewModel.state.value.rateDisplay)
+    }
+
+    @Test
+    fun `USD KZT pair shows USD first since USD has higher KZT quote`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+
+        // KZT stored as base, USD as target — USD (475) > KZT (1) so display auto-sorts USD first
+        val prefs = createPreferenceHarness(baseCurrency = "KZT", targetCurrency = "USD")
+        val viewModel = createViewModel(
+            preferenceHarness = prefs,
+            exchangeRateRepository = mockExchangeRateRepository(
+                observedRates = flowOf(
+                    snapshot(
+                        mapOf(
+                            "KZT" to 1.0,
+                            "USD" to 475.0,
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        advanceUntilIdle()
+
+        assertEquals("1 USD = 475.00 KZT", viewModel.state.value.rateDisplay)
+    }
+
+    @Test
     fun `valid EUR USD pair displays derived rate`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
 

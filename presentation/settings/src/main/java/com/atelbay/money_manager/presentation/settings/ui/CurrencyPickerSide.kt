@@ -1,9 +1,12 @@
 package com.atelbay.money_manager.presentation.settings.ui
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
 enum class CurrencyPickerSide {
-    BASE,
-    TARGET,
+    @SerialName("BASE")
+    FIRST,
+    @SerialName("TARGET")
+    SECOND,
 }

@@ -249,10 +249,24 @@ class SettingsViewModel @Inject constructor(
     ): String? {
         if (rate == null) return null
         if (base.code == target.code) return "1 ${base.code} = 1.00 ${target.code}"
-        val baseToKzt = rate.quotes[base.code] ?: return null
-        val targetToKzt = rate.quotes[target.code] ?: return null
-        val convertedRate = baseToKzt / targetToKzt
-        return "1 ${base.code} = ${numberFormatter.format(convertedRate)} ${target.code}"
+        val baseToKzt = rate.quotes[base.code]
+        val targetToKzt = rate.quotes[target.code]
+        // Determine which currency has a higher KZT value (is more "expensive")
+        val (expensive, cheap) = when {
+            baseToKzt == null || targetToKzt == null -> {
+                // Fall back to alphabetical order when quotes are unavailable
+                if (base.code <= target.code) base to target else target to base
+            }
+            baseToKzt > targetToKzt -> base to target
+            targetToKzt > baseToKzt -> target to base
+            else -> {
+                // Equal quotes: alphabetical fallback
+                if (base.code <= target.code) base to target else target to base
+            }
+        }
+        val expensiveToKzt = rate.quotes[expensive.code] ?: return null
+        val cheapToKzt = rate.quotes[cheap.code] ?: return null
+        return "1 ${expensive.code} = ${numberFormatter.format(expensiveToKzt / cheapToKzt)} ${cheap.code}"
     }
 
     private suspend fun sanitizeCurrency(
