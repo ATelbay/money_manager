@@ -67,11 +67,19 @@ fun RecurringTransactionDto.toEntity(
                 updatedAt = updatedAt,
                 isDeleted = isDeleted,
             )
+        } else if (encryptionVersion > 0) {
+            Timber.w("Unsupported encryption version %d for recurring transaction %s", encryptionVersion, remoteId)
+            return null
         } else {
+            val parsedAmount = amount.toDoubleOrNull()
+            if (parsedAmount == null) {
+                Timber.w("Invalid amount '%s' for recurring transaction %s", amount, remoteId)
+                return null
+            }
             RecurringTransactionEntity(
                 id = localId,
                 remoteId = remoteId,
-                amount = amount.toDouble(),
+                amount = parsedAmount,
                 type = type,
                 categoryId = categoryLocalId,
                 accountId = accountLocalId,

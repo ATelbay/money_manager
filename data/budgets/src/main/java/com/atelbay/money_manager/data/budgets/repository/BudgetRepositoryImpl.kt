@@ -65,7 +65,7 @@ class BudgetRepositoryImpl @Inject constructor(
     }
 
     override suspend fun delete(id: Long) {
-        budgetDao.softDelete(id, System.currentTimeMillis())
+        budgetDao.softDeleteById(id, System.currentTimeMillis())
         syncManager.syncBudget(id)
     }
 }

@@ -276,6 +276,9 @@ private fun MoneyManagerApp(
     val activity = androidx.activity.compose.LocalActivity.current
     LaunchedEffect(backStackEntry?.id, launchedFromExternal) {
         if (!launchedFromExternal) return@LaunchedEffect
+        // Wait until the pending navigation action is consumed (Import was navigated to)
+        // before checking whether we've left the Import screen.
+        if (pendingAction != null) return@LaunchedEffect
         val isOnImportScreen = navController.currentBackStackEntry
             ?.destination?.hasRoute(Import::class) == true
         if (!isOnImportScreen) {

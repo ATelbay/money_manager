@@ -26,9 +26,6 @@ interface RecurringTransactionDao {
     @Update
     suspend fun update(entity: RecurringTransactionEntity)
 
-    @Query("UPDATE recurring_transactions SET isDeleted = 1, updatedAt = :updatedAt WHERE id = :id")
-    suspend fun softDelete(id: Long, updatedAt: Long)
-
     @Query("UPDATE recurring_transactions SET lastGeneratedDate = :date, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateLastGeneratedDate(id: Long, date: Long, updatedAt: Long)
 

@@ -1,6 +1,8 @@
 package com.atelbay.money_manager.core.remoteconfig
 
 import com.atelbay.money_manager.core.database.dao.RegexParserProfileDao
+import com.atelbay.money_manager.core.database.entity.RegexParserProfileEntity.Companion.CONFIG_TYPE_REGEX
+import com.atelbay.money_manager.core.database.entity.RegexParserProfileEntity.Companion.CONFIG_TYPE_TABLE
 import com.atelbay.money_manager.core.model.TableParserProfile
 import com.google.firebase.Firebase
 import com.google.firebase.remoteconfig.remoteConfig
@@ -41,7 +43,7 @@ class FirebaseRegexParserProfileProvider @Inject constructor(
 
     override suspend fun getConfigs(): List<RegexParserProfile> {
         syncer.ensureInitialized()
-        return regexParserProfileDao.getActiveByType("regex").mapNotNull {
+        return regexParserProfileDao.getActiveByType(CONFIG_TYPE_REGEX).mapNotNull {
             try {
                 json.decodeFromString<RegexParserProfile>(it.configJson)
             } catch (e: Exception) {
@@ -53,7 +55,7 @@ class FirebaseRegexParserProfileProvider @Inject constructor(
 
     override suspend fun getTableConfigs(): List<TableParserProfile> {
         syncer.ensureInitialized()
-        return regexParserProfileDao.getActiveByType("table").mapNotNull {
+        return regexParserProfileDao.getActiveByType(CONFIG_TYPE_TABLE).mapNotNull {
             try {
                 json.decodeFromString<TableParserProfile>(it.configJson)
             } catch (e: Exception) {
@@ -65,7 +67,7 @@ class FirebaseRegexParserProfileProvider @Inject constructor(
 
     override suspend fun getConfigForBank(bankId: String): RegexParserProfile? {
         syncer.ensureInitialized()
-        return regexParserProfileDao.getByBankIdAndType(bankId, "regex")?.let {
+        return regexParserProfileDao.getByBankIdAndType(bankId, CONFIG_TYPE_REGEX)?.let {
             try {
                 json.decodeFromString<RegexParserProfile>(it.configJson)
             } catch (e: Exception) {

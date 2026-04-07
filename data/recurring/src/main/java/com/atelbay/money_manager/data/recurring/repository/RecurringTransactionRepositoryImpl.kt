@@ -105,7 +105,7 @@ class RecurringTransactionRepositoryImpl @Inject constructor(
     }
 
     override suspend fun delete(id: Long) {
-        recurringDao.softDelete(id, System.currentTimeMillis())
+        recurringDao.softDeleteById(id, System.currentTimeMillis())
         syncManager.syncRecurring(id)
     }
 

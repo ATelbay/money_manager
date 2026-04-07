@@ -110,8 +110,9 @@ class SyncManager @Inject constructor(
                 val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@launch
                 val finalEntity = if (entity.remoteId == null) {
                     val remoteId = UUID.randomUUID().toString()
-                    budgetDao.update(entity.copy(remoteId = remoteId))
-                    entity.copy(remoteId = remoteId)
+                    val updated = entity.copy(remoteId = remoteId, updatedAt = System.currentTimeMillis())
+                    budgetDao.update(updated)
+                    updated
                 } else entity
                 firestoreDataSource.pushBudget(userId, finalEntity.toDto(fieldCipherHolder, categoryRemoteId))
             } catch (e: Exception) {
@@ -132,8 +133,9 @@ class SyncManager @Inject constructor(
                 val accountRemoteId = ensureAccountRemoteId(entity.accountId) ?: return@launch
                 val finalEntity = if (entity.remoteId == null) {
                     val remoteId = UUID.randomUUID().toString()
-                    recurringDao.update(entity.copy(remoteId = remoteId))
-                    entity.copy(remoteId = remoteId)
+                    val updated = entity.copy(remoteId = remoteId, updatedAt = System.currentTimeMillis())
+                    recurringDao.update(updated)
+                    updated
                 } else entity
                 firestoreDataSource.pushRecurringTransaction(userId, finalEntity.toDto(categoryRemoteId, accountRemoteId, fieldCipherHolder))
             } catch (e: Exception) {
@@ -183,8 +185,9 @@ class SyncManager @Inject constructor(
         budgetDao.getPendingSync().forEach { entity ->
             val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@forEach
             val remoteId = UUID.randomUUID().toString()
-            budgetDao.update(entity.copy(remoteId = remoteId))
-            firestoreDataSource.pushBudget(userId, entity.copy(remoteId = remoteId).toDto(fieldCipherHolder, categoryRemoteId))
+            val now = System.currentTimeMillis()
+            budgetDao.update(entity.copy(remoteId = remoteId, updatedAt = now))
+            firestoreDataSource.pushBudget(userId, entity.copy(remoteId = remoteId, updatedAt = now).toDto(fieldCipherHolder, categoryRemoteId))
         }
         budgetDao.getDeletedWithRemoteId().forEach { entity ->
             val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@forEach
@@ -194,8 +197,9 @@ class SyncManager @Inject constructor(
             val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@forEach
             val accountRemoteId = ensureAccountRemoteId(entity.accountId) ?: return@forEach
             val remoteId = UUID.randomUUID().toString()
-            recurringDao.update(entity.copy(remoteId = remoteId))
-            firestoreDataSource.pushRecurringTransaction(userId, entity.copy(remoteId = remoteId).toDto(categoryRemoteId, accountRemoteId, fieldCipherHolder))
+            val now = System.currentTimeMillis()
+            recurringDao.update(entity.copy(remoteId = remoteId, updatedAt = now))
+            firestoreDataSource.pushRecurringTransaction(userId, entity.copy(remoteId = remoteId, updatedAt = now).toDto(categoryRemoteId, accountRemoteId, fieldCipherHolder))
         }
         recurringDao.getDeletedWithRemoteId().forEach { entity ->
             val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@forEach

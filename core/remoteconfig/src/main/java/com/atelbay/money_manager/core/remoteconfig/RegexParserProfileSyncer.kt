@@ -3,6 +3,11 @@ package com.atelbay.money_manager.core.remoteconfig
 import android.content.Context
 import com.atelbay.money_manager.core.database.dao.RegexParserProfileDao
 import com.atelbay.money_manager.core.database.entity.RegexParserProfileEntity
+import com.atelbay.money_manager.core.database.entity.RegexParserProfileEntity.Companion.CONFIG_TYPE_REGEX
+import com.atelbay.money_manager.core.database.entity.RegexParserProfileEntity.Companion.CONFIG_TYPE_TABLE
+import com.atelbay.money_manager.core.database.entity.RegexParserProfileEntity.Companion.SOURCE_AI_CACHED
+import com.atelbay.money_manager.core.database.entity.RegexParserProfileEntity.Companion.SOURCE_SEED
+import com.atelbay.money_manager.core.database.entity.RegexParserProfileEntity.Companion.STATUS_ACTIVE
 import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
 import com.atelbay.money_manager.core.model.TableParserProfile
@@ -69,11 +74,11 @@ class RegexParserProfileSyncer @Inject constructor(
             RegexParserProfileEntity(
                 id = "seed_${config.bankId}",
                 bankId = config.bankId,
-                configType = "regex",
+                configType = CONFIG_TYPE_REGEX,
                 configJson = json.encodeToString(RegexParserProfile.serializer(), config),
                 version = 0,
-                status = "active",
-                source = "seed",
+                status = STATUS_ACTIVE,
+                source = SOURCE_SEED,
                 updatedAt = System.currentTimeMillis(),
             )
         }
@@ -96,11 +101,11 @@ class RegexParserProfileSyncer @Inject constructor(
                         RegexParserProfileEntity(
                             id = "ai_regex_${config.bankId}_$now",
                             bankId = config.bankId,
-                            configType = "regex",
+                            configType = CONFIG_TYPE_REGEX,
                             configJson = json.encodeToString(RegexParserProfile.serializer(), config),
                             version = 0,
-                            status = "active",
-                            source = "ai_cached",
+                            status = STATUS_ACTIVE,
+                            source = SOURCE_AI_CACHED,
                             updatedAt = now,
                         ),
                     )
@@ -122,11 +127,11 @@ class RegexParserProfileSyncer @Inject constructor(
                         RegexParserProfileEntity(
                             id = "ai_table_${config.bankId}_$now",
                             bankId = config.bankId,
-                            configType = "table",
+                            configType = CONFIG_TYPE_TABLE,
                             configJson = json.encodeToString(TableParserProfile.serializer(), config),
                             version = 0,
-                            status = "active",
-                            source = "ai_cached",
+                            status = STATUS_ACTIVE,
+                            source = SOURCE_AI_CACHED,
                             updatedAt = now,
                         ),
                     )

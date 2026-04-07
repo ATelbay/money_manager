@@ -45,12 +45,20 @@ fun BudgetDto.toEntity(
                 updatedAt = updatedAt,
                 isDeleted = isDeleted,
             )
+        } else if (encryptionVersion > 0) {
+            Timber.w("Unsupported encryption version %d for budget %s", encryptionVersion, remoteId)
+            return null
         } else {
+            val limit = monthlyLimit.toDoubleOrNull()
+            if (limit == null) {
+                Timber.w("Invalid monthlyLimit '%s' for budget %s", monthlyLimit, remoteId)
+                return null
+            }
             BudgetEntity(
                 id = localId,
                 remoteId = remoteId,
                 categoryId = localCategoryId,
-                monthlyLimit = monthlyLimit.toDouble(),
+                monthlyLimit = limit,
                 createdAt = createdAt,
                 updatedAt = updatedAt,
                 isDeleted = isDeleted,

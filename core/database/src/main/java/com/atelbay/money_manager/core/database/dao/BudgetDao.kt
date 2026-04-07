@@ -26,9 +26,6 @@ interface BudgetDao {
     @Update
     suspend fun update(entity: BudgetEntity)
 
-    @Query("UPDATE budgets SET isDeleted = 1, updatedAt = :updatedAt WHERE id = :id")
-    suspend fun softDelete(id: Long, updatedAt: Long)
-
     // ── Sync ──
 
     @Query("SELECT * FROM budgets WHERE remoteId = :remoteId LIMIT 1")

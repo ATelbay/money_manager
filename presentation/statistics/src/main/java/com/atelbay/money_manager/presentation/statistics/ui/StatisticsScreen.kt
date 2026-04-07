@@ -145,7 +145,7 @@ private class TodayColumnProvider(
 private class DynamicRangeProvider : CartesianLayerRangeProvider {
     override fun getMaxY(minY: Double, maxY: Double, extraStore: ExtraStore): Double {
         val visibleMax = extraStore.getOrNull(visibleMaxYKey) ?: return maxY.coerceAtLeast(0.0)
-        if (visibleMax <= 0.0) return 1.0  // all visible bars are zero — use small fixed scale
+        if (visibleMax <= 0.0) return if (maxY > 0.0) maxY * 1.1 else 1.0
         return visibleMax * 1.1  // 10% padding above tallest visible bar
     }
 }

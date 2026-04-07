@@ -20,4 +20,12 @@ data class RegexParserProfileEntity(
     val status: String,
     val source: String,
     val updatedAt: Long,
-)
+) {
+    companion object {
+        const val CONFIG_TYPE_REGEX = "regex"
+        const val CONFIG_TYPE_TABLE = "table"
+        const val STATUS_ACTIVE = "active"
+        const val SOURCE_SEED = "seed"
+        const val SOURCE_AI_CACHED = "ai_cached"
+    }
+}
