@@ -117,6 +117,7 @@ class RecurringTransactionRepositoryImpl @Inject constructor(
 
     override suspend fun updateLastGeneratedDate(id: Long, date: Long) {
         recurringDao.updateLastGeneratedDate(id, date, System.currentTimeMillis())
+        syncManager.syncRecurring(id)
     }
 
     override suspend fun generateTransactionsAtomically(
@@ -144,5 +145,6 @@ class RecurringTransactionRepositoryImpl @Inject constructor(
             }
             recurringDao.updateLastGeneratedDate(recurringId, lastGeneratedDate, now)
         }
+        syncManager.syncRecurring(recurringId)
     }
 }

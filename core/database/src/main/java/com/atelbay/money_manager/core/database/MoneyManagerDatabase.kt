@@ -24,7 +24,7 @@ import com.atelbay.money_manager.core.database.entity.TransactionEntity
         BudgetEntity::class,
         RegexParserProfileEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 abstract class MoneyManagerDatabase : RoomDatabase() {

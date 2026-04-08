@@ -247,8 +247,6 @@ class StatisticsViewModel @Inject constructor(
             _state.update { it.copy(chart = it.chart.copy(allAmountsZero = true)) }
             return
         }
-        _state.update { it.copy(chart = it.chart.copy(allAmountsZero = false)) }
-
         val moneyDisplay = currentState.currencyUiState.moneyDisplay
         val period = currentState.period
 
@@ -275,6 +273,7 @@ class StatisticsViewModel @Inject constructor(
                 store[visibleMaxYKey] = visibleMaxY
             }
         }
+        _state.update { it.copy(chart = it.chart.copy(allAmountsZero = false)) }
     }
 
     private fun buildChartPoints(

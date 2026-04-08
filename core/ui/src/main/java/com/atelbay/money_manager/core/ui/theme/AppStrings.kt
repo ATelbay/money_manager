@@ -181,8 +181,6 @@ data class AppStrings(
     // ── Currency Picker ──
     val currencyPair: String,
     val currentPair: String,
-    val firstCurrency: String,
-    val secondCurrency: String,
     val searchCurrency: String,
 
     // ── Period / Date Filtering ──
@@ -405,8 +403,6 @@ val RussianStrings = AppStrings(
     signOut = "Выйти",
     currencyPair = "Валютная пара",
     currentPair = "Текущая пара",
-    firstCurrency = "Первая",
-    secondCurrency = "Вторая",
     searchCurrency = "Поиск валюты",
     currentMonth = "Тек. месяц",
     thirtyDays = "30 дней",
@@ -619,8 +615,6 @@ val EnglishStrings = AppStrings(
     signOut = "Sign out",
     currencyPair = "Currency Pair",
     currentPair = "Current pair",
-    firstCurrency = "First",
-    secondCurrency = "Second",
     searchCurrency = "Search currency",
     currentMonth = "This month",
     thirtyDays = "30 days",
@@ -833,8 +827,6 @@ val KazakhStrings = AppStrings(
     signOut = "Шығу",
     currencyPair = "Валюта жұбы",
     currentPair = "Ағымдағы жұп",
-    firstCurrency = "Бірінші",
-    secondCurrency = "Екінші",
     searchCurrency = "Валюта іздеу",
     currentMonth = "Ағымдағы ай",
     thirtyDays = "30 күн",

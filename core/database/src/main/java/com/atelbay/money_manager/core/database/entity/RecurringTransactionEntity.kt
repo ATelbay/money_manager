@@ -24,6 +24,7 @@ import androidx.room.PrimaryKey
     indices = [
         Index("accountId"),
         Index("categoryId"),
+        Index("remoteId"),
         Index("isActive", "isDeleted"),
     ],
 )

@@ -108,15 +108,22 @@ class PullSyncUseCase @Inject constructor(
                 continue
             }
 
+            // Dedup: if no match by remoteId, check by categoryId (unique constraint)
+            val resolved = local ?: budgetDao.getByCategoryId(categoryLocalId)?.also { fallback ->
+                Timber.d("PullSync: fallback match for budget categoryId=$categoryLocalId — linking remoteId ${dto.remoteId}")
+                budgetDao.update(fallback.copy(remoteId = dto.remoteId))
+            }
+            if (resolved != null && resolved.updatedAt >= dto.updatedAt) continue
+
             val entity = dto.toEntity(
-                localId = local?.id ?: 0,
+                localId = resolved?.id ?: 0,
                 fieldCipherHolder = fieldCipherHolder,
                 localCategoryId = categoryLocalId,
             ) ?: continue
-            if (local == null) {
+            if (resolved == null) {
                 budgetDao.insert(entity)
             } else {
-                budgetDao.upsertSync(listOf(entity.copy(id = local.id)))
+                budgetDao.upsertSync(listOf(entity.copy(id = resolved.id)))
             }
         }
     }

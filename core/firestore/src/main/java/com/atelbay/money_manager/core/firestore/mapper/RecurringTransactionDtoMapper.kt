@@ -41,6 +41,14 @@ fun RecurringTransactionDto.toEntity(
     accountLocalId: Long,
     fieldCipherHolder: FieldCipherHolder,
 ): RecurringTransactionEntity? {
+    if (type !in VALID_TYPES) {
+        Timber.w("Skipping recurring transaction %s: unknown type '%s'", remoteId, type)
+        return null
+    }
+    if (frequency !in VALID_FREQUENCIES) {
+        Timber.w("Skipping recurring transaction %s: unknown frequency '%s'", remoteId, frequency)
+        return null
+    }
     val cipher = fieldCipherHolder.cipher
     if (encryptionVersion >= 1 && cipher == null) {
         Timber.w("Cannot decrypt RecurringTransactionDto: cipher unavailable (encryptionVersion=$encryptionVersion)")
@@ -104,3 +112,6 @@ fun RecurringTransactionDto.toEntity(
         null
     }
 }
+
+private val VALID_TYPES = setOf("income", "expense")
+private val VALID_FREQUENCIES = setOf("DAILY", "WEEKLY", "MONTHLY", "YEARLY")
