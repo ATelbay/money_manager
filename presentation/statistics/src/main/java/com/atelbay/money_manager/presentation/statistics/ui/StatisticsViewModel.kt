@@ -232,6 +232,7 @@ class StatisticsViewModel @Inject constructor(
             chart = StatisticsChartState(
                 points = points.toImmutableList(),
                 isScrollable = true,
+                allAmountsZero = chart.allAmountsZero,
             ),
         )
     }
