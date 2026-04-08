@@ -232,6 +232,7 @@ class StatisticsViewModel @Inject constructor(
             chart = StatisticsChartState(
                 points = points.toImmutableList(),
                 isScrollable = true,
+                allAmountsZero = chart.allAmountsZero,
             ),
         )
     }
@@ -241,11 +242,17 @@ class StatisticsViewModel @Inject constructor(
         val points = currentState.chart.points
         if (points.isEmpty()) return
 
+        val amounts: List<Double> = points.map { it.amount ?: 0.0 }
+        val allZero = amounts.all { it == 0.0 }
+        if (allZero) {
+            _state.update { it.copy(chart = it.chart.copy(allAmountsZero = true)) }
+            return
+        }
         val moneyDisplay = currentState.currencyUiState.moneyDisplay
         val period = currentState.period
 
         val indices: List<Number> = points.indices.map { it.toDouble() }
-        val amounts: List<Number> = points.map { it.amount ?: 0.0 }
+        val amountNumbers: List<Number> = amounts
 
         val dateFormat = when (period) {
             StatsPeriod.WEEK, StatsPeriod.MONTH -> SimpleDateFormat("MMM d", localizedStrings().locale)
@@ -253,7 +260,7 @@ class StatisticsViewModel @Inject constructor(
         }
 
         chartModelProducer.runTransaction {
-            columnSeries { series(x = indices, y = amounts) }
+            columnSeries { series(x = indices, y = amountNumbers) }
             extras { store ->
                 store[xToLabelMapKey] = points.mapIndexed { i, p ->
                     i.toDouble() to p.displayLabel
@@ -267,6 +274,7 @@ class StatisticsViewModel @Inject constructor(
                 store[visibleMaxYKey] = visibleMaxY
             }
         }
+        _state.update { it.copy(chart = it.chart.copy(allAmountsZero = false)) }
     }
 
     private fun buildChartPoints(

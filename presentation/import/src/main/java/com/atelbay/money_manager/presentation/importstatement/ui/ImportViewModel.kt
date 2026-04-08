@@ -6,7 +6,7 @@ import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.ImportState
-import com.atelbay.money_manager.core.model.TableParserConfig
+import com.atelbay.money_manager.core.model.TableParserProfile
 import com.atelbay.money_manager.core.model.TransactionOverride
 import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
@@ -17,7 +17,7 @@ import com.atelbay.money_manager.domain.importstatement.usecase.ImportStepEvent
 import com.atelbay.money_manager.domain.importstatement.usecase.ImportTransactionsUseCase
 import com.atelbay.money_manager.domain.importstatement.usecase.ParseStatementUseCase
 import com.atelbay.money_manager.domain.importstatement.usecase.SubmitParserCandidateUseCase
-import com.atelbay.money_manager.core.remoteconfig.ParserConfig
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfile
 import com.atelbay.money_manager.core.ui.theme.AppStrings
 import com.atelbay.money_manager.domain.importstatement.usecase.AiMethod
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -64,9 +64,9 @@ class ImportViewModel @Inject constructor(
     val debugCollector = ListImportProgressCollector()
 
     /** Tracks the AI-generated configs from the last parse, if any. */
-    private var lastAiGeneratedConfig: ParserConfig? = null
+    private var lastAiGeneratedConfig: RegexParserProfile? = null
     private var lastSampleRows: String? = null
-    private var lastAiGeneratedTableConfig: TableParserConfig? = null
+    private var lastAiGeneratedTableConfig: TableParserProfile? = null
     private var lastSampleTableRows: List<List<String>>? = null
     private var lastAiMethod: AiMethod = AiMethod.NONE
 

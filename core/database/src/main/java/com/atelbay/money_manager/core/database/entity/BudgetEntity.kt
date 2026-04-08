@@ -17,6 +17,7 @@ import androidx.room.PrimaryKey
     ],
     indices = [
         Index("categoryId", unique = true),
+        Index("remoteId"),
     ],
 )
 data class BudgetEntity(

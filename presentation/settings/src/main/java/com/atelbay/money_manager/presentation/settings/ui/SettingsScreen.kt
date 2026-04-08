@@ -199,7 +199,7 @@ fun SettingsScreen(
                     SettingRow(
                         icon = Icons.Default.AttachMoney,
                         iconColor = Color(0xFFFBBF24),
-                        title = s.rateLabel(state.baseCurrency.code, state.targetCurrency.code),
+                        title = s.rateLabel,
                         subtitle = when {
                             !state.hasRateSnapshot -> s.rateNotLoaded
                             !state.rateDisplay.isNullOrBlank() -> state.rateDisplay

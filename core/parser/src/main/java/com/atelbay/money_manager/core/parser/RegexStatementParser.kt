@@ -3,7 +3,7 @@ package com.atelbay.money_manager.core.parser
 import com.atelbay.money_manager.core.common.generateTransactionHash
 import com.atelbay.money_manager.core.model.ParsedTransaction
 import com.atelbay.money_manager.core.model.TransactionType
-import com.atelbay.money_manager.core.remoteconfig.ParserConfig
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfile
 import kotlinx.datetime.LocalDate
 import timber.log.Timber
 import java.util.regex.PatternSyntaxException
@@ -11,7 +11,7 @@ import javax.inject.Inject
 
 class RegexStatementParser @Inject constructor() {
 
-    fun parse(text: String, config: ParserConfig): List<ParsedTransaction> {
+    fun parse(text: String, config: RegexParserProfile): List<ParsedTransaction> {
         val skipPatterns = config.skipPatterns.map { pattern ->
             try {
                 Regex(pattern)
@@ -90,7 +90,7 @@ class RegexStatementParser @Inject constructor() {
 
     private fun matchToTransaction(
         match: MatchResult,
-        config: ParserConfig,
+        config: RegexParserProfile,
     ): ParsedTransaction {
         val dateStr: String
         val sign: String

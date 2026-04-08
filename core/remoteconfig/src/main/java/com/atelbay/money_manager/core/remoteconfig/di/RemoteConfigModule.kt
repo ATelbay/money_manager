@@ -1,7 +1,7 @@
 package com.atelbay.money_manager.core.remoteconfig.di
 
-import com.atelbay.money_manager.core.remoteconfig.FirebaseParserConfigProvider
-import com.atelbay.money_manager.core.remoteconfig.ParserConfigProvider
+import com.atelbay.money_manager.core.remoteconfig.FirebaseRegexParserProfileProvider
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfileProvider
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -12,7 +12,7 @@ import dagger.hilt.components.SingletonComponent
 abstract class RemoteConfigModule {
 
     @Binds
-    abstract fun bindParserConfigProvider(
-        impl: FirebaseParserConfigProvider,
-    ): ParserConfigProvider
+    abstract fun bindRegexParserProfileProvider(
+        impl: FirebaseRegexParserProfileProvider,
+    ): RegexParserProfileProvider
 }

@@ -1,0 +1,117 @@
+package com.atelbay.money_manager.core.firestore.mapper
+
+import com.atelbay.money_manager.core.crypto.FieldCipher.Companion.CURRENT_ENCRYPTION_VERSION
+import com.atelbay.money_manager.core.crypto.FieldCipherHolder
+import com.atelbay.money_manager.core.database.entity.RecurringTransactionEntity
+import com.atelbay.money_manager.core.firestore.dto.RecurringTransactionDto
+import timber.log.Timber
+import java.security.GeneralSecurityException
+import java.util.UUID
+
+fun RecurringTransactionEntity.toDto(
+    categoryRemoteId: String,
+    accountRemoteId: String,
+    fieldCipherHolder: FieldCipherHolder,
+): RecurringTransactionDto {
+    val cipher = fieldCipherHolder.cipher
+    return RecurringTransactionDto(
+        remoteId = remoteId ?: UUID.randomUUID().toString(),
+        amount = if (cipher != null) cipher.encryptDouble(amount) else amount.toString(),
+        type = type,
+        categoryRemoteId = categoryRemoteId,
+        accountRemoteId = accountRemoteId,
+        note = if (cipher != null) note?.let { cipher.encrypt(it) } else note,
+        frequency = frequency,
+        startDate = startDate,
+        endDate = endDate,
+        dayOfMonth = dayOfMonth,
+        dayOfWeek = dayOfWeek,
+        lastGeneratedDate = lastGeneratedDate,
+        isActive = isActive,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+        isDeleted = isDeleted,
+        encryptionVersion = if (cipher != null) CURRENT_ENCRYPTION_VERSION else 0,
+    )
+}
+
+fun RecurringTransactionDto.toEntity(
+    localId: Long = 0,
+    categoryLocalId: Long,
+    accountLocalId: Long,
+    fieldCipherHolder: FieldCipherHolder,
+): RecurringTransactionEntity? {
+    if (type !in VALID_TYPES) {
+        Timber.w("Skipping recurring transaction %s: unknown type '%s'", remoteId, type)
+        return null
+    }
+    if (frequency !in VALID_FREQUENCIES) {
+        Timber.w("Skipping recurring transaction %s: unknown frequency '%s'", remoteId, frequency)
+        return null
+    }
+    val cipher = fieldCipherHolder.cipher
+    if (encryptionVersion >= 1 && cipher == null) {
+        Timber.w("Cannot decrypt RecurringTransactionDto: cipher unavailable (encryptionVersion=$encryptionVersion)")
+        return null
+    }
+    return try {
+        if (encryptionVersion == CURRENT_ENCRYPTION_VERSION && cipher != null) {
+            RecurringTransactionEntity(
+                id = localId,
+                remoteId = remoteId,
+                amount = cipher.decryptDouble(amount),
+                type = type,
+                categoryId = categoryLocalId,
+                accountId = accountLocalId,
+                note = note?.let { cipher.decrypt(it) },
+                frequency = frequency,
+                startDate = startDate,
+                endDate = endDate,
+                dayOfMonth = dayOfMonth,
+                dayOfWeek = dayOfWeek,
+                lastGeneratedDate = lastGeneratedDate,
+                isActive = isActive,
+                createdAt = createdAt,
+                updatedAt = updatedAt,
+                isDeleted = isDeleted,
+            )
+        } else if (encryptionVersion > 0) {
+            Timber.w("Unsupported encryption version %d for recurring transaction %s", encryptionVersion, remoteId)
+            return null
+        } else {
+            val parsedAmount = amount.toDoubleOrNull()
+            if (parsedAmount == null) {
+                Timber.w("Invalid amount '%s' for recurring transaction %s", amount, remoteId)
+                return null
+            }
+            RecurringTransactionEntity(
+                id = localId,
+                remoteId = remoteId,
+                amount = parsedAmount,
+                type = type,
+                categoryId = categoryLocalId,
+                accountId = accountLocalId,
+                note = note,
+                frequency = frequency,
+                startDate = startDate,
+                endDate = endDate,
+                dayOfMonth = dayOfMonth,
+                dayOfWeek = dayOfWeek,
+                lastGeneratedDate = lastGeneratedDate,
+                isActive = isActive,
+                createdAt = createdAt,
+                updatedAt = updatedAt,
+                isDeleted = isDeleted,
+            )
+        }
+    } catch (e: GeneralSecurityException) {
+        Timber.e(e, "Failed to decrypt recurring transaction %s", remoteId)
+        null
+    } catch (e: IllegalArgumentException) {
+        Timber.e(e, "Failed to decrypt recurring transaction %s", remoteId)
+        null
+    }
+}
+
+private val VALID_TYPES = setOf("income", "expense")
+private val VALID_FREQUENCIES = setOf("DAILY", "WEEKLY", "MONTHLY", "YEARLY")

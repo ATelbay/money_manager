@@ -26,9 +26,26 @@ interface RecurringTransactionDao {
     @Update
     suspend fun update(entity: RecurringTransactionEntity)
 
-    @Query("UPDATE recurring_transactions SET isDeleted = 1, updatedAt = :updatedAt WHERE id = :id")
-    suspend fun softDelete(id: Long, updatedAt: Long)
-
     @Query("UPDATE recurring_transactions SET lastGeneratedDate = :date, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateLastGeneratedDate(id: Long, date: Long, updatedAt: Long)
+
+    // ── Sync ──
+
+    @Query("SELECT * FROM recurring_transactions WHERE remoteId = :remoteId LIMIT 1")
+    suspend fun getByRemoteId(remoteId: String): RecurringTransactionEntity?
+
+    @Query("SELECT * FROM recurring_transactions WHERE remoteId IS NULL AND isDeleted = 0")
+    suspend fun getPendingSync(): List<RecurringTransactionEntity>
+
+    @Query("SELECT * FROM recurring_transactions WHERE isDeleted = 1 AND remoteId IS NOT NULL")
+    suspend fun getDeletedWithRemoteId(): List<RecurringTransactionEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSync(recurringTransactions: List<RecurringTransactionEntity>)
+
+    @Query("UPDATE recurring_transactions SET remoteId = NULL")
+    suspend fun clearRemoteIds()
+
+    @Query("UPDATE recurring_transactions SET isDeleted = 1, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun softDeleteById(id: Long, updatedAt: Long)
 }

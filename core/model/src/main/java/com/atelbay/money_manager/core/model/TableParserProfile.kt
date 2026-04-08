@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class TableParserConfig(
+data class TableParserProfile(
     @SerialName("bank_id") val bankId: String,
     @SerialName("bank_markers") val bankMarkers: List<String>,
     @SerialName("date_column") val dateColumn: Int,
@@ -23,6 +23,6 @@ data class TableParserConfig(
 )
 
 @Serializable
-data class TableParserConfigList(
-    val configs: List<TableParserConfig>
+data class TableParserProfileList(
+    val configs: List<TableParserProfile>
 )

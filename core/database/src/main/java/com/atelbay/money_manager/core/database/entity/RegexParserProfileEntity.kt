@@ -11,7 +11,7 @@ import androidx.room.PrimaryKey
         Index("status"),
     ],
 )
-data class ParserConfigEntity(
+data class RegexParserProfileEntity(
     @PrimaryKey val id: String,
     val bankId: String,
     val configType: String,
@@ -20,4 +20,12 @@ data class ParserConfigEntity(
     val status: String,
     val source: String,
     val updatedAt: Long,
-)
+) {
+    companion object {
+        const val CONFIG_TYPE_REGEX = "regex"
+        const val CONFIG_TYPE_TABLE = "table"
+        const val STATUS_ACTIVE = "active"
+        const val SOURCE_SEED = "seed"
+        const val SOURCE_AI_CACHED = "ai_cached"
+    }
+}

@@ -7,23 +7,23 @@ import com.atelbay.money_manager.core.ai.TableFailedAttempt
 import com.atelbay.money_manager.core.common.generateTransactionHash
 import com.atelbay.money_manager.core.database.DefaultCategories
 import com.atelbay.money_manager.core.database.dao.CategoryDao
-import com.atelbay.money_manager.core.database.dao.ParserConfigDao
-import com.atelbay.money_manager.core.database.entity.ParserConfigEntity
+import com.atelbay.money_manager.core.database.dao.RegexParserProfileDao
+import com.atelbay.money_manager.core.database.entity.RegexParserProfileEntity
 import com.atelbay.money_manager.core.database.dao.TransactionDao
 import com.atelbay.money_manager.core.database.entity.CategoryEntity
 import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.ImportResult
 import com.atelbay.money_manager.core.model.ParsedTransaction
-import com.atelbay.money_manager.core.model.TableParserConfig
+import com.atelbay.money_manager.core.model.TableParserProfile
 import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.core.parser.RegexParseResult
 import com.atelbay.money_manager.core.parser.RegexValidator
 import com.atelbay.money_manager.core.parser.StatementParser
 import com.atelbay.money_manager.core.parser.TableExtractionResult
 import com.atelbay.money_manager.core.parser.TableQualityValidator
-import com.atelbay.money_manager.core.remoteconfig.ParserConfig
-import com.atelbay.money_manager.core.remoteconfig.ParserConfigProvider
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfile
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfileProvider
 import com.atelbay.money_manager.domain.categories.usecase.SaveCategoryUseCase
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runInterruptible
@@ -53,10 +53,10 @@ private data class GeminiTransaction(
 
 data class ParseResult(
     val importResult: ImportResult,
-    val aiGeneratedConfig: ParserConfig? = null,
+    val aiGeneratedConfig: RegexParserProfile? = null,
     val sampleRows: String? = null,
     val aiMethod: AiMethod = AiMethod.NONE,
-    val aiGeneratedTableConfig: TableParserConfig? = null,
+    val aiGeneratedTableConfig: TableParserProfile? = null,
     val sampleTableRows: List<List<String>>? = null,
 )
 
@@ -64,10 +64,10 @@ enum class AiMethod { NONE, REGEX_GENERATED, FULL_PARSE, TABLE_GENERATED }
 
 private data class RegexThenGeminiResult(
     val transactions: List<ParsedTransaction>,
-    val aiGeneratedConfig: ParserConfig? = null,
+    val aiGeneratedConfig: RegexParserProfile? = null,
     val sampleRows: String? = null,
     val aiMethod: AiMethod = AiMethod.NONE,
-    val aiGeneratedTableConfig: TableParserConfig? = null,
+    val aiGeneratedTableConfig: TableParserProfile? = null,
     val sampleTableRows: List<List<String>>? = null,
     val categoryMap: Map<String, String> = emptyMap(),
 )
@@ -80,10 +80,10 @@ class ParseStatementUseCase @Inject constructor(
     private val saveCategoryUseCase: SaveCategoryUseCase,
     private val regexValidator: RegexValidator,
     private val tableQualityValidator: TableQualityValidator,
-    private val parserConfigProvider: ParserConfigProvider,
+    private val parserConfigProvider: RegexParserProfileProvider,
     private val userIdHasher: UserIdHasher,
     private val firestoreDataSource: FirestoreDataSource,
-    private val parserConfigDao: ParserConfigDao,
+    private val parserConfigDao: RegexParserProfileDao,
 ) {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -95,10 +95,10 @@ class ParseStatementUseCase @Inject constructor(
         val parseErrors = mutableListOf<String>()
         val pdfBlob = blobs.firstOrNull { it.second == "application/pdf" }
 
-        var aiGeneratedConfig: ParserConfig? = null
+        var aiGeneratedConfig: RegexParserProfile? = null
         var sampleRows: String? = null
         var aiMethod = AiMethod.NONE
-        var aiGeneratedTableConfig: TableParserConfig? = null
+        var aiGeneratedTableConfig: TableParserProfile? = null
         var sampleTableRows: List<List<String>>? = null
 
         val transactions = if (pdfBlob != null) {
@@ -229,7 +229,7 @@ class ParseStatementUseCase @Inject constructor(
             val candidates = firestoreDataSource.findCandidatesByUser(hash, "regex")
             candidates.mapNotNull { dto ->
                 try {
-                    json.decodeFromString<ParserConfig>(dto.parserConfigJson)
+                    json.decodeFromString<RegexParserProfile>(dto.parserConfigJson)
                 } catch (e: Exception) {
                     Timber.w(e, "Failed to deserialize Firestore regex candidate")
                     null
@@ -263,7 +263,7 @@ class ParseStatementUseCase @Inject constructor(
             val candidates = firestoreDataSource.findCandidatesByUser(hash, "table")
             candidates.mapNotNull { dto ->
                 try {
-                    json.decodeFromString<TableParserConfig>(dto.parserConfigJson)
+                    json.decodeFromString<TableParserProfile>(dto.parserConfigJson)
                 } catch (e: Exception) {
                     Timber.w(e, "Failed to deserialize Firestore table candidate")
                     null
@@ -375,7 +375,7 @@ class ParseStatementUseCase @Inject constructor(
         pdfText: String,
         headerSnippet: String,
         extractedSampleRows: String,
-        allConfigs: List<ParserConfig>,
+        allConfigs: List<RegexParserProfile>,
         attemptNum: Int,
         expectedCount: Int,
         failedAttempts: MutableList<FailedAttempt>,
@@ -385,7 +385,7 @@ class ParseStatementUseCase @Inject constructor(
         collector.emit(ImportStepEvent.AiConfigRequest(attemptNum))
 
         val generatedConfig = try {
-            geminiService.generateParserConfig(
+            geminiService.generateRegexParserProfile(
                 headerSnippet = headerSnippet,
                 sampleRows = extractedSampleRows,
                 existingConfigs = allConfigs,
@@ -398,7 +398,7 @@ class ParseStatementUseCase @Inject constructor(
             collector.emit(ImportStepEvent.Error("AI generation failed (attempt $attemptNum): ${e.message}"))
             failedAttempts.add(
                 FailedAttempt(
-                    config = ParserConfig(
+                    config = RegexParserProfile(
                         bankId = "", bankMarkers = emptyList(),
                         transactionPattern = "", dateFormat = "",
                         operationTypeMap = emptyMap(),
@@ -522,7 +522,7 @@ class ParseStatementUseCase @Inject constructor(
         collector.emit(ImportStepEvent.AiTableConfigRequest(attemptNum))
 
         val generatedTableConfig = try {
-            geminiService.generateTableParserConfig(
+            geminiService.generateTableParserProfile(
                 sampleTableRows = sampleTableRows,
                 previousAttempts = tableFailedAttempts,
                 metadataRows = extraction.metadataRows,
@@ -533,7 +533,7 @@ class ParseStatementUseCase @Inject constructor(
             Timber.w(e, "AI table config generation failed (attempt %d/%d)", attemptNum, MAX_AI_RETRIES)
             tableFailedAttempts.add(
                 TableFailedAttempt(
-                    config = TableParserConfig(
+                    config = TableParserProfile(
                         bankId = "", bankMarkers = emptyList(),
                         dateColumn = 0, amountColumn = 1, dateFormat = "",
                     ),
@@ -660,10 +660,10 @@ class ParseStatementUseCase @Inject constructor(
         }
     }
 
-    suspend fun cacheTableConfig(config: TableParserConfig) {
+    suspend fun cacheTableConfig(config: TableParserProfile) {
         try {
-            val configJson = json.encodeToString(TableParserConfig.serializer(), config)
-            val entity = ParserConfigEntity(
+            val configJson = json.encodeToString(TableParserProfile.serializer(), config)
+            val entity = RegexParserProfileEntity(
                 id = "ai_table_${config.bankId}_${System.currentTimeMillis()}",
                 bankId = config.bankId,
                 configType = "table",
@@ -680,10 +680,10 @@ class ParseStatementUseCase @Inject constructor(
         }
     }
 
-    suspend fun cacheAiConfig(config: ParserConfig) {
+    suspend fun cacheAiConfig(config: RegexParserProfile) {
         try {
-            val configJson = json.encodeToString(ParserConfig.serializer(), config)
-            val entity = ParserConfigEntity(
+            val configJson = json.encodeToString(RegexParserProfile.serializer(), config)
+            val entity = RegexParserProfileEntity(
                 id = "ai_regex_${config.bankId}_${System.currentTimeMillis()}",
                 bankId = config.bankId,
                 configType = "regex",

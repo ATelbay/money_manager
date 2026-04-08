@@ -4,7 +4,9 @@ import com.atelbay.money_manager.core.auth.AuthManager
 import com.atelbay.money_manager.core.model.SyncStatus
 import com.atelbay.money_manager.core.crypto.FieldCipherHolder
 import com.atelbay.money_manager.core.database.dao.AccountDao
+import com.atelbay.money_manager.core.database.dao.BudgetDao
 import com.atelbay.money_manager.core.database.dao.CategoryDao
+import com.atelbay.money_manager.core.database.dao.RecurringTransactionDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
 import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
 import com.atelbay.money_manager.core.firestore.mapper.toDto
@@ -32,12 +34,16 @@ class SyncManager @Inject constructor(
     private val transactionDao: TransactionDao,
     private val accountDao: AccountDao,
     private val categoryDao: CategoryDao,
+    private val budgetDao: BudgetDao,
+    private val recurringDao: RecurringTransactionDao,
 ) {
     @Volatile
     private var scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val accountMutexes = ConcurrentHashMap<Long, Mutex>()
     private val categoryMutexes = ConcurrentHashMap<Long, Mutex>()
+    private val budgetMutexes = ConcurrentHashMap<Long, Mutex>()
+    private val recurringMutexes = ConcurrentHashMap<Long, Mutex>()
 
     private val _syncStatus = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
     val syncStatus: StateFlow<SyncStatus> = _syncStatus.asStateFlow()
@@ -93,6 +99,51 @@ class SyncManager @Inject constructor(
         }
     }
 
+    fun syncBudget(id: Long) = scope.launch {
+        val userId = authManager.currentUser.value?.userId ?: return@launch
+        val mutex = budgetMutexes.getOrPut(id) { Mutex() }
+        mutex.withLock {
+            try {
+                val entity = budgetDao.getById(id)
+                    ?: budgetDao.getDeletedWithRemoteId().find { it.id == id }
+                    ?: return@launch
+                val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@launch
+                val finalEntity = if (entity.remoteId == null) {
+                    val remoteId = UUID.randomUUID().toString()
+                    val updated = entity.copy(remoteId = remoteId, updatedAt = System.currentTimeMillis())
+                    budgetDao.update(updated)
+                    updated
+                } else entity
+                firestoreDataSource.pushBudget(userId, finalEntity.toDto(fieldCipherHolder, categoryRemoteId))
+            } catch (e: Exception) {
+                Timber.e(e, "syncBudget($id) failed")
+            }
+        }
+    }
+
+    fun syncRecurring(id: Long) = scope.launch {
+        val userId = authManager.currentUser.value?.userId ?: return@launch
+        val mutex = recurringMutexes.getOrPut(id) { Mutex() }
+        mutex.withLock {
+            try {
+                val entity = recurringDao.getById(id)
+                    ?: recurringDao.getDeletedWithRemoteId().find { it.id == id }
+                    ?: return@launch
+                val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@launch
+                val accountRemoteId = ensureAccountRemoteId(entity.accountId) ?: return@launch
+                val finalEntity = if (entity.remoteId == null) {
+                    val remoteId = UUID.randomUUID().toString()
+                    val updated = entity.copy(remoteId = remoteId, updatedAt = System.currentTimeMillis())
+                    recurringDao.update(updated)
+                    updated
+                } else entity
+                firestoreDataSource.pushRecurringTransaction(userId, finalEntity.toDto(categoryRemoteId, accountRemoteId, fieldCipherHolder))
+            } catch (e: Exception) {
+                Timber.e(e, "syncRecurring($id) failed")
+            }
+        }
+    }
+
     /**
      * Pushes all accounts that already have a remoteId (i.e. ensures latest balance is remote).
      * Accounts without a remoteId are handled by [pushAllPending].
@@ -131,6 +182,38 @@ class SyncManager @Inject constructor(
             transactionDao.update(entity.copy(remoteId = remoteId, updatedAt = System.currentTimeMillis()))
             firestoreDataSource.pushTransaction(userId, entity.copy(remoteId = remoteId).toDto(categoryRemoteId, accountRemoteId, fieldCipherHolder))
         }
+        budgetDao.getPendingSync().forEach { entity ->
+            budgetMutexes.getOrPut(entity.id) { Mutex() }.withLock {
+                val current = budgetDao.getById(entity.id) ?: return@withLock
+                if (current.remoteId != null) return@withLock // already synced
+                val categoryRemoteId = ensureCategoryRemoteId(current.categoryId) ?: return@withLock
+                val remoteId = UUID.randomUUID().toString()
+                val now = System.currentTimeMillis()
+                budgetDao.update(current.copy(remoteId = remoteId, updatedAt = now))
+                firestoreDataSource.pushBudget(userId, current.copy(remoteId = remoteId, updatedAt = now).toDto(fieldCipherHolder, categoryRemoteId))
+            }
+        }
+        budgetDao.getDeletedWithRemoteId().forEach { entity ->
+            val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@forEach
+            firestoreDataSource.pushBudget(userId, entity.toDto(fieldCipherHolder, categoryRemoteId))
+        }
+        recurringDao.getPendingSync().forEach { entity ->
+            recurringMutexes.getOrPut(entity.id) { Mutex() }.withLock {
+                val current = recurringDao.getById(entity.id) ?: return@withLock
+                if (current.remoteId != null) return@withLock // already synced
+                val categoryRemoteId = ensureCategoryRemoteId(current.categoryId) ?: return@withLock
+                val accountRemoteId = ensureAccountRemoteId(current.accountId) ?: return@withLock
+                val remoteId = UUID.randomUUID().toString()
+                val now = System.currentTimeMillis()
+                recurringDao.update(current.copy(remoteId = remoteId, updatedAt = now))
+                firestoreDataSource.pushRecurringTransaction(userId, current.copy(remoteId = remoteId, updatedAt = now).toDto(categoryRemoteId, accountRemoteId, fieldCipherHolder))
+            }
+        }
+        recurringDao.getDeletedWithRemoteId().forEach { entity ->
+            val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@forEach
+            val accountRemoteId = ensureAccountRemoteId(entity.accountId) ?: return@forEach
+            firestoreDataSource.pushRecurringTransaction(userId, entity.toDto(categoryRemoteId, accountRemoteId, fieldCipherHolder))
+        }
         Timber.d("pushAllPending: done")
     }
 
@@ -167,6 +250,8 @@ class SyncManager @Inject constructor(
         accountDao.clearRemoteIds()
         categoryDao.clearRemoteIds()
         transactionDao.clearRemoteIds()
+        budgetDao.clearRemoteIds()
+        recurringDao.clearRemoteIds()
         Timber.d("SyncManager: sync metadata cleared on sign-out")
     }
 

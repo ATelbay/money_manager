@@ -2,10 +2,10 @@ package com.atelbay.money_manager.domain.importstatement.usecase
 
 import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
 import com.atelbay.money_manager.core.firestore.dto.ParserCandidateDto
-import com.atelbay.money_manager.core.model.TableParserConfig
+import com.atelbay.money_manager.core.model.TableParserProfile
 import com.atelbay.money_manager.core.parser.RegexValidator
 import com.atelbay.money_manager.core.parser.SampleAnonymizer
-import com.atelbay.money_manager.core.remoteconfig.ParserConfig
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfile
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import timber.log.Timber
@@ -21,7 +21,7 @@ class SubmitParserCandidateUseCase @Inject constructor(
     private val json = Json { ignoreUnknownKeys = true }
 
     suspend operator fun invoke(
-        config: ParserConfig,
+        config: RegexParserProfile,
         sampleRows: String,
         userId: String?,
     ) {
@@ -44,7 +44,7 @@ class SubmitParserCandidateUseCase @Inject constructor(
     }
 
     suspend fun submitTableConfig(
-        config: TableParserConfig,
+        config: TableParserProfile,
         sampleTableRows: List<List<String>>,
         userId: String?,
     ) {

@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.io.File
 
-class ParserConfigSyncTest {
+class RegexParserProfileSyncTest {
 
     @Test
     fun `production and test default_parser_config json must be identical`() {

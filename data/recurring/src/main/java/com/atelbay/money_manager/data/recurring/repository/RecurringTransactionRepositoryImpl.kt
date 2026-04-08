@@ -11,6 +11,7 @@ import com.atelbay.money_manager.core.model.RecurringTransaction
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.data.recurring.mapper.toDomain
 import com.atelbay.money_manager.data.recurring.mapper.toEntity
+import com.atelbay.money_manager.data.sync.SyncManager
 import com.atelbay.money_manager.domain.recurring.repository.RecurringTransactionRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -25,6 +26,7 @@ class RecurringTransactionRepositoryImpl @Inject constructor(
     private val transactionDao: TransactionDao,
     private val categoryDao: CategoryDao,
     private val accountDao: AccountDao,
+    private val syncManager: SyncManager,
 ) : RecurringTransactionRepository {
 
     override fun observeAll(): Flow<List<RecurringTransaction>> =
@@ -84,7 +86,7 @@ class RecurringTransactionRepositoryImpl @Inject constructor(
     override suspend fun save(recurring: RecurringTransaction): Long {
         val now = System.currentTimeMillis()
         val baseEntity = recurring.toEntity()
-        return if (baseEntity.id == 0L) {
+        val savedId = if (baseEntity.id == 0L) {
             recurringDao.insert(baseEntity.copy(createdAt = now, updatedAt = now))
         } else {
             val existing = recurringDao.getById(baseEntity.id)
@@ -98,19 +100,24 @@ class RecurringTransactionRepositoryImpl @Inject constructor(
             )
             baseEntity.id
         }
+        syncManager.syncRecurring(savedId)
+        return savedId
     }
 
     override suspend fun delete(id: Long) {
-        recurringDao.softDelete(id, System.currentTimeMillis())
+        recurringDao.softDeleteById(id, System.currentTimeMillis())
+        syncManager.syncRecurring(id)
     }
 
     override suspend fun toggleActive(id: Long, isActive: Boolean) {
         val entity = recurringDao.getById(id) ?: return
         recurringDao.update(entity.copy(isActive = isActive, updatedAt = System.currentTimeMillis()))
+        syncManager.syncRecurring(id)
     }
 
     override suspend fun updateLastGeneratedDate(id: Long, date: Long) {
         recurringDao.updateLastGeneratedDate(id, date, System.currentTimeMillis())
+        syncManager.syncRecurring(id)
     }
 
     override suspend fun generateTransactionsAtomically(
@@ -138,5 +145,6 @@ class RecurringTransactionRepositoryImpl @Inject constructor(
             }
             recurringDao.updateLastGeneratedDate(recurringId, lastGeneratedDate, now)
         }
+        syncManager.syncRecurring(recurringId)
     }
 }

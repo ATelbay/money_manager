@@ -66,7 +66,7 @@ fun CurrencyPickerScreen(
             c.code.lowercase().contains(q) || c.name.lowercase().contains(q)
         }
     }
-    val selected = if (activeSide == CurrencyPickerSide.BASE) baseCurrency else targetCurrency
+    val selected = if (activeSide == CurrencyPickerSide.FIRST) baseCurrency else targetCurrency
 
     Scaffold(
         modifier = modifier.testTag("currencyPicker:screen"),
@@ -117,7 +117,7 @@ fun CurrencyPickerScreen(
                         color = colors.textSecondary,
                     )
                     Text(
-                        text = "${baseCurrency.code} -> ${targetCurrency.code}",
+                        text = "${baseCurrency.code} · ${targetCurrency.code}",
                         style = typography.cardTitle,
                         color = colors.textPrimary,
                         modifier = Modifier.padding(top = 4.dp),
@@ -127,17 +127,17 @@ fun CurrencyPickerScreen(
                         modifier = Modifier.padding(top = 12.dp),
                     ) {
                         SideChip(
-                            label = s.baseCurrency,
-                            selected = activeSide == CurrencyPickerSide.BASE,
-                            onClick = { onSideChange(CurrencyPickerSide.BASE) },
-                            modifier = Modifier.testTag("currencyPicker:sideBase"),
+                            label = baseCurrency.code,
+                            selected = activeSide == CurrencyPickerSide.FIRST,
+                            onClick = { onSideChange(CurrencyPickerSide.FIRST) },
+                            modifier = Modifier.testTag("currencyPicker:sideFirst"),
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         SideChip(
-                            label = s.targetCurrency,
-                            selected = activeSide == CurrencyPickerSide.TARGET,
-                            onClick = { onSideChange(CurrencyPickerSide.TARGET) },
-                            modifier = Modifier.testTag("currencyPicker:sideTarget"),
+                            label = targetCurrency.code,
+                            selected = activeSide == CurrencyPickerSide.SECOND,
+                            onClick = { onSideChange(CurrencyPickerSide.SECOND) },
+                            modifier = Modifier.testTag("currencyPicker:sideSecond"),
                         )
                     }
                 }

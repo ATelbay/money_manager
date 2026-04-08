@@ -1,7 +1,7 @@
 package com.atelbay.money_manager.core.parser
 
 import com.atelbay.money_manager.core.model.TransactionType
-import com.atelbay.money_manager.core.remoteconfig.ParserConfig
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfile
 import kotlinx.datetime.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -11,12 +11,12 @@ import org.junit.Test
 class EurasianBankParserTest {
 
     private lateinit var parser: RegexStatementParser
-    private lateinit var eurasianConfig: ParserConfig
+    private lateinit var eurasianConfig: RegexParserProfile
 
     @Before
     fun setUp() {
         parser = RegexStatementParser()
-        eurasianConfig = ParserConfig(
+        eurasianConfig = RegexParserProfile(
             bankId = "eurasian",
             bankMarkers = listOf("EURIKZKA", "eubank.kz", "АО \"Евразийский Банк\"", "Евразийский Банк"),
             transactionPattern = "^(?<date>\\d{2}\\.\\d{2}\\.\\d{4})(?:\\s+\\d{2}:\\d{2}:\\d{2})?\\s+(?<operation>Путешествия|Финансы|Продукты|Кафе и рестораны|Услуги|Развлечения|Государственные услуги|Здоровье и красота|Транспорт|Связь|Магазины|Пополнение|Комиссия|Интернет покупки)\\s+(?<details>.+?)\\s+[\\d.]+\\s+[A-Z]{3}\\s+(?<sign>[+-]?)(?<amount>[\\d.]+)(?:\\s+(?:Карта|Счёт):\\s+\\*{2}\\d{4})?$",

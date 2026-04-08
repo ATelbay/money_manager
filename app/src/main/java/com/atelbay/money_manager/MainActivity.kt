@@ -77,7 +77,10 @@ class MainActivity : ComponentActivity() {
 
         splashScreen.setKeepOnScreenCondition { !onboardingLoadCompleted }
 
-        extractPdfUri(intent)?.let { pendingNavigationManager.enqueue(NavigationAction.OpenImport(it)) }
+        extractPdfUri(intent)?.let {
+            pendingNavigationManager.enqueue(NavigationAction.OpenImport(it))
+            pendingNavigationManager.markExternalLaunch()
+        }
         enableEdgeToEdge()
         setContent {
             val themeMode by userPreferences.themeMode
@@ -200,7 +203,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        extractPdfUri(intent)?.let { pendingNavigationManager.enqueue(NavigationAction.OpenImport(it)) }
+        extractPdfUri(intent)?.let {
+            pendingNavigationManager.enqueue(NavigationAction.OpenImport(it))
+            pendingNavigationManager.markExternalLaunch()
+        }
     }
 
     private fun extractPdfUri(intent: Intent): String? = when (intent.action) {
@@ -259,6 +265,24 @@ private fun MoneyManagerApp(
                 }
                 pendingNavigationManager.consume()
             }
+        }
+    }
+
+    // When the app was launched externally (via PDF share/view) and the import screen
+    // has been closed (no Import destination in back stack), finish the activity so the
+    // user returns to whatever app they shared from.
+    val launchedFromExternal by pendingNavigationManager.launchedFromExternal.collectAsStateWithLifecycle()
+    val activity = androidx.activity.compose.LocalActivity.current
+    LaunchedEffect(backStackEntry?.id, launchedFromExternal) {
+        if (!launchedFromExternal) return@LaunchedEffect
+        // Wait until the pending navigation action is consumed (Import was navigated to)
+        // before checking whether we've left the Import screen.
+        if (pendingAction != null) return@LaunchedEffect
+        val isOnImportScreen = navController.currentBackStackEntry
+            ?.destination?.hasRoute(Import::class) == true
+        if (!isOnImportScreen) {
+            pendingNavigationManager.clearExternalLaunch()
+            activity?.finish()
         }
     }
 

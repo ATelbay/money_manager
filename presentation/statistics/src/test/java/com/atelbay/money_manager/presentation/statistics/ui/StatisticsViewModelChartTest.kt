@@ -203,6 +203,73 @@ class StatisticsViewModelChartTest {
         assertNotNull(viewModel.chartModelProducer)
     }
 
+    @Test
+    fun `allAmountsZero is true when all daily totals are zero`() = runTest(testDispatcher) {
+
+        val zeroDailyTotals = dailyTotals(
+            startMillis = weekRange.startMillis,
+            count = 7,
+            amountAtIndex = { 0.0 },
+        )
+
+        val viewModel = createViewModel(
+            flows = mapOf(
+                StatsPeriod.WEEK to flowOf(
+                    summary(dateRange = weekRange, dailyExpenses = zeroDailyTotals),
+                ),
+                StatsPeriod.MONTH to emptyFlow(),
+                StatsPeriod.YEAR to emptyFlow(),
+            ),
+        )
+
+        viewModel.setPeriod(StatsPeriod.WEEK)
+        advanceUntilIdle()
+
+        assertTrue("allAmountsZero should be true when all amounts are zero",
+            viewModel.state.value.chart.allAmountsZero)
+    }
+
+    @Test
+    fun `switching from all-zero period to period with data populates chart points`() = runTest(testDispatcher) {
+
+        val zeroDailyTotals = dailyTotals(
+            startMillis = weekRange.startMillis,
+            count = 7,
+            amountAtIndex = { 0.0 },
+        )
+        val nonZeroDailyTotals = dailyTotals(
+            startMillis = monthRange.startMillis,
+            count = 30,
+            amountAtIndex = { index -> (index + 1) * 10.0 },
+        )
+
+        val viewModel = createViewModel(
+            flows = mapOf(
+                StatsPeriod.WEEK to flowOf(
+                    summary(dateRange = weekRange, dailyExpenses = zeroDailyTotals),
+                ),
+                StatsPeriod.MONTH to flowOf(
+                    summary(dateRange = monthRange, dailyExpenses = nonZeroDailyTotals),
+                ),
+                StatsPeriod.YEAR to emptyFlow(),
+            ),
+        )
+
+        viewModel.setPeriod(StatsPeriod.WEEK)
+        advanceUntilIdle()
+        assertTrue("allAmountsZero should be true for zero-amount week",
+            viewModel.state.value.chart.allAmountsZero)
+
+        viewModel.setPeriod(StatsPeriod.MONTH)
+        advanceUntilIdle()
+        val monthState = viewModel.state.value
+        assertEquals(30, monthState.chart.points.size)
+        assertTrue("Month points should have non-zero amounts",
+            monthState.chart.points.any { (it.amount ?: 0.0) > 0.0 })
+        // Note: allAmountsZero transitions to false only after chartModelProducer.runTransaction
+        // completes (async Vico operation), so we verify chart points instead.
+    }
+
     // region helpers
 
     private fun createViewModel(

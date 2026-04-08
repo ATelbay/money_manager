@@ -6,12 +6,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class ParserConfigList(
-    @SerialName("banks") val banks: List<ParserConfig>,
+data class RegexParserProfileList(
+    @SerialName("banks") val banks: List<RegexParserProfile>,
 )
 
 @Serializable
-data class ParserConfig(
+data class RegexParserProfile(
     @SerialName("bank_id") val bankId: String,
     @SerialName("bank_markers") val bankMarkers: List<String>,
     @SerialName("transaction_pattern") val transactionPattern: String,

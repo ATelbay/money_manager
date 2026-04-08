@@ -1,7 +1,7 @@
 package com.atelbay.money_manager.core.parser
 
-import com.atelbay.money_manager.core.remoteconfig.ParserConfig
-import com.atelbay.money_manager.core.remoteconfig.ParserConfigProvider
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfile
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfileProvider
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -17,10 +17,10 @@ class StatementParserTest {
 
     private lateinit var pdfTextExtractor: PdfTextExtractor
     private lateinit var pdfTableExtractor: PdfTableExtractor
-    private lateinit var configProvider: ParserConfigProvider
+    private lateinit var configProvider: RegexParserProfileProvider
     private lateinit var statementParser: StatementParser
 
-    private val kaspiConfig = ParserConfig(
+    private val kaspiConfig = RegexParserProfile(
         bankId = "kaspi",
         bankMarkers = listOf("Kaspi Gold", "АО «Kaspi Bank»"),
         transactionPattern = "^\\s*(\\d{2}\\.\\d{2}\\.\\d{2})\\s+([+-])\\s+([\\d\\s]+,\\d{2})\\s*₸\\s+(Покупка|Перевод|Пополнение)\\s+(.+?)\\s*$",

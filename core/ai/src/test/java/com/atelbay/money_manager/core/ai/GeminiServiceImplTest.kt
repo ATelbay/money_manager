@@ -1,8 +1,8 @@
 package com.atelbay.money_manager.core.ai
 
-import com.atelbay.money_manager.core.model.TableParserConfig
-import com.atelbay.money_manager.core.remoteconfig.ParserConfig
-import com.atelbay.money_manager.core.remoteconfig.ParserConfigProvider
+import com.atelbay.money_manager.core.model.TableParserProfile
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfile
+import com.atelbay.money_manager.core.remoteconfig.RegexParserProfileProvider
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
@@ -17,15 +17,15 @@ import java.lang.reflect.Method
 
 class GeminiServiceImplTest {
 
-    private lateinit var configProvider: ParserConfigProvider
+    private lateinit var configProvider: RegexParserProfileProvider
     private lateinit var service: GeminiServiceImpl
 
     // Use reflection to access private methods for testing
-    private lateinit var parseParserConfigResponseMethod: Method
+    private lateinit var parseRegexParserProfileResponseMethod: Method
     private lateinit var selectExamplesMethod: Method
     private lateinit var buildPromptMethod: Method
-    private lateinit var parseTableParserConfigResponseMethod: Method
-    private lateinit var buildTableParserConfigPromptMethod: Method
+    private lateinit var parseTableParserProfileResponseMethod: Method
+    private lateinit var buildTableParserProfilePromptMethod: Method
 
     @Before
     fun setUp() {
@@ -34,8 +34,8 @@ class GeminiServiceImplTest {
         service = GeminiServiceImpl(configProvider)
 
         // Access private methods via reflection
-        parseParserConfigResponseMethod = GeminiServiceImpl::class.java.getDeclaredMethod(
-            "parseParserConfigResponse", String::class.java
+        parseRegexParserProfileResponseMethod = GeminiServiceImpl::class.java.getDeclaredMethod(
+            "parseRegexParserProfileResponse", String::class.java
         ).apply { isAccessible = true }
 
         selectExamplesMethod = GeminiServiceImpl::class.java.getDeclaredMethod(
@@ -43,7 +43,7 @@ class GeminiServiceImplTest {
         ).apply { isAccessible = true }
 
         buildPromptMethod = GeminiServiceImpl::class.java.getDeclaredMethod(
-            "buildParserConfigPrompt",
+            "buildRegexParserProfilePrompt",
             String::class.java,
             String::class.java,
             List::class.java,
@@ -52,12 +52,12 @@ class GeminiServiceImplTest {
             CategoryNames::class.java,
         ).apply { isAccessible = true }
 
-        parseTableParserConfigResponseMethod = GeminiServiceImpl::class.java.getDeclaredMethod(
-            "parseTableParserConfigResponse", String::class.java
+        parseTableParserProfileResponseMethod = GeminiServiceImpl::class.java.getDeclaredMethod(
+            "parseTableParserProfileResponse", String::class.java
         ).apply { isAccessible = true }
 
-        buildTableParserConfigPromptMethod = GeminiServiceImpl::class.java.getDeclaredMethod(
-            "buildTableParserConfigPrompt",
+        buildTableParserProfilePromptMethod = GeminiServiceImpl::class.java.getDeclaredMethod(
+            "buildTableParserProfilePrompt",
             List::class.java,
             List::class.java,
             List::class.java,
@@ -66,25 +66,25 @@ class GeminiServiceImplTest {
         ).apply { isAccessible = true }
     }
 
-    // Helper to invoke parseParserConfigResponse via reflection
-    private fun parseResponse(json: String): ParserConfig =
-        parseParserConfigResponseMethod.invoke(service, json) as ParserConfig
+    // Helper to invoke parseRegexParserProfileResponse via reflection
+    private fun parseResponse(json: String): RegexParserProfile =
+        parseRegexParserProfileResponseMethod.invoke(service, json) as RegexParserProfile
 
     @Suppress("UNCHECKED_CAST")
-    private fun selectExamples(configs: List<ParserConfig>): List<ParserConfig> =
-        selectExamplesMethod.invoke(service, configs) as List<ParserConfig>
+    private fun selectExamples(configs: List<RegexParserProfile>): List<RegexParserProfile> =
+        selectExamplesMethod.invoke(service, configs) as List<RegexParserProfile>
 
     private fun buildPrompt(
         header: String, samples: String,
-        configs: List<ParserConfig>, attempts: List<FailedAttempt>,
+        configs: List<RegexParserProfile>, attempts: List<FailedAttempt>,
         hasPdfBlob: Boolean = false,
         categoryNames: CategoryNames = CategoryNames(),
     ): String = buildPromptMethod.invoke(service, header, samples, configs, attempts, hasPdfBlob, categoryNames) as String
 
-    // --- parseParserConfigResponse tests ---
+    // --- parseRegexParserProfileResponse tests ---
 
     @Test
-    fun `parseParserConfigResponse reads operation_type_map from JSON array`() {
+    fun `parseRegexParserProfileResponse reads operation_type_map from JSON array`() {
         val json = """
         {
             "bank_id": "test_bank",
@@ -103,7 +103,7 @@ class GeminiServiceImplTest {
     }
 
     @Test
-    fun `parseParserConfigResponse returns empty map when operation_type_map is missing`() {
+    fun `parseRegexParserProfileResponse returns empty map when operation_type_map is missing`() {
         val json = """
         {
             "bank_id": "test_bank",
@@ -118,7 +118,7 @@ class GeminiServiceImplTest {
     }
 
     @Test
-    fun `parseParserConfigResponse returns empty map when operation_type_map is empty array`() {
+    fun `parseRegexParserProfileResponse returns empty map when operation_type_map is empty array`() {
         val json = """
         {
             "bank_id": "test_bank",
@@ -134,7 +134,7 @@ class GeminiServiceImplTest {
     }
 
     @Test
-    fun `parseParserConfigResponse converts Python named groups to Java syntax`() {
+    fun `parseRegexParserProfileResponse converts Python named groups to Java syntax`() {
         val json = """
         {
             "bank_id": "test_bank",
@@ -173,7 +173,7 @@ class GeminiServiceImplTest {
         assertEquals(3, result.size)
     }
 
-    // --- buildParserConfigPrompt tests ---
+    // --- buildRegexParserProfilePrompt tests ---
 
     @Test
     fun `prompt with 0 existing configs has no Working examples section`() {
@@ -219,8 +219,8 @@ class GeminiServiceImplTest {
     }
 
     // Helper invokers for table config methods
-    private fun parseTableResponse(json: String): TableParserConfig =
-        parseTableParserConfigResponseMethod.invoke(service, json) as TableParserConfig
+    private fun parseTableResponse(json: String): TableParserProfile =
+        parseTableParserProfileResponseMethod.invoke(service, json) as TableParserProfile
 
     private fun buildTablePrompt(
         sampleTableRows: List<List<String>>,
@@ -228,14 +228,14 @@ class GeminiServiceImplTest {
         metadataRows: List<List<String>> = emptyList(),
         columnHeaderRow: List<String>? = null,
         categoryNames: CategoryNames = CategoryNames(),
-    ): String = buildTableParserConfigPromptMethod.invoke(
+    ): String = buildTableParserProfilePromptMethod.invoke(
         service, sampleTableRows, previousAttempts, metadataRows, columnHeaderRow, categoryNames,
     ) as String
 
-    // --- generateTableParserConfig tests (via reflection on private methods) ---
+    // --- generateTableParserProfile tests (via reflection on private methods) ---
 
     @Test
-    fun `generateTableParserConfig returns valid config from AI response`() {
+    fun `generateTableParserProfile returns valid config from AI response`() {
         val json = """
         {
             "bank_id": "forte",
@@ -270,8 +270,8 @@ class GeminiServiceImplTest {
     }
 
     @Test
-    fun `generateTableParserConfig retry prompt includes previous attempts`() {
-        val failedConfig = TableParserConfig(
+    fun `generateTableParserProfile retry prompt includes previous attempts`() {
+        val failedConfig = TableParserProfile(
             bankId = "bereke",
             bankMarkers = listOf("Bereke"),
             dateColumn = 0,
@@ -300,7 +300,7 @@ class GeminiServiceImplTest {
     }
 
     @Test
-    fun `parseTableParserConfigResponse throws when date_column is missing`() {
+    fun `parseTableParserProfileResponse throws when date_column is missing`() {
         val json = """
         {
             "bank_id": "forte",
@@ -325,7 +325,7 @@ class GeminiServiceImplTest {
     }
 
     @Test
-    fun `parseTableParserConfigResponse throws when amount_column is missing`() {
+    fun `parseTableParserProfileResponse throws when amount_column is missing`() {
         val json = """
         {
             "bank_id": "forte",
@@ -350,7 +350,7 @@ class GeminiServiceImplTest {
     }
 
     @Test
-    fun `generateTableParserConfig handles malformed AI response`() {
+    fun `generateTableParserProfile handles malformed AI response`() {
         val malformedJson = "{ this is not valid json }"
 
         try {
@@ -370,7 +370,7 @@ class GeminiServiceImplTest {
         bankId: String,
         amountFormat: String = "space_comma",
         useSignForType: Boolean = false,
-    ) = ParserConfig(
+    ) = RegexParserProfile(
         bankId = bankId,
         bankMarkers = listOf(bankId),
         transactionPattern = "\\d+",

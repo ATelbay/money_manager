@@ -9,7 +9,7 @@ class EurasianBankIntegrationTest {
 
     private val parser = RegexStatementParser()
     private val bankDetector = BankDetector()
-    private val configs = ParserConfigTestFactory.getAllConfigs()
+    private val configs = RegexParserProfileTestFactory.getAllConfigs()
 
     @Test
     fun `eurasian bank is detected from real PDF`() {
