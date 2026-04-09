@@ -34,6 +34,8 @@ import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -196,26 +198,27 @@ fun StatisticsScreen(
         contentWindowInsets = contentWindowInsets,
         containerColor = Color.Transparent,
         topBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                    .testTag("statistics:header"),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = s.statisticsTitle,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = (-0.5).sp,
-                    color = colors.textPrimary,
-                )
-                CalendarFilterPill(
-                    label = pillLabel,
-                    onClick = { showMonthPicker = true },
-                )
-            }
+            TopAppBar(
+                title = {
+                    Text(
+                        s.statisticsTitle,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = (-0.5).sp,
+                        color = colors.textPrimary,
+                    )
+                },
+                actions = {
+                    CalendarFilterPill(
+                        label = pillLabel,
+                        onClick = { showMonthPicker = true },
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                ),
+                modifier = Modifier.testTag("statistics:header"),
+            )
         },
     ) { padding ->
         if (state.isLoading) {
