@@ -420,6 +420,8 @@ private fun DebtSwipeToDeleteItem(
         if (dismissed) onDelete()
     }
 
+    val isSwiping = dismissState.targetValue != SwipeToDismissBoxValue.Settled
+
     SwipeToDismissBox(
         state = dismissState,
         backgroundContent = {
@@ -438,11 +440,13 @@ private fun DebtSwipeToDeleteItem(
                     .padding(horizontal = 20.dp),
                 contentAlignment = Alignment.CenterEnd,
             ) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = MoneyManagerTheme.strings.delete,
-                    tint = MaterialTheme.colorScheme.onError,
-                )
+                if (isSwiping) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = MoneyManagerTheme.strings.delete,
+                        tint = MaterialTheme.colorScheme.onError,
+                    )
+                }
             }
         },
         enableDismissFromStartToEnd = false,
