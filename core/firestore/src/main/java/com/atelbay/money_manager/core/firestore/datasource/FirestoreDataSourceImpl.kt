@@ -3,6 +3,8 @@ package com.atelbay.money_manager.core.firestore.datasource
 import com.atelbay.money_manager.core.firestore.dto.AccountDto
 import com.atelbay.money_manager.core.firestore.dto.BudgetDto
 import com.atelbay.money_manager.core.firestore.dto.CategoryDto
+import com.atelbay.money_manager.core.firestore.dto.DebtDto
+import com.atelbay.money_manager.core.firestore.dto.DebtPaymentDto
 import com.atelbay.money_manager.core.firestore.dto.ParserCandidateDto
 import com.atelbay.money_manager.core.firestore.dto.RecurringTransactionDto
 import com.atelbay.money_manager.core.firestore.dto.RegexParserProfileFirestoreDto
@@ -33,6 +35,12 @@ class FirestoreDataSourceImpl @Inject constructor(
 
     private fun recurringTransactions(userId: String) =
         firestore.collection("users").document(userId).collection("recurring_transactions")
+
+    private fun debts(userId: String) =
+        firestore.collection("users").document(userId).collection("debts")
+
+    private fun debtPayments(userId: String) =
+        firestore.collection("users").document(userId).collection("debt_payments")
 
     private val parserCandidates
         get() = firestore.collection("parser_candidates")
@@ -186,6 +194,83 @@ class FirestoreDataSourceImpl @Inject constructor(
                     encryptionVersion = (data["encryptionVersion"] as? Number)?.toInt() ?: 0,
                 )
             }
+
+    override suspend fun pushDebt(userId: String, dto: DebtDto) {
+        try {
+            debts(userId).document(dto.remoteId).set(dto).await()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to push debt ${dto.remoteId}")
+            throw e
+        }
+    }
+
+    override suspend fun pullDebts(userId: String): List<DebtDto> =
+        debts(userId).get().await()
+            .documents.mapNotNull { doc ->
+                val data = doc.data ?: return@mapNotNull null
+                DebtDto(
+                    remoteId = doc.id,
+                    contactName = data["contactName"] as? String ?: "",
+                    direction = data["direction"] as? String ?: "",
+                    totalAmount = (data["totalAmount"] as? String)
+                        ?: (data["totalAmount"] as? Number)?.toDouble()?.toString()
+                        ?: "",
+                    currency = data["currency"] as? String ?: "",
+                    accountRemoteId = data["accountRemoteId"] as? String ?: "",
+                    note = data["note"] as? String ?: "",
+                    createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0,
+                    updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0,
+                    isDeleted = data["isDeleted"] as? Boolean ?: false,
+                    encryptionVersion = (data["encryptionVersion"] as? Number)?.toInt() ?: 0,
+                )
+            }
+
+    override suspend fun deleteDebt(userId: String, remoteId: String) {
+        try {
+            debts(userId).document(remoteId).delete().await()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to delete debt $remoteId")
+            throw e
+        }
+    }
+
+    override suspend fun pushDebtPayment(userId: String, dto: DebtPaymentDto) {
+        try {
+            debtPayments(userId).document(dto.remoteId).set(dto).await()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to push debt payment ${dto.remoteId}")
+            throw e
+        }
+    }
+
+    override suspend fun pullDebtPayments(userId: String): List<DebtPaymentDto> =
+        debtPayments(userId).get().await()
+            .documents.mapNotNull { doc ->
+                val data = doc.data ?: return@mapNotNull null
+                DebtPaymentDto(
+                    remoteId = doc.id,
+                    debtRemoteId = data["debtRemoteId"] as? String ?: "",
+                    amount = (data["amount"] as? String)
+                        ?: (data["amount"] as? Number)?.toDouble()?.toString()
+                        ?: "",
+                    date = (data["date"] as? Number)?.toLong() ?: 0,
+                    note = data["note"] as? String ?: "",
+                    transactionRemoteId = data["transactionRemoteId"] as? String ?: "",
+                    createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0,
+                    updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0,
+                    isDeleted = data["isDeleted"] as? Boolean ?: false,
+                    encryptionVersion = (data["encryptionVersion"] as? Number)?.toInt() ?: 0,
+                )
+            }
+
+    override suspend fun deleteDebtPayment(userId: String, remoteId: String) {
+        try {
+            debtPayments(userId).document(remoteId).delete().await()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to delete debt payment $remoteId")
+            throw e
+        }
+    }
 
     override suspend fun findParserCandidate(
         bankId: String,

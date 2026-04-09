@@ -3,6 +3,8 @@ package com.atelbay.money_manager.core.firestore.datasource
 import com.atelbay.money_manager.core.firestore.dto.AccountDto
 import com.atelbay.money_manager.core.firestore.dto.BudgetDto
 import com.atelbay.money_manager.core.firestore.dto.CategoryDto
+import com.atelbay.money_manager.core.firestore.dto.DebtDto
+import com.atelbay.money_manager.core.firestore.dto.DebtPaymentDto
 import com.atelbay.money_manager.core.firestore.dto.ParserCandidateDto
 import com.atelbay.money_manager.core.firestore.dto.RecurringTransactionDto
 import com.atelbay.money_manager.core.firestore.dto.RegexParserProfileFirestoreDto
@@ -27,6 +29,14 @@ interface FirestoreDataSource {
     suspend fun pushParserCandidate(dto: ParserCandidateDto)
     suspend fun incrementCandidateSuccessCount(candidateId: String)
     suspend fun findCandidatesByUser(userIdHash: String, configType: String): List<ParserCandidateDto>
+
+    suspend fun pushDebt(userId: String, dto: DebtDto)
+    suspend fun pullDebts(userId: String): List<DebtDto>
+    suspend fun deleteDebt(userId: String, remoteId: String)
+
+    suspend fun pushDebtPayment(userId: String, dto: DebtPaymentDto)
+    suspend fun pullDebtPayments(userId: String): List<DebtPaymentDto>
+    suspend fun deleteDebtPayment(userId: String, remoteId: String)
 
     suspend fun pullActiveParserConfigs(): List<RegexParserProfileFirestoreDto>
     suspend fun getParserConfigsVersion(): Long?
