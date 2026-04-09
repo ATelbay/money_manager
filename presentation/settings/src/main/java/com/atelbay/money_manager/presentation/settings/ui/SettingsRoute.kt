@@ -17,6 +17,7 @@ fun SettingsRoute(
     onSignInClick: () -> Unit,
     onBudgetsClick: () -> Unit,
     onRecurringClick: () -> Unit,
+    onDebtsClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -42,6 +43,7 @@ fun SettingsRoute(
         onExportCsvClick = { viewModel.exportCsv(context, strings) },
         onBudgetsClick = onBudgetsClick,
         onRecurringClick = onRecurringClick,
+        onDebtsClick = onDebtsClick,
         modifier = modifier,
     )
 }

@@ -70,3 +70,9 @@ data object BudgetList
 
 @Serializable
 data class BudgetEdit(val id: Long? = null)
+
+@Serializable
+data object DebtList
+
+@Serializable
+data class DebtDetail(val id: Long)

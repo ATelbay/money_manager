@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.SyncProblem
@@ -74,6 +75,7 @@ fun SettingsScreen(
     onExportCsvClick: () -> Unit,
     onBudgetsClick: () -> Unit,
     onRecurringClick: () -> Unit,
+    onDebtsClick: () -> Unit,
     modifier: Modifier = Modifier,
     contentWindowInsets: WindowInsets = ScaffoldDefaults.contentWindowInsets,
 ) {
@@ -273,6 +275,21 @@ fun SettingsScreen(
                         hasChevron = true,
                         onClick = onRecurringClick,
                         modifier = Modifier.testTag("settings:recurring"),
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 0.5.dp,
+                        color = colors.borderSubtle,
+                    )
+
+                    SettingRow(
+                        icon = Icons.Default.AccountBalanceWallet,
+                        iconColor = Color(0xFFF59E0B),
+                        title = s.debts,
+                        hasChevron = true,
+                        onClick = onDebtsClick,
+                        modifier = Modifier.testTag("settings:debts"),
                     )
 
                     HorizontalDivider(
@@ -632,6 +649,7 @@ private fun SettingsScreenPreview() {
             onExportCsvClick = {},
             onBudgetsClick = {},
             onRecurringClick = {},
+            onDebtsClick = {},
         )
     }
 }

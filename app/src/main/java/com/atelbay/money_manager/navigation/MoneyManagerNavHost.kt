@@ -42,6 +42,8 @@ import com.atelbay.money_manager.presentation.budgets.ui.list.BudgetListRoute
 import com.atelbay.money_manager.presentation.budgets.ui.edit.BudgetEditRoute
 import com.atelbay.money_manager.presentation.recurring.ui.list.RecurringListRoute
 import com.atelbay.money_manager.presentation.recurring.ui.edit.RecurringEditRoute
+import com.atelbay.money_manager.presentation.debts.ui.list.DebtListRoute
+import com.atelbay.money_manager.presentation.debts.ui.detail.DebtDetailRoute
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -304,6 +306,9 @@ fun MoneyManagerNavHost(
                         onRecurringClick = {
                             navController.navigate(RecurringList)
                         },
+                        onDebtsClick = {
+                            navController.navigate(DebtList)
+                        },
                     )
                 }
 
@@ -354,6 +359,19 @@ fun MoneyManagerNavHost(
                     RecurringEditRoute(
                         onSaveComplete = { navController.popBackStack() },
                         onBackClick = { navController.popBackStack() },
+                    )
+                }
+
+                composable<DebtList> {
+                    DebtListRoute(
+                        onDebtClick = { id -> navController.navigate(DebtDetail(id)) },
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                composable<DebtDetail> {
+                    DebtDetailRoute(
+                        onBack = { navController.popBackStack() },
                     )
                 }
             }
