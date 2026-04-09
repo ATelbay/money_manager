@@ -6,6 +6,8 @@ import com.atelbay.money_manager.core.crypto.FieldCipherHolder
 import com.atelbay.money_manager.core.database.dao.AccountDao
 import com.atelbay.money_manager.core.database.dao.BudgetDao
 import com.atelbay.money_manager.core.database.dao.CategoryDao
+import com.atelbay.money_manager.core.database.dao.DebtDao
+import com.atelbay.money_manager.core.database.dao.DebtPaymentDao
 import com.atelbay.money_manager.core.database.dao.RecurringTransactionDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
 import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
@@ -36,6 +38,8 @@ class SyncManager @Inject constructor(
     private val categoryDao: CategoryDao,
     private val budgetDao: BudgetDao,
     private val recurringDao: RecurringTransactionDao,
+    private val debtDao: DebtDao,
+    private val debtPaymentDao: DebtPaymentDao,
 ) {
     @Volatile
     private var scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -44,6 +48,8 @@ class SyncManager @Inject constructor(
     private val categoryMutexes = ConcurrentHashMap<Long, Mutex>()
     private val budgetMutexes = ConcurrentHashMap<Long, Mutex>()
     private val recurringMutexes = ConcurrentHashMap<Long, Mutex>()
+    private val debtMutexes = ConcurrentHashMap<Long, Mutex>()
+    private val debtPaymentMutexes = ConcurrentHashMap<Long, Mutex>()
 
     private val _syncStatus = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
     val syncStatus: StateFlow<SyncStatus> = _syncStatus.asStateFlow()
@@ -144,6 +150,56 @@ class SyncManager @Inject constructor(
         }
     }
 
+    fun syncDebt(id: Long) = scope.launch {
+        val userId = authManager.currentUser.value?.userId ?: return@launch
+        val mutex = debtMutexes.getOrPut(id) { Mutex() }
+        mutex.withLock {
+            try {
+                val entity = debtDao.getById(id)
+                    ?: debtDao.getDeletedWithRemoteId().find { it.id == id }
+                    ?: return@launch
+                val accountRemoteId = ensureAccountRemoteId(entity.accountId) ?: return@launch
+                val finalEntity = if (entity.remoteId == null) {
+                    val remoteId = UUID.randomUUID().toString()
+                    val updated = entity.copy(remoteId = remoteId, updatedAt = System.currentTimeMillis())
+                    debtDao.update(updated)
+                    updated
+                } else entity
+                firestoreDataSource.pushDebt(userId, finalEntity.toDto(fieldCipherHolder, accountRemoteId))
+            } catch (e: Exception) {
+                Timber.e(e, "syncDebt($id) failed")
+            }
+        }
+    }
+
+    fun syncDebtPayment(id: Long) = scope.launch {
+        val userId = authManager.currentUser.value?.userId ?: return@launch
+        val mutex = debtPaymentMutexes.getOrPut(id) { Mutex() }
+        mutex.withLock {
+            try {
+                val entity = debtPaymentDao.getById(id)
+                    ?: debtPaymentDao.getDeletedWithRemoteId().find { it.id == id }
+                    ?: return@launch
+                val debtEntity = debtDao.getById(entity.debtId)
+                    ?: debtDao.getDeletedWithRemoteId().find { it.id == entity.debtId }
+                val debtRemoteId = debtEntity?.remoteId ?: return@launch
+                val txId = entity.transactionId
+                val transactionRemoteId = if (txId != null) {
+                    transactionDao.getById(txId)?.remoteId.orEmpty()
+                } else ""
+                val finalEntity = if (entity.remoteId == null) {
+                    val remoteId = UUID.randomUUID().toString()
+                    val updated = entity.copy(remoteId = remoteId, updatedAt = System.currentTimeMillis())
+                    debtPaymentDao.update(updated)
+                    updated
+                } else entity
+                firestoreDataSource.pushDebtPayment(userId, finalEntity.toDto(fieldCipherHolder, debtRemoteId, transactionRemoteId))
+            } catch (e: Exception) {
+                Timber.e(e, "syncDebtPayment($id) failed")
+            }
+        }
+    }
+
     /**
      * Pushes all accounts that already have a remoteId (i.e. ensures latest balance is remote).
      * Accounts without a remoteId are handled by [pushAllPending].
@@ -214,6 +270,46 @@ class SyncManager @Inject constructor(
             val accountRemoteId = ensureAccountRemoteId(entity.accountId) ?: return@forEach
             firestoreDataSource.pushRecurringTransaction(userId, entity.toDto(categoryRemoteId, accountRemoteId, fieldCipherHolder))
         }
+        debtDao.getPendingSync().forEach { entity ->
+            debtMutexes.getOrPut(entity.id) { Mutex() }.withLock {
+                val current = debtDao.getById(entity.id) ?: return@withLock
+                if (current.remoteId != null) return@withLock
+                val accountRemoteId = ensureAccountRemoteId(current.accountId) ?: return@withLock
+                val remoteId = UUID.randomUUID().toString()
+                val now = System.currentTimeMillis()
+                debtDao.update(current.copy(remoteId = remoteId, updatedAt = now))
+                firestoreDataSource.pushDebt(userId, current.copy(remoteId = remoteId, updatedAt = now).toDto(fieldCipherHolder, accountRemoteId))
+            }
+        }
+        debtDao.getDeletedWithRemoteId().forEach { entity ->
+            val accountRemoteId = ensureAccountRemoteId(entity.accountId) ?: return@forEach
+            firestoreDataSource.pushDebt(userId, entity.toDto(fieldCipherHolder, accountRemoteId))
+        }
+        debtPaymentDao.getPendingSync().forEach { entity ->
+            debtPaymentMutexes.getOrPut(entity.id) { Mutex() }.withLock {
+                val current = debtPaymentDao.getById(entity.id) ?: return@withLock
+                if (current.remoteId != null) return@withLock
+                val debtEntity = debtDao.getById(current.debtId) ?: return@withLock
+                val debtRemoteId = debtEntity.remoteId ?: return@withLock
+                val curTxId = current.transactionId
+                val transactionRemoteId = if (curTxId != null) {
+                    transactionDao.getById(curTxId)?.remoteId.orEmpty()
+                } else ""
+                val remoteId = UUID.randomUUID().toString()
+                val now = System.currentTimeMillis()
+                debtPaymentDao.update(current.copy(remoteId = remoteId, updatedAt = now))
+                firestoreDataSource.pushDebtPayment(userId, current.copy(remoteId = remoteId, updatedAt = now).toDto(fieldCipherHolder, debtRemoteId, transactionRemoteId))
+            }
+        }
+        debtPaymentDao.getDeletedWithRemoteId().forEach { entity ->
+            val debtEntity = debtDao.getById(entity.debtId) ?: debtDao.getDeletedWithRemoteId().find { it.id == entity.debtId }
+            val debtRemoteId = debtEntity?.remoteId ?: return@forEach
+            val delTxId = entity.transactionId
+            val transactionRemoteId = if (delTxId != null) {
+                transactionDao.getById(delTxId)?.remoteId.orEmpty()
+            } else ""
+            firestoreDataSource.pushDebtPayment(userId, entity.toDto(fieldCipherHolder, debtRemoteId, transactionRemoteId))
+        }
         Timber.d("pushAllPending: done")
     }
 
@@ -252,6 +348,8 @@ class SyncManager @Inject constructor(
         transactionDao.clearRemoteIds()
         budgetDao.clearRemoteIds()
         recurringDao.clearRemoteIds()
+        debtDao.clearRemoteIds()
+        debtPaymentDao.clearRemoteIds()
         Timber.d("SyncManager: sync metadata cleared on sign-out")
     }
 
