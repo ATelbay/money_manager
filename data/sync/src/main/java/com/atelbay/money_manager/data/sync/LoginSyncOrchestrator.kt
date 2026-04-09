@@ -3,6 +3,7 @@ package com.atelbay.money_manager.data.sync
 import com.atelbay.money_manager.core.auth.AuthManager
 import com.atelbay.money_manager.core.model.SyncStatus
 import com.atelbay.money_manager.core.crypto.FieldCipherHolder
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,10 +33,12 @@ class LoginSyncOrchestrator @Inject constructor(
                 .distinctUntilChangedBy { it?.userId }
                 .collect { user ->
                     if (user != null) {
+                        FirebaseCrashlytics.getInstance().setUserId(user.userId)
                         Timber.d("LoginSyncOrchestrator: user signed in (${user.userId}), starting sync")
                         fieldCipherHolder.init(user.userId)
                         runSync(user.userId)
                     } else {
+                        FirebaseCrashlytics.getInstance().setUserId("")
                         Timber.d("LoginSyncOrchestrator: user signed out, clearing sync metadata")
                         fieldCipherHolder.clear()
                         syncManager.clearSyncMetadata()

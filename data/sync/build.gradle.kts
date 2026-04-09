@@ -14,6 +14,8 @@ dependencies {
     implementation(projects.core.firestore)
     implementation(projects.core.model)
     implementation(projects.domain.sync)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.crashlytics)
     implementation(libs.bundles.coroutines)
     implementation(libs.timber)
 }

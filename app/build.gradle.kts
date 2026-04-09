@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.detekt)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
     alias(libs.plugins.roborazzi)
 }
 
@@ -25,8 +26,9 @@ android {
 
     defaultConfig {
         applicationId = "com.atelbay.money_manager"
+        // Semantic versioning: MAJOR.MINOR.PATCH. versionCode increments monotonically with each Play Store release.
         versionCode = 1
-        versionName = "1.1"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -73,6 +75,7 @@ dependencies {
     implementation(projects.data.exchangerate)
     implementation(projects.data.recurring)
     implementation(projects.data.budgets)
+    implementation(projects.data.debts)
 
     // Domain (for Application-level injection)
     implementation(projects.domain.recurring)
@@ -91,6 +94,7 @@ dependencies {
     implementation(projects.presentation.`import`)
     implementation(projects.presentation.recurring)
     implementation(projects.presentation.budgets)
+    implementation(projects.presentation.debts)
 
     // Core
     implementation(projects.core.auth)
@@ -112,6 +116,10 @@ dependencies {
 
     // Serialization
     implementation(libs.kotlinx.serialization.json)
+
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.crashlytics)
 
     // Logging
     implementation(libs.timber)

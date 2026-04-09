@@ -143,6 +143,7 @@ firebase-ai = { group = "com.google.firebase", name = "firebase-ai" }
 firebase-config = { group = "com.google.firebase", name = "firebase-config" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
+firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
 
 # Crypto
 tink-android = { group = "com.google.crypto.tink", name = "tink-android", version.ref = "tinkAndroid" }
@@ -226,6 +227,7 @@ moneymanager-android-feature = { id = "moneymanager.android.feature", version = 
 
 # Firebase
 google-services = { id = "com.google.gms.google-services", version = "4.4.2" }
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version = "3.0.3" }
 
 # External plugins
 android-application = { id = "com.android.application", version.ref = "agp" }
