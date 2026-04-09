@@ -77,17 +77,17 @@ fun DebtListScreen(
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
 
-    var debtToDelete by remember { mutableStateOf<Long?>(null) }
+    var debtToDelete by remember { mutableStateOf<Debt?>(null) }
     var showEditSheet by remember { mutableStateOf(false) }
 
     if (debtToDelete != null) {
         AlertDialog(
             onDismissRequest = { debtToDelete = null },
             title = { Text(s.delete) },
-            text = { Text(s.deletePaymentsConfirm) },
+            text = { Text("${s.delete} \"${debtToDelete?.contactName}\"?") },
             confirmButton = {
                 TextButton(onClick = {
-                    onDeleteDebt(debtToDelete!!)
+                    debtToDelete?.let { onDeleteDebt(it.id) }
                     debtToDelete = null
                 }) {
                     Text(s.delete, color = colors.expenseForeground)
@@ -206,7 +206,7 @@ fun DebtListScreen(
                 key = { it.id },
             ) { debt ->
                 DebtSwipeToDeleteItem(
-                    onDelete = { debtToDelete = debt.id },
+                    onDelete = { debtToDelete = debt },
                 ) {
                     DebtListItem(
                         debt = debt,
@@ -428,21 +428,14 @@ private fun DebtSwipeToDeleteItem(
     onDelete: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    var dismissed by remember { mutableStateOf(false) }
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             if (value == SwipeToDismissBoxValue.EndToStart) {
-                dismissed = true
-                true
-            } else {
-                false
+                onDelete()
             }
+            false // always reject — snap back, let the dialog handle deletion
         },
     )
-
-    LaunchedEffect(dismissed) {
-        if (dismissed) onDelete()
-    }
 
     val isSwiping = dismissState.targetValue != SwipeToDismissBoxValue.Settled
 
