@@ -57,6 +57,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -427,7 +429,9 @@ private fun SectionHeader(title: String) {
         text = title.uppercase(),
         style = typography.caption,
         color = colors.textSecondary,
-        modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+        modifier = Modifier
+            .padding(start = 4.dp, bottom = 8.dp)
+            .semantics { heading() },
     )
 }
 
@@ -620,7 +624,7 @@ private fun LanguageSelector(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(40.dp)
+                    .height(48.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(bgColor)
                     .clickable { onSelect(language) }

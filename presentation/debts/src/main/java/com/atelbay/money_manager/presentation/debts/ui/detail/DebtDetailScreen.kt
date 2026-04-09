@@ -110,7 +110,7 @@ fun DebtDetailScreen(
                     ) {
                         Icon(
                             Icons.Default.Edit,
-                            contentDescription = null,
+                            contentDescription = s.editTransaction,
                             tint = colors.textPrimary,
                         )
                     }

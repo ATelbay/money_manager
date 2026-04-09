@@ -84,8 +84,9 @@ fun CategoryListScreen(
         floatingActionButton = {
             MoneyManagerFAB(
                 onClick = onAddClick,
+                contentDescription = s.newCategory,
                 testTag = "categoryList:fab",
-            ) 
+            )
         },
     ) { padding ->
         if (state.isLoading) {

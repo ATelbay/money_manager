@@ -155,6 +155,7 @@ fun TransactionListScreen(
                         onAddClick()
                     }
                 },
+                contentDescription = s.newTransaction,
                 testTag = "transactionList:fab",
             )
         },

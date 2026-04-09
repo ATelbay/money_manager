@@ -110,6 +110,7 @@ fun DebtListScreen(
             MoneyManagerFAB(
                 onClick = { showEditSheet = true },
                 icon = Icons.Default.Add,
+                contentDescription = s.addDebt,
                 testTag = "debtList:fab",
             )
         },

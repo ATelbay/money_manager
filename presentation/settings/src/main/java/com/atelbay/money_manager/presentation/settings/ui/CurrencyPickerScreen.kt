@@ -160,7 +160,7 @@ fun CurrencyPickerScreen(
                         IconButton(onClick = { searchQuery = "" }) {
                             Icon(
                                 imageVector = Icons.Default.Clear,
-                                contentDescription = null,
+                                contentDescription = s.clearSearch,
                                 tint = colors.textSecondary,
                                 modifier = Modifier.size(20.dp),
                             )
