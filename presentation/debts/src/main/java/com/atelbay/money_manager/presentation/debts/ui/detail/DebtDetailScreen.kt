@@ -239,9 +239,10 @@ fun DebtDetailScreen(
                             modifier = Modifier.padding(top = 4.dp),
                         )
 
-                        if (!debt.note.isNullOrBlank()) {
+                        val debtNote = debt.note
+                        if (!debtNote.isNullOrBlank()) {
                             Text(
-                                text = debt.note,
+                                text = debtNote,
                                 style = typography.caption,
                                 color = colors.textSecondary,
                                 modifier = Modifier.padding(top = 8.dp),
@@ -385,9 +386,10 @@ private fun PaymentListItem(
                     style = typography.caption,
                     color = colors.textSecondary,
                 )
-                if (!payment.note.isNullOrBlank()) {
+                val paymentNote = payment.note
+                if (!paymentNote.isNullOrBlank()) {
                     Text(
-                        text = payment.note,
+                        text = paymentNote,
                         style = typography.caption,
                         color = colors.textSecondary,
                         modifier = Modifier.padding(top = 2.dp),
