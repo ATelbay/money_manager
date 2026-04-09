@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -32,6 +33,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -75,7 +77,29 @@ fun DebtListScreen(
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
 
+    var debtToDelete by remember { mutableStateOf<Long?>(null) }
     var showEditSheet by remember { mutableStateOf(false) }
+
+    if (debtToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { debtToDelete = null },
+            title = { Text(s.delete) },
+            text = { Text(s.deletePaymentsConfirm) },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDeleteDebt(debtToDelete!!)
+                    debtToDelete = null
+                }) {
+                    Text(s.delete, color = colors.expenseForeground)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { debtToDelete = null }) {
+                    Text(s.cancel)
+                }
+            },
+        )
+    }
 
     Scaffold(
         modifier = modifier.testTag("debtList:screen"),
@@ -182,7 +206,7 @@ fun DebtListScreen(
                 key = { it.id },
             ) { debt ->
                 DebtSwipeToDeleteItem(
-                    onDelete = { onDeleteDebt(debt.id) },
+                    onDelete = { debtToDelete = debt.id },
                 ) {
                     DebtListItem(
                         debt = debt,
