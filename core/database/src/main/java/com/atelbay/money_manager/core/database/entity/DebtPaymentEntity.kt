@@ -24,6 +24,7 @@ import androidx.room.PrimaryKey
     indices = [
         Index("debtId"),
         Index("remoteId"),
+        Index("transactionId"),
     ],
 )
 data class DebtPaymentEntity(

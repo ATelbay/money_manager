@@ -46,6 +46,7 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS index_debt_payments_debtId ON debt_payments(debtId)")
         db.execSQL("CREATE INDEX IF NOT EXISTS index_debt_payments_remoteId ON debt_payments(remoteId)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_debt_payments_transactionId ON debt_payments(transactionId)")
 
         // Default categories for debts feature
         db.execSQL(

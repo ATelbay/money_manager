@@ -10,6 +10,7 @@ class SaveDebtUseCase @Inject constructor(
     suspend operator fun invoke(debt: Debt): Long {
         require(debt.contactName.isNotBlank()) { "Contact name must not be empty" }
         require(debt.totalAmount > 0) { "Total amount must be positive" }
+        require(debt.totalAmount >= debt.paidAmount) { "Total amount cannot be less than paid amount" }
         return debtRepository.save(debt)
     }
 }

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -32,6 +33,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -81,6 +83,7 @@ fun DebtDetailScreen(
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
     val debt = state.debt
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.testTag("debtDetail:screen"),
@@ -149,7 +152,7 @@ fun DebtDetailScreen(
                                 },
                                 onClick = {
                                     showMenu = false
-                                    onDeleteDebt()
+                                    showDeleteDialog = true
                                 },
                                 modifier = Modifier.testTag("debtDetail:deleteButton"),
                             )
@@ -371,6 +374,29 @@ fun DebtDetailScreen(
 
             item { Spacer(modifier = Modifier.height(80.dp)) }
         }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text(s.delete) },
+            text = { Text("${s.delete} \"${debt?.contactName}\"?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDeleteDebt()
+                    },
+                ) {
+                    Text(s.delete, color = colors.expenseForeground)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(s.cancel)
+                }
+            },
+        )
     }
 
     // Payment Bottom Sheet

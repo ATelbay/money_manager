@@ -64,6 +64,7 @@ class DebtDetailViewModel @Inject constructor(
 
     fun addPayment(amount: Double, date: Long, note: String?, createTransaction: Boolean) {
         val debt = _state.value.debt ?: return
+        _state.update { it.copy(showPaymentSheet = false) }
         viewModelScope.launch {
             val payment = DebtPayment(
                 debtId = debtId,
@@ -74,7 +75,6 @@ class DebtDetailViewModel @Inject constructor(
             )
             addDebtPaymentUseCase(payment, createTransaction, debt)
         }
-        togglePaymentSheet()
     }
 
     fun deletePayment(id: Long) {

@@ -87,7 +87,11 @@ class DebtRepositoryImpl @Inject constructor(
     }
 
     override suspend fun delete(id: Long) {
-        debtDao.softDeleteById(id, System.currentTimeMillis())
+        val now = System.currentTimeMillis()
+        val payments = debtPaymentDao.getByDebtId(id)
+        debtPaymentDao.softDeleteByDebtId(id, now)
+        payments.forEach { syncManager.syncDebtPayment(it.id) }
+        debtDao.softDeleteById(id, now)
         syncManager.syncDebt(id)
     }
 }

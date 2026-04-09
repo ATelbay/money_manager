@@ -211,7 +211,7 @@ fun DebtEditBottomSheet(
                     }
                     if (hasError) return@MoneyManagerButton
 
-                    val account = accounts.first { it.id == selectedAccountId }
+                    val account = accounts.firstOrNull { it.id == selectedAccountId } ?: return@MoneyManagerButton
                     onSave(
                         Debt(
                             id = debt?.id ?: 0,

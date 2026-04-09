@@ -56,6 +56,7 @@ class DebtPaymentRepositoryImpl @Inject constructor(
                     updatedAt = now,
                 )
                 val transactionId = transactionDao.insert(transactionEntity)
+                syncManager.syncTransaction(transactionId)
                 paymentEntity = paymentEntity.copy(transactionId = transactionId)
             }
         }
@@ -84,6 +85,8 @@ class DebtPaymentRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteAllByDebtId(debtId: Long) {
+        val payments = debtPaymentDao.getByDebtId(debtId)
         debtPaymentDao.softDeleteByDebtId(debtId, System.currentTimeMillis())
+        payments.forEach { syncManager.syncDebtPayment(it.id) }
     }
 }

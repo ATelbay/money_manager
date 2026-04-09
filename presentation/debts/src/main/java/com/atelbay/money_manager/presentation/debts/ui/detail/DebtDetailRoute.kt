@@ -30,7 +30,6 @@ fun DebtDetailRoute(
         onDeletePayment = viewModel::deletePayment,
         onDeleteDebt = {
             viewModel.deleteDebt()
-            onBack()
         },
         onSaveDebt = viewModel::saveDebt,
         onTogglePaymentSheet = viewModel::togglePaymentSheet,
