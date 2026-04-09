@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Money Manager — Privacy Policy / Политика конфиденциальности / Құпиялылық саясаты">
+    <title>Money Manager — Privacy Policy</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: #1a1a1a;
+            background: #fafafa;
+        }
+
+        .container {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+        }
+
+        header {
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 24px;
+            margin-bottom: 48px;
+        }
+
+        header h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        header p {
+            color: #666;
+            margin-top: 6px;
+            font-size: 0.9rem;
+        }
+
+        .lang-nav {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .lang-nav a {
+            font-size: 0.85rem;
+            color: #2563eb;
+            text-decoration: none;
+            padding: 4px 10px;
+            border: 1px solid #2563eb;
+            border-radius: 4px;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .lang-nav a:hover {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        section.lang-section {
+            margin-bottom: 72px;
+        }
+
+        section.lang-section h2 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin-bottom: 28px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-top: 28px;
+            margin-bottom: 8px;
+            color: #111;
+        }
+
+        p {
+            margin-bottom: 12px;
+            color: #333;
+        }
+
+        ul {
+            margin: 8px 0 12px 20px;
+            color: #333;
+        }
+
+        ul li { margin-bottom: 4px; }
+
+        .updated {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 32px;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 16px;
+        }
+
+        @media (max-width: 480px) {
+            header h1 { font-size: 1.4rem; }
+            .container { padding: 24px 16px 60px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>Money Manager</h1>
+        <p>Privacy Policy &nbsp;/&nbsp; Политика конфиденциальности &nbsp;/&nbsp; Құпиялылық саясаты</p>
+        <nav class="lang-nav">
+            <a href="#ru">Русский</a>
+            <a href="#en">English</a>
+            <a href="#kz">Қазақша</a>
+        </nav>
+    </header>
+
+    <!-- ============================================================ RUSSIAN -->
+    <section class="lang-section" id="ru">
+        <h2>Политика конфиденциальности</h2>
+
+        <h3>1. Какие данные мы собираем</h3>
+        <p>Приложение Money Manager хранит следующие данные, которые вы вводите вручную:</p>
+        <ul>
+            <li>Транзакции (дата, сумма, категория, заметки, название контакта)</li>
+            <li>Категории и счета</li>
+            <li>Настройки приложения</li>
+        </ul>
+        <p>Все данные хранятся локально на вашем устройстве в базе данных Room.</p>
+
+        <h3>2. Синхронизация и шифрование (Firestore)</h3>
+        <p>
+            Если вы выполняете вход через Google, данные могут синхронизироваться с облаком
+            через Firebase Firestore. Перед отправкой в облако чувствительные поля
+            (название контакта, суммы, заметки) шифруются с помощью библиотеки Google Tink
+            (алгоритм AES-256-GCM). Ключ шифрования хранится в защищённом хранилище устройства.
+        </p>
+
+        <h3>3. Google Sign-In</h3>
+        <p>
+            При входе через Google мы получаем только ваш адрес электронной почты и отображаемое имя.
+            Эти данные используются исключительно для идентификации вашей учётной записи.
+            Мы не имеем доступа к вашему паролю и не запрашиваем дополнительные разрешения Google.
+        </p>
+
+        <h3>4. Передача данных третьим лицам</h3>
+        <p>
+            Мы не продаём, не передаём и не раскрываем ваши данные третьим лицам.
+            Данные используются исключительно для работы приложения.
+        </p>
+
+        <h3>5. Аналитика и отчёты об ошибках</h3>
+        <p>
+            Приложение использует Firebase Crashlytics для автоматического сбора отчётов о сбоях.
+            Crashlytics собирает технические данные (стек вызовов, версия ОС, модель устройства).
+            Персональные данные в отчёты не включаются.
+        </p>
+
+        <h3>6. Удаление данных</h3>
+        <p>
+            Выход из учётной записи удаляет локальные метаданные синхронизации.
+            Для удаления данных из Firestore обратитесь к разработчику по электронной почте,
+            указанной на странице приложения в Google Play. Запрос будет выполнен в течение 30 дней.
+        </p>
+
+        <h3>7. Изменения в политике</h3>
+        <p>
+            Мы можем обновлять эту политику. Актуальная версия всегда доступна по данному адресу.
+            Продолжение использования приложения после изменений означает ваше согласие с новой редакцией.
+        </p>
+
+        <p class="updated">Последнее обновление: апрель 2026 г.</p>
+    </section>
+
+    <!-- ============================================================ ENGLISH -->
+    <section class="lang-section" id="en">
+        <h2>Privacy Policy</h2>
+
+        <h3>1. Data We Collect</h3>
+        <p>Money Manager stores the following data that you enter manually:</p>
+        <ul>
+            <li>Transactions (date, amount, category, notes, contact name)</li>
+            <li>Categories and accounts</li>
+            <li>App preferences</li>
+        </ul>
+        <p>All data is stored locally on your device in a Room database.</p>
+
+        <h3>2. Cloud Sync and Encryption (Firestore)</h3>
+        <p>
+            If you sign in with Google, your data may be synced to the cloud via Firebase Firestore.
+            Before transmission, sensitive fields (contact name, amounts, notes) are encrypted using
+            Google Tink (AES-256-GCM). The encryption key is stored in your device's secure storage.
+        </p>
+
+        <h3>3. Google Sign-In</h3>
+        <p>
+            When you sign in with Google, we receive only your email address and display name.
+            This information is used solely to identify your account.
+            We do not access your password and do not request additional Google permissions.
+        </p>
+
+        <h3>4. Third-Party Data Sharing</h3>
+        <p>
+            We do not sell, share, or disclose your data to any third parties.
+            Your data is used exclusively to provide app functionality.
+        </p>
+
+        <h3>5. Analytics and Crash Reporting</h3>
+        <p>
+            The app uses Firebase Crashlytics to collect crash reports automatically.
+            Crashlytics collects technical data (stack traces, OS version, device model).
+            No personally identifiable information is included in crash reports.
+        </p>
+
+        <h3>6. Data Deletion</h3>
+        <p>
+            Signing out removes local sync metadata from your device.
+            To request deletion of your data from Firestore, contact the developer at the email
+            listed on the app's Google Play page. Requests will be fulfilled within 30 days.
+        </p>
+
+        <h3>7. Changes to This Policy</h3>
+        <p>
+            We may update this policy from time to time. The latest version is always available at this URL.
+            Continued use of the app after changes constitutes acceptance of the updated policy.
+        </p>
+
+        <p class="updated">Last updated: April 2026</p>
+    </section>
+
+    <!-- ============================================================ KAZAKH -->
+    <section class="lang-section" id="kz">
+        <h2>Құпиялылық саясаты</h2>
+
+        <h3>1. Біз жинайтын деректер</h3>
+        <p>Money Manager сіз қолмен енгізген мына деректерді сақтайды:</p>
+        <ul>
+            <li>Транзакциялар (күні, сомасы, санаты, ескертпелер, байланыс аты)</li>
+            <li>Санаттар мен шоттар</li>
+            <li>Қолданба параметрлері</li>
+        </ul>
+        <p>Барлық деректер Room дерекқорында құрылғыда жергілікті түрде сақталады.</p>
+
+        <h3>2. Бұлтпен синхрондау және шифрлау (Firestore)</h3>
+        <p>
+            Google арқылы кірген жағдайда деректер Firebase Firestore арқылы бұлтқа синхрондалуы мүмкін.
+            Жіберілмес бұрын сезімтал өрістер (байланыс аты, сомалар, ескертпелер) Google Tink
+            кітапханасымен (AES-256-GCM) шифрланады. Шифрлау кілті құрылғының қауіпсіз қоймасында сақталады.
+        </p>
+
+        <h3>3. Google арқылы кіру</h3>
+        <p>
+            Google арқылы кірген кезде біз тек электрондық пошта мекенжайыңызды және
+            көрсетілетін атыңызды аламыз. Бұл ақпарат тек есептік жазбаңызды анықтау үшін пайдаланылады.
+            Біз сіздің құпия сөзіңізге қол жеткізбейміз және қосымша Google рұқсаттарын сұрамаймыз.
+        </p>
+
+        <h3>4. Үшінші тараптарға деректерді беру</h3>
+        <p>
+            Біз деректеріңізді үшінші тараптарға сатпаймыз, бермейміз немесе жарияламаймыз.
+            Деректер тек қолданба функционалдығын қамтамасыз ету үшін пайдаланылады.
+        </p>
+
+        <h3>5. Аналитика және авариялық есептер</h3>
+        <p>
+            Қолданба авариялық есептерді автоматты жинау үшін Firebase Crashlytics пайдаланады.
+            Crashlytics техникалық деректерді жинайды (стек іздері, ОЖ нұсқасы, құрылғы моделі).
+            Авариялық есептерге жеке сәйкестендіруші ақпарат қосылмайды.
+        </p>
+
+        <h3>6. Деректерді жою</h3>
+        <p>
+            Есептік жазбадан шыққанда жергілікті синхрондау метадеректері жойылады.
+            Firestore-дан деректеріңізді жою үшін Google Play-дегі қолданба бетінде
+            көрсетілген электрондық пошта арқылы әзірлеушіге хабарласыңыз.
+            Сұраныстар 30 күн ішінде орындалады.
+        </p>
+
+        <h3>7. Саясатқа өзгерістер</h3>
+        <p>
+            Біз бұл саясатты мезгіл-мезгіл жаңартуы мүмкінбіз. Соңғы нұсқа осы URL мекенжайда
+            әрқашан қол жетімді болады. Өзгерістерден кейін қолданбаны пайдалануды жалғастыру
+            жаңартылған саясатты қабылдағаныңызды білдіреді.
+        </p>
+
+        <p class="updated">Соңғы жаңарту: 2026 жылдың сәуірі</p>
+    </section>
+</div>
+</body>
+</html>

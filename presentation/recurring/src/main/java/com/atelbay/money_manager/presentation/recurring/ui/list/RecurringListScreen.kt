@@ -100,6 +100,7 @@ fun RecurringListScreen(
         floatingActionButton = {
             MoneyManagerFAB(
                 onClick = onAddClick,
+                contentDescription = s.newRecurring,
                 testTag = "recurringList:fab",
             )
         },

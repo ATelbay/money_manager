@@ -279,6 +279,13 @@ private fun ColorPager(
                             val isSelected = color == selectedColor
                             Box(
                                 modifier = Modifier
+                                    .size(48.dp)
+                                    .clickable { onSelect(color) }
+                                    .testTag("categoryEdit:color_$color"),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                            Box(
+                                modifier = Modifier
                                     .size(36.dp)
                                     .clip(CircleShape)
                                     .background(Color(color))
@@ -292,9 +299,7 @@ private fun ColorPager(
                                         } else {
                                             Modifier
                                         },
-                                    )
-                                    .clickable { onSelect(color) }
-                                    .testTag("categoryEdit:color_$color"),
+                                    ),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 if (isSelected) {
@@ -306,9 +311,10 @@ private fun ColorPager(
                                     )
                                 }
                             }
+                            }
                         }
                         repeat(4 - row.size) {
-                            Spacer(modifier = Modifier.size(36.dp))
+                            Spacer(modifier = Modifier.size(48.dp))
                         }
                     }
                 }

@@ -3,6 +3,7 @@ package com.atelbay.money_manager
 import android.app.Application
 import com.atelbay.money_manager.data.sync.LoginSyncOrchestrator
 import com.atelbay.money_manager.domain.recurring.usecase.GeneratePendingTransactionsUseCase
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +27,10 @@ class MoneyManagerApp : Application() {
         super.onCreate()
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
+            FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(false)
+        } else {
+            FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(true)
+            Timber.plant(CrashlyticsTree())
         }
         loginSyncOrchestrator.start()
         appScope.launch {

@@ -101,6 +101,7 @@ fun BudgetListScreen(
             MoneyManagerFAB(
                 onClick = onAddClick,
                 icon = Icons.Default.Add,
+                contentDescription = s.newBudget,
                 testTag = "budgetList:fab",
             )
         },

@@ -18,6 +18,7 @@ object DefaultCategories {
         category("Подписки", "subscriptions", 0xFF9575CD, "expense"),
         category("Перевод", "swap_horiz", 0xFF64B5F6, "expense"),
         category("Другое", "more_horiz", 0xFF90A4AE, "expense"),
+        category("Долги", "money_off", 0xFFEF4444, "expense"),
     )
 
     private fun income(): List<CategoryEntity> = listOf(
@@ -28,6 +29,7 @@ object DefaultCategories {
         category("Перевод", "swap_horiz", 0xFF64B5F6, "income"),
         category("Пополнение", "account_balance_wallet", 0xFF81C784, "income"),
         category("Другое", "more_horiz", 0xFFA5D6A7, "income"),
+        category("Возврат долга", "payments", 0xFF22C55E, "income"),
     )
 
     private fun category(name: String, icon: String, color: Long, type: String) =

@@ -74,8 +74,8 @@ fun AccountListScreen(
         },
         floatingActionButton = {
             MoneyManagerFAB(
-                
                 onClick = onAddClick,
+                contentDescription = s.newAccount,
                 testTag = "accountList:fab",
             )
         },

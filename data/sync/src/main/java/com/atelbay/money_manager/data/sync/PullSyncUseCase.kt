@@ -5,6 +5,8 @@ import com.atelbay.money_manager.core.crypto.FieldCipherHolder
 import com.atelbay.money_manager.core.database.dao.AccountDao
 import com.atelbay.money_manager.core.database.dao.BudgetDao
 import com.atelbay.money_manager.core.database.dao.CategoryDao
+import com.atelbay.money_manager.core.database.dao.DebtDao
+import com.atelbay.money_manager.core.database.dao.DebtPaymentDao
 import com.atelbay.money_manager.core.database.dao.RecurringTransactionDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
 import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
@@ -27,6 +29,8 @@ class PullSyncUseCase @Inject constructor(
     private val categoryDao: CategoryDao,
     private val budgetDao: BudgetDao,
     private val recurringDao: RecurringTransactionDao,
+    private val debtDao: DebtDao,
+    private val debtPaymentDao: DebtPaymentDao,
 ) {
     suspend operator fun invoke(userId: String) {
         Timber.d("PullSync: starting for userId=$userId")
@@ -34,6 +38,8 @@ class PullSyncUseCase @Inject constructor(
         pullCategories(userId)
         pullBudgets(userId)
         pullRecurringTransactions(userId)
+        pullDebts(userId)
+        pullDebtPayments(userId)
         pullTransactions(userId)
         Timber.d("PullSync: done")
     }
@@ -155,6 +161,69 @@ class PullSyncUseCase @Inject constructor(
                 recurringDao.insert(entity)
             } else {
                 recurringDao.upsertSync(listOf(entity.copy(id = local.id)))
+            }
+        }
+    }
+
+    private suspend fun pullDebts(userId: String) {
+        val remoteDebts = firestoreDataSource.pullDebts(userId)
+        for (dto in remoteDebts) {
+            val local = debtDao.getByRemoteId(dto.remoteId)
+            if (dto.isDeleted) {
+                if (local != null) debtDao.softDeleteById(local.id, dto.updatedAt)
+                continue
+            }
+            if (local != null && local.updatedAt >= dto.updatedAt) continue
+
+            val accountLocalId = accountDao.getByRemoteId(dto.accountRemoteId)?.id
+            if (accountLocalId == null) {
+                Timber.w("PullSync: skipping debt ${dto.remoteId} — missing account ${dto.accountRemoteId}")
+                continue
+            }
+
+            val entity = dto.toEntity(
+                localId = local?.id ?: 0,
+                fieldCipherHolder = fieldCipherHolder,
+                localAccountId = accountLocalId,
+            ) ?: continue
+            if (local == null) {
+                debtDao.insert(entity)
+            } else {
+                debtDao.upsertSync(listOf(entity.copy(id = local.id)))
+            }
+        }
+    }
+
+    private suspend fun pullDebtPayments(userId: String) {
+        val remotePayments = firestoreDataSource.pullDebtPayments(userId)
+        for (dto in remotePayments) {
+            val local = debtPaymentDao.getByRemoteId(dto.remoteId)
+            if (dto.isDeleted) {
+                if (local != null) debtPaymentDao.softDeleteById(local.id, dto.updatedAt)
+                continue
+            }
+            if (local != null && local.updatedAt >= dto.updatedAt) continue
+
+            val debtLocalId = debtDao.getByRemoteId(dto.debtRemoteId)?.id
+            if (debtLocalId == null) {
+                Timber.w("PullSync: skipping debt payment ${dto.remoteId} — missing debt ${dto.debtRemoteId}")
+                continue
+            }
+
+            val transactionLocalId = if (dto.transactionRemoteId.isNotEmpty()) {
+                transactionDao.getByRemoteId(dto.transactionRemoteId)?.id
+            } else null
+
+            val entity = dto.toEntity(
+                localId = local?.id ?: 0,
+                fieldCipherHolder = fieldCipherHolder,
+                localDebtId = debtLocalId,
+                localTransactionId = transactionLocalId,
+            ) ?: continue
+            if (local == null) {
+                debtPaymentDao.insert(entity)
+            } else {
+                debtPaymentDao.upsertSync(listOf(entity.copy(id = local.id)))
             }
         }
     }

@@ -1,5 +1,7 @@
 package com.atelbay.money_manager.presentation.settings.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.animateColorAsState
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
 import androidx.compose.foundation.background
@@ -28,11 +30,13 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.SyncProblem
@@ -48,10 +52,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -74,12 +81,14 @@ fun SettingsScreen(
     onExportCsvClick: () -> Unit,
     onBudgetsClick: () -> Unit,
     onRecurringClick: () -> Unit,
+    onDebtsClick: () -> Unit,
     modifier: Modifier = Modifier,
     contentWindowInsets: WindowInsets = ScaffoldDefaults.contentWindowInsets,
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
     val s = MoneyManagerTheme.strings
+    val context = LocalContext.current
 
     Scaffold(
         modifier = modifier.testTag("settings:screen"),
@@ -282,6 +291,21 @@ fun SettingsScreen(
                     )
 
                     SettingRow(
+                        icon = Icons.Default.AccountBalanceWallet,
+                        iconColor = Color(0xFFF59E0B),
+                        title = s.debts,
+                        hasChevron = true,
+                        onClick = onDebtsClick,
+                        modifier = Modifier.testTag("settings:debts"),
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 0.5.dp,
+                        color = colors.borderSubtle,
+                    )
+
+                    SettingRow(
                         icon = Icons.Default.FileDownload,
                         iconColor = Color(0xFF60A5FA),
                         title = s.exportCsv,
@@ -369,6 +393,23 @@ fun SettingsScreen(
                         title = s.developerLabel,
                         rightText = "ATelbay",
                     )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 0.5.dp,
+                        color = colors.borderSubtle,
+                    )
+
+                    SettingRow(
+                        icon = Icons.Default.Description,
+                        iconColor = Color(0xFF60A5FA),
+                        title = s.privacyPolicy,
+                        hasChevron = true,
+                        onClick = {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(s.privacyPolicyUrl)))
+                        },
+                        modifier = Modifier.testTag("settings:privacyPolicy"),
+                    )
                 }
             }
 
@@ -388,7 +429,9 @@ private fun SectionHeader(title: String) {
         text = title.uppercase(),
         style = typography.caption,
         color = colors.textSecondary,
-        modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+        modifier = Modifier
+            .padding(start = 4.dp, bottom = 8.dp)
+            .semantics { heading() },
     )
 }
 
@@ -581,7 +624,7 @@ private fun LanguageSelector(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(40.dp)
+                    .height(48.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(bgColor)
                     .clickable { onSelect(language) }
@@ -632,6 +675,7 @@ private fun SettingsScreenPreview() {
             onExportCsvClick = {},
             onBudgetsClick = {},
             onRecurringClick = {},
+            onDebtsClick = {},
         )
     }
 }
