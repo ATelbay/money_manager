@@ -36,7 +36,7 @@ class DebtDetailViewModel @Inject constructor(
     getAccountsUseCase: GetAccountsUseCase,
 ) : ViewModel() {
 
-    private val debtId: Long = checkNotNull(savedStateHandle["debtId"])
+    private val debtId: Long = checkNotNull(savedStateHandle["id"])
 
     private val _state = MutableStateFlow(DebtDetailState())
     val state: StateFlow<DebtDetailState> = _state.asStateFlow()
