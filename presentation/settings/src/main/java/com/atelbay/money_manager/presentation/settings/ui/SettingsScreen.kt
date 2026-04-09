@@ -1,5 +1,7 @@
 package com.atelbay.money_manager.presentation.settings.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.animateColorAsState
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
 import androidx.compose.foundation.background
@@ -28,6 +30,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
@@ -49,6 +52,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -82,6 +86,7 @@ fun SettingsScreen(
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
     val s = MoneyManagerTheme.strings
+    val context = LocalContext.current
 
     Scaffold(
         modifier = modifier.testTag("settings:screen"),
@@ -385,6 +390,23 @@ fun SettingsScreen(
                         iconColor = Teal,
                         title = s.developerLabel,
                         rightText = "ATelbay",
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 0.5.dp,
+                        color = colors.borderSubtle,
+                    )
+
+                    SettingRow(
+                        icon = Icons.Default.Description,
+                        iconColor = Color(0xFF60A5FA),
+                        title = s.privacyPolicy,
+                        hasChevron = true,
+                        onClick = {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(s.privacyPolicyUrl)))
+                        },
+                        modifier = Modifier.testTag("settings:privacyPolicy"),
                     )
                 }
             }

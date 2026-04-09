@@ -281,6 +281,8 @@ data class AppStrings(
     val syncRetryHint: String,
     val updatedAt: (time: String) -> String,
     val rateError: String,
+    val privacyPolicy: String,
+    val privacyPolicyUrl: String,
 )
 
 val RussianStrings = AppStrings(
@@ -518,6 +520,8 @@ val RussianStrings = AppStrings(
     syncRetryHint = "Нажмите для повтора",
     updatedAt = { time -> "Обновлено $time" },
     rateError = "Не удалось обновить курс",
+    privacyPolicy = "Политика конфиденциальности",
+    privacyPolicyUrl = "https://arystanbay.github.io/MoneyManager/privacy-policy/",
 )
 
 val EnglishStrings = AppStrings(
@@ -755,6 +759,8 @@ val EnglishStrings = AppStrings(
     syncRetryHint = "Tap to retry",
     updatedAt = { time -> "Updated $time" },
     rateError = "Failed to update exchange rate",
+    privacyPolicy = "Privacy Policy",
+    privacyPolicyUrl = "https://arystanbay.github.io/MoneyManager/privacy-policy/",
 )
 
 val KazakhStrings = AppStrings(
@@ -992,6 +998,8 @@ val KazakhStrings = AppStrings(
     syncRetryHint = "Қайталау үшін басыңыз",
     updatedAt = { time -> "Жаңартылды $time" },
     rateError = "Бағамды жаңарту сәтсіз аяқталды",
+    privacyPolicy = "Құпиялылық саясаты",
+    privacyPolicyUrl = "https://arystanbay.github.io/MoneyManager/privacy-policy/",
 )
 
 val LocalStrings = staticCompositionLocalOf<AppStrings> { RussianStrings }
