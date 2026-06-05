@@ -74,6 +74,7 @@ Agent assets are stored agent-agnostically under `.agents/{skills,commands,agent
 | Verify Android/Kotlin API (context7 MCP + web) | `/web-search-android-docs` |
 | Gradle build error diagnostics | `/gradle-troubleshooting` |
 | Change analysis + Conventional Commits | `/git-conventional-commits` |
+| Merge a branch/PR (gh CLI, branch protection, no blind `--admin`) | `/merge-branch` |
 | MCP tools (context7, Firebase MCP) | `/mcp-tools` |
 | Reading/creating/referencing `.pen` UI designs | `/pencil-design` |
 | Stitch MCP: AI screen generation, design systems | `/stitch-design` |
