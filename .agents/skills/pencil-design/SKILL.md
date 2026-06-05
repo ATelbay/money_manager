@@ -64,9 +64,7 @@ Use this when designing new screens or modifying existing mockups.
 ### Get creative direction first
 
 ```
-mcp__pencil__get_guidelines(topic: "mobile-app")   # or "web-app", "design-system", "landing-page"
-mcp__pencil__get_style_guide_tags()                 # list available style tags
-mcp__pencil__get_style_guide(tags: ["mobile", "fintech", "clean", "dark-mode", "modern"])
+mcp__pencil__get_guidelines(category: "mobile-app")   # or "web-app", "design-system", "landing-page"
 ```
 
 ### Design operations

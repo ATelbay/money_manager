@@ -28,7 +28,7 @@ Create `domain/{name}/build.gradle.kts`:
 ```kotlin
 plugins {
     alias(libs.plugins.moneymanager.android.library)
-    // alias(libs.plugins.moneymanager.android.hilt)  // add only if UseCase requires @Inject deps
+    alias(libs.plugins.moneymanager.android.hilt)  // UseCases use @Inject — standard (see domain/transactions)
 }
 
 android {
@@ -36,7 +36,7 @@ android {
 }
 
 dependencies {
-    implementation(project(":core:model"))
+    implementation(projects.core.model)
 }
 ```
 
@@ -79,9 +79,9 @@ android {
 }
 
 dependencies {
-    implementation(project(":domain:{name}"))
-    implementation(project(":core:database"))
-    implementation(project(":core:model"))
+    implementation(projects.domain.{name})
+    implementation(projects.core.database)
+    implementation(projects.core.model)
 }
 ```
 
@@ -135,8 +135,8 @@ android {
 }
 
 dependencies {
-    implementation(project(":domain:{name}"))
-    implementation(project(":core:model"))
+    implementation(projects.domain.{name})
+    implementation(projects.core.model)
     // Do NOT add core:database — presentation must not depend on DB directly
 }
 ```
@@ -220,9 +220,9 @@ Both modules must be added — presentation for UI and data for Hilt DI wiring:
 
 ```kotlin
 // Presentation (UI + ViewModel + navigation)
-implementation(project(":presentation:{name}"))
+implementation(projects.presentation.{name})
 // Data (required for Hilt — data module must be on the :app classpath)
-implementation(project(":data:{name}"))
+implementation(projects.data.{name})
 ```
 
 > Without `data:{name}` in `app/build.gradle.kts` Hilt cannot find repository bindings and will fail at build time.

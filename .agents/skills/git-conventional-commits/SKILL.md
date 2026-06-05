@@ -15,7 +15,7 @@ user-invocable: true
    - `fix`: bug fix.
    - `test`: adding or updating UI tests (very important for this project!).
    - `refactor`: code refactoring without changing logic.
-   - `chore`: dependency updates (in `libs.versions.toml`), build configuration.
-4. Use the affected Gradle module or feature as `<scope>` (e.g., `import`, `database`, `ui`).
+   - `chore`: dependency/build/tooling/config changes and housekeeping (deps, docs, CI, agent config) not affecting runtime behavior.
+4. Use the affected Gradle module or feature as `<scope>` (e.g., `parser`, `import`, `statistics`, `nav`, `ui`).
 5. In the commit body, briefly explain the *reason* for the changes (why it was done), not just a list of changed files.
 6. Ask for confirmation before running `git commit`.

@@ -56,7 +56,7 @@ Agent assets are stored agent-agnostically under `.agents/{skills,commands,agent
 ./gradlew test
 ./gradlew connectedAndroidTest
 ./gradlew lint
-./gradlew detekt
+./gradlew :app:detekt
 ```
 
 ## Skills routing

@@ -12,7 +12,7 @@ The project uses Jetpack Compose + Material 3 (BOM 2026.01.01). All UIs are buil
 
 **Key files:**
 - `core/ui/src/.../theme/` — Color.kt, Type.kt, Theme.kt
-- `core/ui/src/.../components/` — reusable components (MoneyManagerButton, MoneyManagerTextField, MoneyManagerCard)
+- `core/ui/src/.../components/` — reusable components (MoneyManagerButton, MoneyManagerTextField, MoneyManagerCard, MoneyManagerFAB, MoneyManagerChip, MoneyManagerSegmentedButton, MoneyManagerBottomNavBar)
 - `presentation/*/src/.../ui/` — screens for each feature
 
 ## Process

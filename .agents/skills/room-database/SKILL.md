@@ -12,26 +12,30 @@ The project uses Room (2.8.4) for local storage and Preferences DataStore (1.1.7
 
 **Key files:**
 - `core/database/src/.../MoneyManagerDatabase.kt` — @Database class
-- `core/database/src/.../entity/` — AccountEntity.kt, CategoryEntity.kt, TransactionEntity.kt
-- `core/database/src/.../dao/` — AccountDao.kt, CategoryDao.kt, TransactionDao.kt
-- `core/database/src/.../DefaultCategories.kt` — 15 pre-installed categories
+- `core/database/src/.../entity/` — AccountEntity.kt, CategoryEntity.kt, TransactionEntity.kt, RecurringTransactionEntity.kt, BudgetEntity.kt, RegexParserProfileEntity.kt, DebtEntity.kt, DebtPaymentEntity.kt
+- `core/database/src/.../dao/` — AccountDao.kt, CategoryDao.kt, TransactionDao.kt, RecurringTransactionDao.kt, BudgetDao.kt, RegexParserProfileDao.kt, DebtDao.kt, DebtPaymentDao.kt
+- `core/database/src/.../DefaultCategories.kt` — 20 pre-installed categories
 - `core/database/src/.../di/DatabaseModule.kt` — Hilt module for Room
 - `core/datastore/src/.../UserPreferences.kt` — DataStore wrapper
 - `core/datastore/src/.../di/DataStoreModule.kt` — Hilt module for DataStore
 
 ## Entities
 
-3 entities with ForeignKeys:
+8 entities (`@Database(version = 8)`):
 
 - **AccountEntity** — bank accounts (name, currency, balance)
 - **CategoryEntity** — transaction categories (name, icon, type: INCOME/EXPENSE)
 - **TransactionEntity** — transactions (amount, date, description, type, accountId FK, categoryId FK)
+- **RecurringTransactionEntity** — recurring transaction templates
+- **BudgetEntity** — per-category budgets
+- **RegexParserProfileEntity** — cached bank parser configs (synced from Firestore)
+- **DebtEntity** / **DebtPaymentEntity** — debts and their payments
 
 ForeignKeys: TransactionEntity → AccountEntity, TransactionEntity → CategoryEntity
 
 ## Prepopulation
 
-15 pre-installed categories (10 expense + 5 income) are defined in `DefaultCategories.kt`.
+20 pre-installed categories (12 expense + 8 income) are defined in `DefaultCategories.kt`.
 Loaded via `RoomDatabase.Callback.onCreate` — inserted ONCE on first database creation.
 
 ## DataStore (UserPreferences)
@@ -41,6 +45,13 @@ Loaded via `RoomDatabase.Callback.onCreate` — inserted ONCE on first database 
 | `onboarding_completed` | Boolean | Whether onboarding has been completed |
 | `selected_account_id` | Long? | Currently selected account |
 | `theme_mode` | String | Theme: `"system"`, `"light"`, `"dark"` |
+| `language_code` | String | App language |
+| `base_currency` / `target_currency` | String | Currency selection |
+| `usd_kzt_rate`, `exchange_quotes_json`, … | Double/String | Cached exchange rates |
+| `ai_parser_configs`, `ai_table_parser_configs`, `parser_configs_global_version` | String/Long | Cached parser configs |
+| `anonymous_device_id` | String | Anonymous device id for sync |
+
+(See `UserPreferences.kt` companion object for the full list of ~15 keys.)
 
 ## Cloud Sync (core:firestore + data:sync)
 

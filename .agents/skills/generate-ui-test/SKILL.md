@@ -1,6 +1,6 @@
 ---
 name: generate-ui-test
-description: "Covers UI test generation for Money Manager screens: Compose Testing with ComposeTestRule and HiltAndroidTest, testTag-based assertions, and test categories (happy path, error states, empty states, edge cases). Use when: writing or generating instrumented UI tests for any presentation module, adding test coverage for a new screen, verifying testTag naming compliance, or setting up a new androidTest class with Hilt integration."
+description: "Covers UI test generation for Money Manager screens: Compose Testing with createAndroidComposeRule (rendering the stateless Screen with a State object — no Hilt), testTag-based assertions, and test categories (happy path, error states, empty states, edge cases). Use when: writing or generating instrumented UI tests for any presentation module, adding test coverage for a new screen, verifying testTag naming compliance, or setting up a new androidTest class."
 user-invocable: true
 ---
 
@@ -25,20 +25,14 @@ Money Manager is the foundation for a master's thesis on UI automation testing. 
 
 ### Step 2: Prepare the test class
 ```kotlin
-@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class {Feature}ScreenTest {
 
-    @get:Rule(order = 0)
-    val hiltRule = HiltAndroidRule(this)
-
-    @get:Rule(order = 1)
+    @get:Rule
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
-    @Before
-    fun setup() {
-        hiltRule.inject()
-    }
+    // Render the stateless Screen directly with a State object + MoneyManagerTheme —
+    // no Hilt in UI tests (real tests, e.g. StatisticsChartRenderTest, use this pattern).
 }
 ```
 
@@ -105,7 +99,7 @@ Format: `"screen:element"` or `"screen:element_index"` for lists.
 - Minimum 3 tests per screen: happy path, error state, empty state
 - Every `testTag` in a Screen must be tested in at least one test
 - Tests do NOT depend on each other (each is isolated)
-- Use `createAndroidComposeRule`, NOT `createComposeRule`, for Hilt integration
+- Use `createAndroidComposeRule<ComponentActivity>()`, NOT `createComposeRule` — tests launch a real Activity
 - Create test data via factories/builders, do not hardcode
 
 ## Anti-patterns
@@ -114,5 +108,5 @@ Format: `"screen:element"` or `"screen:element_index"` for lists.
 - Do NOT use `Thread.sleep()` — use `waitUntil*` or `IdlingResource`
 - Do NOT rely on test execution order
 - Do NOT test ViewModel logic in UI tests — use unit tests for that
-- Do NOT mock Compose components — mock data/repositories via Hilt testing
+- Do NOT mock Compose components — drive the stateless Screen with a hand-built State object
 - Do NOT forget `assertIsDisplayed()` before `performClick()` — the element may be off-screen

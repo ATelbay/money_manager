@@ -26,17 +26,15 @@ junit = "4.13.2"
 | UI/Instrumented | `presentation/*/src/androidTest/` | `./gradlew connectedAndroidTest` |
 
 Examples:
-- `domain/transactions/src/test/` — UseCase tests
-- `data/transactions/src/test/` — mapper tests, RepositoryImpl tests (with mocked DAO)
-- `presentation/transactions/src/test/` — ViewModel tests
+- `domain/import/src/test/` — UseCase tests
+- `data/exchangerate/src/test/` — mapper / RepositoryImpl tests (with mocked DAO/API)
+- `presentation/transactions/src/test/` — ViewModel tests (`TransactionListViewModelTest`)
 
 **build.gradle.kts** (add to the relevant module):
 ```kotlin
 dependencies {
-    testImplementation(libs.junit)
-    testImplementation(libs.mockk)
-    testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.turbine)
+    // bundle = junit + kotlinx-coroutines-test + turbine + mockk (see [bundles] testing in libs.versions.toml)
+    testImplementation(libs.bundles.testing)
 }
 ```
 
