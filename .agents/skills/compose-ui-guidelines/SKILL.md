@@ -1,5 +1,7 @@
 ---
-description: "Jetpack Compose rules in Money Manager: naming conventions (Screen/Route/ViewModel/State), State Hoisting, testTag, Material 3, UI scenarios for testing"
+name: compose-ui-guidelines
+description: "Covers Jetpack Compose + Material 3 conventions in Money Manager: Screen/Route/ViewModel/State naming, State Hoisting pattern (stateless Screen + stateful Route with hiltViewModel), mandatory testTag format ('screen:element'), ImmutableList in State, reusable components from core:ui, and UI scenarios for automated testing (forms, LazyColumn, BottomSheet, DatePicker, Vico charts, swipe-to-delete). Use when: creating or reviewing any Compose screen, adding testTags, choosing between Screen vs Route, using MoneyManagerButton/TextField/Card, setting up Previews with MoneyManagerTheme, or designing UI scenarios for UI automation tests."
+user-invocable: true
 ---
 
 # Compose UI Guidelines
@@ -10,7 +12,7 @@ The project uses Jetpack Compose + Material 3 (BOM 2026.01.01). All UIs are buil
 
 **Key files:**
 - `core/ui/src/.../theme/` — Color.kt, Type.kt, Theme.kt
-- `core/ui/src/.../components/` — reusable components (MoneyManagerButton, MoneyManagerTextField, MoneyManagerCard)
+- `core/ui/src/.../components/` — reusable components (MoneyManagerButton, MoneyManagerTextField, MoneyManagerCard, MoneyManagerFAB, MoneyManagerChip, MoneyManagerSegmentedButton, MoneyManagerBottomNavBar)
 - `presentation/*/src/.../ui/` — screens for each feature
 
 ## Process

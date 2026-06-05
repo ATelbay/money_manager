@@ -1,5 +1,7 @@
 ---
-description: "Importing bank statements into Money Manager: PDF parsing (PdfBox), RegEx parser, Gemini AI fallback, BankDetector, parsing strategy, supported banks"
+name: pdf-and-ai-parsing
+description: "Covers bank statement import in Money Manager: PDF text extraction with PdfBox-Android, bank detection via BankDetector, RegEx parsing from RegexParserProfile (synced Firestore → Room cache), and Gemini AI fallback in ParseStatementUseCase. Use when: adding or modifying a supported bank parser, debugging import failures, changing the Gemini AI fallback prompt, working with ParsedTransaction/ImportResult models, or writing unit tests for core/parser."
+user-invocable: true
 ---
 
 # PDF & AI Statement Parsing
@@ -15,7 +17,7 @@ Feature for automatically importing transactions from a bank's PDF statement. Tw
 - `core/parser/src/.../StatementParser.kt` — facade: extract → detect → regex parse
 - `core/ai/src/.../GeminiService.kt` — Gemini AI interface
 - `core/ai/src/.../GeminiServiceImpl.kt` — send blobs (PDF/image) to Gemini, responseMimeType=JSON
-- `core/remoteconfig/src/.../ParserConfigProvider.kt` — regex pattern config (Firebase Remote Config + defaults)
+- `core/remoteconfig/src/.../RegexParserProfileProvider.kt` (impl `FirebaseRegexParserProfileProvider.kt`) — regex configs read from Room (synced from Firestore `parser_configs`; bundled defaults in `core/remoteconfig/src/main/res/raw/default_parser_config.json`). Firebase Remote Config holds only feature flags (`ai_full_parse_enabled`, `gemini_model_name`).
 - `domain/import/src/main/java/com/atelbay/money_manager/domain/importstatement/usecase/ParseStatementUseCase.kt` — orchestration: RegEx → fallback Gemini → deduplication
 - `domain/import/src/main/java/com/atelbay/money_manager/domain/importstatement/usecase/ImportTransactionsUseCase.kt` — save to Room, fallback to "Other" category
 - `core/model/src/.../TransactionOverride.kt` — user edits per-transaction
@@ -66,7 +68,7 @@ Home → Import icon → Import screen
 
 ## Models
 
-- **ParsedTransaction** — recognized transaction (date, amount, type, details, categoryId, confidence, needsReview, uniqueHash)
+- **ParsedTransaction** — recognized transaction (date, amount, type, details, operationType, categoryId, confidence, needsReview, uniqueHash)
 - **ImportResult** — parsing result (total, newTransactions, duplicates, errors)
 - **ImportState** — sealed interface (Idle, Parsing, Preview, Importing, Success, Error)
 - **TransactionOverride** — user edits (amount?, type?, details?, date?, categoryId?)
@@ -80,8 +82,9 @@ Home → Import icon → Import screen
 | Forte Bank | `forte` | `DD.MM.YYYY [-]amount KZT Operation Details` | `negative_sign_means_expense`, `join_lines` |
 | Bereke Bank | `bereke` | `DD.MM.YYYY TransactionType Description amount CURR [-]amount [**** XXXX]` | `use_named_groups`, `negative_sign_means_expense`, `comma_dot` |
 | Eurasian Bank | `eurasian` | `DD.MM.YYYY [HH:mm:ss] OperationType Details txAmt CURR [+-]accAmt [Card/Account]` | `use_named_groups`, `negative_sign_means_expense`, `deduplicate_max_amount` |
+| Halyk Bank | `halyk` | (config synced from Firestore) | — |
 
-### ParserConfig — new fields (Forte/Bereke/Eurasian)
+### RegexParserProfile — flags (Forte/Bereke/Eurasian)
 
 | Field | Type | Purpose |
 |-------|------|---------|
@@ -98,14 +101,14 @@ Home → Import icon → Import screen
 
 ### Adding a new bank
 1. Add bank markers to `BankDetector.kt`
-2. Add regex pattern to Firebase Remote Config (or to defaults in `ParserConfigProvider`)
+2. Add regex pattern to the Firestore `parser_configs` collection (or to bundled defaults in `core/remoteconfig/src/main/res/raw/default_parser_config.json`)
 3. Add unit tests for the new format in `core/parser/src/test/`
 4. Check edge cases: different date formats, amounts with spaces, negative amounts
 
 ### Modifying AI fallback
 1. Gemini prompt is defined in `GeminiServiceImpl.kt`
 2. Response format — JSON (responseMimeType="application/json")
-3. Model: Gemini 2.5 Flash via Firebase AI SDK
+3. Model: `gemini-3-flash-preview` (DEFAULT_GEMINI_MODEL; overridable via Remote Config `gemini_model_name`) over the Firebase AI SDK
 
 ## testTag naming
 

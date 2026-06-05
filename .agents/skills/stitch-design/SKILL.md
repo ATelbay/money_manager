@@ -1,5 +1,7 @@
 ---
-description: "Stitch MCP — AI generation of UI screens from text prompts, design system management (colors, fonts, shapes), creating design variants. Use when prototyping new screens or exploring alternative layouts."
+name: stitch-design
+description: "Covers Stitch MCP for AI-driven UI screen generation from text prompts, design system creation and application (colors, fonts, roundness), generating variants, and integrating Stitch outputs with Pencil and speckit workflows. Use when: prototyping new screens from a feature description, exploring layout alternatives, creating or applying a design system to generated screens, or referencing Stitch projects/screens in spec.md and tasks.md."
+user-invocable: true
 ---
 
 # Stitch MCP — AI Screen Generation and Design Systems

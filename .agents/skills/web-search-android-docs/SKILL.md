@@ -1,5 +1,7 @@
 ---
-description: "Verifying Android APIs via documentation search: Jetpack Compose, Navigation 2.9+, Hilt, Material 3, Room — preventing hallucinations with outdated methods"
+name: web-search-android-docs
+description: "Covers API verification for the Money Manager Android stack via context7 MCP and WebSearch/WebFetch, with a full trigger table for libraries that change frequently (Navigation Compose, Material 3, Hilt, Room, Vico, Firebase AI, Coil 3, Turbine). Use when: about to write code using any Jetpack/Firebase/Kotlin library, unsure whether an API is current, or needing to confirm method signatures, deprecations, or version-specific behaviour."
+user-invocable: true
 ---
 
 # Web Search Android Docs

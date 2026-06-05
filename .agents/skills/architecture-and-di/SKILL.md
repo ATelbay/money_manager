@@ -1,5 +1,7 @@
 ---
-description: "Money Manager project architecture: layer-centric multi-module structure, Gradle Convention Plugins, Hilt DI, Type-Safe Navigation, UI State pattern (MVVM + Clean Architecture)"
+name: architecture-and-di
+description: "Covers Money Manager's layer-centric multi-module architecture (43 Gradle modules across app/domain/data/presentation/core), Convention Plugins (moneymanager.android.library/feature/hilt), Hilt DI setup, Type-Safe Navigation with 21 @Serializable destinations, and the MVVM UI State pattern. Use when: adding a new feature module or core module, wiring Hilt DI, defining navigation destinations in Destinations.kt or MoneyManagerNavHost.kt, enforcing layer dependency rules (presentation never depends on core:database), troubleshooting 'cannot find repository binding' Hilt errors, or referencing the full module map."
+user-invocable: true
 ---
 
 # Architecture & Dependency Injection
@@ -32,7 +34,8 @@ MoneyManager/
 │   ├── exchangerate/                # :domain:exchangerate — ExchangeRateRepository + UseCases
 │   ├── sync/                        # :domain:sync
 │   ├── recurring/                   # :domain:recurring
-│   └── budgets/                     # :domain:budgets
+│   ├── budgets/                     # :domain:budgets
+│   └── debts/                       # :domain:debts
 ├── data/                            # Data layer
 │   ├── transactions/                # :data:transactions — TransactionRepositoryImpl + mapper
 │   ├── categories/                  # :data:categories — CategoryRepositoryImpl + mapper
@@ -41,7 +44,8 @@ MoneyManager/
 │   ├── exchangerate/                # :data:exchangerate — Exchange rate API client
 │   ├── sync/                        # :data:sync — SyncManager: Room ↔ Firestore
 │   ├── recurring/                   # :data:recurring
-│   └── budgets/                     # :data:budgets
+│   ├── budgets/                     # :data:budgets
+│   └── debts/                       # :data:debts
 ├── presentation/                    # Presentation layer
 │   ├── transactions/                # :presentation:transactions — TransactionList + Edit screens
 │   ├── categories/                  # :presentation:categories — CategoryList + Edit screens
@@ -52,7 +56,8 @@ MoneyManager/
 │   ├── onboarding/                  # :presentation:onboarding — Onboarding screen
 │   ├── auth/                        # :presentation:auth — SignIn screen
 │   ├── recurring/                   # :presentation:recurring
-│   └── budgets/                     # :presentation:budgets
+│   ├── budgets/                     # :presentation:budgets
+│   └── debts/                       # :presentation:debts
 ├── core/
 │   ├── model/                       # :core:model — Domain models (pure data classes, no Android)
 │   ├── database/                    # :core:database — Room DB, Entities, DAOs
@@ -117,7 +122,7 @@ MoneyManager/
 
 ## Navigation (Type-Safe)
 
-19 destinations in `app/.../navigation/Destinations.kt`:
+21 destinations in `app/.../navigation/Destinations.kt`:
 ```kotlin
 @Serializable data object Onboarding
 @Serializable data object OnboardingSetup
@@ -132,12 +137,14 @@ MoneyManager/
 @Serializable data class AccountEdit(val id: Long? = null)
 @Serializable data object Settings
 @Serializable data class Import(val pdfUri: String? = null)
-@Serializable data class CurrencyPicker(val activeSide: CurrencyPickerSide = CurrencyPickerSide.BASE)
+@Serializable data class CurrencyPicker(val activeSide: CurrencyPickerSide = CurrencyPickerSide.FIRST)
 @Serializable data object SignIn
 @Serializable data object RecurringList
 @Serializable data class RecurringEdit(val id: Long? = null)
 @Serializable data object BudgetList
 @Serializable data class BudgetEdit(val id: Long? = null)
+@Serializable data object DebtList
+@Serializable data class DebtDetail(val id: Long)
 ```
 
 4 top-level destinations (Bottom Nav):
@@ -172,6 +179,7 @@ Statistics → CurrencyPicker (base/quote currency selection)
 
 RecurringList → RecurringEdit(id) / FAB → RecurringEdit()
 BudgetList → BudgetEdit(id) / FAB → BudgetEdit()
+DebtList → DebtDetail(id)
 ```
 
 ## UI State Pattern

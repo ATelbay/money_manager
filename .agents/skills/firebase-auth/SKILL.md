@@ -1,5 +1,7 @@
 ---
-description: "Firebase Auth + CredentialManager in Money Manager: Google Sign-In, 4-module structure (core:auth, domain:auth, data:auth, presentation:auth), Coil 3 for profile photo"
+name: firebase-auth
+description: "Covers Firebase Auth + CredentialManager Google Sign-In in Money Manager: 4-module structure (core:auth, domain:auth, data:auth, presentation:auth), BOM 34+ merged ktx API, runtime Web Client ID resolution, SignInViewModel/State pattern, and Coil 3 profile photo. Use when: implementing or modifying authentication flows, adding sign-in/sign-out logic, integrating Firebase Auth with Hilt, displaying profile photos with Coil 3, or wiring the SignIn destination into NavHost."
+user-invocable: true
 ---
 
 # Firebase Auth & Google Sign-In
@@ -9,15 +11,15 @@ description: "Firebase Auth + CredentialManager in Money Manager: Google Sign-In
 Optional authentication via Google Sign-In is implemented using Firebase Auth and the Android CredentialManager API. The app works fully without sign-in — authorization only adds capabilities (sync, profile).
 
 **4 modules:**
-- `core:auth` — CredentialManager wrapper, GoogleSignInHelper
+- `core:auth` — CredentialManager wrapper (FirebaseAuthManager, AuthManager), AuthUser model
 - `domain:auth` — AuthRepository interface + UseCases
-- `data:auth` — FirebaseAuthRepositoryImpl + Hilt DI
+- `data:auth` — AuthRepositoryImpl + Hilt DI
 - `presentation:auth` — SignInRoute, SignInScreen, SignInViewModel, SignInState
 
 **Key files:**
-- `core/auth/src/.../CredentialManagerHelper.kt` — CredentialManager wrapper
+- `core/auth/src/.../FirebaseAuthManager.kt` — CredentialManager wrapper
 - `domain/auth/src/.../repository/AuthRepository.kt` — repository interface
-- `data/auth/src/.../repository/FirebaseAuthRepositoryImpl.kt` — implementation
+- `data/auth/src/.../repository/AuthRepositoryImpl.kt` — implementation
 - `presentation/auth/src/.../ui/SignInViewModel.kt` — ViewModel
 - `presentation/auth/src/.../ui/SignInScreen.kt` — UI
 
@@ -57,13 +59,12 @@ googleid = "1.1.1"
 suspend fun signInWithGoogle(context: Context): String {
     val credentialManager = CredentialManager.create(context)
 
-    val googleIdOption = GetGoogleIdOption.Builder()
-        .setFilterByAuthorizedAccounts(false)  // show all accounts
-        .setServerClientId(getWebClientId(context))
+    val signInWithGoogleOption = GetSignInWithGoogleOption
+        .Builder(getWebClientId(context))
         .build()
 
     val request = GetCredentialRequest.Builder()
-        .addCredentialOption(googleIdOption)
+        .addCredentialOption(signInWithGoogleOption)
         .build()
 
     val result = credentialManager.getCredential(context, request)
@@ -102,12 +103,12 @@ fun getWebClientId(context: Context): String {
 ```kotlin
 // domain/auth/.../repository/AuthRepository.kt
 interface AuthRepository {
-    fun observeAuthState(): Flow<AuthUser?>
+    fun observeCurrentUser(): Flow<AuthUser?>
     suspend fun signInWithGoogle(context: Context): Result<AuthUser>
     suspend fun signOut(context: Context)
 }
 
-// User model (in core:model)
+// User model (in core:auth)
 data class AuthUser(
     val uid: String,
     val displayName: String?,
@@ -119,10 +120,10 @@ data class AuthUser(
 ## UseCases
 
 ```kotlin
-class ObserveAuthStateUseCase @Inject constructor(
+class ObserveAuthUserUseCase @Inject constructor(
     private val repository: AuthRepository,
 ) {
-    operator fun invoke(): Flow<AuthUser?> = repository.observeAuthState()
+    operator fun invoke(): Flow<AuthUser?> = repository.observeCurrentUser()
 }
 
 class SignInWithGoogleUseCase @Inject constructor(
@@ -144,9 +145,9 @@ class SignOutUseCase @Inject constructor(
 ```kotlin
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class AuthModule {
+abstract class AuthDataModule {
     @Binds
-    abstract fun bindAuthRepository(impl: FirebaseAuthRepositoryImpl): AuthRepository
+    abstract fun bindAuthRepository(impl: AuthRepositoryImpl): AuthRepository
 }
 ```
 
@@ -154,14 +155,14 @@ abstract class AuthModule {
 
 ```kotlin
 data class SignInState(
-    val currentUser: AuthUser? = null,
+    val user: AuthUser? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
 )
 
 @HiltViewModel
 class SignInViewModel @Inject constructor(
-    private val observeAuthStateUseCase: ObserveAuthStateUseCase,
+    private val observeAuthUserUseCase: ObserveAuthUserUseCase,
     private val signInWithGoogleUseCase: SignInWithGoogleUseCase,
     private val signOutUseCase: SignOutUseCase,
 ) : ViewModel() {
@@ -169,8 +170,8 @@ class SignInViewModel @Inject constructor(
     val state: StateFlow<SignInState> = _state.asStateFlow()
 
     init {
-        observeAuthStateUseCase()
-            .onEach { user -> _state.update { it.copy(currentUser = user) } }
+        observeAuthUserUseCase()
+            .onEach { user -> _state.update { it.copy(user = user) } }
             .launchIn(viewModelScope)
     }
 
@@ -198,14 +199,14 @@ The group changed from `io.coil-kt` to `io.coil-kt.coil3`. Use the correct artif
 coil3 = "3.3.0"
 
 [libraries]
-coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil3" }
-coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil3" }
+coil3-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil3" }
+coil3-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil3" }
 ```
 
 ```kotlin
 // Display profile photo
 AsyncImage(
-    model = state.currentUser?.photoUrl,
+    model = state.user?.photoUrl,
     contentDescription = "Profile photo",
     modifier = Modifier
         .size(48.dp)
@@ -242,7 +243,7 @@ composable<SignIn> {
 - Handle all states: loading, signed-in, signed-out, error
 - Auth is optional — the app must work without sign-in without crashing
 - Clear credential state on sign-out via `clearCredentialState()`
-- `currentUser` = `null` is not an error — it means anonymous usage
+- `user` = `null` is not an error — it means anonymous usage
 
 ## Anti-patterns
 

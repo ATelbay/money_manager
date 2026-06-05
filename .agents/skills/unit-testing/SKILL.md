@@ -1,5 +1,7 @@
 ---
-description: "Unit testing in Money Manager: ViewModel tests, UseCase tests, MockK for mocking, Turbine for Flow, MainDispatcherRule, test placement per module"
+name: unit-testing
+description: "Covers JVM unit tests for Money Manager: ViewModel tests with MainDispatcherRule, UseCase tests, mapper round-trip tests, MockK for mocking (including suspend functions and Flow), and Turbine for Flow assertions. Use when: writing or reviewing unit tests for any ViewModel, UseCase, or mapper, setting up test dependencies in a new module's build.gradle.kts, or debugging coroutine/Flow test failures."
+user-invocable: true
 ---
 
 # Unit Testing
@@ -24,17 +26,15 @@ junit = "4.13.2"
 | UI/Instrumented | `presentation/*/src/androidTest/` | `./gradlew connectedAndroidTest` |
 
 Examples:
-- `domain/transactions/src/test/` — UseCase tests
-- `data/transactions/src/test/` — mapper tests, RepositoryImpl tests (with mocked DAO)
-- `presentation/transactions/src/test/` — ViewModel tests
+- `domain/import/src/test/` — UseCase tests
+- `data/exchangerate/src/test/` — mapper / RepositoryImpl tests (with mocked DAO/API)
+- `presentation/transactions/src/test/` — ViewModel tests (`TransactionListViewModelTest`)
 
 **build.gradle.kts** (add to the relevant module):
 ```kotlin
 dependencies {
-    testImplementation(libs.junit)
-    testImplementation(libs.mockk)
-    testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.turbine)
+    // bundle = junit + kotlinx-coroutines-test + turbine + mockk (see [bundles] testing in libs.versions.toml)
+    testImplementation(libs.bundles.testing)
 }
 ```
 

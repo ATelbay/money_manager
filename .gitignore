@@ -99,6 +99,11 @@ scripts/ralph/.last-branch
 scripts/ralph/artifacts/
 scripts/ralph/archive/
 
+# Claude Code — fully ignored (agent-specific dir, not the source of truth).
+# Agent assets live agent-agnostically in .agents/{skills,commands,agents};
+# .claude/* are just symlinks into it, recreated after clone by scripts/setup-agents.sh.
+.claude/
+
 # Temp notes
 temp/
 

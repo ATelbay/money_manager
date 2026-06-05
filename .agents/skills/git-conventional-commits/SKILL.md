@@ -1,0 +1,21 @@
+---
+name: git-conventional-commits
+description: "Covers analyzing git changes and composing commit messages in Conventional Commits format (feat/fix/test/refactor/chore) with correct scope and a why-focused body. Use when: about to commit code changes, reviewing a diff before committing, or formatting a commit message for any Money Manager module."
+user-invocable: true
+---
+
+# Git Conventional Commits
+
+## Process
+
+1. Run `git status` and `git diff` to analyze uncommitted changes.
+2. Form a commit message strictly in the format: `<type>(<scope>): <subject>`
+3. Choose the correct `<type>`:
+   - `feat`: new functionality (e.g., PDF parser).
+   - `fix`: bug fix.
+   - `test`: adding or updating UI tests (very important for this project!).
+   - `refactor`: code refactoring without changing logic.
+   - `chore`: dependency/build/tooling/config changes and housekeeping (deps, docs, CI, agent config) not affecting runtime behavior.
+4. Use the affected Gradle module or feature as `<scope>` (e.g., `parser`, `import`, `statistics`, `nav`, `ui`).
+5. In the commit body, briefly explain the *reason* for the changes (why it was done), not just a list of changed files.
+6. Ask for confirmation before running `git commit`.

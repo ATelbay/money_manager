@@ -1,5 +1,7 @@
 ---
-description: "MCP tools in Money Manager: context7 for library documentation lookup, Firebase MCP for project operations, Playwright — not applicable for Android"
+name: mcp-tools
+description: "Covers all MCP servers available in Money Manager: context7 for library documentation lookup (resolve-library-id → query-docs), Firebase MCP for project operations (SHA fingerprints, SDK config, security rules), and IDE MCP for compiler diagnostics. Use when: looking up Jetpack Compose / Room / Hilt / Vico API docs, configuring Firebase project settings, adding SHA fingerprints, verifying google-services.json, or running a quick type-check without a full Gradle build."
+user-invocable: true
 ---
 
 # MCP Tools
