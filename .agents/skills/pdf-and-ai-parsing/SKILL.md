@@ -1,5 +1,7 @@
 ---
-description: "Importing bank statements into Money Manager: PDF parsing (PdfBox), RegEx parser, Gemini AI fallback, BankDetector, parsing strategy, supported banks"
+name: pdf-and-ai-parsing
+description: "Covers bank statement import in Money Manager: PDF text extraction with PdfBox-Android, bank detection via BankDetector, RegEx parsing from ParserConfig (Firebase Remote Config), and Gemini AI fallback in ParseStatementUseCase. Use when: adding or modifying a supported bank parser, debugging import failures, changing the Gemini AI fallback prompt, working with ParsedTransaction/ImportResult models, or writing unit tests for core/parser."
+user-invocable: true
 ---
 
 # PDF & AI Statement Parsing

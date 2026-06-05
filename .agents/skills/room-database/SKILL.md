@@ -1,5 +1,7 @@
 ---
-description: "Room Database and DataStore in Money Manager: entities (Account, Category, Transaction), DAO, migrations, ForeignKeys, prepopulation, Preferences DataStore"
+name: room-database
+description: "Covers Room (2.8.4) and Preferences DataStore (1.1.7) in Money Manager: AccountEntity/CategoryEntity/TransactionEntity with ForeignKeys, DAO patterns (Flow queries, @Insert REPLACE, @Delete), schema migrations, prepopulated DefaultCategories, DataStore UserPreferences keys, and the cloud sync modules (core:firestore + data:sync). Use when: adding a new Room entity or DAO, writing or incrementing a database migration, reading/writing DataStore preferences, wiring a new DAO into DatabaseModule.kt, or understanding how Room integrates with Firestore sync."
+user-invocable: true
 ---
 
 # Room Database & DataStore

@@ -1,5 +1,7 @@
 ---
-description: "Pencil MCP tools for reading, creating, and referencing UI designs in .pen files. Use when implementing UI features with design mockups or creating new screen designs."
+name: pencil-design
+description: "Covers Pencil MCP tools for reading, creating, and referencing UI designs in encrypted .pen files: get_editor_state, get_screenshot, batch_get, snapshot_layout, batch_design, export_nodes, and passing design references to other agents. Use when: implementing a UI screen from a .pen mockup, extracting exact colors/spacing/fonts for Compose, designing new screens in Pencil, or wiring design node IDs into speckit spec.md and tasks.md."
+user-invocable: true
 ---
 
 # Pencil MCP — Design Reference & Creation
@@ -98,6 +100,15 @@ PNG fallbacks (if editor is unavailable): specs/<feature>/design/<filename>.png
 ```
 
 Key principle: reference frames **by name**, not by node ID — IDs may change if the design is recreated. The agent should use `get_editor_state` to discover current IDs by matching frame names.
+
+## Money Manager — design file & Speckit workflow
+
+- **Design file location:** `~/Documents/pencil/money_manager_ds/money_manager_screens.pen`.
+- When a UI feature has a `.pen` design, ALWAYS add a **Design Reference** section to `spec.md`:
+  - the `.pen` file path;
+  - the relevant screen frame(s) — reference them **by name** (preferred); node IDs for light + dark variants (e.g. `rktgn`, `rGZ2b`) may be listed as a convenience snapshot, but treat them as ephemeral;
+  - instruction to use pencil MCP `get_screenshot(nodeId)` and `batch_get(nodeIds)` during implementation to verify visually.
+- Propagate the key frame names (and current node IDs) into the individual `tasks.md` items so each implementing agent can screenshot and compare the specific component it builds — context is cleared between Speckit steps, so this must be self-contained per task.
 
 ## Anti-patterns
 

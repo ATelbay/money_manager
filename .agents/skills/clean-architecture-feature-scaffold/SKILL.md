@@ -1,5 +1,7 @@
 ---
-description: "New feature generator for Money Manager: creates 3 Gradle modules (domain/data/presentation) with Clean Architecture — Repository, UseCase, ViewModel, Screen, Route, Hilt DI, navigation"
+name: clean-architecture-feature-scaffold
+description: "Step-by-step generator for new Money Manager features: creates domain/{name} (Repository interface + UseCases), data/{name} (RepositoryImpl + Mapper + Hilt @Binds module), and presentation/{name} (State, HiltViewModel, stateless Screen, stateful Route) with exact build.gradle.kts templates, settings.gradle.kts registration, app module wiring, and testTag conventions. Use when: scaffolding any new feature from scratch, creating a new Gradle module triplet (domain+data+presentation), adding a new Repository + UseCase pair, wiring Hilt DI for a new feature, or registering a new navigation destination."
+user-invocable: true
 ---
 
 # Clean Architecture Feature Scaffold

@@ -1,5 +1,7 @@
 ---
-description: "Gradle build troubleshooting in Money Manager: diagnosing assembleDebug, test, Version Catalogs, Hilt/KSP, Navigation Compose errors"
+name: gradle-troubleshooting
+description: "Covers Gradle build error diagnosis for the Money Manager multi-module project: Convention Plugins, Version Catalogs, KSP/Hilt wiring, Type-Safe Navigation serialization, and assembleDebug/test failures. Use when: a Gradle build fails, a module is missing a plugin, dependencies are incompatible, or KSP/Hilt annotation processing errors appear."
+user-invocable: true
 ---
 
 # Gradle Troubleshooting

@@ -1,5 +1,7 @@
 ---
-description: "Use for analyzing changes (git diff) and creating commits in Conventional Commits format."
+name: git-conventional-commits
+description: "Covers analyzing git changes and composing commit messages in Conventional Commits format (feat/fix/test/refactor/chore) with correct scope and a why-focused body. Use when: about to commit code changes, reviewing a diff before committing, or formatting a commit message for any Money Manager module."
+user-invocable: true
 ---
 
 # Git Conventional Commits

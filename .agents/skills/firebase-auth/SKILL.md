@@ -1,5 +1,7 @@
 ---
-description: "Firebase Auth + CredentialManager in Money Manager: Google Sign-In, 4-module structure (core:auth, domain:auth, data:auth, presentation:auth), Coil 3 for profile photo"
+name: firebase-auth
+description: "Covers Firebase Auth + CredentialManager Google Sign-In in Money Manager: 4-module structure (core:auth, domain:auth, data:auth, presentation:auth), BOM 34+ merged ktx API, runtime Web Client ID resolution, SignInViewModel/State pattern, and Coil 3 profile photo. Use when: implementing or modifying authentication flows, adding sign-in/sign-out logic, integrating Firebase Auth with Hilt, displaying profile photos with Coil 3, or wiring the SignIn destination into NavHost."
+user-invocable: true
 ---
 
 # Firebase Auth & Google Sign-In

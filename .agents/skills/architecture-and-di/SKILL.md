@@ -1,5 +1,7 @@
 ---
-description: "Money Manager project architecture: layer-centric multi-module structure, Gradle Convention Plugins, Hilt DI, Type-Safe Navigation, UI State pattern (MVVM + Clean Architecture)"
+name: architecture-and-di
+description: "Covers Money Manager's layer-centric multi-module architecture (41 Gradle modules across domain/data/presentation/core), Convention Plugins (moneymanager.android.library/feature/hilt), Hilt DI setup, Type-Safe Navigation with 19 @Serializable destinations, and the MVVM UI State pattern. Use when: adding a new feature module or core module, wiring Hilt DI, defining navigation destinations in Destinations.kt or MoneyManagerNavHost.kt, enforcing layer dependency rules (presentation never depends on core:database), troubleshooting 'cannot find repository binding' Hilt errors, or referencing the full module map."
+user-invocable: true
 ---
 
 # Architecture & Dependency Injection

@@ -1,5 +1,7 @@
 ---
-description: "Generating UI tests for Money Manager: Compose Testing, ComposeTestRule, testTag, screen coverage, happy path, error states, empty states, edge cases"
+name: generate-ui-test
+description: "Covers UI test generation for Money Manager screens: Compose Testing with ComposeTestRule and HiltAndroidTest, testTag-based assertions, and test categories (happy path, error states, empty states, edge cases). Use when: writing or generating instrumented UI tests for any presentation module, adding test coverage for a new screen, verifying testTag naming compliance, or setting up a new androidTest class with Hilt integration."
+user-invocable: true
 ---
 
 # Generate UI Test

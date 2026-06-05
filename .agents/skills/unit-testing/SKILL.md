@@ -1,5 +1,7 @@
 ---
-description: "Unit testing in Money Manager: ViewModel tests, UseCase tests, MockK for mocking, Turbine for Flow, MainDispatcherRule, test placement per module"
+name: unit-testing
+description: "Covers JVM unit tests for Money Manager: ViewModel tests with MainDispatcherRule, UseCase tests, mapper round-trip tests, MockK for mocking (including suspend functions and Flow), and Turbine for Flow assertions. Use when: writing or reviewing unit tests for any ViewModel, UseCase, or mapper, setting up test dependencies in a new module's build.gradle.kts, or debugging coroutine/Flow test failures."
+user-invocable: true
 ---
 
 # Unit Testing
