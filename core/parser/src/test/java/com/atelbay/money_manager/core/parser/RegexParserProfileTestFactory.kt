@@ -5,15 +5,20 @@ import com.atelbay.money_manager.core.remoteconfig.RegexParserProfileList
 import kotlinx.serialization.json.Json
 
 /**
- * Loads [RegexParserProfile] instances from the real [default_parser_config.json] test resource,
- * so integration tests always use the same configuration as production.
+ * Loads reference [RegexParserProfile] instances for the *BankIntegrationTest suites from the
+ * test-only resource [test_bank_configs.json].
+ *
+ * These are TEST FIXTURES, not production data. The app ships an intentionally empty bundled
+ * `default_parser_config.json` and resolves real parser configs from Firestore at runtime — it is
+ * never hard-wired to a bundled set of banks. This file exists solely so the integration tests can
+ * exercise the parser against the checked-in sample PDFs offline; it is not packaged into the APK.
  */
 object RegexParserProfileTestFactory {
 
     private val json = Json { ignoreUnknownKeys = true }
 
     private val configs: List<RegexParserProfile> by lazy {
-        val text = PdfTestHelper.loadResource("default_parser_config.json")
+        val text = PdfTestHelper.loadResource("test_bank_configs.json")
         json.decodeFromString<RegexParserProfileList>(text).banks
     }
 
