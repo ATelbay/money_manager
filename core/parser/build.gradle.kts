@@ -16,6 +16,7 @@ dependencies {
     implementation(projects.core.remoteconfig)
 
     implementation(libs.pdfbox.android)
+    implementation(libs.re2j)
     implementation(libs.kotlinx.datetime)
     implementation(libs.timber)
 
