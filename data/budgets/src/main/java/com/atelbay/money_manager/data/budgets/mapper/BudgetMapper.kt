@@ -11,14 +11,15 @@ fun BudgetEntity.toDomain(category: CategoryEntity?): Budget = Budget(
     categoryIcon = category?.icon.orEmpty(),
     categoryColor = category?.color ?: 0L,
     monthlyLimit = monthlyLimit,
-    spent = 0.0,
+    spent = 0L,
     remaining = monthlyLimit,
     percentage = 0f,
 )
 
+// createdAt is supplied by the repository on insert/update (kept 0L here so the mapper stays pure).
 fun Budget.toEntity(): BudgetEntity = BudgetEntity(
     id = id,
     categoryId = categoryId,
     monthlyLimit = monthlyLimit,
-    createdAt = System.currentTimeMillis(),
+    createdAt = 0L,
 )

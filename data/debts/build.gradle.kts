@@ -13,4 +13,7 @@ dependencies {
     implementation(projects.core.database)
     implementation(projects.core.model)
     implementation(libs.room.ktx)
+    implementation(libs.timber)
+
+    testImplementation(libs.bundles.testing)
 }

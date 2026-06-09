@@ -30,7 +30,7 @@ import androidx.room.PrimaryKey
 data class DebtPaymentEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val debtId: Long,
-    val amount: Double,
+    val amount: Long,
     val date: Long,
     val note: String? = null,
     val transactionId: Long? = null,

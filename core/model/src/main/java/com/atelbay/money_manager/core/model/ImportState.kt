@@ -2,7 +2,6 @@ package com.atelbay.money_manager.core.model
 
 sealed interface ImportState {
     data object Idle : ImportState
-    data object SelectingFile : ImportState
     data object Parsing : ImportState
     data class Preview(
         val result: ImportResult,

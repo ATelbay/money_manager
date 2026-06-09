@@ -29,7 +29,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.ui.components.MoneyManagerButton
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
-import com.atelbay.money_manager.core.ui.theme.Teal
 
 @Composable
 fun OnboardingSetupScreen(
@@ -70,7 +69,7 @@ fun OnboardingSetupScreen(
             Icon(
                 imageVector = Icons.Default.AccountBalanceWallet,
                 contentDescription = null,
-                tint = Teal,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(64.dp),
             )
             Spacer(modifier = Modifier.height(24.dp))
@@ -84,7 +83,7 @@ fun OnboardingSetupScreen(
 
             if (isLoading) {
                 CircularProgressIndicator(
-                    color = Teal,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.testTag("onboardingSetup:loading"),
                 )
                 Spacer(modifier = Modifier.height(16.dp))

@@ -11,7 +11,7 @@ data class AccountEditState(
     val isSaving: Boolean = false,
     val isLoading: Boolean = true,
     val availableCurrencies: ImmutableList<String> = persistentListOf("KZT"),
-    val originalBalance: Double = 0.0,
+    val originalBalance: Long = 0L,
     val originalCreatedAt: Long = 0,
 ) {
     val isEditing: Boolean get() = accountId != null

@@ -6,8 +6,8 @@ data class Budget(
     val categoryName: String,
     val categoryIcon: String,
     val categoryColor: Long,
-    val monthlyLimit: Double,
-    val spent: Double,
-    val remaining: Double,
+    val monthlyLimit: Long,
+    val spent: Long,
+    val remaining: Long,
     val percentage: Float,
 )

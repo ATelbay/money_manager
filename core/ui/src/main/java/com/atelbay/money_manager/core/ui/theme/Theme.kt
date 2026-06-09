@@ -69,7 +69,8 @@ private val DarkColorScheme = darkColorScheme(
 @Composable
 fun MoneyManagerTheme(
     themeMode: String = "system",
-    dynamicColor: Boolean = true,
+    languageCode: String = "ru",
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val darkTheme = when (themeMode) {
@@ -90,6 +91,7 @@ fun MoneyManagerTheme(
     CompositionLocalProvider(
         LocalMoneyManagerColors provides extendedColors,
         LocalMoneyManagerTypography provides MoneyManagerExtendedTypography(),
+        LocalStrings provides appStringsFor(languageCode),
         LocalReduceMotion provides isReduceMotionEnabled(),
     ) {
         MaterialTheme(

@@ -6,6 +6,7 @@ data class DebtPaymentDto(
     @DocumentId val remoteId: String = "",
     val debtRemoteId: String = "",
     val amount: String = "",
+    val amountMinor: String? = null,
     val date: Long = 0,
     val note: String = "",
     val transactionRemoteId: String = "",

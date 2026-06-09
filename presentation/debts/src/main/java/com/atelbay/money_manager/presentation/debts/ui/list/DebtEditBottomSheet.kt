@@ -35,6 +35,8 @@ import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Debt
 import com.atelbay.money_manager.core.model.DebtDirection
 import com.atelbay.money_manager.core.model.DebtStatus
+import com.atelbay.money_manager.core.model.money.parseToMinorUnitsOrNull
+import com.atelbay.money_manager.core.model.money.toMajorPlainString
 import com.atelbay.money_manager.core.ui.components.MoneyManagerButton
 import com.atelbay.money_manager.core.ui.components.MoneyManagerTextField
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
@@ -61,7 +63,7 @@ fun DebtEditBottomSheet(
     var direction by remember { mutableStateOf(debt?.direction ?: DebtDirection.LENT) }
     var amountText by remember {
         mutableStateOf(
-            if (debt != null) debt.totalAmount.toBigDecimal().stripTrailingZeros().toPlainString() else "",
+            if (debt != null) debt.totalAmount.toMajorPlainString() else "",
         )
     }
     var selectedAccountId by remember { mutableLongStateOf(debt?.accountId ?: 0L) }
@@ -200,9 +202,14 @@ fun DebtEditBottomSheet(
                         nameError = s.contactName
                         hasError = true
                     }
-                    val amount = amountText.toDoubleOrNull()
+                    val amount = amountText.parseToMinorUnitsOrNull()
                     if (amount == null || amount <= 0) {
                         amountError = s.errorEnterValidAmount
+                        hasError = true
+                    } else if (debt != null && amount < debt.paidAmount) {
+                        // Lowering the total below what's already paid would make remaining negative
+                        // and trip SaveDebtUseCase's require(); block it here with a clear message.
+                        amountError = s.errorAmountBelowPaid
                         hasError = true
                     }
                     if (selectedAccountId == 0L) {
@@ -218,8 +225,8 @@ fun DebtEditBottomSheet(
                             contactName = contactName.trim(),
                             direction = direction,
                             totalAmount = amount!!,
-                            paidAmount = debt?.paidAmount ?: 0.0,
-                            remainingAmount = amount - (debt?.paidAmount ?: 0.0),
+                            paidAmount = debt?.paidAmount ?: 0L,
+                            remainingAmount = amount - (debt?.paidAmount ?: 0L),
                             currency = account.currency,
                             accountId = selectedAccountId,
                             accountName = account.name,

@@ -1,6 +1,7 @@
 package com.atelbay.money_manager.domain.budgets.usecase
 
 import com.atelbay.money_manager.core.model.Budget
+import com.atelbay.money_manager.core.model.money.toMajorDouble
 import com.atelbay.money_manager.domain.budgets.repository.BudgetRepository
 import com.atelbay.money_manager.domain.transactions.repository.TransactionRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -21,6 +22,8 @@ class GetBudgetsWithSpendingUseCase @Inject constructor(
                 kotlinx.coroutines.flow.flowOf(emptyList())
             } else {
                 val (monthStart, monthEnd) = currentMonthRange()
+                // NOTE: spend is summed in minor units across all of the category's transactions
+                // regardless of account currency. Per-currency budgets would be a larger feature change.
                 val spendingFlows = budgets.map { budget ->
                     transactionRepository.observeExpenseSumByCategory(
                         categoryId = budget.categoryId,
@@ -31,9 +34,11 @@ class GetBudgetsWithSpendingUseCase @Inject constructor(
                 combine(spendingFlows) { spendingArray ->
                     budgets.mapIndexed { index, budget ->
                         val spent = spendingArray[index]
-                        val remaining = (budget.monthlyLimit - spent).coerceAtLeast(0.0)
-                        val percentage = if (budget.monthlyLimit > 0) {
-                            (spent / budget.monthlyLimit).toFloat().coerceAtLeast(0f)
+                        val remaining = (budget.monthlyLimit - spent).coerceAtLeast(0L)
+                        val percentage = if (budget.monthlyLimit > 0L) {
+                            (spent.toMajorDouble() / budget.monthlyLimit.toMajorDouble())
+                                .toFloat()
+                                .coerceAtLeast(0f)
                         } else {
                             0f
                         }

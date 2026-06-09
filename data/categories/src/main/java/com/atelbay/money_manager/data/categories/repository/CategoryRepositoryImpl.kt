@@ -34,11 +34,13 @@ class CategoryRepositoryImpl @Inject constructor(
             syncManager.syncCategory(id)
             id
         } else {
-            val existing = categoryDao.getById(entity.id)
+            // Missing row → no-op (an @Update can't resurrect a deleted row anyway). Preserve the
+            // persisted sync/soft-delete flags rather than UI-carried defaults.
+            val existing = categoryDao.getById(entity.id) ?: return entity.id
             categoryDao.update(
                 entity.copy(
-                    remoteId = existing?.remoteId,
-                    isDeleted = existing?.isDeleted ?: false,
+                    remoteId = existing.remoteId,
+                    isDeleted = existing.isDeleted,
                     updatedAt = now,
                 ),
             )

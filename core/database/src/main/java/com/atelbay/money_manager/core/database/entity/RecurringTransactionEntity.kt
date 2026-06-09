@@ -30,7 +30,7 @@ import androidx.room.PrimaryKey
 )
 data class RecurringTransactionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val amount: Double,
+    val amount: Long,
     val type: String,
     val categoryId: Long,
     val accountId: Long,

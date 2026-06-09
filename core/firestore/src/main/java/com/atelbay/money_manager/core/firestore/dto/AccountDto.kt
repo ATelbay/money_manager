@@ -7,6 +7,7 @@ data class AccountDto(
     val name: String = "",
     val currency: String = "",
     val balance: String = "",
+    val balanceMinor: String? = null,
     val createdAt: Long = 0,
     val updatedAt: Long = 0,
     val isDeleted: Boolean = false,

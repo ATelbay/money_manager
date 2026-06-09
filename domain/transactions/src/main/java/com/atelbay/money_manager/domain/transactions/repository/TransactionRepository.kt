@@ -30,5 +30,5 @@ interface TransactionRepository {
         categoryId: Long,
         startDate: Long,
         endDate: Long,
-    ): Flow<Double>
+    ): Flow<Long>
 }

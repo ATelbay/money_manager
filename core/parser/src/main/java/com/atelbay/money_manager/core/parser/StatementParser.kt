@@ -11,12 +11,16 @@ data class RegexParseResult(
     val transactions: List<ParsedTransaction>,
     val bankId: String?,
     val extractedText: String = "",
+    /** Operation/description → category-name map from the matched config (drives categorization). */
+    val categoryMap: Map<String, String> = emptyMap(),
 )
 
 data class TableParseResult(
     val transactions: List<ParsedTransaction>,
     val bankId: String?,
     val extractedTable: List<List<String>> = emptyList(),
+    /** Operation/description → category-name map from the matched config (drives categorization). */
+    val categoryMap: Map<String, String> = emptyMap(),
 )
 
 data class TableExtractionResult(
@@ -65,7 +69,12 @@ class StatementParser @Inject constructor(
             val transactions = regexParser.parse(text, config)
             if (transactions.isNotEmpty()) {
                 Timber.d("Parsed %d transactions with config for bank %s", transactions.size, config.bankId)
-                return RegexParseResult(transactions = transactions, bankId = config.bankId, extractedText = text)
+                return RegexParseResult(
+                    transactions = transactions,
+                    bankId = config.bankId,
+                    extractedText = text,
+                    categoryMap = config.categoryMap,
+                )
             }
         }
 
@@ -77,7 +86,11 @@ class StatementParser @Inject constructor(
     fun tryParseWithConfig(bytes: ByteArray, config: RegexParserProfile): RegexParseResult {
         val text = pdfTextExtractor.extract(bytes)
         val transactions = regexParser.parse(text, config)
-        return RegexParseResult(transactions = transactions, bankId = config.bankId)
+        return RegexParseResult(
+            transactions = transactions,
+            bankId = config.bankId,
+            categoryMap = config.categoryMap,
+        )
     }
 
     fun extractHeaderSnippet(text: String): String =
@@ -111,7 +124,12 @@ class StatementParser @Inject constructor(
                 val transactions = tableStatementParser.parse(table, config)
                 if (transactions.isNotEmpty()) {
                     Timber.d("Parsed %d transactions with table config for bank %s", transactions.size, config.bankId)
-                    return TableParseResult(transactions = transactions, bankId = config.bankId, extractedTable = table)
+                    return TableParseResult(
+                        transactions = transactions,
+                        bankId = config.bankId,
+                        extractedTable = table,
+                        categoryMap = config.categoryMap,
+                    )
                 }
             }
         }
@@ -128,7 +146,12 @@ class StatementParser @Inject constructor(
         }
 
         val transactions = tableStatementParser.parse(table, config)
-        return TableParseResult(transactions = transactions, bankId = config.bankId, extractedTable = table)
+        return TableParseResult(
+            transactions = transactions,
+            bankId = config.bankId,
+            extractedTable = table,
+            categoryMap = config.categoryMap,
+        )
     }
 
     fun extractSampleTableRows(bytes: ByteArray): List<List<String>> {

@@ -35,6 +35,20 @@ Agent assets are stored agent-agnostically under `.agents/{skills,commands,agent
 - Add stable `testTag`s on interactive/asserted nodes — UI automation testability is a first-class goal of this project.
 - Screen composables stateless where possible; `hiltViewModel()` only at the route/entry, not deep in the tree.
 
+## Money (integer minor units)
+
+- All monetary amounts are stored and computed as **`Long` minor units** at a **fixed scale of 2**
+  (hundredths), currency-independent — never `Double`. This eliminates floating-point penny drift.
+- Convert at the edges only, via helpers in `core:model` (`com.atelbay.money_manager.core.model.money`):
+  parse input with `String.parseToMinorUnitsOrNull()`, pre-fill edit fields with `Long.toMajorPlainString()`,
+  and use `Long.toMajorDouble()` **only** for charts (Vico), animations, and ratios — never to store.
+- Documented `Double` exceptions: `ExchangeRate.quotes` (rate coefficients), `AmountParser.parseAmount`
+  (transient bank-text extraction), and the AI-response wire DTO in `ParseStatementUseCase` — all converted
+  to `Long` at the model boundary.
+- Room schema is **v9** (money columns `INTEGER`); cloud sync **dual-writes** a legacy major field plus an
+  encrypted `*Minor` field and reads `*Minor`-first for back/forward compatibility. `uniqueHash` reconstructs
+  the legacy `amount/100.0` string so cross-version dedup digests stay stable.
+
 ## Visibility and module boundaries
 
 - Public from a feature: the screen/route entry points that `app/` wires into navigation.

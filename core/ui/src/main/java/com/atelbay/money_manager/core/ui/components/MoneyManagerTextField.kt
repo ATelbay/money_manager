@@ -10,13 +10,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.sp
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
-import com.atelbay.money_manager.core.ui.theme.Teal
 
 @Composable
 fun MoneyManagerTextField(
@@ -65,9 +61,9 @@ fun MoneyManagerTextField(
         readOnly = readOnly,
         shape = MaterialTheme.shapes.medium,
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Teal,
-            focusedLabelColor = Teal,
-            cursorColor = Teal,
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            cursorColor = MaterialTheme.colorScheme.primary,
             unfocusedBorderColor = colors.surfaceBorder,
             errorBorderColor = colors.expense,
         ),
@@ -83,6 +79,7 @@ fun MoneyManagerAmountField(
     tag: String? = null,
 ) {
     val colors = MoneyManagerTheme.colors
+    val amountStyle = MoneyManagerTheme.typography.balanceDisplay
 
     OutlinedTextField(
         value = value,
@@ -99,33 +96,24 @@ fun MoneyManagerAmountField(
         placeholder = {
             Text(
                 text = "0.00",
-                style = TextStyle(
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Bold,
-                ),
+                style = amountStyle,
                 color = colors.textTertiary,
             )
         },
         prefix = {
             Text(
                 text = currency,
-                style = TextStyle(
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.SemiBold,
-                ),
+                style = MoneyManagerTheme.typography.sectionHeader,
                 color = colors.textSecondary,
             )
         },
-        textStyle = TextStyle(
-            fontSize = 30.sp,
-            fontWeight = FontWeight.Bold,
-        ),
+        textStyle = amountStyle,
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         shape = MaterialTheme.shapes.medium,
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Teal,
-            cursorColor = Teal,
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            cursorColor = MaterialTheme.colorScheme.primary,
             unfocusedBorderColor = colors.surfaceBorder,
         ),
     )

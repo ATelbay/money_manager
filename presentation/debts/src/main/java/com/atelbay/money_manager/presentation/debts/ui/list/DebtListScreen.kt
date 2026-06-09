@@ -30,6 +30,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -55,6 +57,7 @@ import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Debt
 import com.atelbay.money_manager.core.model.DebtDirection
 import com.atelbay.money_manager.core.model.DebtStatus
+import com.atelbay.money_manager.core.model.money.toMajorDouble
 import com.atelbay.money_manager.core.ui.components.GlassCard
 import com.atelbay.money_manager.core.ui.components.MoneyManagerFAB
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
@@ -70,6 +73,7 @@ fun DebtListScreen(
     onDeleteDebt: (Long) -> Unit,
     onSaveDebt: (Debt) -> Unit,
     onFilterChange: (DebtFilter) -> Unit,
+    onErrorShown: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -79,6 +83,13 @@ fun DebtListScreen(
 
     var debtToDelete by remember { mutableStateOf<Debt?>(null) }
     var showEditSheet by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(state.errorMessage) {
+        val message = state.errorMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        onErrorShown()
+    }
 
     if (debtToDelete != null) {
         AlertDialog(
@@ -104,6 +115,7 @@ fun DebtListScreen(
     Scaffold(
         modifier = modifier.testTag("debtList:screen"),
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -237,8 +249,8 @@ fun DebtListScreen(
 
 @Composable
 private fun DebtSummaryCard(
-    totalLent: Double,
-    totalBorrowed: Double,
+    totalLent: Long,
+    totalBorrowed: Long,
     modifier: Modifier = Modifier,
 ) {
     val colors = MoneyManagerTheme.colors
@@ -334,7 +346,7 @@ private fun DebtListItem(
     }
     val directionLabel = if (debt.direction == DebtDirection.LENT) s.iLent else s.iBorrowed
     val progress = if (debt.totalAmount > 0) {
-        (debt.paidAmount / debt.totalAmount).toFloat().coerceIn(0f, 1f)
+        (debt.paidAmount.toFloat() / debt.totalAmount.toFloat()).coerceIn(0f, 1f)
     } else {
         0f
     }
@@ -472,7 +484,8 @@ private fun DebtSwipeToDeleteItem(
     }
 }
 
-private fun formatDebtAmount(amount: Double): String {
+private fun formatDebtAmount(amountMinor: Long): String {
+    val amount = amountMinor.toMajorDouble()
     return if (amount >= 1_000_000) {
         "${(amount / 1_000_000).toBigDecimal().stripTrailingZeros().toPlainString()}M"
     } else if (amount >= 1_000) {

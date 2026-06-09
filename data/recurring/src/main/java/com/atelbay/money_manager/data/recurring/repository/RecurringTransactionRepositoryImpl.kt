@@ -1,12 +1,16 @@
 package com.atelbay.money_manager.data.recurring.repository
 
 import androidx.room.withTransaction
+import com.atelbay.money_manager.core.common.generateTransactionHash
 import com.atelbay.money_manager.core.database.MoneyManagerDatabase
 import com.atelbay.money_manager.core.database.dao.AccountDao
 import com.atelbay.money_manager.core.database.dao.CategoryDao
 import com.atelbay.money_manager.core.database.dao.RecurringTransactionDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
 import com.atelbay.money_manager.core.database.entity.TransactionEntity
+import kotlinx.datetime.LocalDate
+import java.time.Instant
+import java.time.ZoneId
 import com.atelbay.money_manager.core.model.RecurringTransaction
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.data.recurring.mapper.toDomain
@@ -126,6 +130,8 @@ class RecurringTransactionRepositoryImpl @Inject constructor(
         lastGeneratedDate: Long,
     ) {
         val now = System.currentTimeMillis()
+        // Stable across devices once synced; falls back to the local id until then.
+        val recurringKey = recurringDao.getById(recurringId)?.remoteId ?: "local:$recurringId"
         database.withTransaction {
             for (transaction in transactions) {
                 val entity = TransactionEntity(
@@ -138,13 +144,28 @@ class RecurringTransactionRepositoryImpl @Inject constructor(
                     date = transaction.date,
                     createdAt = now,
                     updatedAt = now,
+                    uniqueHash = uniqueHashFor(transaction, recurringKey),
                 )
-                transactionDao.insert(entity)
-                val delta = if (transaction.type.value == "income") transaction.amount else -transaction.amount
-                accountDao.updateBalance(transaction.accountId, delta, now)
+                // IGNORE on uniqueHash collision → idempotent re-generation / cross-device pull.
+                val rowId = transactionDao.insertOrIgnore(entity)
+                if (rowId != -1L) {
+                    val delta =
+                        if (transaction.type.value == "income") transaction.amount else -transaction.amount
+                    accountDao.updateBalance(transaction.accountId, delta, now)
+                }
             }
             recurringDao.updateLastGeneratedDate(recurringId, lastGeneratedDate, now)
         }
         syncManager.syncRecurring(recurringId)
+    }
+
+    private fun uniqueHashFor(transaction: Transaction, recurringKey: String): String {
+        val date = Instant.ofEpochMilli(transaction.date).atZone(ZoneId.systemDefault()).toLocalDate()
+        return generateTransactionHash(
+            date = LocalDate(date.year, date.monthValue, date.dayOfMonth),
+            amountMinor = transaction.amount,
+            type = transaction.type.value,
+            details = "recurring:$recurringKey",
+        )
     }
 }

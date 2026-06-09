@@ -20,6 +20,7 @@ import com.atelbay.money_manager.core.database.migration.MIGRATION_4_5
 import com.atelbay.money_manager.core.database.migration.MIGRATION_5_6
 import com.atelbay.money_manager.core.database.migration.MIGRATION_6_7
 import com.atelbay.money_manager.core.database.migration.MIGRATION_7_8
+import com.atelbay.money_manager.core.database.migration.MIGRATION_8_9
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -29,12 +30,16 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Provider
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
+
+    /** Long-lived scope for one-shot DB seeding; lives for the whole app process by design. */
+    private val seedScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @Provides
     @Singleton
@@ -50,12 +55,18 @@ object DatabaseModule {
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     super.onCreate(db)
-                    CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-                        categoryDaoProvider.get().insertAll(DefaultCategories.all())
+                    // Seed default categories off the main thread. A coroutine is required here
+                    // (we must not query the same DB synchronously inside the create callback),
+                    // hence the Provider<CategoryDao> to break the DB <-> DAO init cycle.
+                    // runCatching ensures a seeding failure is logged instead of silently lost.
+                    seedScope.launch {
+                        runCatching {
+                            categoryDaoProvider.get().insertAll(DefaultCategories.all())
+                        }.onFailure { Timber.e(it, "Failed to seed default categories on DB create") }
                     }
                 }
             })
-            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .build()
     }
 

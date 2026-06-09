@@ -8,6 +8,8 @@ import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.core.model.TransactionType
+import com.atelbay.money_manager.core.model.money.parseToMinorUnitsOrNull
+import com.atelbay.money_manager.core.model.money.toMajorPlainString
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
 import com.atelbay.money_manager.domain.categories.usecase.GetCategoriesUseCase
 import com.atelbay.money_manager.domain.transactions.usecase.DeleteTransactionUseCase
@@ -24,6 +26,9 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 import javax.inject.Inject
 
 @HiltViewModel
@@ -68,7 +73,7 @@ class TransactionEditViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             type = transaction.type,
-                            amount = transaction.amount.toBigDecimal().stripTrailingZeros().toPlainString(),
+                            amount = transaction.amount.toMajorPlainString(),
                             date = transaction.date,
                             note = transaction.note.orEmpty(),
                             accountId = transaction.accountId,
@@ -117,8 +122,23 @@ class TransactionEditViewModel @Inject constructor(
         loadCategories(type)
     }
 
+    /**
+     * Single source of truth for amount sanitisation: keeps digits and at most one decimal
+     * separator (extra dots are dropped). The UI delegates raw input here.
+     */
     fun setAmount(amount: String) {
-        val filtered = amount.filter { it.isDigit() || it == '.' }
+        val filtered = buildString {
+            var hasDot = false
+            for (ch in amount) {
+                when {
+                    ch.isDigit() -> append(ch)
+                    ch == '.' && !hasDot -> {
+                        hasDot = true
+                        append(ch)
+                    }
+                }
+            }
+        }
         _state.update { it.copy(amount = filtered, amountError = null) }
     }
 
@@ -126,8 +146,17 @@ class TransactionEditViewModel @Inject constructor(
         _state.update { it.copy(selectedCategory = category, categoryError = null, showCategorySheet = false) }
     }
 
-    fun setDate(date: Long) {
-        _state.update { it.copy(date = date, showDatePicker = false) }
+    /**
+     * Material [androidx.compose.material3.DatePicker] reports the selection as UTC midnight.
+     * Re-anchor it to the same calendar day in the system zone (so list grouping by local date
+     * stays correct for non-UTC offsets) and preserve the existing time-of-day on edit.
+     */
+    fun setDate(utcMidnightMillis: Long) {
+        val zone = ZoneId.systemDefault()
+        val pickedDay = Instant.ofEpochMilli(utcMidnightMillis).atZone(ZoneOffset.UTC).toLocalDate()
+        val previousTime = Instant.ofEpochMilli(_state.value.date).atZone(zone).toLocalTime()
+        val anchored = pickedDay.atTime(previousTime).atZone(zone).toInstant().toEpochMilli()
+        _state.update { it.copy(date = anchored, showDatePicker = false) }
     }
 
     fun selectAccount(accountId: Long) {
@@ -159,8 +188,8 @@ class TransactionEditViewModel @Inject constructor(
         val current = _state.value
         var hasError = false
 
-        val amount = current.amount.toDoubleOrNull()
-        if (amount == null || amount <= 0) {
+        val amountMinor = current.amount.parseToMinorUnitsOrNull()
+        if (amountMinor == null || amountMinor <= 0L) {
             _state.update { it.copy(amountError = strings.errorEnterValidAmount) }
             hasError = true
         }
@@ -179,7 +208,7 @@ class TransactionEditViewModel @Inject constructor(
                 saveTransactionUseCase(
                     Transaction(
                         id = current.transactionId ?: 0,
-                        amount = amount!!,
+                        amount = amountMinor!!,
                         type = current.type,
                         categoryId = current.selectedCategory!!.id,
                         categoryName = current.selectedCategory.name,

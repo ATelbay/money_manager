@@ -5,7 +5,7 @@ import com.atelbay.money_manager.core.model.Debt
 import com.atelbay.money_manager.core.model.DebtDirection
 import com.atelbay.money_manager.core.model.DebtStatus
 
-fun DebtEntity.toDomain(paidAmount: Double, accountName: String): Debt {
+fun DebtEntity.toDomain(paidAmount: Long, accountName: String): Debt {
     val remaining = totalAmount - paidAmount
     return Debt(
         id = id,
@@ -13,7 +13,7 @@ fun DebtEntity.toDomain(paidAmount: Double, accountName: String): Debt {
         direction = DebtDirection.valueOf(direction),
         totalAmount = totalAmount,
         paidAmount = paidAmount,
-        remainingAmount = remaining.coerceAtLeast(0.0),
+        remainingAmount = remaining.coerceAtLeast(0L),
         currency = currency,
         accountId = accountId,
         accountName = accountName,

@@ -30,6 +30,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -55,6 +57,7 @@ import com.atelbay.money_manager.core.model.Debt
 import com.atelbay.money_manager.core.model.DebtDirection
 import com.atelbay.money_manager.core.model.DebtPayment
 import com.atelbay.money_manager.core.model.DebtStatus
+import com.atelbay.money_manager.core.model.money.toMajorDouble
 import com.atelbay.money_manager.core.ui.components.GlassCard
 import com.atelbay.money_manager.core.ui.components.MoneyManagerButton
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
@@ -70,12 +73,13 @@ import java.util.Locale
 fun DebtDetailScreen(
     state: DebtDetailState,
     accounts: ImmutableList<Account>,
-    onAddPayment: (Double, Long, String?, Boolean) -> Unit,
+    onAddPayment: (Long, Long, String?, Boolean) -> Unit,
     onDeletePayment: (Long) -> Unit,
     onDeleteDebt: () -> Unit,
     onSaveDebt: (Debt) -> Unit,
     onTogglePaymentSheet: () -> Unit,
     onToggleEditSheet: () -> Unit,
+    onErrorShown: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -84,10 +88,18 @@ fun DebtDetailScreen(
     val typography = MoneyManagerTheme.typography
     val debt = state.debt
     var showDeleteDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(state.errorMessage) {
+        val message = state.errorMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        onErrorShown()
+    }
 
     Scaffold(
         modifier = modifier.testTag("debtDetail:screen"),
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -184,7 +196,7 @@ fun DebtDetailScreen(
         }
         val directionLabel = if (debt.direction == DebtDirection.LENT) s.iLent else s.iBorrowed
         val progress = if (debt.totalAmount > 0) {
-            (debt.paidAmount / debt.totalAmount).toFloat().coerceIn(0f, 1f)
+            (debt.paidAmount.toFloat() / debt.totalAmount.toFloat()).coerceIn(0f, 1f)
         } else {
             0f
         }
@@ -522,7 +534,8 @@ private fun PaymentSwipeToDeleteItem(
     }
 }
 
-private fun formatAmount(amount: Double): String {
+private fun formatAmount(amountMinor: Long): String {
+    val amount = amountMinor.toMajorDouble()
     return if (amount >= 1_000_000) {
         "${(amount / 1_000_000).toBigDecimal().stripTrailingZeros().toPlainString()}M"
     } else if (amount >= 1_000) {

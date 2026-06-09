@@ -34,6 +34,7 @@ fun DebtDetailRoute(
         onSaveDebt = viewModel::saveDebt,
         onTogglePaymentSheet = viewModel::togglePaymentSheet,
         onToggleEditSheet = viewModel::toggleEditSheet,
+        onErrorShown = viewModel::clearError,
         onBack = onBack,
         modifier = modifier,
     )

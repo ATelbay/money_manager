@@ -244,7 +244,11 @@ class PullSyncUseCase @Inject constructor(
         for (dto in remoteTransactions) {
             val local = transactionDao.getByRemoteId(dto.remoteId)
             if (dto.isDeleted) {
-                if (local != null) {
+                // Guard on !isDeleted so the balance delta is applied exactly once. getByRemoteId
+                // returns the row even after a soft-delete, so without this guard a repeated pull of
+                // the same tombstone (re-login, second device, reinstall) would re-subtract the
+                // amount each time and corrupt the account balance.
+                if (local != null && !local.isDeleted) {
                     val delta = if (local.type == "income") -local.amount else local.amount
                     accountDao.updateBalance(local.accountId, delta, dto.updatedAt)
                     transactionDao.softDeleteById(local.id, dto.updatedAt)
@@ -266,7 +270,15 @@ class PullSyncUseCase @Inject constructor(
                 accountLocalId = accountLocalId,
                 fieldCipherHolder = fieldCipherHolder,
             ) ?: continue
-            transactionDao.upsertSync(listOf(entity))
+            // Dedup by uniqueHash when there's no remoteId match: upsertSync uses REPLACE, and a
+            // hash collision against a *different* local id would delete+reinsert (new id), firing
+            // ON DELETE SET NULL on linked debt_payments. Reusing the existing id makes it an
+            // in-place update instead.
+            val hash = entity.uniqueHash
+            val resolved = if (local == null && hash != null) {
+                transactionDao.getByUniqueHash(hash)?.let { entity.copy(id = it.id) }
+            } else null
+            transactionDao.upsertSync(listOf(resolved ?: entity))
         }
     }
 }

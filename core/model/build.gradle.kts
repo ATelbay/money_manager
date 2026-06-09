@@ -1,13 +1,12 @@
 plugins {
-    alias(libs.plugins.moneymanager.android.library)
+    alias(libs.plugins.moneymanager.jvm.library)
     alias(libs.plugins.kotlin.serialization)
 }
 
-android {
-    namespace = "com.atelbay.money_manager.core.model"
-}
-
 dependencies {
-    implementation(libs.kotlinx.datetime)
+    // LocalDate leaks through ParsedTransaction's public API -> expose datetime transitively.
+    api(libs.kotlinx.datetime)
     implementation(libs.kotlinx.serialization.json)
+
+    testImplementation(libs.junit)
 }

@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -40,10 +39,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.ui.components.CircleRevealShape
-import com.atelbay.money_manager.core.ui.theme.LocalStrings
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
-import com.atelbay.money_manager.core.ui.theme.appStringsFor
 import com.atelbay.money_manager.core.ui.util.LocalReduceMotion
 import com.atelbay.money_manager.navigation.Home
 import com.atelbay.money_manager.navigation.Import
@@ -68,7 +65,7 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var pendingNavigationManager: PendingNavigationManager
 
-    @Volatile
+    // Only written from the Compose UI thread (SideEffect), so no synchronization needed.
     private var onboardingLoadCompleted: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -120,86 +117,84 @@ class MainActivity : ComponentActivity() {
 
             val completed = onboardingCompleted
 
-            CompositionLocalProvider(LocalStrings provides appStringsFor(languageCode)) {
-                if (completed != null) {
-                    val navController = rememberNavController()
-                    val snapshotLayer = rememberGraphicsLayer()
-                    val reduceMotion = LocalReduceMotion.current
+            if (completed != null) {
+                val navController = rememberNavController()
+                val snapshotLayer = rememberGraphicsLayer()
+                val reduceMotion = LocalReduceMotion.current
 
-                    var renderedTheme by remember { mutableStateOf(themeMode) }
-                    val revealRadius = remember { Animatable(0f) }
-                    var isRevealing by remember { mutableStateOf(false) }
-                    var skipInitial by remember { mutableStateOf(true) }
+                var renderedTheme by remember { mutableStateOf(themeMode) }
+                val revealRadius = remember { Animatable(0f) }
+                var isRevealing by remember { mutableStateOf(false) }
+                var skipInitial by remember { mutableStateOf(true) }
 
-                    LaunchedEffect(themeMode) {
-                        if (skipInitial) {
-                            skipInitial = false
+                LaunchedEffect(themeMode) {
+                    if (skipInitial) {
+                        skipInitial = false
+                        renderedTheme = themeMode
+                        return@LaunchedEffect
+                    }
+                    if (themeMode != renderedTheme) {
+                        if (reduceMotion) {
                             renderedTheme = themeMode
                             return@LaunchedEffect
                         }
-                        if (themeMode != renderedTheme) {
-                            if (reduceMotion) {
-                                renderedTheme = themeMode
-                                return@LaunchedEffect
-                            }
-                            val dm = resources.displayMetrics
-                            val screenW = resources.configuration.screenWidthDp * dm.density
-                            val screenH = resources.configuration.screenHeightDp * dm.density
-                            val maxRadius = sqrt(screenW * screenW + screenH * screenH)
-                            isRevealing = true
-                            revealRadius.snapTo(maxRadius)
-                            renderedTheme = themeMode
-                            revealRadius.animateTo(
-                                0f,
-                                tween(
-                                    MoneyManagerMotion.DurationLong,
-                                    easing = MoneyManagerMotion.StandardEasing,
-                                ),
+                        val dm = resources.displayMetrics
+                        val screenW = resources.configuration.screenWidthDp * dm.density
+                        val screenH = resources.configuration.screenHeightDp * dm.density
+                        val maxRadius = sqrt(screenW * screenW + screenH * screenH)
+                        isRevealing = true
+                        revealRadius.snapTo(maxRadius)
+                        renderedTheme = themeMode
+                        revealRadius.animateTo(
+                            0f,
+                            tween(
+                                MoneyManagerMotion.DurationLong,
+                                easing = MoneyManagerMotion.StandardEasing,
+                            ),
+                        )
+                        isRevealing = false
+                    }
+                }
+
+                Box {
+                    MoneyManagerTheme(themeMode = themeMode, languageCode = languageCode) {
+                        Box(
+                            modifier = Modifier.drawWithContent {
+                                snapshotLayer.record(
+                                    IntSize(size.width.toInt(), size.height.toInt()),
+                                ) {
+                                    this@drawWithContent.drawContent()
+                                }
+                                drawContent()
+                            },
+                        ) {
+                            MoneyManagerApp(
+                                navController = navController,
+                                startDestination = if (completed) Home else Onboarding,
+                                onboardingCompleted = completed,
+                                pendingNavigationManager = pendingNavigationManager,
                             )
-                            isRevealing = false
                         }
                     }
-
-                    Box {
-                        MoneyManagerTheme(themeMode = themeMode) {
-                            Box(
-                                modifier = Modifier.drawWithContent {
-                                    snapshotLayer.record(
-                                        IntSize(size.width.toInt(), size.height.toInt()),
-                                    ) {
-                                        this@drawWithContent.drawContent()
-                                    }
-                                    drawContent()
-                                },
-                            ) {
-                                MoneyManagerApp(
-                                    navController = navController,
-                                    startDestination = if (completed) Home else Onboarding,
-                                    onboardingCompleted = completed,
-                                    pendingNavigationManager = pendingNavigationManager,
+                    if (isRevealing) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(
+                                    CircleRevealShape(
+                                        radius = revealRadius.value,
+                                        inverted = true,
+                                    ),
                                 )
-                            }
-                        }
-                        if (isRevealing) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(
-                                        CircleRevealShape(
-                                            radius = revealRadius.value,
-                                            inverted = true,
-                                        ),
-                                    )
-                                    .drawWithContent {
-                                        drawLayer(snapshotLayer)
-                                    },
-                            )
-                        }
+                                .drawWithContent {
+                                    drawLayer(snapshotLayer)
+                                },
+                        )
                     }
                 }
             }
+            }
         }
-    }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -213,8 +208,12 @@ class MainActivity : ComponentActivity() {
         Intent.ACTION_SEND -> {
             // Manifest filter already guarantees mimeType=application/pdf;
             // fall back to ClipData for apps that don't set EXTRA_STREAM
-            @Suppress("DEPRECATION")
-            val streamUri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+            val streamUri = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+            }
             val clipUri = intent.clipData?.getItemAt(0)?.uri
             (streamUri ?: clipUri)?.also { takePersistablePermission(it) }?.toString()
         }
@@ -278,7 +277,7 @@ private fun MoneyManagerApp(
         // Wait until the pending navigation action is consumed (Import was navigated to)
         // before checking whether we've left the Import screen.
         if (pendingAction != null) return@LaunchedEffect
-        val isOnImportScreen = navController.currentBackStackEntry
+        val isOnImportScreen = backStackEntry
             ?.destination?.hasRoute(Import::class) == true
         if (!isOnImportScreen) {
             pendingNavigationManager.clearExternalLaunch()

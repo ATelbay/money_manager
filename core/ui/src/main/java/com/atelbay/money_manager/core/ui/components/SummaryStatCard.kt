@@ -43,7 +43,7 @@ enum class StatType { DEFAULT, INCOME, EXPENSE }
 @Composable
 fun SummaryStatCard(
     title: String,
-    value: Double?,
+    value: Long?,
     icon: ImageVector,
     modifier: Modifier = Modifier,
     moneyDisplay: MoneyDisplayPresentation = MoneyDisplayFormatter.resolveAndFormat("KZT"),
@@ -163,7 +163,7 @@ fun SummaryStatCard(
             Text(
                 text = value?.let {
                     moneyDisplay.formatAmount(
-                        amount = it,
+                        amountMinor = it,
                         formatter = formatter,
                     )
                 } ?: moneyDisplay.primaryLabel,
@@ -192,7 +192,7 @@ private fun SummaryStatCardPreview() {
     MoneyManagerTheme(themeMode = "dark", dynamicColor = false) {
         SummaryStatCard(
             title = "TOTAL EXPENSES",
-            value = 358_400.00,
+            value = 35_840_000L,
             icon = Icons.AutoMirrored.Filled.TrendingDown,
             type = StatType.EXPENSE,
             change = -8f,
@@ -207,7 +207,7 @@ private fun SummaryStatCardExtremePreview() {
     MoneyManagerTheme(themeMode = "dark", dynamicColor = false) {
         SummaryStatCard(
             title = "TOTAL EXPENSES",
-            value = 9_999_999_999_999.99,
+            value = 999_999_999_999_999L,
             icon = Icons.AutoMirrored.Filled.TrendingDown,
             type = StatType.EXPENSE,
             moneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),

@@ -80,7 +80,7 @@ class MoneyDisplayFormatterTest {
         val ambiguous = MoneyDisplayFormatter.resolveAndFormat("USD")
         val unsupported = MoneyDisplayFormatter.resolveAndFormat("BHD")
 
-        assertEquals("+$ USD 10.50", ambiguous.formatAmount(10.5, sign = "+"))
-        assertEquals("BHD 99.00", unsupported.formatAmount(99.0))
+        assertEquals("+$ USD 10.50", ambiguous.formatAmount(1050L, sign = "+"))
+        assertEquals("BHD 99.00", unsupported.formatAmount(9900L))
     }
 }

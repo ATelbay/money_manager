@@ -73,7 +73,7 @@ class BerekeBankParserTest {
         assertEquals(1, result.size)
         val tx = result[0]
         assertEquals(LocalDate(2025, 3, 26), tx.date)
-        assertEquals(10000.0, tx.amount, 0.01)
+        assertEquals(1000000L, tx.amount)
         assertEquals(TransactionType.EXPENSE, tx.type)
         assertEquals("Payment for goods and", tx.operationType)
         assertEquals("ROYAL PETROL AZS 10-4", tx.details)
@@ -87,7 +87,7 @@ class BerekeBankParserTest {
         val result = parser.parse(text, berekeConfig)
 
         assertEquals(1, result.size)
-        assertEquals(3300.0, result[0].amount, 0.01)
+        assertEquals(330000L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("STARBUCKS COFFEE", result[0].details)
     }
@@ -100,7 +100,7 @@ class BerekeBankParserTest {
         val result = parser.parse(text, berekeConfig)
 
         assertEquals(1, result.size)
-        assertEquals(20000.0, result[0].amount, 0.01)
+        assertEquals(2000000L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("JSC Eurasian Bank АРЫСТАН Т.", result[0].details)
     }
@@ -112,7 +112,7 @@ class BerekeBankParserTest {
         val result = parser.parse(text, berekeConfig)
 
         assertEquals(1, result.size)
-        assertEquals(30000.0, result[0].amount, 0.01)
+        assertEquals(3000000L, result[0].amount)
         assertEquals(TransactionType.INCOME, result[0].type)
     }
 
@@ -124,7 +124,7 @@ class BerekeBankParserTest {
         val result = parser.parse(text, berekeConfig)
 
         assertEquals(1, result.size)
-        assertEquals(20000.0, result[0].amount, 0.01)
+        assertEquals(2000000L, result[0].amount)
         assertEquals(TransactionType.INCOME, result[0].type)
         assertEquals("Card replenishment through", result[0].operationType)
         assertEquals("from your deposit", result[0].details)
@@ -138,7 +138,7 @@ class BerekeBankParserTest {
         val result = parser.parse(text, berekeConfig)
 
         assertEquals(1, result.size)
-        assertEquals(490000.0, result[0].amount, 0.01)
+        assertEquals(49000000L, result[0].amount)
         assertEquals(TransactionType.INCOME, result[0].type)
     }
 
@@ -150,7 +150,7 @@ class BerekeBankParserTest {
         val result = parser.parse(text, berekeConfig)
 
         assertEquals(1, result.size)
-        assertEquals(500000.0, result[0].amount, 0.01)
+        assertEquals(50000000L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
     }
 
@@ -161,7 +161,7 @@ class BerekeBankParserTest {
         val result = parser.parse(text, berekeConfig)
 
         assertEquals(1, result.size)
-        assertEquals(9344.57, result[0].amount, 0.01)
+        assertEquals(934457L, result[0].amount)
         assertEquals(TransactionType.INCOME, result[0].type)
         assertEquals("Bonus Transfer", result[0].details)
     }
@@ -173,7 +173,7 @@ class BerekeBankParserTest {
         val result = parser.parse(text, berekeConfig)
 
         assertEquals(1, result.size)
-        assertEquals(500000.0, result[0].amount, 0.01)
+        assertEquals(50000000L, result[0].amount)
     }
 
     @Test

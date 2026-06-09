@@ -9,7 +9,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.util.AggregateCurrencyDisplayMode
 import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
-import com.atelbay.money_manager.domain.statistics.model.CategorySummary
+import com.atelbay.money_manager.domain.statistics.model.CategoryMetadata
 import com.atelbay.money_manager.domain.statistics.model.StatsPeriod
 import com.atelbay.money_manager.domain.statistics.model.TransactionType
 import kotlinx.collections.immutable.persistentListOf
@@ -33,11 +33,11 @@ class StatisticsScreenTest {
                         isLoading = false,
                         period = StatsPeriod.MONTH,
                         transactionType = TransactionType.EXPENSE,
-                        displayedTotalExpenses = 300.0,
+                        displayedTotalExpenses = 30000L,
                         displayedExpensesByCategory = persistentListOf(
                             StatisticsCategoryDisplayItem(
-                                category = CategorySummary(1L, "Food", "restaurant", 0L, 300.0, 100),
-                                displayAmount = 300.0,
+                                category = CategoryMetadata(1L, "Food", "restaurant", 0L),
+                                displayAmount = 30000L,
                                 displayPercentage = 100,
                             ),
                         ),
@@ -48,9 +48,9 @@ class StatisticsScreenTest {
                         chart = StatisticsChartState(
                             isScrollable = true,
                             points = persistentListOf(
-                                StatisticsChartPoint(1L, "14", 100.0),
-                                StatisticsChartPoint(2L, "15", 200.0),
-                                StatisticsChartPoint(3L, "16", 300.0, isToday = true),
+                                StatisticsChartPoint(1L, "14", 10000L),
+                                StatisticsChartPoint(2L, "15", 20000L),
+                                StatisticsChartPoint(3L, "16", 30000L, isToday = true),
                             ),
                         ),
                     ),

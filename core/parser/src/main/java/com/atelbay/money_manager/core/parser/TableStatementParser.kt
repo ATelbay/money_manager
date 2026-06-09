@@ -1,6 +1,7 @@
 package com.atelbay.money_manager.core.parser
 
 import com.atelbay.money_manager.core.common.generateTransactionHash
+import com.atelbay.money_manager.core.model.money.majorToMinor
 import com.atelbay.money_manager.core.model.ParsedTransaction
 import com.atelbay.money_manager.core.model.TableParserProfile
 import com.atelbay.money_manager.core.model.TransactionType
@@ -90,11 +91,12 @@ class TableStatementParser @Inject constructor() {
         }
 
         val descriptionForHash = details.ifBlank { operation }
-        val hash = generateTransactionHash(date, amount, type.value, descriptionForHash)
+        val amountMinor = majorToMinor(amount)
+        val hash = generateTransactionHash(date, amountMinor, type.value, descriptionForHash)
 
         return ParsedTransaction(
             date = date,
-            amount = amount,
+            amount = amountMinor,
             type = type,
             operationType = operation,
             details = descriptionForHash,
@@ -145,9 +147,11 @@ class TableStatementParser @Inject constructor() {
     }
 
     private fun deduplicateByMaxAmount(transactions: List<ParsedTransaction>): List<ParsedTransaction> {
+        // Group by (date, details) only — NOT type — so currency-conversion rows with mixed signs
+        // for one transaction still collapse. Amounts are already abs() magnitudes.
         val result = transactions
             .groupBy { Pair(it.date, it.details) }
-            .map { (_, group) -> group.maxBy { it.amount } }
+            .map { (_, group) -> group.maxByOrNull { it.amount }!! }
         Timber.d("Table dedup reduced %d → %d transactions", transactions.size, result.size)
         return result
     }

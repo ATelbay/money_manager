@@ -5,11 +5,17 @@ import androidx.lifecycle.viewModelScope
 import com.atelbay.money_manager.core.common.buildSortedCurrencyList
 import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.model.Account
+import com.atelbay.money_manager.core.model.money.parseToMinorUnitsOrNull
+import com.atelbay.money_manager.core.ui.theme.AppStrings
 import com.atelbay.money_manager.domain.accounts.usecase.SaveAccountUseCase
 import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
@@ -26,11 +32,14 @@ class CreateAccountViewModel @Inject constructor(
     private val _state = MutableStateFlow(CreateAccountState())
     val state: StateFlow<CreateAccountState> = _state.asStateFlow()
 
+    private val _accountCreated = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val accountCreated: SharedFlow<Unit> = _accountCreated.asSharedFlow()
+
     init {
         viewModelScope.launch {
             val rate = observeExchangeRateUseCase().first()
             if (rate != null) {
-                val sorted = buildSortedCurrencyList(rate.quotes.keys)
+                val sorted = buildSortedCurrencyList(rate.quotes.keys).toImmutableList()
                 _state.update { it.copy(availableCurrencies = sorted) }
             }
         }
@@ -49,24 +58,24 @@ class CreateAccountViewModel @Inject constructor(
         _state.update { it.copy(initialBalance = filtered, balanceError = null) }
     }
 
-    fun createAccount(onComplete: () -> Unit) {
+    fun createAccount(strings: AppStrings) {
         val current = _state.value
         val name = current.accountName.trim()
         val balanceText = current.initialBalance.trim()
 
         var hasError = false
         if (name.isBlank()) {
-            _state.update { it.copy(accountNameError = "Введите название счёта") }
+            _state.update { it.copy(accountNameError = strings.errorEnterAccountName) }
             hasError = true
         }
 
-        val balance = if (balanceText.isEmpty()) {
-            0.0
+        val balance: Long = if (balanceText.isEmpty()) {
+            0L
         } else {
-            balanceText.toDoubleOrNull() ?: run {
-                _state.update { it.copy(balanceError = "Некорректная сумма") }
+            balanceText.parseToMinorUnitsOrNull() ?: run {
+                _state.update { it.copy(balanceError = strings.errorEnterValidAmount) }
                 hasError = true
-                0.0
+                0L
             }
         }
 
@@ -83,7 +92,7 @@ class CreateAccountViewModel @Inject constructor(
                 ),
             )
             userPreferences.setOnboardingCompleted()
-            onComplete()
+            _accountCreated.emit(Unit)
         }
     }
 }

@@ -4,6 +4,9 @@ import com.atelbay.money_manager.core.crypto.FieldCipher.Companion.CURRENT_ENCRY
 import com.atelbay.money_manager.core.crypto.FieldCipherHolder
 import com.atelbay.money_manager.core.database.entity.DebtPaymentEntity
 import com.atelbay.money_manager.core.firestore.dto.DebtPaymentDto
+import com.atelbay.money_manager.core.model.money.majorToMinor
+import com.atelbay.money_manager.core.model.money.toMajorDouble
+import com.atelbay.money_manager.core.model.money.toMajorPlainString
 import timber.log.Timber
 import java.security.GeneralSecurityException
 import java.util.UUID
@@ -17,7 +20,8 @@ fun DebtPaymentEntity.toDto(
     return DebtPaymentDto(
         remoteId = remoteId ?: UUID.randomUUID().toString(),
         debtRemoteId = debtRemoteId,
-        amount = if (cipher != null) cipher.encryptDouble(amount) else amount.toString(),
+        amount = if (cipher != null) cipher.encryptDouble(amount.toMajorDouble()) else amount.toMajorPlainString(),
+        amountMinor = if (cipher != null) cipher.encryptLong(amount) else amount.toString(),
         date = date,
         note = if (cipher != null) cipher.encrypt(note ?: "") else (note ?: ""),
         transactionRemoteId = transactionRemoteId,
@@ -45,7 +49,8 @@ fun DebtPaymentDto.toEntity(
                 id = localId,
                 remoteId = remoteId,
                 debtId = localDebtId,
-                amount = cipher.decryptDouble(amount),
+                amount = amountMinor?.takeIf { it.isNotBlank() }?.let { cipher.decryptLong(it) }
+                    ?: majorToMinor(cipher.decryptDouble(amount)),
                 date = date,
                 note = cipher.decrypt(note).ifEmpty { null },
                 transactionId = localTransactionId,
@@ -57,7 +62,7 @@ fun DebtPaymentDto.toEntity(
             Timber.w("Unsupported encryption version %d for debt payment %s", encryptionVersion, remoteId)
             return null
         } else {
-            val parsedAmount = amount.toDoubleOrNull()
+            val parsedAmount = amountMinor?.toLongOrNull() ?: amount.toDoubleOrNull()?.let { majorToMinor(it) }
             if (parsedAmount == null) {
                 Timber.w("Invalid amount '%s' for debt payment %s", amount, remoteId)
                 return null

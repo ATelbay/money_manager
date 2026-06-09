@@ -1,8 +1,6 @@
 package com.atelbay.money_manager.presentation.statistics.ui
 
-import com.atelbay.money_manager.domain.statistics.model.CategorySummary
-import com.atelbay.money_manager.domain.statistics.model.DailyTotal
-import com.atelbay.money_manager.domain.statistics.model.MonthlyTotal
+import com.atelbay.money_manager.domain.statistics.model.CategoryMetadata
 import com.atelbay.money_manager.domain.statistics.model.StatisticsDateRange
 import com.atelbay.money_manager.domain.statistics.model.StatsPeriod
 import com.atelbay.money_manager.domain.statistics.model.TransactionType
@@ -13,7 +11,7 @@ import kotlinx.collections.immutable.persistentListOf
 data class StatisticsChartPoint(
     val bucketStartMillis: Long,
     val displayLabel: String,
-    val amount: Double?,
+    val amount: Long?,
     val isToday: Boolean = false,
 )
 
@@ -24,37 +22,29 @@ data class StatisticsChartState(
 )
 
 data class StatisticsCategoryDisplayItem(
-    val category: CategorySummary,
-    val displayAmount: Double?,
-    val displayPercentage: Int = category.percentage,
+    val category: CategoryMetadata,
+    val displayAmount: Long?,
+    val displayPercentage: Int = 0,
 )
 
 data class StatisticsDisplayDailyTotal(
     val date: Long,
-    val amount: Double?,
+    val amount: Long?,
 )
 
 data class StatisticsDisplayMonthlyTotal(
     val year: Int,
     val month: Int,
     val label: String,
-    val amount: Double?,
+    val amount: Long?,
 )
 
 data class StatisticsState(
     val period: StatsPeriod = StatsPeriod.MONTH,
     val transactionType: TransactionType = TransactionType.EXPENSE,
     val dateRange: StatisticsDateRange? = null,
-    val totalExpenses: Double = 0.0,
-    val totalIncome: Double = 0.0,
-    val expensesByCategory: ImmutableList<CategorySummary> = persistentListOf(),
-    val incomesByCategory: ImmutableList<CategorySummary> = persistentListOf(),
-    val dailyExpenses: ImmutableList<DailyTotal> = persistentListOf(),
-    val dailyIncome: ImmutableList<DailyTotal> = persistentListOf(),
-    val monthlyExpenses: ImmutableList<MonthlyTotal> = persistentListOf(),
-    val monthlyIncome: ImmutableList<MonthlyTotal> = persistentListOf(),
-    val displayedTotalExpenses: Double? = null,
-    val displayedTotalIncome: Double? = null,
+    val displayedTotalExpenses: Long? = null,
+    val displayedTotalIncome: Long? = null,
     val displayedExpensesByCategory: ImmutableList<StatisticsCategoryDisplayItem> = persistentListOf(),
     val displayedIncomesByCategory: ImmutableList<StatisticsCategoryDisplayItem> = persistentListOf(),
     val displayedDailyExpenses: ImmutableList<StatisticsDisplayDailyTotal> = persistentListOf(),

@@ -73,10 +73,10 @@ class StatementParserTest {
         assertNotNull(result)
         assertEquals("kaspi", result!!.bankId)
         assertEquals(4, result.transactions.size)
-        assertEquals(500.0, result.transactions[0].amount, 0.01)
-        assertEquals(4020.0, result.transactions[1].amount, 0.01)
-        assertEquals(7300.0, result.transactions[2].amount, 0.01)
-        assertEquals(150000.0, result.transactions[3].amount, 0.01)
+        assertEquals(50000L, result.transactions[0].amount)
+        assertEquals(402000L, result.transactions[1].amount)
+        assertEquals(730000L, result.transactions[2].amount)
+        assertEquals(15000000L, result.transactions[3].amount)
     }
 
     @Test

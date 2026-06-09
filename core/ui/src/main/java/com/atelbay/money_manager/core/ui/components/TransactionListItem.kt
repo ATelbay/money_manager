@@ -52,12 +52,12 @@ fun TransactionListItem(
     category: String,
     categoryIcon: ImageVector,
     categoryColor: Color,
-    amount: Double,
+    amount: Long,
     date: String,
     isIncome: Boolean,
     modifier: Modifier = Modifier,
     moneyDisplay: MoneyDisplayPresentation = MoneyDisplayFormatter.resolveAndFormat("KZT"),
-    secondaryAmount: Double? = null,
+    secondaryAmount: Long? = null,
     secondaryMoneyDisplay: MoneyDisplayPresentation? = null,
     secondaryAmountLabel: String? = null,
     accountName: String? = null,
@@ -69,14 +69,14 @@ fun TransactionListItem(
     val formatter = remember { defaultMoneyNumberFormat() }
     val sign = if (isIncome) "+" else "\u2212"
     val primaryAmountText = moneyDisplay.formatAmount(
-        amount = amount,
+        amountMinor = amount,
         sign = sign,
         formatter = formatter,
     )
     val secondaryAmountText = secondaryAmount?.let {
         val resolvedDisplay = secondaryMoneyDisplay ?: moneyDisplay
         val formattedAmount = resolvedDisplay.formatAmount(
-            amount = it,
+            amountMinor = it,
             sign = sign,
             formatter = formatter,
         )
@@ -233,7 +233,7 @@ private fun TransactionListItemPreview() {
             category = "Продукты",
             categoryIcon = Icons.Default.ShoppingCart,
             categoryColor = Color(0xFF4ECDC4),
-            amount = 15_480.00,
+            amount = 1_548_000L,
             date = "Сегодня",
             isIncome = false,
         )
@@ -249,11 +249,11 @@ private fun TransactionListItemExtremePreview() {
             category = "Аренда",
             categoryIcon = Icons.Default.ShoppingCart,
             categoryColor = Color(0xFF4ECDC4),
-            amount = 9_999_999_999_999.99,
+            amount = 999_999_999_999_999L,
             date = "Сегодня",
             isIncome = false,
             moneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
-            secondaryAmount = 9_999_999_999_999.99,
+            secondaryAmount = 999_999_999_999_999L,
             secondaryMoneyDisplay = MoneyDisplayFormatter.resolveAndFormat("USD"),
             secondaryAmountLabel = "≈",
         )

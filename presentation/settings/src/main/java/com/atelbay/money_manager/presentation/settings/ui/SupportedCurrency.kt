@@ -1,11 +1,20 @@
 package com.atelbay.money_manager.presentation.settings.ui
 
+import java.util.Locale
+
 data class SupportedCurrency(
     val code: String,
     val name: String,
     val nameEn: String = name,
     val nameKk: String = name,
-)
+) {
+    /** Currency name in the given UI locale (falls back to the Russian name). */
+    fun displayName(locale: Locale): String = when (locale.language) {
+        "en" -> nameEn
+        "kk" -> nameKk
+        else -> name
+    }
+}
 
 object SupportedCurrencies {
     val all: List<SupportedCurrency> = listOf(

@@ -2,7 +2,7 @@ package com.atelbay.money_manager.core.model
 
 data class RecurringTransaction(
     val id: Long = 0,
-    val amount: Double,
+    val amount: Long,
     val type: TransactionType,
     val categoryId: Long,
     val categoryName: String,

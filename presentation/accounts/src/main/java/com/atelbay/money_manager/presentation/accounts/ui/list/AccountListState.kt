@@ -7,6 +7,6 @@ import kotlinx.collections.immutable.persistentListOf
 data class AccountListState(
     val accounts: ImmutableList<Account> = persistentListOf(),
     val selectedAccountId: Long? = null,
-    val totalBalance: Double = 0.0,
+    val totalBalance: Long = 0L,
     val isLoading: Boolean = true,
 )

@@ -10,6 +10,7 @@ android {
 dependencies {
     implementation(projects.core.database)
     implementation(projects.core.crypto)
+    implementation(projects.core.model)
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.firestore)

@@ -11,4 +11,5 @@ data class DebtDetailState(
     val isLoading: Boolean = true,
     val showPaymentSheet: Boolean = false,
     val showEditSheet: Boolean = false,
+    val errorMessage: String? = null,
 )

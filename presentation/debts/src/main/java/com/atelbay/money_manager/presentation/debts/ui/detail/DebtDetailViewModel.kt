@@ -62,7 +62,7 @@ class DebtDetailViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    fun addPayment(amount: Double, date: Long, note: String?, createTransaction: Boolean) {
+    fun addPayment(amount: Long, date: Long, note: String?, createTransaction: Boolean) {
         val debt = _state.value.debt ?: return
         _state.update { it.copy(showPaymentSheet = false) }
         viewModelScope.launch {
@@ -85,14 +85,26 @@ class DebtDetailViewModel @Inject constructor(
 
     fun deleteDebt() {
         viewModelScope.launch {
-            deleteDebtUseCase(debtId)
+            try {
+                deleteDebtUseCase(debtId)
+            } catch (e: Exception) {
+                _state.update { it.copy(errorMessage = e.message) }
+            }
         }
     }
 
     fun saveDebt(debt: Debt) {
         viewModelScope.launch {
-            saveDebtUseCase(debt)
+            try {
+                saveDebtUseCase(debt)
+            } catch (e: Exception) {
+                _state.update { it.copy(errorMessage = e.message) }
+            }
         }
+    }
+
+    fun clearError() {
+        _state.update { it.copy(errorMessage = null) }
     }
 
     fun togglePaymentSheet() {

@@ -7,7 +7,12 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Parser candidates — shared collection
+    // Parser candidates — shared, crowd-sourced collection.
+    // NOTE: read is intentionally open to any authenticated user because the parser feature must
+    // match candidates created by *other* users (same bank/pattern). Therefore `anonymizedSample`
+    // is visible to all authenticated users — it MUST be anonymized client-side before upload and
+    // must never contain raw account numbers, names, or balances. The validation below caps field
+    // sizes as defence-in-depth, but is not a substitute for client-side anonymization.
     match /parser_candidates/{candidateId} {
       // Any Firebase-authenticated user (including Anonymous Auth) can create a new candidate
       allow create: if request.auth != null
@@ -15,13 +20,25 @@ service cloud.firestore {
                     && request.resource.data.configType in ['regex', 'table']
                     && request.resource.data.successCount == 1
                     && request.resource.data.status == 'candidate'
+                    && request.resource.data.bankId is string
+                    && request.resource.data.bankId.size() <= 64
+                    && request.resource.data.transactionPattern is string
+                    && request.resource.data.transactionPattern.size() <= 2000
+                    && request.resource.data.parserConfigJson is string
+                    && request.resource.data.parserConfigJson.size() <= 20000
+                    && request.resource.data.anonymizedSample is string
+                    && request.resource.data.anonymizedSample.size() <= 4000
                     && request.resource.data.userIdHash is string
-                    && request.resource.data.userIdHash.size() > 0;
+                    && request.resource.data.userIdHash.size() > 0
+                    && request.resource.data.userIdHash.size() <= 128
+                    && request.resource.data.createdAt is int
+                    && request.resource.data.updatedAt is int;
 
       // Any Firebase-authenticated user (including Anonymous Auth) can increment successCount
       allow update: if request.auth != null
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['successCount', 'updatedAt'])
-                    && request.resource.data.successCount == resource.data.successCount + 1;
+                    && request.resource.data.successCount == resource.data.successCount + 1
+                    && request.resource.data.updatedAt is int;
 
       // Any authenticated user can read (for matching bankId + transactionPattern)
       allow read: if request.auth != null;

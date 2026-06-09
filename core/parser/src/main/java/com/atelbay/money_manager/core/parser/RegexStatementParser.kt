@@ -1,6 +1,7 @@
 package com.atelbay.money_manager.core.parser
 
 import com.atelbay.money_manager.core.common.generateTransactionHash
+import com.atelbay.money_manager.core.model.money.majorToMinor
 import com.atelbay.money_manager.core.model.ParsedTransaction
 import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.core.remoteconfig.RegexParserProfile
@@ -49,8 +50,16 @@ import javax.inject.Inject
  *    an invalid `kotlin.Regex` is dropped.
  */
 class RegexStatementParser @Inject constructor(
-    private val regexValidator: RegexValidator = RegexValidator(),
+    private val regexValidator: RegexValidator,
 ) {
+
+    /**
+     * Test-only convenience constructor. Kept separate (and un-annotated) instead of a default on
+     * the @Inject constructor: an all-default primary makes Kotlin emit a synthetic no-arg
+     * constructor that Dagger also treats as @Inject, which fails with "may only contain one
+     * injected constructor". Production wiring always goes through Hilt via the primary constructor.
+     */
+    constructor() : this(RegexValidator())
 
     companion object {
         /**
@@ -255,11 +264,12 @@ class RegexStatementParser @Inject constructor(
             }
         }
 
-        val hash = generateTransactionHash(date, amount, type.value, details.trim())
+        val amountMinor = majorToMinor(amount)
+        val hash = generateTransactionHash(date, amountMinor, type.value, details.trim())
 
         return ParsedTransaction(
             date = date,
-            amount = amount,
+            amount = amountMinor,
             type = type,
             operationType = operation,
             details = details.trim(),

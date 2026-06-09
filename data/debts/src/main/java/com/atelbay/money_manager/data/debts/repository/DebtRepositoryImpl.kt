@@ -7,6 +7,7 @@ import com.atelbay.money_manager.core.model.Debt
 import com.atelbay.money_manager.data.debts.mapper.toDomain
 import com.atelbay.money_manager.data.debts.mapper.toEntity
 import com.atelbay.money_manager.data.sync.SyncManager
+import com.atelbay.money_manager.domain.debts.repository.DebtPaymentRepository
 import com.atelbay.money_manager.domain.debts.repository.DebtRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -21,6 +22,7 @@ class DebtRepositoryImpl @Inject constructor(
     private val debtDao: DebtDao,
     private val debtPaymentDao: DebtPaymentDao,
     private val accountDao: AccountDao,
+    private val debtPaymentRepository: DebtPaymentRepository,
     private val syncManager: SyncManager,
 ) : DebtRepository {
 
@@ -38,7 +40,7 @@ class DebtRepositoryImpl @Inject constructor(
                 val paidFlows = debts.map { debtPaymentDao.sumAmountByDebtId(it.id) }
                 combine(paidFlows) { paidAmounts ->
                     debts.mapIndexed { index, entity ->
-                        val paid = paidAmounts[index] ?: 0.0
+                        val paid = paidAmounts[index] ?: 0L
                         val account = accountMap[entity.accountId]
                         entity.toDomain(paid, account?.name.orEmpty())
                     }
@@ -48,13 +50,13 @@ class DebtRepositoryImpl @Inject constructor(
 
     override fun observeById(id: Long): Flow<Debt?> =
         combine(
-            debtDao.observeAll(),
+            debtDao.observeById(id),
             debtPaymentDao.sumAmountByDebtId(id),
             accountDao.observeAll(),
-        ) { debts, paidAmount, accounts ->
-            val entity = debts.find { it.id == id } ?: return@combine null
+        ) { entity, paidAmount, accounts ->
+            entity ?: return@combine null
             val accountName = accounts.find { it.id == entity.accountId }?.name.orEmpty()
-            entity.toDomain(paidAmount ?: 0.0, accountName)
+            entity.toDomain(paidAmount ?: 0L, accountName)
         }
 
     override suspend fun getById(id: Long): Debt? {
@@ -87,11 +89,10 @@ class DebtRepositoryImpl @Inject constructor(
     }
 
     override suspend fun delete(id: Long) {
-        val now = System.currentTimeMillis()
-        val payments = debtPaymentDao.getByDebtId(id)
-        debtPaymentDao.softDeleteByDebtId(id, now)
-        payments.forEach { syncManager.syncDebtPayment(it.id) }
-        debtDao.softDeleteById(id, now)
+        // Delegate so each payment's linked transaction is reversed (balance + soft-delete), not just
+        // the payment rows. See DebtPaymentRepositoryImpl.deleteAllByDebtId.
+        debtPaymentRepository.deleteAllByDebtId(id)
+        debtDao.softDeleteById(id, System.currentTimeMillis())
         syncManager.syncDebt(id)
     }
 }

@@ -11,11 +11,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -26,50 +26,58 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.ParsedTransaction
 import com.atelbay.money_manager.core.model.TransactionOverride
 import com.atelbay.money_manager.core.model.TransactionType
+import com.atelbay.money_manager.core.model.money.parseToMinorUnitsOrNull
+import com.atelbay.money_manager.core.model.money.toMajorPlainString
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import kotlinx.datetime.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ParsedTransactionItem(
+    index: Int,
     transaction: ParsedTransaction,
     override: TransactionOverride?,
     categories: List<Category>,
-    onAmountChange: (Double) -> Unit,
+    onAmountChange: (Long) -> Unit,
     onTypeChange: (TransactionType) -> Unit,
     onDetailsChange: (String) -> Unit,
     onDateChange: (LocalDate) -> Unit,
     onCategoryChange: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val strings = MoneyManagerTheme.strings
     val currentAmount = override?.amount ?: transaction.amount
     val currentType = override?.type ?: transaction.type
     val currentDetails = override?.details ?: transaction.details
     val currentDate = override?.date ?: transaction.date
     val currentCategoryId = override?.categoryId ?: transaction.categoryId
 
-    val hasCategory = currentCategoryId != null
+    // A category is resolved if the user/parser set an id, or a name is pending creation at import.
+    val hasCategory = currentCategoryId != null || transaction.pendingCategoryName != null
     val borderColor = when {
-        !hasCategory -> Color(0xFFF44336)
-        transaction.needsReview -> Color(0xFFFFA000)
+        !hasCategory -> MaterialTheme.colorScheme.error
+        transaction.needsReview -> MaterialTheme.colorScheme.tertiary
         else -> Color.Transparent
     }
     val confidenceColor = when {
-        transaction.confidence >= 0.8f -> Color(0xFF4CAF50)
-        transaction.confidence >= 0.5f -> Color(0xFFFFA000)
-        else -> Color(0xFFF44336)
+        transaction.confidence >= 0.8f -> MaterialTheme.colorScheme.primary
+        transaction.confidence >= 0.5f -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.error
     }
 
     val filteredCategories = categories.filter { it.type == currentType }
     val selectedCategory = categories.find { it.id == currentCategoryId }
+    val tag = "import:item:$index"
 
     Surface(
-        modifier = modifier,
+        modifier = modifier.testTag(tag),
         shape = MaterialTheme.shapes.medium,
         tonalElevation = 1.dp,
         border = if (!hasCategory || transaction.needsReview) BorderStroke(1.dp, borderColor) else null,
@@ -88,10 +96,12 @@ fun ParsedTransactionItem(
             OutlinedTextField(
                 value = currentDetails,
                 onValueChange = onDetailsChange,
-                label = { Text("Описание") },
+                label = { Text(strings.importDescriptionLabel) },
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("$tag:description"),
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -102,25 +112,21 @@ fun ParsedTransactionItem(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 var amountText by remember(currentAmount) {
-                    mutableStateOf(
-                        if (currentAmount == currentAmount.toLong().toDouble()) {
-                            currentAmount.toLong().toString()
-                        } else {
-                            currentAmount.toString()
-                        },
-                    )
+                    mutableStateOf(currentAmount.toMajorPlainString())
                 }
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { text ->
                         amountText = text
-                        text.toDoubleOrNull()?.let(onAmountChange)
+                        text.parseToMinorUnitsOrNull()?.let(onAmountChange)
                     },
-                    label = { Text("Сумма") },
+                    label = { Text(strings.amount) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     textStyle = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("$tag:amount"),
                 )
 
                 var dateText by remember(currentDate) {
@@ -134,10 +140,12 @@ fun ParsedTransactionItem(
                             .getOrNull()
                             ?.let(onDateChange)
                     },
-                    label = { Text("Дата") },
+                    label = { Text(strings.date) },
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("$tag:date"),
                 )
             }
 
@@ -148,12 +156,14 @@ fun ParsedTransactionItem(
                 FilterChip(
                     selected = currentType == TransactionType.EXPENSE,
                     onClick = { onTypeChange(TransactionType.EXPENSE) },
-                    label = { Text("Расход") },
+                    label = { Text(strings.expense) },
+                    modifier = Modifier.testTag("$tag:expense"),
                 )
                 FilterChip(
                     selected = currentType == TransactionType.INCOME,
                     onClick = { onTypeChange(TransactionType.INCOME) },
-                    label = { Text("Доход") },
+                    label = { Text(strings.income) },
+                    modifier = Modifier.testTag("$tag:income"),
                 )
             }
 
@@ -168,15 +178,16 @@ fun ParsedTransactionItem(
             ) {
                 OutlinedTextField(
                     value = selectedCategory?.name
+                        ?: transaction.pendingCategoryName
                         ?: transaction.suggestedCategoryName
-                        ?: "Выберите категорию",
+                        ?: strings.chooseCategory,
                     onValueChange = {},
                     readOnly = true,
                     singleLine = true,
-                    label = { Text("Категория") },
+                    label = { Text(strings.category) },
                     isError = !hasCategory,
                     supportingText = if (!hasCategory) {
-                        { Text("Выберите категорию для импорта") }
+                        { Text(strings.importCategoryRequired) }
                     } else {
                         null
                     },
@@ -184,6 +195,7 @@ fun ParsedTransactionItem(
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                     modifier = Modifier
                         .fillMaxWidth()
+                        .testTag("$tag:category")
                         .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                 )
                 ExposedDropdownMenu(

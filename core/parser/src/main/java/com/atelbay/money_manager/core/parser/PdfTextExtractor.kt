@@ -3,6 +3,7 @@ package com.atelbay.money_manager.core.parser
 import android.content.Context
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.pdmodel.encryption.InvalidPasswordException
 import com.tom_roush.pdfbox.text.PDFTextStripper
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
@@ -15,8 +16,10 @@ class PdfTextExtractor @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) {
 
+    @Volatile
     private var initialized = false
 
+    @Synchronized
     internal fun ensureInitialized() {
         if (!initialized) {
             PDFBoxResourceLoader.init(context)
@@ -35,6 +38,10 @@ class PdfTextExtractor @Inject constructor(
                     stripper.getText(document)
                 }
             }
+        } catch (e: InvalidPasswordException) {
+            // Password-protected PDF — distinct from corruption so the caller/UI can tell the user.
+            Timber.w(e, "PDF is password-protected (%d bytes)", bytes.size)
+            ""
         } catch (e: Exception) {
             Timber.e(e, "Failed to extract text from PDF (%d bytes)", bytes.size)
             ""

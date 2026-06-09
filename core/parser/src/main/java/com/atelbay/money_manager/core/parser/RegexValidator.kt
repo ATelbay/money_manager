@@ -30,14 +30,18 @@ class RegexValidator @Inject constructor() {
     }
 
     /**
-     * Detects nested quantifiers like `(a+)+`, `(a*)*`, `(a+)*`, `(a*)+`.
-     * Only flags groups followed by `+`, `*`, or `{` — NOT `?` (0-or-1 is safe).
+     * Detects nested quantifiers like `(a+)+`, `(a*)*`, `(a+)*`, `(a*)+`, and the open-ended
+     * brace form `(a{1,})+` / `(\d{2,})*`. Only flags groups followed by `+`, `*`, or `{` —
+     * NOT `?` (0-or-1 is safe). Bounded inner quantifiers like `(\s\d{3})*` are NOT flagged,
+     * since they cannot blow up — this keeps legitimate thousand-separator patterns safe.
      * Returns the matched fragment or null.
      */
     private fun findNestedQuantifier(pattern: String): String? {
         // Use [^()]* (not [^)]*) to respect nested groups — only check quantifiers
         // at the top level of each group, not inside nested subgroups.
-        val nested = Regex("""\([^()]*[+*][^()]*\)[+*]|\([^()]*[+*][^()]*\)\{""")
+        // Inner quantifier: a bare +/* OR an open-ended {n,} (comma with no upper bound).
+        // Outer quantifier: +, *, or any { (a quantified-then-repeated group).
+        val nested = Regex("""\([^()]*(?:[+*]|\{\d*,\})[^()]*\)(?:[+*]|\{)""")
         return nested.find(pattern)?.value
     }
 

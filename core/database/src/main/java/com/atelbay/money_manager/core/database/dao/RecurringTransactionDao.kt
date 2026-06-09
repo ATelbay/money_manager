@@ -46,6 +46,10 @@ interface RecurringTransactionDao {
     @Query("UPDATE recurring_transactions SET remoteId = NULL")
     suspend fun clearRemoteIds()
 
+    /** Wipes all recurring transactions. Used when wiping local data on a user switch. */
+    @Query("DELETE FROM recurring_transactions")
+    suspend fun deleteAll()
+
     @Query("UPDATE recurring_transactions SET isDeleted = 1, updatedAt = :updatedAt WHERE id = :id")
     suspend fun softDeleteById(id: Long, updatedAt: Long)
 }

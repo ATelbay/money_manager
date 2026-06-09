@@ -219,10 +219,20 @@ fun TransactionEditScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             // ── Account Selector ──
-            if (state.accounts.size > 1) {
+            // A transaction's amount is denominated in its account's currency. When editing, moving
+            // it to a different-currency account would mis-apply the raw amount to that account's
+            // balance (no conversion happens at the data layer), so restrict the choices to accounts
+            // sharing the current account's currency. New transactions can still pick any account.
+            val selectedAccount = state.accounts.find { it.id == state.accountId }
+            val selectableAccounts = if (state.isEditing && selectedAccount != null) {
+                state.accounts.filter { it.currency == selectedAccount.currency }
+            } else {
+                state.accounts
+            }
+            if (selectableAccounts.size > 1) {
                 AccountSelector(
-                    accounts = state.accounts,
-                    selectedAccount = state.accounts.find { it.id == state.accountId },
+                    accounts = selectableAccounts,
+                    selectedAccount = selectedAccount,
                     onAccountSelected = onAccountSelect,
                     label = s.selectAccount,
                     placeholder = s.selectAccount,
@@ -370,13 +380,8 @@ private fun AmountHeroInput(
             Spacer(modifier = Modifier.width(8.dp))
             BasicTextField(
                 value = value,
-                onValueChange = { newValue ->
-                    val cleaned = newValue.filter { it.isDigit() || it == '.' }
-                    val parts = cleaned.split('.')
-                    if (parts.size <= 2) {
-                        onValueChange(cleaned)
-                    }
-                },
+                // Sanitisation is centralised in the ViewModel (digits + single decimal separator).
+                onValueChange = onValueChange,
                 textStyle = TextStyle(
                     fontSize = 36.sp,
                     fontWeight = FontWeight.Bold,

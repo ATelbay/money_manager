@@ -33,7 +33,11 @@ class ActivityProviderImpl @Inject constructor(
                 override fun onActivityStarted(activity: Activity) = Unit
                 override fun onActivityStopped(activity: Activity) = Unit
                 override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
-                override fun onActivityDestroyed(activity: Activity) = Unit
+
+                override fun onActivityDestroyed(activity: Activity) {
+                    // Guard against leaking a destroyed Activity if it never went through onPause.
+                    if (currentActivity === activity) currentActivity = null
+                }
             },
         )
     }

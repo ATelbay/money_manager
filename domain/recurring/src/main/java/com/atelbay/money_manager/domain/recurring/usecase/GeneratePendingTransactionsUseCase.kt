@@ -1,5 +1,6 @@
 package com.atelbay.money_manager.domain.recurring.usecase
 
+import android.util.Log
 import com.atelbay.money_manager.core.model.Frequency
 import com.atelbay.money_manager.core.model.RecurringTransaction
 import com.atelbay.money_manager.core.model.Transaction
@@ -88,19 +89,47 @@ class GeneratePendingTransactionsUseCase @Inject constructor(
 
         val dates = mutableListOf<LocalDate>()
 
-        // When never generated, include startDate itself if it is <= today
+        // When never generated, the first occurrence is anchored to the configured dayOfMonth/dayOfWeek
+        // on or after the start date; otherwise continue from the last generated date.
         var candidate: LocalDate? = if (recurring.lastGeneratedDate == null) {
-            fromDate
+            firstOccurrence(recurring, fromDate)
         } else {
             nextOccurrence(recurring, fromDate)
         }
 
         while (candidate != null && !candidate.isAfter(effectiveEnd)) {
             dates.add(candidate)
+            if (dates.size >= MAX_OCCURRENCES_PER_RUN) {
+                // Safety cap: avoid pathological inserts after a very long absence. The remaining
+                // occurrences are caught up on the next run (lastGeneratedDate advances).
+                Log.w(TAG, "Occurrence cap ($MAX_OCCURRENCES_PER_RUN) hit for recurring ${recurring.id}")
+                break
+            }
             candidate = nextOccurrence(recurring, candidate)
         }
 
         return dates
+    }
+
+    /** First occurrence on or after [startDate], honouring the configured dayOfMonth/dayOfWeek. */
+    private fun firstOccurrence(recurring: RecurringTransaction, startDate: LocalDate): LocalDate? {
+        return when (recurring.frequency) {
+            Frequency.DAILY, Frequency.YEARLY -> startDate
+            Frequency.WEEKLY -> {
+                val targetDow = recurring.dayOfWeek ?: startDate.dayOfWeek.value
+                var next = startDate
+                while (next.dayOfWeek.value != targetDow) {
+                    next = next.plusDays(1)
+                }
+                next
+            }
+            Frequency.MONTHLY -> {
+                val targetDay = recurring.dayOfMonth ?: startDate.dayOfMonth
+                val clampedThisMonth = minOf(targetDay, YearMonth.from(startDate).lengthOfMonth())
+                val thisMonth = startDate.withDayOfMonth(clampedThisMonth)
+                if (!thisMonth.isBefore(startDate)) thisMonth else nextOccurrence(recurring, thisMonth)
+            }
+        }
     }
 
     private fun nextOccurrence(recurring: RecurringTransaction, after: LocalDate): LocalDate? {
@@ -121,7 +150,22 @@ class GeneratePendingTransactionsUseCase @Inject constructor(
                 val clampedDay = minOf(targetDay, yearMonth.lengthOfMonth())
                 LocalDate.of(nextMonth.year, nextMonth.month, clampedDay)
             }
-            Frequency.YEARLY -> after.plusYears(1)
+            Frequency.YEARLY -> {
+                // Anchor to the original start month/day so Feb 29 is preserved on leap years
+                // (instead of permanently drifting to Feb 28 by adding a year to the clamped date).
+                val startLocal = Instant.ofEpochMilli(recurring.startDate)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                val nextYear = after.year + 1
+                val month = startLocal.monthValue
+                val clampedDay = minOf(startLocal.dayOfMonth, YearMonth.of(nextYear, month).lengthOfMonth())
+                LocalDate.of(nextYear, month, clampedDay)
+            }
         }
+    }
+
+    private companion object {
+        const val TAG = "GeneratePendingTx"
+        const val MAX_OCCURRENCES_PER_RUN = 1000
     }
 }

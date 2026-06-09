@@ -7,6 +7,7 @@ data class DebtDto(
     val contactName: String = "",
     val direction: String = "",
     val totalAmount: String = "",
+    val totalAmountMinor: String? = null,
     val currency: String = "",
     val accountRemoteId: String = "",
     val note: String = "",

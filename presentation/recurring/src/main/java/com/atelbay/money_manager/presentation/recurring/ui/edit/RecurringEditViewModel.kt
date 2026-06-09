@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.atelbay.money_manager.core.model.Frequency
 import com.atelbay.money_manager.core.model.RecurringTransaction
 import com.atelbay.money_manager.core.model.TransactionType
+import com.atelbay.money_manager.core.model.money.parseToMinorUnitsOrNull
+import com.atelbay.money_manager.core.model.money.toMajorPlainString
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
 import com.atelbay.money_manager.domain.categories.usecase.GetCategoriesUseCase
 import com.atelbay.money_manager.domain.recurring.usecase.GetRecurringTransactionByIdUseCase
@@ -20,6 +22,9 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 import javax.inject.Inject
 
 @HiltViewModel
@@ -45,10 +50,16 @@ class RecurringEditViewModel @Inject constructor(
             val accounts = getAccountsUseCase().first()
             val firstAccount = accounts.firstOrNull()
             _state.update {
+                // Pre-select the day pickers from the (initial) start date so a new recurring isn't
+                // silently anchored to the 1st. The edit branch below overrides with saved values.
+                val startLocal = Instant.ofEpochMilli(it.startDate)
+                    .atZone(ZoneId.systemDefault()).toLocalDate()
                 it.copy(
                     accounts = accounts.toImmutableList(),
                     accountId = firstAccount?.id ?: 0,
                     accountName = firstAccount?.name.orEmpty(),
+                    dayOfMonth = startLocal.dayOfMonth,
+                    dayOfWeek = startLocal.dayOfWeek.value,
                 )
             }
 
@@ -60,7 +71,7 @@ class RecurringEditViewModel @Inject constructor(
                     val accountForRecurring = accounts.find { a -> a.id == existing.accountId }
                     _state.update {
                         it.copy(
-                            amount = existing.amount.toBigDecimal().stripTrailingZeros().toPlainString(),
+                            amount = existing.amount.toMajorPlainString(),
                             type = existing.type,
                             categoryId = existing.categoryId,
                             categoryName = existing.categoryName,
@@ -133,12 +144,28 @@ class RecurringEditViewModel @Inject constructor(
     }
 
     fun setStartDate(date: Long) {
-        _state.update { it.copy(startDate = date, showStartDatePicker = false, dateError = null) }
+        _state.update {
+            it.copy(startDate = anchorPickedDate(date), showStartDatePicker = false, dateError = null)
+        }
     }
 
     fun setEndDate(date: Long?) {
-        _state.update { it.copy(endDate = date, showEndDatePicker = false, dateError = null) }
+        _state.update {
+            it.copy(endDate = date?.let(::anchorPickedDate), showEndDatePicker = false, dateError = null)
+        }
     }
+
+    /**
+     * Material3 DatePicker emits UTC midnight; re-anchor to the same calendar day in the system zone
+     * so the stored date matches what the user picked (and what generation reads via systemDefault).
+     */
+    private fun anchorPickedDate(utcMillis: Long): Long =
+        Instant.ofEpochMilli(utcMillis)
+            .atZone(ZoneOffset.UTC)
+            .toLocalDate()
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
 
     fun setDayOfMonth(day: Int) {
         _state.update { it.copy(dayOfMonth = day) }
@@ -174,8 +201,8 @@ class RecurringEditViewModel @Inject constructor(
         val current = _state.value
         var hasError = false
 
-        val amount = current.amount.toDoubleOrNull()
-        if (amount == null || amount <= 0) {
+        val amount = current.amount.parseToMinorUnitsOrNull()
+        if (amount == null || amount <= 0L) {
             _state.update { it.copy(amountError = amountError) }
             hasError = true
         }

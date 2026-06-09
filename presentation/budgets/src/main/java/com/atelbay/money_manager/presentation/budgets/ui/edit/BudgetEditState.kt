@@ -17,6 +17,7 @@ data class BudgetEditState(
     val expenseCategories: ImmutableList<Category> = persistentListOf(),
     val limitError: String? = null,
     val categoryError: String? = null,
+    val saveError: String? = null,
 ) {
     val isEditing: Boolean get() = budgetId != null
 }

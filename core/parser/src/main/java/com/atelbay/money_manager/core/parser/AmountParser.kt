@@ -34,6 +34,13 @@ object AmountParser {
         else -> throw IllegalArgumentException("Unknown amount format: $format")
     }
 
+    /**
+     * Parses [dateStr] with [dateFormat] (a Java [DateTimeFormatter] pattern).
+     *
+     * Note on 2-digit years: a "yy" pattern resolves to 2000–2099 (Java's reduced-value base of
+     * 2000). This is intentional and deterministic for bank statements, which are always recent —
+     * we deliberately avoid a clock-relative pivot so parsing stays reproducible in tests.
+     */
     fun parseDateString(dateStr: String, dateFormat: String): LocalDate {
         val formatter = DateTimeFormatter.ofPattern(dateFormat)
         return LocalDate.parse(dateStr.trim(), formatter)

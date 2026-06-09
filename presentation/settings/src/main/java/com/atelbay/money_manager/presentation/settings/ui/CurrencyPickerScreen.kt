@@ -1,6 +1,7 @@
 package com.atelbay.money_manager.presentation.settings.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -58,12 +59,17 @@ fun CurrencyPickerScreen(
     val typography = MoneyManagerTheme.typography
     val s = MoneyManagerTheme.strings
 
+    val locale = s.locale
     var searchQuery by remember { mutableStateOf("") }
-    val filteredOptions = remember(searchQuery) {
-        val q = searchQuery.trim().lowercase()
-        if (q.isEmpty()) SupportedCurrencies.all
-        else SupportedCurrencies.all.filter { c ->
-            c.code.lowercase().contains(q) || c.name.lowercase().contains(q)
+    val filteredOptions = remember(searchQuery, locale) {
+        val q = searchQuery.trim().lowercase(locale)
+        if (q.isEmpty()) {
+            SupportedCurrencies.all
+        } else {
+            SupportedCurrencies.all.filter { c ->
+                c.code.lowercase(locale).contains(q) ||
+                    c.displayName(locale).lowercase(locale).contains(q)
+            }
         }
     }
     val selected = if (activeSide == CurrencyPickerSide.FIRST) baseCurrency else targetCurrency
@@ -174,38 +180,53 @@ fun CurrencyPickerScreen(
                 tag = "currencyPicker:search",
             )
 
-            LazyColumn {
-                itemsIndexed(filteredOptions) { index, currency ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onSelect(currency) }
-                            .padding(vertical = 14.dp, horizontal = 8.dp)
-                            .testTag("currencyPicker:currency${currency.code}"),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "${currency.code} · ${currency.name}",
-                            style = typography.cardTitle,
-                            color = colors.textPrimary,
-                            modifier = Modifier.weight(1f),
-                        )
-                        if (selected.code == currency.code) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = Teal,
-                                modifier = Modifier.size(20.dp),
+            if (filteredOptions.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag("currencyPicker:empty"),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = s.nothingFound,
+                        style = typography.cardTitle,
+                        color = colors.textSecondary,
+                    )
+                }
+            } else {
+                LazyColumn {
+                    itemsIndexed(filteredOptions) { index, currency ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onSelect(currency) }
+                                .padding(vertical = 14.dp, horizontal = 8.dp)
+                                .testTag("currencyPicker:currency${currency.code}"),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "${currency.code} · ${currency.displayName(locale)}",
+                                style = typography.cardTitle,
+                                color = colors.textPrimary,
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (selected.code == currency.code) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = Teal,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+                        if (index < filteredOptions.lastIndex) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 8.dp),
+                                thickness = 0.5.dp,
+                                color = colors.borderSubtle,
                             )
                         }
-                    }
-                    if (index < filteredOptions.lastIndex) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 8.dp),
-                            thickness = 0.5.dp,
-                            color = colors.borderSubtle,
-                        )
                     }
                 }
             }

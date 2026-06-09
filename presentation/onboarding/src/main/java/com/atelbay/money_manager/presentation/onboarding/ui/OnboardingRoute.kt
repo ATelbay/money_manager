@@ -18,7 +18,7 @@ fun OnboardingRoute(
         state = state,
         onPageChanged = viewModel::setPage,
         onNextClick = {
-            if (state.currentPage < OnboardingPages.size - 1) {
+            if (state.currentPage < ONBOARDING_PAGE_COUNT - 1) {
                 viewModel.setPage(state.currentPage + 1)
             } else {
                 onFinished()

@@ -15,6 +15,9 @@ interface DebtDao {
     fun observeAll(): Flow<List<DebtEntity>>
 
     @Query("SELECT * FROM debts WHERE id = :id AND isDeleted = 0")
+    fun observeById(id: Long): Flow<DebtEntity?>
+
+    @Query("SELECT * FROM debts WHERE id = :id AND isDeleted = 0")
     suspend fun getById(id: Long): DebtEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -42,4 +45,8 @@ interface DebtDao {
 
     @Query("UPDATE debts SET remoteId = NULL")
     suspend fun clearRemoteIds()
+
+    /** Wipes all debts (cascades to debt_payments). Used when wiping local data on a user switch. */
+    @Query("DELETE FROM debts")
+    suspend fun deleteAll()
 }

@@ -47,7 +47,13 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun getById(id: Long): TransactionEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    /**
+     * Inserts a single transaction. Uses ABORT (not REPLACE) on conflict so a `uniqueHash`
+     * collision fails loudly instead of silently delete+reinserting the row — which would change
+     * its id and fire ON DELETE SET NULL on linked debt_payments. Batch import dedups via
+     * [insertOrIgnore]; manual saves carry a null hash and never conflict.
+     */
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(transaction: TransactionEntity): Long
 
     @Update
@@ -65,8 +71,20 @@ interface TransactionDao {
     @Query("UPDATE transactions SET isDeleted = 1, updatedAt = :updatedAt WHERE accountId = :accountId AND isDeleted = 0")
     suspend fun softDeleteByAccountId(accountId: Long, updatedAt: Long)
 
+    /** Active (non-deleted) transaction ids for an account — captured before a cascade soft-delete so each can be synced. */
+    @Query("SELECT id FROM transactions WHERE accountId = :accountId AND isDeleted = 0")
+    suspend fun getIdsByAccountId(accountId: Long): List<Long>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertOrIgnore(transactions: List<TransactionEntity>): List<Long>
+
+    /**
+     * Inserts a single transaction, ignoring a `uniqueHash` collision (returns -1 then). Used by
+     * recurring generation so re-running / a cross-device pull of the same occurrence is idempotent
+     * and never double-counts the account balance.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertOrIgnore(transaction: TransactionEntity): Long
 
     @Query("SELECT EXISTS(SELECT 1 FROM transactions WHERE uniqueHash = :hash)")
     suspend fun existsByHash(hash: String): Boolean
@@ -109,6 +127,13 @@ interface TransactionDao {
     @Query("UPDATE transactions SET remoteId = NULL")
     suspend fun clearRemoteIds()
 
-    @Query("SELECT COALESCE(SUM(amount), 0.0) FROM transactions WHERE categoryId = :categoryId AND type = 'expense' AND isDeleted = 0 AND date >= :startDate AND date < :endDate")
-    fun observeExpenseSumByCategory(categoryId: Long, startDate: Long, endDate: Long): Flow<Double>
+    @Query("SELECT * FROM transactions WHERE uniqueHash = :hash LIMIT 1")
+    suspend fun getByUniqueHash(hash: String): TransactionEntity?
+
+    /** Wipes all transactions. Used when wiping local data on a user switch (see SyncManager). */
+    @Query("DELETE FROM transactions")
+    suspend fun deleteAll()
+
+    @Query("SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE categoryId = :categoryId AND type = 'expense' AND isDeleted = 0 AND date >= :startDate AND date < :endDate")
+    fun observeExpenseSumByCategory(categoryId: Long, startDate: Long, endDate: Long): Flow<Long>
 }

@@ -11,6 +11,9 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -37,6 +40,20 @@ class UserPreferences @Inject constructor(
     suspend fun setOnboardingCompleted() {
         context.dataStore.edit { prefs ->
             prefs[KEY_ONBOARDING_COMPLETED] = true
+        }
+    }
+
+    /**
+     * Firebase uid that currently owns the local data set. Used by the sync layer to detect a
+     * user switch and wipe the previous user's data before syncing the new one (prevents
+     * cross-user data leaks into the wrong Firestore path). Null until the first real sign-in.
+     */
+    suspend fun getSyncOwnerUid(): String? =
+        context.dataStore.data.first()[KEY_SYNC_OWNER_UID]
+
+    suspend fun setSyncOwnerUid(uid: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_SYNC_OWNER_UID] = uid
         }
     }
 
@@ -262,25 +279,18 @@ class UserPreferences @Inject constructor(
         val KEY_AI_TABLE_PARSER_CONFIGS = stringPreferencesKey("ai_table_parser_configs")
         val KEY_PARSER_CONFIGS_VERSION = longPreferencesKey("parser_configs_global_version")
         val KEY_ANONYMOUS_DEVICE_ID = stringPreferencesKey("anonymous_device_id")
+        val KEY_SYNC_OWNER_UID = stringPreferencesKey("sync_owner_uid")
 
-        /**
-         * Simple JSON serializer for quotes map. Avoids adding org.json / Gson dependency.
-         * Format: {"USD":475.0,"EUR":520.0}
-         */
+        /** Serializer for the quotes map (code -> KZT per 1 unit). Format: {"USD":475.0,"EUR":520.0}. */
+        private val quotesSerializer = MapSerializer(String.serializer(), Double.serializer())
+
         fun quotesToJson(quotes: Map<String, Double>): String =
-            quotes.entries.joinToString(",", "{", "}") { (code, rate) ->
-                "\"$code\":$rate"
-            }
+            Json.encodeToString(quotesSerializer, quotes)
 
         fun jsonToQuotes(json: String): Map<String, Double>? {
             if (json.isBlank()) return null
             return try {
-                val content = json.trim().removeSurrounding("{", "}")
-                if (content.isBlank()) return emptyMap()
-                content.split(",").associate { entry ->
-                    val (key, value) = entry.split(":")
-                    key.trim().removeSurrounding("\"") to value.trim().toDouble()
-                }
+                Json.decodeFromString(quotesSerializer, json)
             } catch (_: Exception) {
                 null
             }

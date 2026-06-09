@@ -32,11 +32,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,15 +68,24 @@ fun BudgetEditScreen(
     onCategoryDismiss: () -> Unit,
     onLimitChange: (String) -> Unit,
     onSave: () -> Unit,
+    onErrorShown: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MoneyManagerTheme.colors
     val typography = MoneyManagerTheme.typography
     val s = MoneyManagerTheme.strings
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(state.saveError) {
+        val message = state.saveError ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        onErrorShown()
+    }
 
     Scaffold(
         modifier = modifier.testTag("budgetEdit:screen"),
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {

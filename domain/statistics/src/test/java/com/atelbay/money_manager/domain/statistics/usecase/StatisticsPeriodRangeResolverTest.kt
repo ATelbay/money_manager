@@ -48,18 +48,49 @@ class StatisticsPeriodRangeResolverTest {
     }
 
     @Test
-    fun `MONTH with anchorMillis - start is 1 month before anchor day`() {
+    fun `MONTH with anchorMillis - start is first day of anchor month`() {
         val range = resolver(StatsPeriod.MONTH, anchorMillis)
 
         val expectedStart = anchorCalendar().apply {
+            set(Calendar.DAY_OF_MONTH, 1)
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
-            add(Calendar.MONTH, -1)
         }.timeInMillis
 
         assertEquals(expectedStart, range.startMillis)
+    }
+
+    @Test
+    fun `MONTH with past-month anchor - end is last day of that month (full calendar month)`() {
+        val range = resolver(StatsPeriod.MONTH, anchorMillis)
+
+        val expectedEnd = anchorCalendar().apply {
+            set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+            set(Calendar.HOUR_OF_DAY, 23)
+            set(Calendar.MINUTE, 59)
+            set(Calendar.SECOND, 59)
+            set(Calendar.MILLISECOND, 999)
+        }.timeInMillis
+
+        // Anchor (June 2024) is in the past, so the whole calendar month is returned.
+        assertEquals(expectedEnd, range.endMillis)
+    }
+
+    @Test
+    fun `MONTH with current-month anchor - end is clamped to end of today`() {
+        val now = Calendar.getInstance(TimeZone.getDefault())
+        val range = resolver(StatsPeriod.MONTH, now.timeInMillis)
+
+        val todayEnd = Calendar.getInstance(TimeZone.getDefault()).apply {
+            set(Calendar.HOUR_OF_DAY, 23)
+            set(Calendar.MINUTE, 59)
+            set(Calendar.SECOND, 59)
+            set(Calendar.MILLISECOND, 999)
+        }.timeInMillis
+
+        assertEquals(todayEnd, range.endMillis)
     }
 
     @Test
@@ -79,10 +110,11 @@ class StatisticsPeriodRangeResolverTest {
     }
 
     @Test
-    fun `YEAR with anchorMillis - end is end-of-anchor-day`() {
+    fun `YEAR with past-month anchor - end is last day of anchor month`() {
         val range = resolver(StatsPeriod.YEAR, anchorMillis)
 
         val expectedEnd = anchorCalendar().apply {
+            set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
             set(Calendar.HOUR_OF_DAY, 23)
             set(Calendar.MINUTE, 59)
             set(Calendar.SECOND, 59)

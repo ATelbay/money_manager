@@ -96,28 +96,31 @@ class TransactionRepositoryImpl @Inject constructor(
             syncManager.syncAccount(newEntity.accountId)
             id
         } else {
-            val oldAccountId = transactionDao.getById(baseEntity.id)?.accountId
-            database.withTransaction {
+            // Returns the old accountId when the row was actually updated, or null if it no longer
+            // exists. Reading `existing` once inside the transaction avoids a stale read and, on a
+            // missing row, skips the balance adjustments that would otherwise create a phantom delta.
+            val oldAccountId = database.withTransaction {
                 val existing = transactionDao.getById(baseEntity.id)
+                    ?: return@withTransaction null
                 val updatedEntity = baseEntity.copy(
-                    createdAt = existing?.createdAt ?: now,
-                    remoteId = existing?.remoteId,
-                    isDeleted = existing?.isDeleted ?: false,
+                    createdAt = existing.createdAt,
+                    remoteId = existing.remoteId,
+                    isDeleted = existing.isDeleted,
                     updatedAt = now,
                 )
                 transactionDao.update(updatedEntity)
                 // Revert old transaction's effect on balance
-                if (existing != null) {
-                    val oldDelta = if (existing.type == "income") -existing.amount else existing.amount
-                    accountDao.updateBalance(existing.accountId, oldDelta, now)
-                }
+                val oldDelta = if (existing.type == "income") -existing.amount else existing.amount
+                accountDao.updateBalance(existing.accountId, oldDelta, now)
                 // Apply new transaction's effect on balance
                 val delta = if (updatedEntity.type == "income") updatedEntity.amount else -updatedEntity.amount
                 accountDao.updateBalance(updatedEntity.accountId, delta, now)
-            }
+                existing.accountId
+            } ?: return baseEntity.id
+
             syncManager.syncTransaction(baseEntity.id)
             // Sync both accounts in case account changed
-            if (oldAccountId != null && oldAccountId != baseEntity.accountId) {
+            if (oldAccountId != baseEntity.accountId) {
                 syncManager.syncAccount(oldAccountId)
             }
             syncManager.syncAccount(baseEntity.accountId)
@@ -145,6 +148,6 @@ class TransactionRepositoryImpl @Inject constructor(
         categoryId: Long,
         startDate: Long,
         endDate: Long,
-    ): Flow<Double> =
+    ): Flow<Long> =
         transactionDao.observeExpenseSumByCategory(categoryId, startDate, endDate)
 }

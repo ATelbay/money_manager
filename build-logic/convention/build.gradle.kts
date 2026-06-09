@@ -20,6 +20,10 @@ gradlePlugin {
             id = "moneymanager.android.library"
             implementationClass = "AndroidLibraryConventionPlugin"
         }
+        register("jvmLibrary") {
+            id = "moneymanager.jvm.library"
+            implementationClass = "JvmLibraryConventionPlugin"
+        }
         register("androidCompose") {
             id = "moneymanager.android.compose"
             implementationClass = "AndroidComposeConventionPlugin"

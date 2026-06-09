@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.TextAutoSize
 import com.atelbay.money_manager.core.model.Account
+import com.atelbay.money_manager.core.model.money.toMajorDouble
 import com.atelbay.money_manager.core.ui.components.MoneyManagerCard
 import com.atelbay.money_manager.core.ui.components.MoneyManagerFAB
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
@@ -298,7 +299,7 @@ private fun SwipeToDeleteItem(
 }
 
 private val amountFormat = DecimalFormat("#,##0.##")
-private fun formatAmount(amount: Double): String = amountFormat.format(amount)
+private fun formatAmount(amount: Long): String = amountFormat.format(amount.toMajorDouble())
 
 @Preview(showBackground = true)
 @Composable
@@ -307,11 +308,11 @@ private fun AccountListScreenPreview() {
         AccountListScreen(
             state = AccountListState(
                 isLoading = false,
-                totalBalance = 350_000.0,
+                totalBalance = 35_000_000L,
                 selectedAccountId = 1L,
                 accounts = persistentListOf(
-                    Account(id = 1, name = "Основной", currency = "KZT", balance = 200_000.0, createdAt = 0),
-                    Account(id = 2, name = "Накопления", currency = "KZT", balance = 150_000.0, createdAt = 0),
+                    Account(id = 1, name = "Основной", currency = "KZT", balance = 20_000_000L, createdAt = 0),
+                    Account(id = 2, name = "Накопления", currency = "KZT", balance = 15_000_000L, createdAt = 0),
                 ),
             ),
             onAccountClick = {},

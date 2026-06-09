@@ -24,7 +24,7 @@ interface DebtPaymentDao {
     suspend fun getById(id: Long): DebtPaymentEntity?
 
     @Query("SELECT SUM(amount) FROM debt_payments WHERE debtId = :debtId AND isDeleted = 0")
-    fun sumAmountByDebtId(debtId: Long): Flow<Double?>
+    fun sumAmountByDebtId(debtId: Long): Flow<Long?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: DebtPaymentEntity): Long
@@ -54,4 +54,8 @@ interface DebtPaymentDao {
 
     @Query("UPDATE debt_payments SET remoteId = NULL")
     suspend fun clearRemoteIds()
+
+    /** Wipes all debt payments. Used when wiping local data on a user switch (see SyncManager). */
+    @Query("DELETE FROM debt_payments")
+    suspend fun deleteAll()
 }

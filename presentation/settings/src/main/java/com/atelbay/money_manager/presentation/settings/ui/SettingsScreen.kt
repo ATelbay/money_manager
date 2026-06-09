@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.SyncProblem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
@@ -144,9 +145,9 @@ fun SettingsScreen(
 
                     if (state.currentUser != null) {
                         val syncColor = when (state.syncStatus) {
-                            is SyncStatus.Syncing -> Color(0xFFFBBF24)
-                            is SyncStatus.Synced -> Color(0xFF4ADE80)
-                            is SyncStatus.Failed -> Color(0xFFF87171)
+                            is SyncStatus.Syncing -> colors.warning
+                            is SyncStatus.Synced -> colors.income
+                            is SyncStatus.Failed -> MaterialTheme.colorScheme.error
                             is SyncStatus.Idle -> colors.textSecondary
                         }
                         val syncTitle = when (state.syncStatus) {
@@ -247,7 +248,7 @@ fun SettingsScreen(
                         Text(
                             text = s.rateError,
                             style = typography.caption,
-                            color = Color(0xFFFCA5A5),
+                            color = MaterialTheme.colorScheme.error,
                             modifier = Modifier
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                                 .testTag("settings:rateError"),
@@ -318,7 +319,7 @@ fun SettingsScreen(
                         Text(
                             text = state.exportError,
                             style = typography.caption,
-                            color = Color(0xFFFCA5A5),
+                            color = MaterialTheme.colorScheme.error,
                             modifier = Modifier
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                                 .testTag("settings:exportError"),
@@ -377,7 +378,7 @@ fun SettingsScreen(
                         icon = Icons.Default.Info,
                         iconColor = Color(0xFFA78BFA),
                         title = s.versionLabel,
-                        rightText = state.appVersion.ifEmpty { "1.0.0" },
+                        rightText = state.appVersion.ifEmpty { "—" },
                         modifier = Modifier.testTag("settings:version"),
                     )
 
@@ -406,7 +407,12 @@ fun SettingsScreen(
                         title = s.privacyPolicy,
                         hasChevron = true,
                         onClick = {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(s.privacyPolicyUrl)))
+                            // No-op if the device has no app that can handle ACTION_VIEW.
+                            runCatching {
+                                context.startActivity(
+                                    Intent(Intent.ACTION_VIEW, Uri.parse(s.privacyPolicyUrl)),
+                                )
+                            }
                         },
                         modifier = Modifier.testTag("settings:privacyPolicy"),
                     )

@@ -46,7 +46,7 @@ class RegexStatementParserTest {
         assertEquals(1, result.size)
         val tx = result[0]
         assertEquals(LocalDate(2026, 2, 13), tx.date)
-        assertEquals(500.0, tx.amount, 0.01)
+        assertEquals(50000L, tx.amount)
         assertEquals(TransactionType.EXPENSE, tx.type)
         assertEquals("Покупка", tx.operationType)
         assertEquals("TOO \"KASPI MAGAZIN\"", tx.details)
@@ -62,7 +62,7 @@ class RegexStatementParserTest {
 
         assertEquals(1, result.size)
         val tx = result[0]
-        assertEquals(5720.0, tx.amount, 0.01)
+        assertEquals(572000L, tx.amount)
         assertEquals(TransactionType.EXPENSE, tx.type)
         assertEquals("Перевод", tx.operationType)
         assertEquals("Карлыгаш Е.", tx.details)
@@ -77,7 +77,7 @@ class RegexStatementParserTest {
         assertEquals(1, result.size)
         val tx = result[0]
         assertEquals(LocalDate(2026, 2, 3), tx.date)
-        assertEquals(7300.0, tx.amount, 0.01)
+        assertEquals(730000L, tx.amount)
         assertEquals(TransactionType.INCOME, tx.type)
         assertEquals("Пополнение", tx.operationType)
         assertEquals("Рымжан Б.", tx.details)
@@ -90,7 +90,7 @@ class RegexStatementParserTest {
         val result = parser.parse(text, kaspiConfig)
 
         assertEquals(1, result.size)
-        assertEquals(517500.0, result[0].amount, 0.01)
+        assertEquals(51750000L, result[0].amount)
     }
 
     @Test
@@ -110,7 +110,7 @@ class RegexStatementParserTest {
         val result = parser.parse(text, config)
 
         assertEquals(1, result.size)
-        assertEquals(500.0, result[0].amount, 0.01)
+        assertEquals(50000L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
     }
 
@@ -259,10 +259,10 @@ KZ696010002029688291
 
         assertEquals(2, result.size)
         assertEquals(LocalDate(2025, 6, 1), result[0].date)
-        assertEquals(50000.0, result[0].amount, 0.01)
+        assertEquals(5000000L, result[0].amount)
         assertEquals(TransactionType.INCOME, result[0].type)
         assertEquals(LocalDate(2025, 6, 2), result[1].date)
-        assertEquals(15058.29, result[1].amount, 0.01)
+        assertEquals(1505829L, result[1].amount)
         assertEquals(TransactionType.EXPENSE, result[1].type)
     }
 
@@ -346,7 +346,7 @@ KZ696010002029688291
 
         assertEquals(1, result.size)
         assertEquals(LocalDate(2024, 3, 1), result[0].date)
-        assertEquals(500.0, result[0].amount, 0.01)
+        assertEquals(50000L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("Coffee Shop", result[0].details)
     }
@@ -417,10 +417,10 @@ KZ696010002029688291
 
         assertEquals(2, result.size)
         assertEquals(LocalDate(2025, 6, 1), result[0].date)
-        assertEquals(50000.0, result[0].amount, 0.01)
+        assertEquals(5000000L, result[0].amount)
         assertEquals(TransactionType.INCOME, result[0].type)
         assertEquals(LocalDate(2025, 6, 2), result[1].date)
-        assertEquals(15058.29, result[1].amount, 0.01)
+        assertEquals(1505829L, result[1].amount)
         assertEquals(TransactionType.EXPENSE, result[1].type)
     }
 }

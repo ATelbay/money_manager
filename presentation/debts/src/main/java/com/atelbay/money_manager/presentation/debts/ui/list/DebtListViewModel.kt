@@ -59,14 +59,26 @@ class DebtListViewModel @Inject constructor(
 
     fun deleteDebt(id: Long) {
         viewModelScope.launch {
-            deleteDebtUseCase(id)
+            try {
+                deleteDebtUseCase(id)
+            } catch (e: Exception) {
+                _state.update { it.copy(errorMessage = e.message) }
+            }
         }
     }
 
     fun saveDebt(debt: Debt) {
         viewModelScope.launch {
-            saveDebtUseCase(debt)
+            try {
+                saveDebtUseCase(debt)
+            } catch (e: Exception) {
+                _state.update { it.copy(errorMessage = e.message) }
+            }
         }
+    }
+
+    fun clearError() {
+        _state.update { it.copy(errorMessage = null) }
     }
 
     private fun applyFilter(filter: DebtFilter, debts: List<Debt>) {

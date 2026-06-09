@@ -1,5 +1,7 @@
 package com.atelbay.money_manager.data.accounts.repository
 
+import androidx.room.withTransaction
+import com.atelbay.money_manager.core.database.MoneyManagerDatabase
 import com.atelbay.money_manager.core.database.dao.AccountDao
 import com.atelbay.money_manager.core.database.dao.TransactionDao
 import com.atelbay.money_manager.data.accounts.mapper.toDomain
@@ -14,6 +16,7 @@ import javax.inject.Singleton
 
 @Singleton
 class AccountRepositoryImpl @Inject constructor(
+    private val database: MoneyManagerDatabase,
     private val accountDao: AccountDao,
     private val transactionDao: TransactionDao,
     private val syncManager: SyncManager,
@@ -33,11 +36,16 @@ class AccountRepositoryImpl @Inject constructor(
             syncManager.syncAccount(id)
             id
         } else {
-            val existing = accountDao.getById(entity.id)
+            // Editing only touches name/currency. Preserve the *current* DB balance rather than the
+            // value carried on `entity` (a stale UI snapshot), otherwise concurrent transaction-driven
+            // balance changes would be silently overwritten (lost update). Missing row → no-op.
+            val existing = accountDao.getById(entity.id) ?: return entity.id
             accountDao.update(
                 entity.copy(
-                    remoteId = existing?.remoteId,
-                    isDeleted = existing?.isDeleted ?: false,
+                    balance = existing.balance,
+                    createdAt = existing.createdAt,
+                    remoteId = existing.remoteId,
+                    isDeleted = existing.isDeleted,
                     updatedAt = now,
                 ),
             )
@@ -48,8 +56,15 @@ class AccountRepositoryImpl @Inject constructor(
 
     override suspend fun delete(id: Long) {
         val now = System.currentTimeMillis()
-        transactionDao.softDeleteByAccountId(id, now)
-        accountDao.softDeleteById(id, now)
+        // Capture affected transaction ids before the cascade, soft-delete both atomically, then
+        // propagate each transaction's deletion to sync (otherwise they'd linger on other devices).
+        val deletedTransactionIds = database.withTransaction {
+            val ids = transactionDao.getIdsByAccountId(id)
+            transactionDao.softDeleteByAccountId(id, now)
+            accountDao.softDeleteById(id, now)
+            ids
+        }
+        deletedTransactionIds.forEach { syncManager.syncTransaction(it) }
         syncManager.syncAccount(id)
     }
 }

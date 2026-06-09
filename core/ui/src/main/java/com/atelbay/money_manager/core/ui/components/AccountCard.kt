@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.TextAutoSize
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
-import com.atelbay.money_manager.core.ui.theme.Teal
+import com.atelbay.money_manager.core.model.money.toMajorDouble
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -30,9 +31,9 @@ import java.util.Locale
 fun AccountCard(
     accountName: String,
     currency: String,
-    balance: Double,
+    balance: Long,
     modifier: Modifier = Modifier,
-    gradientColor: Color = Teal,
+    gradientColor: Color = MaterialTheme.colorScheme.primary,
     onClick: (() -> Unit)? = null,
 ) {
     val colors = MoneyManagerTheme.colors
@@ -89,7 +90,7 @@ fun AccountCard(
             }
 
             Text(
-                text = "$currency ${formatter.format(balance)}",
+                text = "$currency ${formatter.format(balance.toMajorDouble())}",
                 style = typography.sectionHeader,
                 color = colors.textPrimary,
                 fontWeight = FontWeight.Bold,
@@ -109,7 +110,7 @@ private fun AccountCardPreview() {
         AccountCard(
             accountName = "Kaspi Gold",
             currency = "KZT",
-            balance = 1_250_000.50,
+            balance = 125_000_050L,
             modifier = Modifier.padding(16.dp),
         )
     }
@@ -122,7 +123,7 @@ private fun AccountCardExtremePreview() {
         AccountCard(
             accountName = "Мой долгосрочный сберегательный депозит в Каспи Банке",
             currency = "KZT",
-            balance = 9_999_999_999_999.99,
+            balance = 999_999_999_999_999L,
             modifier = Modifier.padding(16.dp),
         )
     }

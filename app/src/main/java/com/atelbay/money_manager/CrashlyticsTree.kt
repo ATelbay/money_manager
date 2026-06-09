@@ -9,10 +9,11 @@ class CrashlyticsTree : Timber.Tree() {
         if (priority >= Log.WARN) {
             FirebaseCrashlytics.getInstance().log("${tag ?: "NoTag"}: $message")
         }
-        if (priority >= Log.ERROR) {
-            FirebaseCrashlytics.getInstance().recordException(
-                t ?: RuntimeException("${tag ?: "NoTag"}: $message")
-            )
+        // Only record real exceptions. A non-throwable error was already captured by the
+        // log() call above; synthesizing a RuntimeException here only produces noisy,
+        // untriageable crashes rooted in CrashlyticsTree.
+        if (priority >= Log.ERROR && t != null) {
+            FirebaseCrashlytics.getInstance().recordException(t)
         }
     }
 }

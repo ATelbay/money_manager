@@ -120,9 +120,15 @@ fun ImportRoute(
         contract = ActivityResultContracts.TakePicturePreview(),
     ) { bitmap ->
         if (bitmap != null) {
-            val stream = ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 85, stream)
-            viewModel.onPhotoTaken(stream.toByteArray(), strings)
+            coroutineScope.launch {
+                val bytes = withContext(Dispatchers.Default) {
+                    ByteArrayOutputStream().use { stream ->
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 85, stream)
+                        stream.toByteArray()
+                    }
+                }
+                viewModel.onPhotoTaken(bytes, strings)
+            }
         }
     }
 
@@ -143,6 +149,7 @@ fun ImportRoute(
             onImport = { viewModel.importTransactions(strings) },
             onRetry = { viewModel.retry(strings) },
             onReset = viewModel::reset,
+            onCancel = viewModel::cancel,
             onBack = onBack,
         )
 
