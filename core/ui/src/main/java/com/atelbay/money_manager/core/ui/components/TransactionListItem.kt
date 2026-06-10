@@ -200,6 +200,9 @@ fun TransactionListItem(
             state = dismissState,
             modifier = modifier,
             backgroundContent = {
+                // Only draw the trash icon while swiping — at rest the opaque icon would stay painted
+                // over the row content on a transparent background.
+                val isSwiping = dismissState.targetValue != SwipeToDismissBoxValue.Settled
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -207,11 +210,13 @@ fun TransactionListItem(
                         .padding(end = 24.dp),
                     contentAlignment = Alignment.CenterEnd,
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = MoneyManagerTheme.strings.delete,
-                        tint = Color.White,
-                    )
+                    if (isSwiping) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = MoneyManagerTheme.strings.delete,
+                            tint = Color.White,
+                        )
+                    }
                 }
             },
             enableDismissFromStartToEnd = false,

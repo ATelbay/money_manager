@@ -601,6 +601,9 @@ private fun SwipeToDeleteItem(
                 },
                 label = "swipe_bg",
             )
+            // Only draw the trash icon while swiping — otherwise the opaque icon stays painted at
+            // rest (transparent background) and overlaps the row's amount/time on the right.
+            val isSwiping = dismissState.targetValue != SwipeToDismissBoxValue.Settled
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -608,11 +611,13 @@ private fun SwipeToDeleteItem(
                     .padding(horizontal = 20.dp),
                 contentAlignment = Alignment.CenterEnd,
             ) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = MoneyManagerTheme.strings.delete,
-                    tint = MaterialTheme.colorScheme.onError,
-                )
+                if (isSwiping) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = MoneyManagerTheme.strings.delete,
+                        tint = MaterialTheme.colorScheme.onError,
+                    )
+                }
             }
         },
         enableDismissFromStartToEnd = false,
