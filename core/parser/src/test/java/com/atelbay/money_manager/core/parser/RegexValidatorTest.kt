@@ -30,6 +30,28 @@ class RegexValidatorTest {
         assertFalse(validator.isReDoSSafe("\\d+\\d+"))
     }
 
+    @Test
+    fun `nested unbounded brace quantifier - (digit{1,})+ is unsafe`() {
+        assertFalse(validator.isReDoSSafe("(\\d{1,})+"))
+    }
+
+    @Test
+    fun `nested unbounded brace quantifier - (a{2,}) star is unsafe`() {
+        assertFalse(validator.isReDoSSafe("(a{2,})*"))
+    }
+
+    @Test
+    fun `bounded inner brace quantifier - (space digit{3}) star is safe`() {
+        // Legitimate thousand-separator pattern must NOT be flagged.
+        assertTrue(validator.isReDoSSafe("(?:\\s\\d{3})*"))
+    }
+
+    @Test
+    fun `bounded inner brace quantifier - (a{2,5})+ is safe`() {
+        // Upper-bounded repetition cannot blow up.
+        assertTrue(validator.isReDoSSafe("(a{2,5})+"))
+    }
+
     // --- Safe patterns: existing bank regexes ---
 
     @Test

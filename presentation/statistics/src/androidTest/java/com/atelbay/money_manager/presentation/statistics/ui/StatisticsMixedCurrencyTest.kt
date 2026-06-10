@@ -1,13 +1,12 @@
 package com.atelbay.money_manager.presentation.statistics.ui
 
 import androidx.activity.ComponentActivity
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.util.AggregateCurrencyDisplayMode
 import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
-import com.atelbay.money_manager.domain.statistics.model.CategorySummary
+import com.atelbay.money_manager.domain.statistics.model.CategoryMetadata
 import kotlinx.collections.immutable.persistentListOf
 import org.junit.Rule
 import org.junit.Test
@@ -29,7 +28,7 @@ class StatisticsMixedCurrencyTest {
                         isLoading = false,
                         displayedExpensesByCategory = persistentListOf(
                             StatisticsCategoryDisplayItem(
-                                category = CategorySummary(1L, "Food", "restaurant", 0L, 0.0, 0),
+                                category = CategoryMetadata(1L, "Food", "restaurant", 0L),
                                 displayAmount = null,
                             ),
                         ),

@@ -12,39 +12,42 @@ import javax.inject.Inject
  * an implicit pivot so legacy inputs without an explicit KZT entry remain valid.
  *
  * Conversion path: source → KZT → target.
- * Same-currency passthrough returns [amount] unchanged (no rounding applied).
+ * Same-currency passthrough returns [amountMinor] unchanged (no rounding applied).
  *
- * Rounding strategy: HALF_UP, scaled to 2 decimal places (deterministic).
+ * All amounts are [Long] minor units (hundredths). Rounding strategy: HALF_UP at the minor-unit
+ * boundary; intermediate division uses a generous scale to avoid premature precision loss.
  *
  * @throws IllegalArgumentException if a required quote is missing or non-positive.
  */
 class ConvertAmountUseCase @Inject constructor() {
 
     /**
-     * @param amount         The source amount to convert.
+     * @param amountMinor    The source amount to convert, in minor units (hundredths).
      * @param sourceCurrency ISO currency code of the source amount.
      * @param targetCurrency ISO currency code of the desired result.
      * @param quotes         Currency code → KZT per 1 unit.
-     * @return Converted amount rounded to 2 decimal places using HALF_UP.
+     * @return Converted amount in minor units, rounded HALF_UP.
      */
     operator fun invoke(
-        amount: Double,
+        amountMinor: Long,
         sourceCurrency: String,
         targetCurrency: String,
         quotes: Map<String, Double>,
-    ): Double {
-        if (sourceCurrency == targetCurrency) return amount
+    ): Long {
+        if (sourceCurrency == targetCurrency) return amountMinor
 
         val sourceToKzt = kztRate(sourceCurrency, quotes)
         val targetToKzt = kztRate(targetCurrency, quotes)
 
-        val bd = BigDecimal(amount.toString())
+        // amountMinor → major (exact) → ×sourceRate ÷ targetRate → back to minor.
+        val major = BigDecimal(amountMinor).movePointLeft(SCALE)
         val sourceRate = BigDecimal(sourceToKzt.toString())
         val targetRate = BigDecimal(targetToKzt.toString())
 
-        return bd.multiply(sourceRate)
-            .divide(targetRate, SCALE, RoundingMode.HALF_UP)
-            .toDouble()
+        val resultMajor = major.multiply(sourceRate)
+            .divide(targetRate, INTERMEDIATE_SCALE, RoundingMode.HALF_UP)
+
+        return resultMajor.movePointRight(SCALE).setScale(0, RoundingMode.HALF_UP).toLong()
     }
 
     private fun kztRate(currency: String, quotes: Map<String, Double>): Double {
@@ -58,5 +61,6 @@ class ConvertAmountUseCase @Inject constructor() {
     private companion object {
         const val KZT = "KZT"
         const val SCALE = 2
+        const val INTERMEDIATE_SCALE = 10
     }
 }

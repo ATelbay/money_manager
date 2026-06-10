@@ -43,8 +43,10 @@ import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
 import com.atelbay.money_manager.core.ui.util.MoneyDisplayPresentation
 import com.atelbay.money_manager.core.ui.util.formatAmount
 import com.atelbay.money_manager.core.ui.util.supportingText
+import com.atelbay.money_manager.core.model.money.toMajorDouble
 import java.text.NumberFormat
 import java.util.Locale
+import kotlin.math.roundToLong
 
 private val DoubleToVector: TwoWayConverter<Double, AnimationVector1D> =
     TwoWayConverter(
@@ -58,7 +60,7 @@ private val BalanceCardGreenEnd = Color(0xFF2D6B44)
 @Composable
 fun BalanceCard(
     accountName: String,
-    balance: Double,
+    balance: Long,
     modifier: Modifier = Modifier,
     moneyDisplay: MoneyDisplayPresentation = MoneyDisplayFormatter.resolveAndFormat("KZT"),
     unavailableSupportingText: String? = null,
@@ -67,18 +69,20 @@ fun BalanceCard(
     val typography = MoneyManagerTheme.typography
     val reduceMotion = LocalReduceMotion.current
 
-    val animatable = remember { Animatable(balance, DoubleToVector) }
-    var displayBalance by remember { mutableStateOf(balance) }
+    // Animate in major-unit (Double) space for a smooth counter; render back at minor-unit scale.
+    val balanceMajor = balance.toMajorDouble()
+    val animatable = remember { Animatable(balanceMajor, DoubleToVector) }
+    var displayBalance by remember { mutableStateOf(balanceMajor) }
     var isFirstEmission by remember { mutableStateOf(true) }
 
     LaunchedEffect(balance) {
         if (isFirstEmission) {
-            animatable.snapTo(balance)
-            displayBalance = balance
+            animatable.snapTo(balanceMajor)
+            displayBalance = balanceMajor
             isFirstEmission = false
         } else {
             animatable.animateTo(
-                targetValue = balance,
+                targetValue = balanceMajor,
                 animationSpec = tween(
                     durationMillis = MoneyManagerMotion.duration(
                         MoneyManagerMotion.DurationExtraLong,
@@ -88,7 +92,7 @@ fun BalanceCard(
             ) {
                 displayBalance = value
             }
-            displayBalance = balance
+            displayBalance = balanceMajor
         }
     }
 
@@ -148,7 +152,7 @@ fun BalanceCard(
             // Balance amount
             Text(
                 text = moneyDisplay.formatAmount(
-                    amount = displayBalance,
+                    amountMinor = (displayBalance * 100).roundToLong(),
                     formatter = formatter,
                 ),
                 style = typography.balanceDisplay,
@@ -177,7 +181,7 @@ private fun BalanceCardPreview() {
     MoneyManagerTheme(dynamicColor = false) {
         BalanceCard(
             accountName = "Kaspi Gold",
-            balance = 1_250_000.50,
+            balance = 125_000_050L,
             modifier = Modifier.padding(16.dp),
             onAccountPickerClick = {},
         )
@@ -190,7 +194,7 @@ private fun BalanceCardDarkPreview() {
     MoneyManagerTheme(themeMode = "dark", dynamicColor = false) {
         BalanceCard(
             accountName = "Kaspi Gold",
-            balance = 1_250_000.50,
+            balance = 125_000_050L,
             modifier = Modifier.padding(16.dp),
             onAccountPickerClick = {},
         )
@@ -204,20 +208,20 @@ private fun BalanceCardExtremePreview() {
         Column {
             BalanceCard(
                 accountName = "Kaspi Gold",
-                balance = 9_999_999_999_999.99,
+                balance = 999_999_999_999_999L,
                 moneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
                 modifier = Modifier.padding(16.dp),
                 onAccountPickerClick = {},
             )
             BalanceCard(
                 accountName = "Kaspi Gold",
-                balance = -9_999_999_999_999.99,
+                balance = -999_999_999_999_999L,
                 moneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
                 modifier = Modifier.padding(16.dp),
             )
             BalanceCard(
                 accountName = "Kaspi Gold",
-                balance = 0.00,
+                balance = 0L,
                 modifier = Modifier.padding(16.dp),
             )
         }

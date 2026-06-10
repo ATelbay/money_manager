@@ -60,7 +60,7 @@ class ForteBankIntegrationTest {
         assertTrue("Need at least 1 transaction", transactions.isNotEmpty())
         val first = transactions.first()
         assertEquals(TransactionType.EXPENSE, first.type)
-        assertEquals(55000.0, first.amount, 0.01)
+        assertEquals(5500000L, first.amount)
         assertEquals(kotlinx.datetime.LocalDate(2026, 3, 4), first.date)
         assertEquals("Перевод", first.operationType)
         println("Forte first: date=${first.date} amount=${first.amount} type=${first.type} op=${first.operationType} details=${first.details}")

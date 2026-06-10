@@ -20,6 +20,14 @@ interface BudgetDao {
     @Query("SELECT * FROM budgets WHERE categoryId = :categoryId AND isDeleted = 0")
     suspend fun getByCategoryId(categoryId: Long): BudgetEntity?
 
+    /**
+     * Any-state lookup (incl. soft-deleted). Used on insert to revive a soft-deleted budget for the
+     * same category instead of REPLACE-ing it — REPLACE would drop the row's remoteId and orphan its
+     * Firestore doc (the categoryId unique index ignores isDeleted).
+     */
+    @Query("SELECT * FROM budgets WHERE categoryId = :categoryId LIMIT 1")
+    suspend fun getByCategoryIdAnyState(categoryId: Long): BudgetEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: BudgetEntity): Long
 
@@ -42,6 +50,10 @@ interface BudgetDao {
 
     @Query("UPDATE budgets SET remoteId = NULL")
     suspend fun clearRemoteIds()
+
+    /** Wipes all budgets. Used when wiping local data on a user switch (see SyncManager). */
+    @Query("DELETE FROM budgets")
+    suspend fun deleteAll()
 
     @Query("UPDATE budgets SET isDeleted = 1, updatedAt = :updatedAt WHERE id = :id")
     suspend fun softDeleteById(id: Long, updatedAt: Long)

@@ -5,7 +5,6 @@ import com.atelbay.money_manager.core.ui.util.AggregateCurrencyDisplayMode
 import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
 import com.atelbay.money_manager.domain.accounts.usecase.GetAccountsUseCase
 import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
-import com.atelbay.money_manager.domain.statistics.model.DailyTotal
 import com.atelbay.money_manager.domain.statistics.model.PeriodSummary
 import com.atelbay.money_manager.domain.statistics.model.StatisticsDateRange
 import com.atelbay.money_manager.domain.statistics.model.StatsPeriod
@@ -42,22 +41,66 @@ internal fun utcMillis(
     timeInMillis
 }
 
-internal fun dailyTotals(
+/**
+ * Builds a list of display-ready daily totals — what the (real) currency resolver produces and what
+ * the ViewModel turns into chart points. Tests now express the *resolved* output directly, since the
+ * domain skeleton no longer carries amounts.
+ */
+internal fun displayDailyTotals(
     startMillis: Long,
     count: Int,
-    amountAtIndex: (Int) -> Double,
-): List<DailyTotal> = List(count) { index ->
-    DailyTotal(
+    amountAtIndex: (Int) -> Long,
+): List<StatisticsDisplayDailyTotal> = List(count) { index ->
+    StatisticsDisplayDailyTotal(
         date = startMillis + index * ONE_DAY_MILLIS,
         amount = amountAtIndex(index),
     )
 }
+
+/** A minimal period skeleton; the ViewModel only reads its [StatisticsDateRange]. */
+internal fun skeletonSummary(dateRange: StatisticsDateRange) = PeriodSummary(
+    dateRange = dateRange,
+    dayBuckets = emptyList(),
+    monthBuckets = emptyList(),
+    categories = emptyList(),
+)
+
+/** A resolved currency display, keyed into [createViewModel] by the summary's date range. */
+internal fun resolutionOf(
+    displayMode: AggregateCurrencyDisplayMode = AggregateCurrencyDisplayMode.ORIGINAL_SINGLE_CURRENCY,
+    displayedTotalExpenses: Long? = null,
+    displayedTotalIncome: Long? = null,
+    displayedExpensesByCategory: List<StatisticsCategoryDisplayItem> = emptyList(),
+    displayedIncomesByCategory: List<StatisticsCategoryDisplayItem> = emptyList(),
+    displayedDailyExpenses: List<StatisticsDisplayDailyTotal> = emptyList(),
+    displayedDailyIncome: List<StatisticsDisplayDailyTotal> = emptyList(),
+    displayedMonthlyExpenses: List<StatisticsDisplayMonthlyTotal> = emptyList(),
+    displayedMonthlyIncome: List<StatisticsDisplayMonthlyTotal> = emptyList(),
+): StatisticsCurrencyResolution = StatisticsCurrencyResolution(
+    currencyUiState = StatisticsCurrencyUiState(
+        moneyDisplay = if (displayMode == AggregateCurrencyDisplayMode.UNAVAILABLE) {
+            MoneyDisplayFormatter.format(MoneyDisplayFormatter.unavailable())
+        } else {
+            MoneyDisplayFormatter.resolveAndFormat("KZT")
+        },
+        displayMode = displayMode,
+    ),
+    displayedTotalExpenses = displayedTotalExpenses,
+    displayedTotalIncome = displayedTotalIncome,
+    displayedExpensesByCategory = displayedExpensesByCategory,
+    displayedIncomesByCategory = displayedIncomesByCategory,
+    displayedDailyExpenses = displayedDailyExpenses,
+    displayedDailyIncome = displayedDailyIncome,
+    displayedMonthlyExpenses = displayedMonthlyExpenses,
+    displayedMonthlyIncome = displayedMonthlyIncome,
+)
 
 internal fun createViewModel(
     flows: Map<StatsPeriod, Flow<PeriodSummary>>,
     weekRange: StatisticsDateRange,
     monthRange: StatisticsDateRange,
     yearRange: StatisticsDateRange,
+    resolutions: Map<StatisticsDateRange, StatisticsCurrencyResolution> = emptyMap(),
     rangeForMonth: StatisticsDateRange = monthRange,
     testDispatcher: kotlinx.coroutines.CoroutineDispatcher = StandardTestDispatcher(),
 ): StatisticsViewModel {
@@ -92,38 +135,7 @@ internal fun createViewModel(
         )
     } answers {
         val summary = firstArg<PeriodSummary>()
-        StatisticsCurrencyResolution(
-            currencyUiState = StatisticsCurrencyUiState(
-                moneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
-                displayMode = AggregateCurrencyDisplayMode.ORIGINAL_SINGLE_CURRENCY,
-            ),
-            displayedTotalExpenses = summary.totalExpenses,
-            displayedTotalIncome = summary.totalIncome,
-            displayedExpensesByCategory = emptyList(),
-            displayedIncomesByCategory = emptyList(),
-            displayedDailyExpenses = summary.dailyExpenses.map {
-                StatisticsDisplayDailyTotal(date = it.date, amount = it.amount)
-            },
-            displayedDailyIncome = summary.dailyIncome.map {
-                StatisticsDisplayDailyTotal(date = it.date, amount = it.amount)
-            },
-            displayedMonthlyExpenses = summary.monthlyExpenses.map {
-                StatisticsDisplayMonthlyTotal(
-                    year = it.year,
-                    month = it.month,
-                    label = it.label,
-                    amount = it.amount,
-                )
-            },
-            displayedMonthlyIncome = summary.monthlyIncome.map {
-                StatisticsDisplayMonthlyTotal(
-                    year = it.year,
-                    month = it.month,
-                    label = it.label,
-                    amount = it.amount,
-                )
-            },
-        )
+        resolutions[summary.dateRange] ?: resolutionOf()
     }
 
     return StatisticsViewModel(

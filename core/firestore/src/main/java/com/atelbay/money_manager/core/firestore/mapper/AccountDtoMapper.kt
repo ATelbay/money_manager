@@ -4,6 +4,9 @@ import com.atelbay.money_manager.core.crypto.FieldCipher.Companion.CURRENT_ENCRY
 import com.atelbay.money_manager.core.crypto.FieldCipherHolder
 import com.atelbay.money_manager.core.database.entity.AccountEntity
 import com.atelbay.money_manager.core.firestore.dto.AccountDto
+import com.atelbay.money_manager.core.model.money.majorToMinor
+import com.atelbay.money_manager.core.model.money.toMajorDouble
+import com.atelbay.money_manager.core.model.money.toMajorPlainString
 import timber.log.Timber
 import java.security.GeneralSecurityException
 import java.util.UUID
@@ -14,7 +17,8 @@ fun AccountEntity.toDto(fieldCipherHolder: FieldCipherHolder): AccountDto {
         remoteId = remoteId ?: UUID.randomUUID().toString(),
         name = if (cipher != null) cipher.encrypt(name) else name,
         currency = currency,
-        balance = if (cipher != null) cipher.encryptDouble(balance) else balance.toString(),
+        balance = if (cipher != null) cipher.encryptDouble(balance.toMajorDouble()) else balance.toMajorPlainString(),
+        balanceMinor = if (cipher != null) cipher.encryptLong(balance) else balance.toString(),
         createdAt = createdAt,
         updatedAt = updatedAt,
         isDeleted = isDeleted,
@@ -35,7 +39,8 @@ fun AccountDto.toEntity(localId: Long = 0, fieldCipherHolder: FieldCipherHolder)
                 remoteId = remoteId,
                 name = cipher.decrypt(name),
                 currency = currency,
-                balance = cipher.decryptDouble(balance),
+                balance = balanceMinor?.takeIf { it.isNotBlank() }?.let { cipher.decryptLong(it) }
+                    ?: majorToMinor(cipher.decryptDouble(balance)),
                 createdAt = createdAt,
                 updatedAt = updatedAt,
                 isDeleted = isDeleted,
@@ -46,7 +51,7 @@ fun AccountDto.toEntity(localId: Long = 0, fieldCipherHolder: FieldCipherHolder)
                 remoteId = remoteId,
                 name = name,
                 currency = currency,
-                balance = balance.toDouble(),
+                balance = balanceMinor?.toLongOrNull() ?: majorToMinor(balance.toDouble()),
                 createdAt = createdAt,
                 updatedAt = updatedAt,
                 isDeleted = isDeleted,

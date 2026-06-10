@@ -4,6 +4,9 @@ import com.atelbay.money_manager.core.crypto.FieldCipher.Companion.CURRENT_ENCRY
 import com.atelbay.money_manager.core.crypto.FieldCipherHolder
 import com.atelbay.money_manager.core.database.entity.RecurringTransactionEntity
 import com.atelbay.money_manager.core.firestore.dto.RecurringTransactionDto
+import com.atelbay.money_manager.core.model.money.majorToMinor
+import com.atelbay.money_manager.core.model.money.toMajorDouble
+import com.atelbay.money_manager.core.model.money.toMajorPlainString
 import timber.log.Timber
 import java.security.GeneralSecurityException
 import java.util.UUID
@@ -16,7 +19,8 @@ fun RecurringTransactionEntity.toDto(
     val cipher = fieldCipherHolder.cipher
     return RecurringTransactionDto(
         remoteId = remoteId ?: UUID.randomUUID().toString(),
-        amount = if (cipher != null) cipher.encryptDouble(amount) else amount.toString(),
+        amount = if (cipher != null) cipher.encryptDouble(amount.toMajorDouble()) else amount.toMajorPlainString(),
+        amountMinor = if (cipher != null) cipher.encryptLong(amount) else amount.toString(),
         type = type,
         categoryRemoteId = categoryRemoteId,
         accountRemoteId = accountRemoteId,
@@ -59,7 +63,8 @@ fun RecurringTransactionDto.toEntity(
             RecurringTransactionEntity(
                 id = localId,
                 remoteId = remoteId,
-                amount = cipher.decryptDouble(amount),
+                amount = amountMinor?.takeIf { it.isNotBlank() }?.let { cipher.decryptLong(it) }
+                    ?: majorToMinor(cipher.decryptDouble(amount)),
                 type = type,
                 categoryId = categoryLocalId,
                 accountId = accountLocalId,
@@ -79,7 +84,7 @@ fun RecurringTransactionDto.toEntity(
             Timber.w("Unsupported encryption version %d for recurring transaction %s", encryptionVersion, remoteId)
             return null
         } else {
-            val parsedAmount = amount.toDoubleOrNull()
+            val parsedAmount = amountMinor?.toLongOrNull() ?: amount.toDoubleOrNull()?.let { majorToMinor(it) }
             if (parsedAmount == null) {
                 Timber.w("Invalid amount '%s' for recurring transaction %s", amount, remoteId)
                 return null

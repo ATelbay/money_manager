@@ -15,7 +15,7 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE isDeleted = 0 ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<AccountEntity>>
 
-    @Query("SELECT * FROM accounts WHERE id = :id")
+    @Query("SELECT * FROM accounts WHERE id = :id AND isDeleted = 0")
     fun observeById(id: Long): Flow<AccountEntity?>
 
     @Query("SELECT * FROM accounts WHERE id = :id")
@@ -32,7 +32,7 @@ interface AccountDao {
     suspend fun delete(account: AccountEntity)
 
     @Query("UPDATE accounts SET balance = balance + :delta, updatedAt = :updatedAt WHERE id = :accountId")
-    suspend fun updateBalance(accountId: Long, delta: Double, updatedAt: Long)
+    suspend fun updateBalance(accountId: Long, delta: Long, updatedAt: Long)
 
     @Query("UPDATE accounts SET isDeleted = 1, updatedAt = :updatedAt WHERE id = :id")
     suspend fun softDeleteById(id: Long, updatedAt: Long)
@@ -59,4 +59,8 @@ interface AccountDao {
 
     @Query("UPDATE accounts SET remoteId = NULL")
     suspend fun clearRemoteIds()
+
+    /** Wipes all accounts. Used when wiping local data on a user switch (see SyncManager). */
+    @Query("DELETE FROM accounts")
+    suspend fun deleteAll()
 }

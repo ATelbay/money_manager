@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.moneymanager.android.library)
     alias(libs.plugins.moneymanager.android.hilt)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -9,5 +10,7 @@ android {
 
 dependencies {
     implementation(libs.androidx.datastore.preferences)
-    implementation(libs.bundles.coroutines)
+    // Flow leaks through UserPreferences' public API -> expose coroutines transitively.
+    api(libs.bundles.coroutines)
+    implementation(libs.kotlinx.serialization.json)
 }

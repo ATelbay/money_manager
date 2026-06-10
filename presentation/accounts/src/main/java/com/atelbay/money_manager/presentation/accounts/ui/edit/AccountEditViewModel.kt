@@ -86,7 +86,7 @@ class AccountEditViewModel @Inject constructor(
                         id = current.accountId ?: 0,
                         name = current.name.trim(),
                         currency = current.currency,
-                        balance = if (isEditing) current.originalBalance else 0.0,
+                        balance = if (isEditing) current.originalBalance else 0L,
                         createdAt = if (isEditing) current.originalCreatedAt else System.currentTimeMillis(),
                     ),
                 )

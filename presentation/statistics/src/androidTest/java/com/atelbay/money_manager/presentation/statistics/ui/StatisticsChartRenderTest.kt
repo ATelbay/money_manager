@@ -1,8 +1,6 @@
 package com.atelbay.money_manager.presentation.statistics.ui
 
 import androidx.activity.ComponentActivity
-import androidx.compose.ui.test.assertDoesNotExist
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -11,7 +9,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.util.AggregateCurrencyDisplayMode
 import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
-import com.atelbay.money_manager.domain.statistics.model.CategorySummary
+import com.atelbay.money_manager.domain.statistics.model.CategoryMetadata
 import com.atelbay.money_manager.domain.statistics.model.StatsPeriod
 import com.atelbay.money_manager.domain.statistics.model.TransactionType
 import kotlinx.collections.immutable.persistentListOf
@@ -34,11 +32,11 @@ class StatisticsChartRenderTest {
                         isLoading = false,
                         period = StatsPeriod.MONTH,
                         transactionType = TransactionType.EXPENSE,
-                        displayedTotalExpenses = 600.0,
+                        displayedTotalExpenses = 60000L,
                         displayedExpensesByCategory = persistentListOf(
                             StatisticsCategoryDisplayItem(
-                                category = CategorySummary(1L, "Food", "restaurant", 0L, 600.0, 100),
-                                displayAmount = 600.0,
+                                category = CategoryMetadata(1L, "Food", "restaurant", 0L),
+                                displayAmount = 60000L,
                                 displayPercentage = 100,
                             ),
                         ),
@@ -49,9 +47,9 @@ class StatisticsChartRenderTest {
                         chart = StatisticsChartState(
                             isScrollable = false,
                             points = persistentListOf(
-                                StatisticsChartPoint(1L, "1", 100.0),
-                                StatisticsChartPoint(2L, "2", 200.0),
-                                StatisticsChartPoint(3L, "3", 300.0, isToday = true),
+                                StatisticsChartPoint(1L, "1", 10000L),
+                                StatisticsChartPoint(2L, "2", 20000L),
+                                StatisticsChartPoint(3L, "3", 30000L, isToday = true),
                             ),
                         ),
                     ),
@@ -79,7 +77,7 @@ class StatisticsChartRenderTest {
                         transactionType = TransactionType.EXPENSE,
                         displayedExpensesByCategory = persistentListOf(
                             StatisticsCategoryDisplayItem(
-                                category = CategorySummary(1L, "Transport", "directions_bus", 0L, 0.0, 0),
+                                category = CategoryMetadata(1L, "Transport", "directions_bus", 0L),
                                 displayAmount = null,
                             ),
                         ),
@@ -117,11 +115,11 @@ class StatisticsChartRenderTest {
                         isLoading = false,
                         period = StatsPeriod.MONTH,
                         transactionType = TransactionType.EXPENSE,
-                        displayedTotalExpenses = 450.0,
+                        displayedTotalExpenses = 45000L,
                         displayedExpensesByCategory = persistentListOf(
                             StatisticsCategoryDisplayItem(
-                                category = CategorySummary(2L, "Shopping", "shopping_cart", 0L, 450.0, 100),
-                                displayAmount = 450.0,
+                                category = CategoryMetadata(2L, "Shopping", "shopping_cart", 0L),
+                                displayAmount = 45000L,
                                 displayPercentage = 100,
                             ),
                         ),
@@ -132,9 +130,9 @@ class StatisticsChartRenderTest {
                         chart = StatisticsChartState(
                             isScrollable = false,
                             points = persistentListOf(
-                                StatisticsChartPoint(1L, "1", 150.0),
-                                StatisticsChartPoint(2L, "2", 150.0),
-                                StatisticsChartPoint(3L, "3", 150.0),
+                                StatisticsChartPoint(1L, "1", 15000L),
+                                StatisticsChartPoint(2L, "2", 15000L),
+                                StatisticsChartPoint(3L, "3", 15000L),
                             ),
                         ),
                     ),

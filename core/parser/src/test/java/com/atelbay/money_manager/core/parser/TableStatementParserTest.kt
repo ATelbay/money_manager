@@ -72,17 +72,17 @@ class TableStatementParserTest {
 
         assertEquals(3, result.size)
 
-        assertEquals(5000.0, result[0].amount, 0.01)
+        assertEquals(500000L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("Покупка", result[0].operationType)
         assertEquals("Магазин Апорт", result[0].details)
 
-        assertEquals(10000.0, result[1].amount, 0.01)
+        assertEquals(1000000L, result[1].amount)
         assertEquals(TransactionType.INCOME, result[1].type)
         assertEquals("Пополнение", result[1].operationType)
         assertEquals("Перевод от Иванова", result[1].details)
 
-        assertEquals(2500.0, result[2].amount, 0.01)
+        assertEquals(250000L, result[2].amount)
         assertEquals(TransactionType.EXPENSE, result[2].type)
         assertEquals("Перевод", result[2].operationType)
         assertEquals("Оплата услуг", result[2].details)
@@ -138,15 +138,15 @@ class TableStatementParserTest {
 
         assertEquals(3, result.size)
 
-        assertEquals(1234.56, result[0].amount, 0.01)
+        assertEquals(123456L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("Supermarket", result[0].details)
 
-        assertEquals(50000.0, result[1].amount, 0.01)
+        assertEquals(5000000L, result[1].amount)
         assertEquals(TransactionType.INCOME, result[1].type)
         assertEquals("Salary", result[1].details)
 
-        assertEquals(300.0, result[2].amount, 0.01)
+        assertEquals(30000L, result[2].amount)
         assertEquals(TransactionType.EXPENSE, result[2].type)
         assertEquals("Utility", result[2].details)
     }
@@ -167,7 +167,7 @@ class TableStatementParserTest {
         val result = parser.parse(table, config)
 
         assertEquals(1, result.size)
-        assertEquals(1234.56, result[0].amount, 0.001)
+        assertEquals(123456L, result[0].amount)
     }
 
     @Test
@@ -185,7 +185,7 @@ class TableStatementParserTest {
         val result = parser.parse(table, config)
 
         assertEquals(1, result.size)
-        assertEquals(1234.56, result[0].amount, 0.001)
+        assertEquals(123456L, result[0].amount)
     }
 
     @Test
@@ -202,7 +202,7 @@ class TableStatementParserTest {
         val result = parser.parse(table, config)
 
         assertEquals(1, result.size)
-        assertEquals(1234.56, result[0].amount, 0.001)
+        assertEquals(123456L, result[0].amount)
     }
 
     @Test
@@ -219,7 +219,7 @@ class TableStatementParserTest {
         val result = parser.parse(table, config)
 
         assertEquals(1, result.size)
-        assertEquals(9876.54, result[0].amount, 0.001)
+        assertEquals(987654L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
     }
 
@@ -302,7 +302,7 @@ class TableStatementParserTest {
 
         assertEquals(1, result.size)
         assertEquals(TransactionType.EXPENSE, result[0].type)
-        assertEquals(750.0, result[0].amount, 0.001)
+        assertEquals(75000L, result[0].amount)
     }
 
     @Test
@@ -337,8 +337,8 @@ class TableStatementParserTest {
         val result = parser.parse(table, config)
 
         assertEquals(2, result.size)
-        assertEquals(100.0, result[0].amount, 0.01)
-        assertEquals(200.0, result[1].amount, 0.01)
+        assertEquals(10000L, result[0].amount)
+        assertEquals(20000L, result[1].amount)
     }
 
     @Test
@@ -353,8 +353,8 @@ class TableStatementParserTest {
         val result = parser.parse(table, config)
 
         assertEquals(2, result.size)
-        assertEquals(100.0, result[0].amount, 0.01)
-        assertEquals(200.0, result[1].amount, 0.01)
+        assertEquals(10000L, result[0].amount)
+        assertEquals(20000L, result[1].amount)
     }
 
     @Test
@@ -370,8 +370,8 @@ class TableStatementParserTest {
         val result = parser.parse(table, config)
 
         assertEquals(2, result.size)
-        assertEquals(300.0, result[0].amount, 0.01)
-        assertEquals(400.0, result[1].amount, 0.01)
+        assertEquals(30000L, result[0].amount)
+        assertEquals(40000L, result[1].amount)
     }
 
     // ==================== 6. DEDUPLICATE MAX AMOUNT ====================
@@ -400,8 +400,8 @@ class TableStatementParserTest {
         assertEquals(2, result.size)
         val coffeeRow = result.first { it.details == "Coffee" }
         val groceryRow = result.first { it.details == "Grocery" }
-        assertEquals(7500.0, coffeeRow.amount, 0.01)
-        assertEquals(200.0, groceryRow.amount, 0.01)
+        assertEquals(750000L, coffeeRow.amount)
+        assertEquals(20000L, groceryRow.amount)
     }
 
     @Test
@@ -477,7 +477,7 @@ class TableStatementParserTest {
         val result = parser.parse(table, config)
 
         assertEquals(1, result.size)
-        assertEquals(100.0, result[0].amount, 0.01)
+        assertEquals(10000L, result[0].amount)
         assertEquals("", result[0].details)
     }
 
@@ -559,7 +559,7 @@ class TableStatementParserTest {
         val result = parser.parse(table, config)
 
         assertEquals(1, result.size)
-        assertEquals(100.0, result[0].amount, 0.01)
+        assertEquals(10000L, result[0].amount)
     }
 
     // ==================== 9. SPACE_DOT AMOUNT FORMAT ====================
@@ -578,7 +578,7 @@ class TableStatementParserTest {
         val result = parser.parse(table, config)
 
         assertEquals(1, result.size)
-        assertEquals(100000.0, result[0].amount, 0.001)
+        assertEquals(10000000L, result[0].amount)
     }
 
     @Test
@@ -595,7 +595,7 @@ class TableStatementParserTest {
         val result = parser.parse(table, config)
 
         assertEquals(1, result.size)
-        assertEquals(10000.0, result[0].amount, 0.001)
+        assertEquals(1000000L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
     }
 
@@ -613,7 +613,7 @@ class TableStatementParserTest {
         val result = parser.parse(table, config)
 
         assertEquals(1, result.size)
-        assertEquals(100000.0, result[0].amount, 0.001)
+        assertEquals(10000000L, result[0].amount)
     }
 
     // ==================== 10. EXTRACT FIRST DATE ====================

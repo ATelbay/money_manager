@@ -1,5 +1,6 @@
 package com.atelbay.money_manager.presentation.importstatement.ui
 
+import androidx.lifecycle.SavedStateHandle
 import com.atelbay.money_manager.core.auth.AuthUser
 import com.atelbay.money_manager.core.datastore.UserPreferences
 import com.atelbay.money_manager.core.ui.theme.AppStrings
@@ -68,10 +69,10 @@ class ImportViewModelTest {
     private lateinit var submitParserCandidateUseCase: SubmitParserCandidateUseCase
     private lateinit var authRepository: AuthRepository
 
-    private val testAccount = Account(id = 1L, name = "Test", balance = 0.0, currency = "KZT")
+    private val testAccount = Account(id = 1L, name = "Test", balance = 0L, currency = "KZT")
     private val testTransaction = ParsedTransaction(
         date = LocalDate(2024, 1, 15),
-        amount = 5000.0,
+        amount = 500000L,
         type = TransactionType.EXPENSE,
         operationType = "Purchase",
         details = "Test purchase",
@@ -122,6 +123,7 @@ class ImportViewModelTest {
         getAccountsUseCase = getAccountsUseCase,
         submitParserCandidateUseCase = submitParserCandidateUseCase,
         authRepository = authRepository,
+        savedStateHandle = SavedStateHandle(),
     )
 
     @Test

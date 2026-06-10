@@ -41,7 +41,7 @@ class EurasianBankIntegrationTest {
         assertTrue("Need at least 1 transaction", transactions.isNotEmpty())
         val first = transactions.first()
         assertEquals(LocalDate(2026, 1, 12), first.date)
-        assertEquals(66819.63, first.amount, 0.01)
+        assertEquals(6681963L, first.amount)
         assertEquals(TransactionType.EXPENSE, first.type)
         println("Eurasian first: date=${first.date} amount=${first.amount} type=${first.type} details=${first.details}")
     }

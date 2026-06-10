@@ -45,9 +45,10 @@ fun MonthPickerDialog(
     onMonthSelected: (YearMonth) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val strings = MoneyManagerTheme.strings
     val now = remember { YearMonth.now() }
     var displayedYear by remember { mutableIntStateOf(initialYearMonth.year) }
-    val locale = MoneyManagerTheme.strings.locale
+    val locale = strings.locale
     val monthAbbreviations = remember(locale) {
         Month.entries.map { it.getDisplayName(TextStyle.SHORT, locale) }
     }
@@ -70,7 +71,7 @@ fun MonthPickerDialog(
                     IconButton(onClick = { displayedYear-- }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                            contentDescription = "Previous year",
+                            contentDescription = strings.previousYear,
                             tint = MoneyManagerTheme.colors.textPrimary,
                         )
                     }
@@ -80,11 +81,15 @@ fun MonthPickerDialog(
                         color = MoneyManagerTheme.colors.textPrimary,
                         textAlign = TextAlign.Center,
                     )
-                    IconButton(onClick = { displayedYear++ }) {
+                    // Can't navigate past the current year — future months have no data.
+                    val canGoNextYear = displayedYear < now.year
+                    IconButton(onClick = { displayedYear++ }, enabled = canGoNextYear) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = "Next year",
-                            tint = MoneyManagerTheme.colors.textPrimary,
+                            contentDescription = strings.nextYear,
+                            tint = MoneyManagerTheme.colors.textPrimary.copy(
+                                alpha = if (canGoNextYear) 1f else 0.3f,
+                            ),
                         )
                     }
                 }
@@ -103,6 +108,7 @@ fun MonthPickerDialog(
                             val yearMonth = YearMonth.of(displayedYear, monthNumber)
                             val isSelected = yearMonth == initialYearMonth
                             val isCurrent = yearMonth == now
+                            val isFuture = yearMonth > now
 
                             val bgColor = when {
                                 isSelected -> MoneyManagerTheme.colors.greenAccent
@@ -111,6 +117,7 @@ fun MonthPickerDialog(
                             }
                             val textColor = when {
                                 isSelected -> MaterialTheme.colorScheme.surface
+                                isFuture -> MoneyManagerTheme.colors.textSecondary.copy(alpha = 0.3f)
                                 isCurrent -> MoneyManagerTheme.colors.textPrimary
                                 else -> MoneyManagerTheme.colors.textSecondary
                             }
@@ -121,7 +128,7 @@ fun MonthPickerDialog(
                                     .size(56.dp)
                                     .clip(CircleShape)
                                     .background(bgColor)
-                                    .clickable { onMonthSelected(yearMonth) },
+                                    .clickable(enabled = !isFuture) { onMonthSelected(yearMonth) },
                             ) {
                                 Text(
                                     text = abbr,

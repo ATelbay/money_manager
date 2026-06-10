@@ -4,12 +4,14 @@ import com.atelbay.money_manager.core.common.startOfDay
 import com.atelbay.money_manager.core.model.Account
 import com.atelbay.money_manager.core.model.Transaction
 import com.atelbay.money_manager.core.model.TransactionType as ModelTransactionType
+import com.atelbay.money_manager.core.model.money.toMajorDouble
 import com.atelbay.money_manager.core.ui.util.AggregateCurrencyDisplayMode
 import com.atelbay.money_manager.core.ui.util.AggregateCurrencyDisplayResolver
 import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
 import com.atelbay.money_manager.core.ui.util.normalizeCurrencyCode
 import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
 import com.atelbay.money_manager.domain.exchangerate.usecase.ConvertAmountUseCase
+import com.atelbay.money_manager.domain.statistics.model.CategoryMetadata
 import com.atelbay.money_manager.domain.statistics.model.PeriodSummary
 import java.util.Calendar
 import java.util.TimeZone
@@ -18,8 +20,8 @@ import kotlin.math.floor
 
 data class StatisticsCurrencyResolution(
     val currencyUiState: StatisticsCurrencyUiState,
-    val displayedTotalExpenses: Double?,
-    val displayedTotalIncome: Double?,
+    val displayedTotalExpenses: Long?,
+    val displayedTotalIncome: Long?,
     val displayedExpensesByCategory: List<StatisticsCategoryDisplayItem>,
     val displayedIncomesByCategory: List<StatisticsCategoryDisplayItem>,
     val displayedDailyExpenses: List<StatisticsDisplayDailyTotal>,
@@ -28,6 +30,13 @@ data class StatisticsCurrencyResolution(
     val displayedMonthlyIncome: List<StatisticsDisplayMonthlyTotal>,
 )
 
+/**
+ * The single owner of statistics numeric aggregation. It takes the period [PeriodSummary] *skeleton*
+ * (ordered day/month buckets + category catalog) plus one transaction stream, converts every
+ * transaction into the display currency (or reports UNAVAILABLE for an unconvertible mixed scope),
+ * and fills the skeleton buckets in a single pass each. The domain layer no longer aggregates, so
+ * the transactions table is read exactly once (in the ViewModel) and nothing is summed twice.
+ */
 class StatisticsCurrencyDisplayResolver @Inject constructor(
     private val convertAmountUseCase: ConvertAmountUseCase,
 ) {
@@ -39,6 +48,7 @@ class StatisticsCurrencyDisplayResolver @Inject constructor(
         baseCurrency: String,
         exchangeRate: ExchangeRate?,
     ): StatisticsCurrencyResolution {
+        val categoryMetaById = summary.categories.associateBy { it.categoryId }
         val accountCurrencyById = accounts.associate { it.id to it.currency.normalizeCurrencyCode(fallback = baseCurrency) }
         val scopedCurrencies = transactions
             .mapNotNull { accountCurrencyById[it.accountId] }
@@ -55,6 +65,8 @@ class StatisticsCurrencyDisplayResolver @Inject constructor(
         )
 
         if (aggregateResolution.displayMode == AggregateCurrencyDisplayMode.UNAVAILABLE) {
+            val expenseTransactions = transactions.filter { it.type == ModelTransactionType.EXPENSE }
+            val incomeTransactions = transactions.filter { it.type == ModelTransactionType.INCOME }
             return StatisticsCurrencyResolution(
                 currencyUiState = StatisticsCurrencyUiState(
                     moneyDisplay = MoneyDisplayFormatter.format(MoneyDisplayFormatter.unavailable()),
@@ -62,33 +74,21 @@ class StatisticsCurrencyDisplayResolver @Inject constructor(
                 ),
                 displayedTotalExpenses = null,
                 displayedTotalIncome = null,
-                displayedExpensesByCategory = summary.expensesByCategory.map {
-                    StatisticsCategoryDisplayItem(category = it, displayAmount = null)
+                // Category presence + ordering still reflect the (unconvertible) raw sums so the list
+                // is stable; amounts are hidden by the UI lock.
+                displayedExpensesByCategory = unavailableCategoryItems(expenseTransactions, categoryMetaById),
+                displayedIncomesByCategory = unavailableCategoryItems(incomeTransactions, categoryMetaById),
+                displayedDailyExpenses = summary.dayBuckets.map {
+                    StatisticsDisplayDailyTotal(date = it, amount = null)
                 },
-                displayedIncomesByCategory = summary.incomesByCategory.map {
-                    StatisticsCategoryDisplayItem(category = it, displayAmount = null)
+                displayedDailyIncome = summary.dayBuckets.map {
+                    StatisticsDisplayDailyTotal(date = it, amount = null)
                 },
-                displayedDailyExpenses = summary.dailyExpenses.map {
-                    StatisticsDisplayDailyTotal(date = it.date, amount = null)
+                displayedMonthlyExpenses = summary.monthBuckets.map {
+                    StatisticsDisplayMonthlyTotal(year = it.year, month = it.month, label = it.label, amount = null)
                 },
-                displayedDailyIncome = summary.dailyIncome.map {
-                    StatisticsDisplayDailyTotal(date = it.date, amount = null)
-                },
-                displayedMonthlyExpenses = summary.monthlyExpenses.map {
-                    StatisticsDisplayMonthlyTotal(
-                        year = it.year,
-                        month = it.month,
-                        label = it.label,
-                        amount = null,
-                    )
-                },
-                displayedMonthlyIncome = summary.monthlyIncome.map {
-                    StatisticsDisplayMonthlyTotal(
-                        year = it.year,
-                        month = it.month,
-                        label = it.label,
-                        amount = null,
-                    )
+                displayedMonthlyIncome = summary.monthBuckets.map {
+                    StatisticsDisplayMonthlyTotal(year = it.year, month = it.month, label = it.label, amount = null)
                 },
             )
         }
@@ -99,7 +99,7 @@ class StatisticsCurrencyDisplayResolver @Inject constructor(
             val sourceCurrency = accountCurrencyById[transaction.accountId] ?: return@mapNotNull null
             val displayAmount = when (aggregateResolution.displayMode) {
                 AggregateCurrencyDisplayMode.CONVERTED -> convert(
-                    amount = transaction.amount,
+                    amountMinor = transaction.amount,
                     sourceCurrency = sourceCurrency,
                     baseCurrency = normalizedBaseCurrency,
                     exchangeRate = exchangeRate,
@@ -144,69 +144,99 @@ class StatisticsCurrencyDisplayResolver @Inject constructor(
             displayedTotalExpenses = displayedTotalExpenses,
             displayedTotalIncome = displayedTotalIncome,
             displayedExpensesByCategory = buildCategoryItems(
-                source = summary.expensesByCategory,
                 transactions = expenseTransactions,
                 total = displayedTotalExpenses,
+                categoryMetaById = categoryMetaById,
             ),
             displayedIncomesByCategory = buildCategoryItems(
-                source = summary.incomesByCategory,
                 transactions = incomeTransactions,
                 total = displayedTotalIncome,
+                categoryMetaById = categoryMetaById,
             ),
-            displayedDailyExpenses = summary.dailyExpenses.map { total ->
-                StatisticsDisplayDailyTotal(date = total.date, amount = expenseByDay[total.date] ?: 0.0)
+            displayedDailyExpenses = summary.dayBuckets.map { date ->
+                StatisticsDisplayDailyTotal(date = date, amount = expenseByDay[date] ?: 0L)
             },
-            displayedDailyIncome = summary.dailyIncome.map { total ->
-                StatisticsDisplayDailyTotal(date = total.date, amount = incomeByDay[total.date] ?: 0.0)
+            displayedDailyIncome = summary.dayBuckets.map { date ->
+                StatisticsDisplayDailyTotal(date = date, amount = incomeByDay[date] ?: 0L)
             },
-            displayedMonthlyExpenses = summary.monthlyExpenses.map { total ->
+            displayedMonthlyExpenses = summary.monthBuckets.map { bucket ->
                 StatisticsDisplayMonthlyTotal(
-                    year = total.year,
-                    month = total.month,
-                    label = total.label,
-                    amount = expenseByMonth[total.year to total.month] ?: 0.0,
+                    year = bucket.year,
+                    month = bucket.month,
+                    label = bucket.label,
+                    amount = expenseByMonth[bucket.year to bucket.month] ?: 0L,
                 )
             },
-            displayedMonthlyIncome = summary.monthlyIncome.map { total ->
+            displayedMonthlyIncome = summary.monthBuckets.map { bucket ->
                 StatisticsDisplayMonthlyTotal(
-                    year = total.year,
-                    month = total.month,
-                    label = total.label,
-                    amount = incomeByMonth[total.year to total.month] ?: 0.0,
+                    year = bucket.year,
+                    month = bucket.month,
+                    label = bucket.label,
+                    amount = incomeByMonth[bucket.year to bucket.month] ?: 0L,
                 )
             },
         )
     }
 
     private fun buildCategoryItems(
-        source: List<com.atelbay.money_manager.domain.statistics.model.CategorySummary>,
         transactions: List<DisplayTransaction>,
-        total: Double,
+        total: Long,
+        categoryMetaById: Map<Long, CategoryMetadata>,
     ): List<StatisticsCategoryDisplayItem> {
         val amountByCategoryId = transactions
             .groupBy { it.transaction.categoryId }
             .mapValues { (_, items) -> items.sumOf(DisplayTransaction::amount) }
         val percentageByCategoryId = buildPercentages(amountByCategoryId, total)
 
-        return source.map { category ->
-            StatisticsCategoryDisplayItem(
-                category = category,
-                displayAmount = amountByCategoryId[category.categoryId] ?: 0.0,
-                displayPercentage = percentageByCategoryId[category.categoryId] ?: 0,
-            )
-        }
+        return amountByCategoryId.entries
+            .sortedByDescending { it.value }
+            .map { (categoryId, amount) ->
+                StatisticsCategoryDisplayItem(
+                    category = categoryMetadataFor(categoryId, categoryMetaById),
+                    displayAmount = amount,
+                    displayPercentage = percentageByCategoryId[categoryId] ?: 0,
+                )
+            }
     }
 
+    private fun unavailableCategoryItems(
+        transactions: List<Transaction>,
+        categoryMetaById: Map<Long, CategoryMetadata>,
+    ): List<StatisticsCategoryDisplayItem> =
+        transactions
+            .groupBy { it.categoryId }
+            .mapValues { (_, txns) -> txns.sumOf { it.amount } }
+            .entries
+            .sortedByDescending { it.value }
+            .map { (categoryId, _) ->
+                StatisticsCategoryDisplayItem(
+                    category = categoryMetadataFor(categoryId, categoryMetaById),
+                    displayAmount = null,
+                    displayPercentage = 0,
+                )
+            }
+
+    private fun categoryMetadataFor(
+        categoryId: Long,
+        categoryMetaById: Map<Long, CategoryMetadata>,
+    ): CategoryMetadata = categoryMetaById[categoryId] ?: CategoryMetadata(
+        categoryId = categoryId,
+        categoryName = "",
+        categoryIcon = "",
+        categoryColor = 0xFF90A4AE,
+    )
+
     private fun buildPercentages(
-        amountByCategoryId: Map<Long, Double>,
-        total: Double,
+        amountByCategoryId: Map<Long, Long>,
+        total: Long,
     ): Map<Long, Int> {
-        if (total <= 0.0 || amountByCategoryId.isEmpty()) {
+        if (total <= 0L || amountByCategoryId.isEmpty()) {
             return amountByCategoryId.keys.associateWith { 0 }
         }
 
+        val totalDouble = total.toMajorDouble()
         val raw = amountByCategoryId.map { (id, amount) ->
-            val percentage = amount / total * 100.0
+            val percentage = amount.toMajorDouble() / totalDouble * 100.0
             val floored = floor(percentage).toInt()
             Triple(id, floored, percentage - floored)
         }
@@ -227,24 +257,24 @@ class StatisticsCurrencyDisplayResolver @Inject constructor(
         baseCurrency: String,
         exchangeRate: ExchangeRate?,
     ): Boolean = convert(
-        amount = 1.0,
+        amountMinor = 100L, // 1.00 in minor units
         sourceCurrency = currency,
         baseCurrency = baseCurrency,
         exchangeRate = exchangeRate,
     ) != null
 
     private fun convert(
-        amount: Double,
+        amountMinor: Long,
         sourceCurrency: String,
         baseCurrency: String,
         exchangeRate: ExchangeRate?,
-    ): Double? {
-        if (sourceCurrency == baseCurrency) return amount
+    ): Long? {
+        if (sourceCurrency == baseCurrency) return amountMinor
         val quotes = exchangeRate?.quotes ?: return null
 
         return runCatching {
             convertAmountUseCase(
-                amount = amount,
+                amountMinor = amountMinor,
                 sourceCurrency = sourceCurrency,
                 targetCurrency = baseCurrency,
                 quotes = quotes,
@@ -254,6 +284,6 @@ class StatisticsCurrencyDisplayResolver @Inject constructor(
 
     private data class DisplayTransaction(
         val transaction: Transaction,
-        val amount: Double,
+        val amount: Long,
     )
 }

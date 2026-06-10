@@ -8,6 +8,7 @@ data class DebtListState(
     val debts: ImmutableList<Debt> = persistentListOf(),
     val isLoading: Boolean = true,
     val selectedFilter: DebtFilter = DebtFilter.ALL,
-    val totalLent: Double = 0.0,
-    val totalBorrowed: Double = 0.0,
+    val totalLent: Long = 0L,
+    val totalBorrowed: Long = 0L,
+    val errorMessage: String? = null,
 )

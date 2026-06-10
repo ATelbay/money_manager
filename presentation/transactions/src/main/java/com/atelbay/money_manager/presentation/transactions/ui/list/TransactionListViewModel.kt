@@ -57,14 +57,14 @@ private data class DataParams(
 )
 
 private data class SummaryMetrics(
-    val balance: Double?,
-    val income: Double?,
-    val expense: Double?,
+    val balance: Long?,
+    val income: Long?,
+    val expense: Long?,
     val moneyDisplay: MoneyDisplayPresentation,
 )
 
 private data class ConvertedAmount(
-    val amount: Double,
+    val amount: Long,
     val wasConverted: Boolean,
     val canDisplayInBaseCurrency: Boolean,
 )
@@ -295,7 +295,7 @@ class TransactionListViewModel @Inject constructor(
 
     private fun computeDailyNetSums(
         transactionRows: ImmutableList<TransactionRowState>,
-    ): Map<String, Double> {
+    ): Map<String, Long> {
         val zone = ZoneId.systemDefault()
         return transactionRows
             .groupBy { row ->
@@ -329,7 +329,7 @@ class TransactionListViewModel @Inject constructor(
             val convertedResult = if (canConvertAll) {
                 accountCurrency?.let {
                     convertToBaseCurrency(
-                        amount = transaction.amount,
+                        amountMinor = transaction.amount,
                         sourceCurrency = it,
                         baseCurrency = normalizedBaseCurrency,
                         exchangeRate = exchangeRate,
@@ -436,7 +436,7 @@ class TransactionListViewModel @Inject constructor(
             AggregateCurrencyDisplayMode.CONVERTED -> {
                 val convertedBalances = scopedAccounts.map {
                     convertToBaseCurrency(
-                        amount = it.balance,
+                        amountMinor = it.balance,
                         sourceCurrency = it.currency,
                         baseCurrency = normalizedBaseCurrency,
                         exchangeRate = exchangeRate,
@@ -447,7 +447,7 @@ class TransactionListViewModel @Inject constructor(
                         ?: return@mapNotNull null
 
                     convertToBaseCurrency(
-                        amount = transaction.amount,
+                        amountMinor = transaction.amount,
                         sourceCurrency = sourceCurrency,
                         baseCurrency = normalizedBaseCurrency,
                         exchangeRate = exchangeRate,
@@ -486,7 +486,7 @@ class TransactionListViewModel @Inject constructor(
         }
         if (scopedAccounts.any {
                 !convertToBaseCurrency(
-                    amount = it.balance,
+                    amountMinor = it.balance,
                     sourceCurrency = it.currency,
                     baseCurrency = baseCurrency,
                     exchangeRate = exchangeRate,
@@ -500,7 +500,7 @@ class TransactionListViewModel @Inject constructor(
         return transactions.all { transaction ->
             val sourceCurrency = currenciesByAccountId[transaction.accountId]?.currency ?: return@all false
             convertToBaseCurrency(
-                amount = transaction.amount,
+                amountMinor = transaction.amount,
                 sourceCurrency = sourceCurrency,
                 baseCurrency = baseCurrency,
                 exchangeRate = exchangeRate,
@@ -509,7 +509,7 @@ class TransactionListViewModel @Inject constructor(
     }
 
     private fun convertToBaseCurrency(
-        amount: Double,
+        amountMinor: Long,
         sourceCurrency: String,
         baseCurrency: String,
         exchangeRate: ExchangeRate?,
@@ -517,19 +517,19 @@ class TransactionListViewModel @Inject constructor(
         val normalizedSourceCurrency = normalizeCurrency(sourceCurrency)
         if (normalizedSourceCurrency == baseCurrency) {
             return ConvertedAmount(
-                amount = amount,
+                amount = amountMinor,
                 wasConverted = false,
                 canDisplayInBaseCurrency = true,
             )
         }
 
         val quotes = exchangeRate?.quotes
-            ?: return ConvertedAmount(amount, wasConverted = false, canDisplayInBaseCurrency = false)
+            ?: return ConvertedAmount(amountMinor, wasConverted = false, canDisplayInBaseCurrency = false)
 
         return try {
             ConvertedAmount(
                 amount = convertAmountUseCase(
-                    amount = amount,
+                    amountMinor = amountMinor,
                     sourceCurrency = normalizedSourceCurrency,
                     targetCurrency = baseCurrency,
                     quotes = quotes,
@@ -539,7 +539,7 @@ class TransactionListViewModel @Inject constructor(
             )
         } catch (_: IllegalArgumentException) {
             ConvertedAmount(
-                amount = amount,
+                amount = amountMinor,
                 wasConverted = false,
                 canDisplayInBaseCurrency = false,
             )

@@ -189,17 +189,21 @@ private fun RecurringListItem(
         state = dismissState,
         modifier = modifier.testTag("recurringList:item_${recurring.id}"),
         backgroundContent = {
+            // Only draw the trash icon while swiping — at rest it would stay painted over the row.
+            val isSwiping = dismissState.targetValue != SwipeToDismissBoxValue.Settled
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
                 contentAlignment = Alignment.CenterEnd,
             ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = s.delete,
-                    tint = Color(0xFFF87171),
-                )
+                if (isSwiping) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = s.delete,
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         },
         enableDismissFromStartToEnd = false,

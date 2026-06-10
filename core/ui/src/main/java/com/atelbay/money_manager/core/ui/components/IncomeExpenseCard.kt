@@ -36,12 +36,13 @@ import com.atelbay.money_manager.core.ui.util.defaultMoneyNumberFormat
 import com.atelbay.money_manager.core.ui.util.formatAmount
 import com.atelbay.money_manager.core.ui.util.isUnavailable
 import com.atelbay.money_manager.core.ui.util.supportingText
+import com.atelbay.money_manager.core.model.money.toMajorDouble
 import kotlin.math.abs
 
 @Composable
 fun IncomeExpenseCard(
-    income: Double,
-    expense: Double,
+    income: Long,
+    expense: Long,
     modifier: Modifier = Modifier,
     moneyDisplay: MoneyDisplayPresentation = MoneyDisplayFormatter.resolveAndFormat("KZT"),
     unavailableSupportingText: String? = null,
@@ -55,9 +56,9 @@ fun IncomeExpenseCard(
 
     // Savings rate: what % of income was kept
     val savingsRate = when {
-        income <= 0 && expense <= 0 -> 0f
-        income <= 0 -> 0f // no income but has expenses
-        else -> ((income - expense) / income).toFloat().coerceIn(0f, 1f)
+        income <= 0L && expense <= 0L -> 0f
+        income <= 0L -> 0f // no income but has expenses
+        else -> (net.toMajorDouble() / income.toMajorDouble()).toFloat().coerceIn(0f, 1f)
     }
     val expenseRate = 1f - savingsRate
 
@@ -101,7 +102,7 @@ fun IncomeExpenseCard(
                     }
                     Text(
                         text = moneyDisplay.formatAmount(
-                            amount = income,
+                            amountMinor = income,
                             sign = "+",
                             formatter = formatter,
                         ),
@@ -137,7 +138,7 @@ fun IncomeExpenseCard(
                     }
                     Text(
                         text = moneyDisplay.formatAmount(
-                            amount = expense,
+                            amountMinor = expense,
                             sign = "\u2212",
                             formatter = formatter,
                         ),
@@ -169,7 +170,7 @@ fun IncomeExpenseCard(
                 )
                 Text(
                     text = moneyDisplay.formatAmount(
-                        amount = abs(net),
+                        amountMinor = abs(net),
                         sign = if (isPositive) "+" else "\u2212",
                         formatter = formatter,
                     ),
@@ -218,7 +219,7 @@ fun IncomeExpenseCard(
                     color = colors.textSecondary,
                     modifier = Modifier.padding(top = 4.dp),
                 )
-            } else if (income > 0) {
+            } else if (income > 0L) {
                 Text(
                     text = s.savedPercent((savingsRate * 100).toInt()),
                     style = typography.caption,
@@ -236,8 +237,8 @@ fun IncomeExpenseCard(
 private fun IncomeExpenseCardPreview() {
     MoneyManagerTheme(themeMode = "dark", dynamicColor = false) {
         IncomeExpenseCard(
-            income = 450_000.00,
-            expense = 358_400.00,
+            income = 45_000_000L,
+            expense = 35_840_000L,
             modifier = Modifier.padding(16.dp),
         )
     }
@@ -248,8 +249,8 @@ private fun IncomeExpenseCardPreview() {
 private fun IncomeExpenseCardExtremePreview() {
     MoneyManagerTheme(themeMode = "dark", dynamicColor = false) {
         IncomeExpenseCard(
-            income = 9_999_999_999_999.99,
-            expense = 9_999_999_999_999.99,
+            income = 999_999_999_999_999L,
+            expense = 999_999_999_999_999L,
             moneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
             modifier = Modifier.padding(16.dp),
         )

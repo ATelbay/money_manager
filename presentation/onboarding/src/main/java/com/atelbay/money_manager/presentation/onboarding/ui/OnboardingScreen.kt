@@ -2,7 +2,6 @@ package com.atelbay.money_manager.presentation.onboarding.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.BarChart
@@ -25,6 +23,7 @@ import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,18 +41,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.atelbay.money_manager.core.ui.components.MoneyManagerTextButton
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerShapes
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.theme.AppStrings
 import com.atelbay.money_manager.core.ui.theme.OutfitFontFamily
-
-// T003: Color constants
-private val OnboardingGreen = Color(0xFF3D8A5A)
-private val OnboardingGreenLight = Color(0xFF3D8A5A).copy(alpha = 0.07f)
-private val OnboardingBackground = Color(0xFFF5F4F1)
-private val OnboardingTextPrimary = Color(0xFF1A1918)
-private val OnboardingTextSecondary = Color(0xFF6D6C6A)
-private val OnboardingSkipColor = Color(0xFF9C9B99)
-private val OnboardingDotInactive = Color(0xFFD4D3D0)
 
 @Composable
 fun OnboardingScreen(
@@ -65,7 +57,7 @@ fun OnboardingScreen(
 ) {
     val pagerState = rememberPagerState(
         initialPage = state.currentPage,
-        pageCount = { 3 },
+        pageCount = { ONBOARDING_PAGE_COUNT },
     )
 
     LaunchedEffect(pagerState) {
@@ -80,11 +72,13 @@ fun OnboardingScreen(
         }
     }
 
+    val colors = MoneyManagerTheme.colors
+
     // T008: Root background + updated padding/spacing
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(OnboardingBackground)
+            .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 24.dp)
             .padding(bottom = 40.dp)
             .testTag("onboarding:screen"),
@@ -126,9 +120,9 @@ fun OnboardingScreen(
                 .height(52.dp)
                 .fillMaxWidth()
                 .testTag("onboarding:nextButton"),
-            shape = RoundedCornerShape(14.dp),
+            shape = MoneyManagerShapes.button,
             colors = ButtonDefaults.buttonColors(
-                containerColor = OnboardingGreen,
+                containerColor = colors.greenAccent,
                 contentColor = Color.White,
             ),
         ) {
@@ -145,20 +139,22 @@ fun OnboardingScreen(
         // T008: 12dp spacer between button and skip text
         Spacer(modifier = Modifier.height(12.dp))
 
-        // T006: Skip as plain Text with clickable modifier
+        // T006: Skip as a TextButton (correct ripple + 48dp touch target + semantics)
         if (!isLastPage) {
-            Text(
-                text = s.skip,
-                style = TextStyle(
-                    fontFamily = OutfitFontFamily,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 14.sp,
-                ),
-                color = OnboardingSkipColor,
-                modifier = Modifier
-                    .clickable(onClick = onSkipClick)
-                    .testTag("onboarding:skipButton"),
-            )
+            MoneyManagerTextButton(
+                onClick = onSkipClick,
+                modifier = Modifier.testTag("onboarding:skipButton"),
+            ) {
+                Text(
+                    text = s.skip,
+                    style = TextStyle(
+                        fontFamily = OutfitFontFamily,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 14.sp,
+                    ),
+                    color = colors.textSecondary,
+                )
+            }
         }
     }
 }
@@ -169,23 +165,24 @@ private fun OnboardingPageContent(
     page: OnboardingPage,
     modifier: Modifier = Modifier,
 ) {
+    val colors = MoneyManagerTheme.colors
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // 160dp circular container with OnboardingGreenLight background
+        // 160dp circular container with a tinted accent background
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .size(160.dp)
                 .clip(CircleShape)
-                .background(OnboardingGreenLight),
+                .background(colors.greenAccent.copy(alpha = 0.07f)),
         ) {
             Icon(
                 imageVector = iconForPage(page.icon),
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = OnboardingGreen,
+                tint = colors.greenAccent,
             )
         }
 
@@ -200,7 +197,7 @@ private fun OnboardingPageContent(
                 fontSize = 26.sp,
                 letterSpacing = (-0.5).sp,
             ),
-            color = OnboardingTextPrimary,
+            color = colors.textPrimary,
             textAlign = TextAlign.Center,
         )
 
@@ -215,7 +212,7 @@ private fun OnboardingPageContent(
                 fontSize = 15.sp,
                 lineHeight = 22.5.sp,
             ),
-            color = OnboardingTextSecondary,
+            color = colors.textSecondary,
             textAlign = TextAlign.Center,
             modifier = Modifier.widthIn(max = 300.dp),
         )
@@ -229,6 +226,7 @@ private fun PageIndicator(
     currentPage: Int,
     modifier: Modifier = Modifier,
 ) {
+    val colors = MoneyManagerTheme.colors
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -236,9 +234,9 @@ private fun PageIndicator(
         repeat(pageCount) { index ->
             val color = animateColorAsState(
                 targetValue = if (index == currentPage) {
-                    OnboardingGreen
+                    colors.greenAccent
                 } else {
-                    OnboardingDotInactive
+                    colors.textTertiary
                 },
                 label = "indicator_color",
             )

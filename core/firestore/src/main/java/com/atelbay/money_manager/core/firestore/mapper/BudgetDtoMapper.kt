@@ -4,6 +4,9 @@ import com.atelbay.money_manager.core.crypto.FieldCipher.Companion.CURRENT_ENCRY
 import com.atelbay.money_manager.core.crypto.FieldCipherHolder
 import com.atelbay.money_manager.core.database.entity.BudgetEntity
 import com.atelbay.money_manager.core.firestore.dto.BudgetDto
+import com.atelbay.money_manager.core.model.money.majorToMinor
+import com.atelbay.money_manager.core.model.money.toMajorDouble
+import com.atelbay.money_manager.core.model.money.toMajorPlainString
 import timber.log.Timber
 import java.security.GeneralSecurityException
 import java.util.UUID
@@ -16,7 +19,8 @@ fun BudgetEntity.toDto(
     return BudgetDto(
         remoteId = remoteId ?: UUID.randomUUID().toString(),
         categoryRemoteId = categoryRemoteId,
-        monthlyLimit = if (cipher != null) cipher.encryptDouble(monthlyLimit) else monthlyLimit.toString(),
+        monthlyLimit = if (cipher != null) cipher.encryptDouble(monthlyLimit.toMajorDouble()) else monthlyLimit.toMajorPlainString(),
+        monthlyLimitMinor = if (cipher != null) cipher.encryptLong(monthlyLimit) else monthlyLimit.toString(),
         createdAt = createdAt,
         updatedAt = updatedAt,
         isDeleted = isDeleted,
@@ -40,7 +44,8 @@ fun BudgetDto.toEntity(
                 id = localId,
                 remoteId = remoteId,
                 categoryId = localCategoryId,
-                monthlyLimit = cipher.decryptDouble(monthlyLimit),
+                monthlyLimit = monthlyLimitMinor?.takeIf { it.isNotBlank() }?.let { cipher.decryptLong(it) }
+                    ?: majorToMinor(cipher.decryptDouble(monthlyLimit)),
                 createdAt = createdAt,
                 updatedAt = updatedAt,
                 isDeleted = isDeleted,
@@ -49,7 +54,7 @@ fun BudgetDto.toEntity(
             Timber.w("Unsupported encryption version %d for budget %s", encryptionVersion, remoteId)
             return null
         } else {
-            val limit = monthlyLimit.toDoubleOrNull()
+            val limit = monthlyLimitMinor?.toLongOrNull() ?: monthlyLimit.toDoubleOrNull()?.let { majorToMinor(it) }
             if (limit == null) {
                 Timber.w("Invalid monthlyLimit '%s' for budget %s", monthlyLimit, remoteId)
                 return null

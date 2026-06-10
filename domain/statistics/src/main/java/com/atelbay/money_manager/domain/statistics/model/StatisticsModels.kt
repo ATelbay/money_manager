@@ -1,23 +1,24 @@
 package com.atelbay.money_manager.domain.statistics.model
 
-data class CategorySummary(
+/**
+ * Metadata for a single category (no amounts). The numeric aggregation lives entirely in the
+ * presentation layer's currency-display resolver, because it depends on the display currency and
+ * the live exchange rate — see `StatisticsCurrencyDisplayResolver`.
+ */
+data class CategoryMetadata(
     val categoryId: Long,
     val categoryName: String,
     val categoryIcon: String,
     val categoryColor: Long,
-    val totalAmount: Double,
-    val percentage: Int,
 )
 
-data class DailyTotal(
-    val date: Long,
-    val amount: Double,
-)
-
-data class MonthlyTotal(
+/**
+ * An ordered, zero-fillable month slot for the YEAR period. Carries no amount — only the
+ * year/month identity and a pre-formatted short label.
+ */
+data class MonthBucket(
     val year: Int,
     val month: Int,
-    val amount: Double,
     val label: String,
 )
 
@@ -31,16 +32,23 @@ enum class TransactionType {
     INCOME,
 }
 
+/**
+ * The "skeleton" of a statistics period. It contains everything that does **not** depend on the
+ * actual transaction amounts or the display currency:
+ * - the resolved [dateRange];
+ * - [dayBuckets] — ordered, zero-filled day-start millis (empty for YEAR, which renders months);
+ * - [monthBuckets] — ordered, zero-filled months (populated only for YEAR);
+ * - [categories] — the category catalog (metadata only).
+ *
+ * All numeric aggregation (totals, per-category/day/month sums, percentages) is performed once in
+ * the presentation layer's currency-display resolver from a single transaction stream, so the
+ * amounts are never computed twice.
+ */
 data class PeriodSummary(
     val dateRange: StatisticsDateRange,
-    val totalExpenses: Double,
-    val totalIncome: Double,
-    val expensesByCategory: List<CategorySummary>,
-    val incomesByCategory: List<CategorySummary>,
-    val dailyExpenses: List<DailyTotal>,
-    val dailyIncome: List<DailyTotal>,
-    val monthlyExpenses: List<MonthlyTotal>,
-    val monthlyIncome: List<MonthlyTotal>,
+    val dayBuckets: List<Long>,
+    val monthBuckets: List<MonthBucket>,
+    val categories: List<CategoryMetadata>,
 )
 
 enum class StatsPeriod {

@@ -12,11 +12,11 @@ import com.atelbay.money_manager.core.database.entity.RegexParserProfileEntity
 import com.atelbay.money_manager.core.database.dao.TransactionDao
 import com.atelbay.money_manager.core.database.entity.CategoryEntity
 import com.atelbay.money_manager.core.firestore.datasource.FirestoreDataSource
-import com.atelbay.money_manager.core.model.Category
 import com.atelbay.money_manager.core.model.ImportResult
 import com.atelbay.money_manager.core.model.ParsedTransaction
 import com.atelbay.money_manager.core.model.TableParserProfile
 import com.atelbay.money_manager.core.model.TransactionType
+import com.atelbay.money_manager.core.model.money.majorToMinor
 import com.atelbay.money_manager.core.parser.RegexParseResult
 import com.atelbay.money_manager.core.parser.RegexValidator
 import com.atelbay.money_manager.core.parser.StatementParser
@@ -24,7 +24,6 @@ import com.atelbay.money_manager.core.parser.TableExtractionResult
 import com.atelbay.money_manager.core.parser.TableQualityValidator
 import com.atelbay.money_manager.core.remoteconfig.RegexParserProfile
 import com.atelbay.money_manager.core.remoteconfig.RegexParserProfileProvider
-import com.atelbay.money_manager.domain.categories.usecase.SaveCategoryUseCase
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withTimeout
@@ -77,7 +76,6 @@ class ParseStatementUseCase @Inject constructor(
     private val geminiService: GeminiService,
     private val categoryDao: CategoryDao,
     private val transactionDao: TransactionDao,
-    private val saveCategoryUseCase: SaveCategoryUseCase,
     private val regexValidator: RegexValidator,
     private val tableQualityValidator: TableQualityValidator,
     private val parserConfigProvider: RegexParserProfileProvider,
@@ -184,7 +182,9 @@ class ParseStatementUseCase @Inject constructor(
                 regexResult.bankId, regexResult.transactions.size)
             collector.emit(ImportStepEvent.RegexConfigAttempt("local_db", regexResult.bankId))
             collector.emit(ImportStepEvent.RegexConfigResult("local_db", regexResult.transactions.size))
-            return RegexThenGeminiResult(assignCategories(regexResult.transactions, collector = collector))
+            return RegexThenGeminiResult(
+                assignCategories(regexResult.transactions, regexResult.categoryMap, collector),
+            )
         }
         collector.emit(ImportStepEvent.RegexConfigAttempt("local_db"))
         collector.emit(ImportStepEvent.RegexConfigResult("local_db", 0))
@@ -211,7 +211,7 @@ class ParseStatementUseCase @Inject constructor(
                 tableResult.transactions.size, tableResult.bankId)
             collector.emit(ImportStepEvent.TableConfigResult("local_db", tableResult.transactions.size))
             return RegexThenGeminiResult(
-                transactions = assignCategories(tableResult.transactions, collector = collector),
+                transactions = assignCategories(tableResult.transactions, tableResult.categoryMap, collector),
                 aiMethod = AiMethod.TABLE_GENERATED,
             )
         }
@@ -247,7 +247,9 @@ class ParseStatementUseCase @Inject constructor(
             Timber.d("PDF import: parsed %d transactions via Firestore regex candidate (bank=%s)",
                 firestoreResult.transactions.size, firestoreResult.bankId)
             collector.emit(ImportStepEvent.RegexConfigResult("firestore", firestoreResult.transactions.size))
-            return RegexThenGeminiResult(assignCategories(firestoreResult.transactions, collector = collector))
+            return RegexThenGeminiResult(
+                assignCategories(firestoreResult.transactions, firestoreResult.categoryMap, collector),
+            )
         }
         collector.emit(ImportStepEvent.RegexConfigResult("firestore", 0))
         return null
@@ -287,7 +289,9 @@ class ParseStatementUseCase @Inject constructor(
                 firestoreTableResult.transactions.size, firestoreTableResult.bankId)
             collector.emit(ImportStepEvent.TableConfigResult("firestore", firestoreTableResult.transactions.size))
             return RegexThenGeminiResult(
-                transactions = assignCategories(firestoreTableResult.transactions, collector = collector),
+                transactions = assignCategories(
+                    firestoreTableResult.transactions, firestoreTableResult.categoryMap, collector,
+                ),
                 aiMethod = AiMethod.TABLE_GENERATED,
             )
         }
@@ -727,10 +731,11 @@ class ParseStatementUseCase @Inject constructor(
                     "i" -> TransactionType.INCOME
                     else -> TransactionType.EXPENSE
                 }
-                val hash = generateTransactionHash(date, tx.amount, type.value, tx.details)
+                val amountMinor = majorToMinor(tx.amount)
+                val hash = generateTransactionHash(date, amountMinor, type.value, tx.details)
                 ParsedTransaction(
                     date = date,
-                    amount = tx.amount,
+                    amount = amountMinor,
                     type = type,
                     details = tx.details,
                     categoryId = tx.categoryId,
@@ -776,93 +781,19 @@ class ParseStatementUseCase @Inject constructor(
             .distinct()
     }
 
-    // Maps raw operation names from bank statements to existing default category names.
-    // Handles both Russian and English variants across all supported banks.
-    // IMPORTANT: target names must exactly match DefaultCategories (e.g. "Перевод", not "Переводы").
-    // Operations NOT listed here fall back to their raw name; if it matches a default category
-    // exactly, it is reused — otherwise a new custom category is created on import.
-    private val operationAliases = mapOf(
-        // Generic — covers Gemini-parsed results and future bank support
-        "Покупка" to "Покупки",
-        "Purchase" to "Покупки",
-        "Оплата" to "Покупки",
-        "Payment" to "Покупки",
-        // Forte Bank
-        "Покупка бонусами" to "Покупки",
-        "Пополнение счета" to "Пополнение",
-        "Платеж" to "Перевод",
-        "Платёж" to "Перевод",
-        "Списание средств в рамках сервиса быстрых платежей" to "Перевод",
-        "Снятие" to "Другое",
-        "Комиссия" to "Другое",
-        // Bereke Bank (English) — full names
-        "Payment for goods and services" to "Покупки",
-        "Card replenishment through Bereke Bank" to "Пополнение",
-        "Card replenishment through payment terminal" to "Пополнение",
-        "Transfer from a card through Bereke Bank" to "Перевод",
-        "Operation" to "Перевод",
-        // Bereke Bank (English) — truncated names captured when PDF line wraps (services/Bank/terminal on continuation)
-        "Payment for goods and" to "Покупки",
-        "Card replenishment through" to "Пополнение",
-        "Transfer from a card" to "Перевод",
-        // Halyk Bank (English) — operation names extracted from mixed-script details
-        "Merchant payment transaction" to "Покупки",
-        "Recharge card account through payment terminal" to "Пополнение",
-        "Recharge card account" to "Пополнение",
-        "Receipt to the card account" to "Пополнение",
-        "Receipt of transfer" to "Пополнение",
-        "Transfer on deposit" to "Перевод",
-        "Transfer from deposit" to "Пополнение",
-        "Transfer to another card" to "Перевод",
-        // Eurasian Bank — map to nearest default categories.
-        // "Транспорт", "Связь", "Развлечения" match DefaultCategories exactly → no alias needed.
-        "Продукты" to "Еда",
-        "Кафе и рестораны" to "Еда",
-        "Здоровье и красота" to "Здоровье",
-        "Государственные услуги" to "Другое",
-        "Услуги" to "Другое",
-        "Путешествия" to "Другое",
-        "Финансы" to "Пополнение",
-    )
-
+    /**
+     * Read-only category resolution: matches each transaction to an existing category by name, or
+     * records the resolved name in [ParsedTransaction.pendingCategoryName] for creation at import
+     * time. Performs NO database writes — a previewed-then-cancelled statement must not leave orphan
+     * categories. Actual creation happens in `ImportTransactionsUseCase` within the import transaction.
+     */
     private suspend fun assignCategories(
         transactions: List<ParsedTransaction>,
         categoryMap: Map<String, String> = emptyMap(),
         collector: ImportProgressCollector = NoOpCollector,
     ): List<ParsedTransaction> {
-        val expenseCategories = categoryDao.getByType(TYPE_EXPENSE).toMutableList()
-        val incomeCategories = categoryDao.getByType(TYPE_INCOME).toMutableList()
-
-        val neededOperations = transactions
-            .filter { it.categoryId == null }
-            .map { Triple(it.operationType, it.details, it.type) }
-            .distinct()
-
-        for ((operation, details, type) in neededOperations) {
-            val categories = if (type == TransactionType.EXPENSE) expenseCategories else incomeCategories
-            val resolvedName = resolveCategoryName(operation, details, categoryMap)
-            if (categories.any { it.name == resolvedName }) continue
-
-            val dbType = if (type == TransactionType.EXPENSE) TYPE_EXPENSE else TYPE_INCOME
-            val newCategory = CategoryEntity(
-                name = resolvedName,
-                icon = "label",
-                color = DEFAULT_IMPORT_CATEGORY_COLOR,
-                type = dbType,
-                isDefault = false,
-            )
-            val domainCategory = Category(
-                name = resolvedName,
-                icon = "label",
-                color = DEFAULT_IMPORT_CATEGORY_COLOR,
-                type = type,
-                isDefault = false,
-            )
-            val id = saveCategoryUseCase(domainCategory)
-            val created = newCategory.copy(id = id)
-            categories.add(created)
-            Timber.d("Created category '%s' (%s) with id=%d", resolvedName, dbType, id)
-        }
+        val expenseCategories = categoryDao.getByType(TYPE_EXPENSE)
+        val incomeCategories = categoryDao.getByType(TYPE_INCOME)
 
         val result = transactions.map { tx ->
             if (tx.categoryId != null) return@map tx
@@ -871,24 +802,28 @@ class ParseStatementUseCase @Inject constructor(
             val resolvedName = resolveCategoryName(tx.operationType, tx.details, categoryMap)
             val matched = categories.find { it.name == resolvedName }
 
-            tx.copy(
-                categoryId = matched?.id,
-                suggestedCategoryName = tx.operationType,
-            )
+            if (matched != null) {
+                tx.copy(categoryId = matched.id, suggestedCategoryName = tx.operationType)
+            } else {
+                tx.copy(pendingCategoryName = resolvedName, suggestedCategoryName = tx.operationType)
+            }
         }
         collector.emit(ImportStepEvent.CategoryAssignment(result.size))
         return result
     }
 
     /**
-     * Resolves category name: hardcoded aliases → Gemini's categoryMap (prefix match) → raw fallback.
+     * Resolves category name from the config-supplied [categoryMap] (synced from Firestore or
+     * AI-generated) by prefix match on operation, then on details, then raw fallback.
+     *
+     * Per-bank operation→category knowledge lives in each config's `category_map` — NOT hardcoded
+     * here — so the parser scales to new banks autonomously via ParserConfig.
      */
     private fun resolveCategoryName(
         operationType: String,
         details: String,
         categoryMap: Map<String, String>,
     ): String {
-        operationAliases[operationType]?.let { return it }
         categoryMap.findByPrefix(operationType)?.let { return it }
         categoryMap.findByPrefix(details)?.let { return it }
         return operationType.ifBlank { details }
@@ -902,7 +837,6 @@ class ParseStatementUseCase @Inject constructor(
     }
 
     companion object {
-        private const val DEFAULT_IMPORT_CATEGORY_COLOR = 0xFFB0BEC5
         private const val AI_REGEX_TIMEOUT_MS = 5_000L
         private const val MAX_AI_RETRIES = 3
         private const val HEADER_SKIP_LINES = 10
@@ -911,6 +845,7 @@ class ParseStatementUseCase @Inject constructor(
         private const val MIN_YIELD_RATE = 0.5f
         private const val TYPE_EXPENSE = "expense"
         private const val TYPE_INCOME = "income"
+        private const val SQLITE_VAR_CHUNK = 900
     }
 
     private suspend fun deduplicateAndBuildResult(
@@ -918,12 +853,11 @@ class ParseStatementUseCase @Inject constructor(
         parseErrors: List<String> = emptyList(),
         collector: ImportProgressCollector = NoOpCollector,
     ): ImportResult {
-        val hashes = transactions.map { it.uniqueHash }
-        val existingHashes = if (hashes.isNotEmpty()) {
-            transactionDao.getExistingHashes(hashes)
-        } else {
-            emptyList()
-        }.toSet()
+        // Chunk to stay under SQLite's bound-parameter limit (~999) on large statements.
+        val existingHashes = transactions.map { it.uniqueHash }
+            .chunked(SQLITE_VAR_CHUNK)
+            .flatMap { transactionDao.getExistingHashes(it) }
+            .toSet()
 
         val newTransactions = transactions.filter { it.uniqueHash !in existingHashes }
         val duplicates = transactions.size - newTransactions.size

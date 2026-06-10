@@ -47,8 +47,20 @@ class BudgetRepositoryImpl @Inject constructor(
         val now = System.currentTimeMillis()
         val baseEntity = budget.toEntity()
         val savedId = if (baseEntity.id == 0L) {
-            val newEntity = baseEntity.copy(createdAt = now, updatedAt = now)
-            budgetDao.insert(newEntity)
+            // Revive a soft-deleted budget for the same category rather than insert-REPLACE (which would
+            // orphan the old row's remoteId in Firestore). The categoryId unique index spans deleted rows.
+            val existingAnyState = budgetDao.getByCategoryIdAnyState(baseEntity.categoryId)
+            if (existingAnyState != null) {
+                val revived = existingAnyState.copy(
+                    monthlyLimit = baseEntity.monthlyLimit,
+                    isDeleted = false,
+                    updatedAt = now,
+                )
+                budgetDao.update(revived)
+                revived.id
+            } else {
+                budgetDao.insert(baseEntity.copy(createdAt = now, updatedAt = now))
+            }
         } else {
             val existing = budgetDao.getById(baseEntity.id)
             val updatedEntity = baseEntity.copy(

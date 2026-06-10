@@ -24,7 +24,7 @@ data class DebtEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val contactName: String,
     val direction: String,
-    val totalAmount: Double,
+    val totalAmount: Long,
     val currency: String,
     val accountId: Long,
     val note: String? = null,

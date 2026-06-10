@@ -13,4 +13,6 @@ dependencies {
     implementation(projects.core.database)
     implementation(projects.core.model)
     implementation(libs.room.ktx)
+
+    testImplementation(libs.bundles.testing)
 }

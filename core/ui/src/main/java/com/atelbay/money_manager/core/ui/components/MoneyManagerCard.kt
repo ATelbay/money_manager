@@ -19,9 +19,11 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerShapes
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 
 @Composable
@@ -36,7 +38,7 @@ fun MoneyManagerCard(
         Card(
             onClick = onClick,
             modifier = modifier,
-            shape = RoundedCornerShape(20.dp),
+            shape = MoneyManagerShapes.card,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface,
             ),
@@ -46,7 +48,7 @@ fun MoneyManagerCard(
     } else {
         Card(
             modifier = modifier,
-            shape = RoundedCornerShape(20.dp),
+            shape = MoneyManagerShapes.card,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface,
             ),
@@ -88,7 +90,7 @@ fun GlassCard(
             }
             .then(
                 if (onClick != null) {
-                    Modifier.clickable(onClick = onClick)
+                    Modifier.clickable(role = Role.Button, onClick = onClick)
                 } else {
                     Modifier
                 },

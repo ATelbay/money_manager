@@ -32,7 +32,9 @@ class OnboardingSetupViewModel @Inject constructor(
     private val _state = MutableStateFlow(OnboardingSetupState())
     val state: StateFlow<OnboardingSetupState> = _state.asStateFlow()
 
-    private val _navigateToHome = MutableSharedFlow<Unit>()
+    // extraBufferCapacity = 1 so a completion emitted while the screen is briefly
+    // STOPPED (e.g. slow sync finishing in the background) is buffered, not dropped.
+    private val _navigateToHome = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val navigateToHome: SharedFlow<Unit> = _navigateToHome.asSharedFlow()
 
     fun signIn(strings: AppStrings) {

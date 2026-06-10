@@ -58,6 +58,9 @@ splashscreen = "1.0.1"
 pdfboxAndroid = "2.0.27.0"
 pdfbox = "2.0.32"
 
+# Regex (linear-time, ReDoS-safe engine for untrusted patterns)
+re2j = "1.8"
+
 # Testing
 junit = "4.13.2"
 junitVersion = "1.3.0"
@@ -105,6 +108,7 @@ androidx-datastore-preferences = { group = "androidx.datastore", name = "datasto
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 
 # Coroutines
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -164,6 +168,9 @@ androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscree
 pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
 pdfbox = { group = "org.apache.pdfbox", name = "pdfbox", version.ref = "pdfbox" }
 
+# Regex
+re2j = { group = "com.google.re2j", name = "re2j", version.ref = "re2j" }
+
 # Detekt
 detekt-compose = { group = "io.nlopez.compose.rules", name = "detekt", version.ref = "detektCompose" }
 
@@ -221,6 +228,7 @@ android-testing = [
 # Convention plugins
 moneymanager-android-application = { id = "moneymanager.android.application", version = "unspecified" }
 moneymanager-android-library = { id = "moneymanager.android.library", version = "unspecified" }
+moneymanager-jvm-library = { id = "moneymanager.jvm.library", version = "unspecified" }
 moneymanager-android-compose = { id = "moneymanager.android.compose", version = "unspecified" }
 moneymanager-android-hilt = { id = "moneymanager.android.hilt", version = "unspecified" }
 moneymanager-android-feature = { id = "moneymanager.android.feature", version = "unspecified" }

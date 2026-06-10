@@ -58,7 +58,7 @@ class FreedomBankParserTest {
         assertEquals(1, result.size)
         val tx = result[0]
         assertEquals(LocalDate(2026, 2, 23), tx.date)
-        assertEquals(5749.80, tx.amount, 0.01)
+        assertEquals(574980L, tx.amount)
         assertEquals(TransactionType.EXPENSE, tx.type)
         assertEquals("Покупка", tx.operationType)
         assertEquals("WOLT.COM ALMATY KZ", tx.details)
@@ -72,7 +72,7 @@ class FreedomBankParserTest {
 
         assertEquals(1, result.size)
         val tx = result[0]
-        assertEquals(50000.0, tx.amount, 0.01)
+        assertEquals(5000000L, tx.amount)
         assertEquals(TransactionType.INCOME, tx.type)
         assertEquals("Пополнение", tx.operationType)
     }
@@ -85,7 +85,7 @@ class FreedomBankParserTest {
 
         assertEquals(1, result.size)
         val tx = result[0]
-        assertEquals(28774.53, tx.amount, 0.01)
+        assertEquals(2877453L, tx.amount)
         assertEquals(TransactionType.INCOME, tx.type)
         assertEquals("Перевод", tx.operationType)
     }
@@ -98,7 +98,7 @@ class FreedomBankParserTest {
 
         assertEquals(1, result.size)
         val tx = result[0]
-        assertEquals(22496.0, tx.amount, 0.01)
+        assertEquals(2249600L, tx.amount)
         assertEquals(TransactionType.EXPENSE, tx.type)
     }
 
@@ -120,7 +120,7 @@ class FreedomBankParserTest {
         val result = parser.parse(text, freedomConfig)
 
         assertEquals(1, result.size)
-        assertEquals(273.41, result[0].amount, 0.01)
+        assertEquals(27341L, result[0].amount)
     }
 
     @Test
@@ -134,7 +134,7 @@ class FreedomBankParserTest {
 
         assertEquals(1, result.size)
         val tx = result[0]
-        assertEquals(9201.44, tx.amount, 0.01)
+        assertEquals(920144L, tx.amount)
         assertEquals(TransactionType.EXPENSE, tx.type)
         assertEquals("Сумма в обработке", tx.operationType)
         assertEquals("WOLT.COM ALMATY KZ", tx.details)
@@ -153,7 +153,7 @@ FRT20260221-906D3CDC7813.
         val result = parser.parse(text, freedomConfig)
 
         assertEquals(1, result.size)
-        assertEquals(50000.0, result[0].amount, 0.01)
+        assertEquals(5000000L, result[0].amount)
         assertEquals(TransactionType.INCOME, result[0].type)
         assertTrue(result[0].details.contains("ТЕЛЬБАЙ"))
     }
@@ -214,7 +214,7 @@ KZ12551B529955307KZT. По
         val text = "25.02.2026 -9,201.44 ₸ KZT Сумма в WOLT.COM ALMATY KZ обработке"
         val result = parser.parse(text, freedomConfig)
         assertEquals(1, result.size)
-        assertEquals(9201.44, result[0].amount, 0.01)
+        assertEquals(920144L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("Сумма в обработке", result[0].operationType)
         assertEquals("WOLT.COM ALMATY KZ", result[0].details)
@@ -234,7 +234,7 @@ KZ12551B529955307KZT. По
         val text = "25.02.2026 -9,201.44 ₸ KZT Сумма в обработке WOLT.COM ALMATY KZ"
         val result = parser.parse(text, badFixupConfig)
         assertEquals(1, result.size)
-        assertEquals(9201.44, result[0].amount, 0.01)
+        assertEquals(920144L, result[0].amount)
     }
 
     @Test
@@ -254,7 +254,7 @@ KZ12551B529955307KZT. По
         val result = parser.parse(text, kaspiConfig)
 
         assertEquals(1, result.size)
-        assertEquals(500.0, result[0].amount, 0.01)
+        assertEquals(50000L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
     }
 }

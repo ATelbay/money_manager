@@ -30,6 +30,7 @@ fun BudgetEditRoute(
                 limitError = strings.errorEnterValidLimit,
             )
         },
+        onErrorShown = viewModel::clearError,
         modifier = modifier,
     )
 }

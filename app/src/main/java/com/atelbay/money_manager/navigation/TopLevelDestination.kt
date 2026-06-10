@@ -15,30 +15,25 @@ enum class TopLevelDestination(
     val route: Any,
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector,
-    val label: String,
 ) {
     HOME(
         route = Home,
         selectedIcon = Icons.Filled.Home,
         unselectedIcon = Icons.Outlined.Home,
-        label = "Главная",
     ),
     STATISTICS(
         route = Statistics,
         selectedIcon = Icons.Filled.BarChart,
         unselectedIcon = Icons.Outlined.BarChart,
-        label = "Статистика",
     ),
     ACCOUNTS(
         route = AccountList,
         selectedIcon = Icons.Filled.AccountBalance,
         unselectedIcon = Icons.Outlined.AccountBalance,
-        label = "Счета",
     ),
     SETTINGS(
         route = Settings,
         selectedIcon = Icons.Filled.Settings,
         unselectedIcon = Icons.Outlined.Settings,
-        label = "Настройки",
     ),
 }

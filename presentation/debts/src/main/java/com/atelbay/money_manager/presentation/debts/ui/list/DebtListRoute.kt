@@ -23,6 +23,7 @@ fun DebtListRoute(
         onDeleteDebt = viewModel::deleteDebt,
         onSaveDebt = viewModel::saveDebt,
         onFilterChange = viewModel::setFilter,
+        onErrorShown = viewModel::clearError,
         onBack = onBack,
         modifier = modifier,
     )

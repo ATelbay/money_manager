@@ -10,19 +10,19 @@ import kotlinx.collections.immutable.persistentListOf
 
 data class TransactionListState(
     val transactionRows: ImmutableList<TransactionRowState> = persistentListOf(),
-    val balance: Double? = null,
+    val balance: Long? = null,
     val summaryMoneyDisplay: MoneyDisplayPresentation = MoneyDisplayFormatter.unavailable().let(MoneyDisplayFormatter::format),
     val isLoading: Boolean = true,
     val selectedAccountName: String? = null,
     val selectedAccountId: Long? = null,
     val selectedTab: TransactionType? = null,
     val selectedPeriod: Period = Period.MONTH,
-    val periodIncome: Double? = null,
-    val periodExpense: Double? = null,
+    val periodIncome: Long? = null,
+    val periodExpense: Long? = null,
     val searchQuery: String = "",
     val accounts: ImmutableList<Account> = persistentListOf(),
     val showAccountPicker: Boolean = false,
-    val dailyNetSums: Map<String, Double> = emptyMap(),
+    val dailyNetSums: Map<String, Long> = emptyMap(),
     /** Whether the date range picker dialog is currently visible. */
     val showDatePickerDialog: Boolean = false,
     /** Start of the custom date range (epoch millis, inclusive). Null when period != CUSTOM. */
@@ -33,15 +33,15 @@ data class TransactionListState(
 
 data class TransactionRowState(
     val transaction: Transaction,
-    val originalAmount: Double,
+    val originalAmount: Long,
     val originalCurrency: String,
-    val convertedAmount: Double? = null,
+    val convertedAmount: Long? = null,
     val convertedCurrency: String? = null,
     val conversionStatus: ConversionStatus = ConversionStatus.UNAVAILABLE,
     val displayMoneyDisplay: MoneyDisplayPresentation,
     val secondaryMoneyDisplay: MoneyDisplayPresentation? = null,
 ) {
-    val displayAmount: Double
+    val displayAmount: Long
         get() = convertedAmount ?: originalAmount
 
     val displayCurrency: String

@@ -48,11 +48,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.atelbay.money_manager.core.model.Budget
+import com.atelbay.money_manager.core.model.money.toMajorDouble
 import com.atelbay.money_manager.core.ui.components.GlassCard
 import com.atelbay.money_manager.core.ui.components.MoneyManagerFAB
 import com.atelbay.money_manager.core.ui.components.categoryIconFromName
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.theme.Teal
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -178,9 +180,9 @@ private fun BudgetListItem(
     val s = MoneyManagerTheme.strings
 
     val progressColor = when {
-        budget.percentage > 0.9f -> Color(0xFFF87171)
-        budget.percentage > 0.7f -> Color(0xFFFBBF24)
-        else -> Color(0xFF4ADE80)
+        budget.percentage > 0.9f -> MaterialTheme.colorScheme.error
+        budget.percentage > 0.7f -> colors.warning
+        else -> colors.income
     }
 
     GlassCard(
@@ -233,7 +235,7 @@ private fun BudgetListItem(
                     Text(
                         text = s.overBudget,
                         style = typography.caption,
-                        color = Color(0xFFF87171),
+                        color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.testTag("budgetList:overBudget_${budget.id}"),
                     )
                 }
@@ -259,7 +261,7 @@ private fun BudgetListItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    text = "${(budget.percentage * 100).toInt()}%",
+                    text = "${(budget.percentage * 100).roundToInt()}%",
                     style = typography.caption,
                     color = progressColor,
                 )
@@ -273,13 +275,14 @@ private fun BudgetListItem(
     }
 }
 
-private fun formatAmount(amount: Double): String {
-    return if (amount >= 1_000_000) {
-        "${(amount / 1_000_000).toBigDecimal().stripTrailingZeros().toPlainString()}M"
-    } else if (amount >= 1_000) {
-        "${(amount / 1_000).toBigDecimal().stripTrailingZeros().toPlainString()}K"
+private fun formatAmount(amount: Long): String {
+    val major = amount.toMajorDouble()
+    return if (major >= 1_000_000) {
+        "${(major / 1_000_000).toBigDecimal().stripTrailingZeros().toPlainString()}M"
+    } else if (major >= 1_000) {
+        "${(major / 1_000).toBigDecimal().stripTrailingZeros().toPlainString()}K"
     } else {
-        amount.toBigDecimal().stripTrailingZeros().toPlainString()
+        major.toBigDecimal().stripTrailingZeros().toPlainString()
     }
 }
 
@@ -316,6 +319,9 @@ private fun BudgetSwipeToDeleteItem(
                 },
                 label = "swipe_bg",
             )
+            // Only draw the trash icon while swiping — at rest the opaque icon would stay painted
+            // over the row content on a transparent background.
+            val isSwiping = dismissState.targetValue != SwipeToDismissBoxValue.Settled
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -323,11 +329,13 @@ private fun BudgetSwipeToDeleteItem(
                     .padding(horizontal = 20.dp),
                 contentAlignment = Alignment.CenterEnd,
             ) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = MoneyManagerTheme.strings.delete,
-                    tint = MaterialTheme.colorScheme.onError,
-                )
+                if (isSwiping) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = MoneyManagerTheme.strings.delete,
+                        tint = MaterialTheme.colorScheme.onError,
+                    )
+                }
             }
         },
         enableDismissFromStartToEnd = false,

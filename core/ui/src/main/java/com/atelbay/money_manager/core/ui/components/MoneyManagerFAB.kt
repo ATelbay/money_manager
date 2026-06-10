@@ -25,9 +25,9 @@ import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 @Composable
 fun MoneyManagerFAB(
     onClick: () -> Unit,
+    contentDescription: String,
     modifier: Modifier = Modifier,
     icon: ImageVector = Icons.Default.Add,
-    contentDescription: String? = null,
     testTag: String? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -65,6 +65,6 @@ fun MoneyManagerFAB(
 @Composable
 private fun MoneyManagerFABPreview() {
     MoneyManagerTheme(dynamicColor = false) {
-        MoneyManagerFAB(onClick = {})
+        MoneyManagerFAB(onClick = {}, contentDescription = "Add")
     }
 }

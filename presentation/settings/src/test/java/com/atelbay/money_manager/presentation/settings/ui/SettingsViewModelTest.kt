@@ -325,6 +325,7 @@ class SettingsViewModelTest {
             syncRepository = syncRepository,
             application = application,
             exportTransactionsToCsvUseCase = mockk(relaxed = true),
+            ioDispatcher = Dispatchers.IO,
         )
     }
 

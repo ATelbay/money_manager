@@ -5,6 +5,7 @@ import com.google.firebase.firestore.DocumentId
 data class TransactionDto(
     @DocumentId val remoteId: String = "",
     val amount: String = "",
+    val amountMinor: String? = null,
     val type: String = "",
     val categoryRemoteId: String = "",
     val accountRemoteId: String = "",

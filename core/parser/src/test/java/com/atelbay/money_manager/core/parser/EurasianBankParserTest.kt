@@ -64,7 +64,7 @@ class EurasianBankParserTest {
         assertEquals(1, result.size)
         val tx = result[0]
         assertEquals(LocalDate(2026, 1, 12), tx.date)
-        assertEquals(66819.63, tx.amount, 0.01)
+        assertEquals(6681963L, tx.amount)
         assertEquals(TransactionType.EXPENSE, tx.type)
         assertEquals("Путешествия", tx.operationType)
         assertEquals("Headout Ferrari World", tx.details)
@@ -77,7 +77,7 @@ class EurasianBankParserTest {
         val result = parser.parse(text, eurasianConfig)
 
         assertEquals(1, result.size)
-        assertEquals(80000.0, result[0].amount, 0.01)
+        assertEquals(8000000L, result[0].amount)
         assertEquals(TransactionType.INCOME, result[0].type)
         assertEquals("MC World", result[0].details)
     }
@@ -89,7 +89,7 @@ class EurasianBankParserTest {
         val result = parser.parse(text, eurasianConfig)
 
         assertEquals(1, result.size)
-        assertEquals(120000.0, result[0].amount, 0.01)
+        assertEquals(12000000L, result[0].amount)
         assertEquals(TransactionType.INCOME, result[0].type)
     }
 
@@ -100,7 +100,7 @@ class EurasianBankParserTest {
         val result = parser.parse(text, eurasianConfig)
 
         assertEquals(1, result.size)
-        assertEquals(2502.87, result[0].amount, 0.01)
+        assertEquals(250287L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("Продукты", result[0].operationType)
     }
@@ -112,7 +112,7 @@ class EurasianBankParserTest {
         val result = parser.parse(text, eurasianConfig)
 
         assertEquals(1, result.size)
-        assertEquals(2284.23, result[0].amount, 0.01)
+        assertEquals(228423L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
     }
 
@@ -133,7 +133,7 @@ class EurasianBankParserTest {
         val result = parser.parse(text, eurasianConfig)
 
         assertEquals(1, result.size)
-        assertEquals(4.46, result[0].amount, 0.01)
+        assertEquals(446L, result[0].amount)
     }
 
     @Test
@@ -149,7 +149,7 @@ class EurasianBankParserTest {
 
         // After dedup: only the row with max amount (66819.63) is kept
         assertEquals(1, result.size)
-        assertEquals(66819.63, result[0].amount, 0.01)
+        assertEquals(6681963L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
     }
 
@@ -161,7 +161,7 @@ class EurasianBankParserTest {
 
         // Single income row — no dedup needed, kept as-is
         assertEquals(1, result.size)
-        assertEquals(80000.0, result[0].amount, 0.01)
+        assertEquals(8000000L, result[0].amount)
         assertEquals(TransactionType.INCOME, result[0].type)
     }
 
@@ -177,7 +177,7 @@ class EurasianBankParserTest {
         val result = parser.parse(text, eurasianConfig)
 
         assertEquals(1, result.size)
-        assertEquals(2284.23, result[0].amount, 0.01)
+        assertEquals(228423L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
     }
 
@@ -222,7 +222,7 @@ class EurasianBankParserTest {
         assertEquals(1, result.size)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("Интернет покупки", result[0].operationType)
-        assertEquals(10072.1, result[0].amount, 0.01)
+        assertEquals(1007210L, result[0].amount)
         assertEquals("Google ChatGPT", result[0].details)
     }
 
@@ -233,7 +233,7 @@ class EurasianBankParserTest {
         assertEquals(1, result.size)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("Магазины", result[0].operationType)
-        assertEquals(23470.0, result[0].amount, 0.01)
+        assertEquals(2347000L, result[0].amount)
         assertEquals("AIRBAPAY.KZ*TECHNODOM.KZ", result[0].details)
     }
 
@@ -244,7 +244,7 @@ class EurasianBankParserTest {
         assertEquals(1, result.size)
         assertEquals(TransactionType.INCOME, result[0].type)
         assertEquals("Пополнение", result[0].operationType)
-        assertEquals(15063.0, result[0].amount, 0.01)
+        assertEquals(1506300L, result[0].amount)
         assertEquals("Пополнение с Бонусов", result[0].details)
     }
 
@@ -255,7 +255,7 @@ class EurasianBankParserTest {
         assertEquals(1, result.size)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("Комиссия", result[0].operationType)
-        assertEquals(4000.0, result[0].amount, 0.01)
+        assertEquals(400000L, result[0].amount)
         assertEquals("Обслуживание", result[0].details)
     }
 
@@ -265,6 +265,6 @@ class EurasianBankParserTest {
         val result = parser.parse(text, eurasianConfig)
         assertEquals(1, result.size)
         assertEquals("Здоровье и красота", result[0].operationType)
-        assertEquals(20876.59, result[0].amount, 0.01)
+        assertEquals(2087659L, result[0].amount)
     }
 }

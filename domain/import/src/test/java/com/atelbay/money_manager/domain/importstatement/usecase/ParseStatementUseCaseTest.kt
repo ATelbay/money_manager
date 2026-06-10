@@ -19,7 +19,6 @@ import com.atelbay.money_manager.core.parser.TableExtractionResult
 import com.atelbay.money_manager.core.parser.TableQualityValidator
 import com.atelbay.money_manager.core.remoteconfig.RegexParserProfile
 import com.atelbay.money_manager.core.remoteconfig.RegexParserProfileProvider
-import com.atelbay.money_manager.domain.categories.usecase.SaveCategoryUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -43,7 +42,6 @@ class ParseStatementUseCaseTest {
     private lateinit var geminiService: GeminiService
     private lateinit var categoryDao: CategoryDao
     private lateinit var transactionDao: TransactionDao
-    private lateinit var saveCategoryUseCase: SaveCategoryUseCase
     private lateinit var regexValidator: RegexValidator
     private lateinit var parserConfigProvider: RegexParserProfileProvider
     private lateinit var userIdHasher: UserIdHasher
@@ -64,7 +62,7 @@ class ParseStatementUseCaseTest {
 
     private val testTransaction = ParsedTransaction(
         date = LocalDate(2026, 1, 1),
-        amount = 100.0,
+        amount = 10_000L,
         type = TransactionType.EXPENSE,
         details = "Test purchase",
         categoryId = null,
@@ -115,7 +113,6 @@ class ParseStatementUseCaseTest {
         geminiService = mockk()
         categoryDao = mockk()
         transactionDao = mockk()
-        saveCategoryUseCase = mockk()
         regexValidator = mockk()
         parserConfigProvider = mockk()
         userIdHasher = mockk()
@@ -127,7 +124,6 @@ class ParseStatementUseCaseTest {
         coEvery { categoryDao.getByType(any()) } returns emptyList()
         coEvery { transactionDao.getExistingHashes(any()) } returns emptyList()
         coEvery { statementParser.tryParsePdf(any(), any()) } returns emptyRegexResult
-        coEvery { saveCategoryUseCase(any()) } returns 1L
         every { statementParser.extractHeaderSnippet(pdfTextWithEnoughLines) } returns headerSnippet
         every { statementParser.extractSampleRows(pdfTextWithEnoughLines) } returns sampleRows
         every { parserConfigProvider.isAiFullParseEnabled() } returns true
@@ -146,7 +142,6 @@ class ParseStatementUseCaseTest {
             geminiService = geminiService,
             categoryDao = categoryDao,
             transactionDao = transactionDao,
-            saveCategoryUseCase = saveCategoryUseCase,
             regexValidator = regexValidator,
             tableQualityValidator = tableQualityValidator,
             parserConfigProvider = parserConfigProvider,

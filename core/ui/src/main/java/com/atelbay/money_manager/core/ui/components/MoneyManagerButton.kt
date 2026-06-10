@@ -18,11 +18,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import com.atelbay.money_manager.core.ui.theme.MoneyManagerShapes
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
-import com.atelbay.money_manager.core.ui.theme.Teal
 
 @Composable
 fun MoneyManagerButton(
@@ -43,15 +41,15 @@ fun MoneyManagerButton(
     Button(
         onClick = onClick,
         modifier = modifier
-            .heightIn(min = 56.dp)
+            .heightIn(min = MoneyManagerShapes.controlHeight)
             .graphicsLayer { scaleX = scale; scaleY = scale },
         enabled = enabled,
         shape = MaterialTheme.shapes.large,
         colors = ButtonDefaults.buttonColors(
-            containerColor = Teal,
-            contentColor = Color.White,
-            disabledContainerColor = Teal.copy(alpha = 0.3f),
-            disabledContentColor = Color.White.copy(alpha = 0.3f),
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+            disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
         ),
         contentPadding = contentPadding,
         interactionSource = interactionSource,
@@ -68,11 +66,11 @@ fun MoneyManagerOutlinedButton(
 ) {
     OutlinedButton(
         onClick = onClick,
-        modifier = modifier.heightIn(min = 56.dp),
+        modifier = modifier.heightIn(min = MoneyManagerShapes.controlHeight),
         enabled = enabled,
         shape = MaterialTheme.shapes.large,
         colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = Teal,
+            contentColor = MaterialTheme.colorScheme.primary,
         ),
         content = content,
     )
@@ -90,7 +88,7 @@ fun MoneyManagerTextButton(
         modifier = modifier,
         enabled = enabled,
         colors = ButtonDefaults.textButtonColors(
-            contentColor = Teal,
+            contentColor = MaterialTheme.colorScheme.primary,
         ),
         content = content,
     )

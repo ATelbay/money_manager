@@ -6,6 +6,7 @@ data class BudgetDto(
     @DocumentId val remoteId: String = "",
     val categoryRemoteId: String = "",
     val monthlyLimit: String = "",
+    val monthlyLimitMinor: String? = null,
     val createdAt: Long = 0,
     val updatedAt: Long = 0,
     val isDeleted: Boolean = false,

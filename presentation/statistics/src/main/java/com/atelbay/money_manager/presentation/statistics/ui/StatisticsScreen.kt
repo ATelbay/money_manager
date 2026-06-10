@@ -62,10 +62,13 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.atelbay.money_manager.core.ui.components.GlassCard
@@ -76,10 +79,11 @@ import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
 import com.atelbay.money_manager.core.ui.theme.Teal
 import com.atelbay.money_manager.core.ui.util.LocalReduceMotion
+import com.atelbay.money_manager.core.model.money.toMajorDouble
 import com.atelbay.money_manager.core.ui.util.MoneyDisplayFormatter
 import com.atelbay.money_manager.core.ui.util.MoneyDisplayPresentation
 import com.atelbay.money_manager.core.ui.util.formatAmount
-import com.atelbay.money_manager.domain.statistics.model.CategorySummary
+import com.atelbay.money_manager.domain.statistics.model.CategoryMetadata
 import com.atelbay.money_manager.domain.statistics.model.StatsPeriod
 import com.atelbay.money_manager.domain.statistics.model.TransactionType
 import kotlinx.collections.immutable.ImmutableList
@@ -123,7 +127,9 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
+import java.util.Locale
 import java.util.TimeZone
+import kotlin.math.roundToInt
 
 
 
@@ -159,7 +165,7 @@ fun StatisticsScreen(
     chartModelProducer: CartesianChartModelProducer = CartesianChartModelProducer(),
     onPeriodChange: (StatsPeriod) -> Unit,
     onTransactionTypeChange: (TransactionType) -> Unit,
-    onCategoryClick: (CategorySummary) -> Unit = {},
+    onCategoryClick: (CategoryMetadata) -> Unit = {},
     onRetry: () -> Unit,
     onSetMonth: (YearMonth?) -> Unit = {},
     onVisibleMaxChanged: (Double) -> Unit = {},
@@ -179,12 +185,13 @@ fun StatisticsScreen(
     val currentTotal = if (isExpense) state.displayedTotalExpenses else state.displayedTotalIncome
 
     var showMonthPicker by remember { mutableStateOf(false) }
+    val currentMonth = remember { YearMonth.now() }
     val monthFormatter = remember(s.locale) { DateTimeFormatter.ofPattern("MMM yyyy", s.locale) }
-    val pillLabel = (state.selectedMonth ?: YearMonth.now()).format(monthFormatter)
+    val pillLabel = (state.selectedMonth ?: currentMonth).format(monthFormatter)
 
     if (showMonthPicker) {
         MonthPickerDialog(
-            initialYearMonth = state.selectedMonth ?: YearMonth.now(),
+            initialYearMonth = state.selectedMonth ?: currentMonth,
             onMonthSelected = { yearMonth ->
                 onSetMonth(yearMonth)
                 showMonthPicker = false
@@ -270,7 +277,8 @@ fun StatisticsScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = state.error,
+                        // Show a localized generic message rather than the raw exception text.
+                        text = s.errorUnknown,
                         style = typography.cardTitle,
                         color = colors.textSecondary,
                     )
@@ -453,16 +461,17 @@ private fun StatisticsTypeCards(
 // ── Donut Chart ──
 
 private fun formatCompactAmount(amount: Double): String = when {
-    amount >= 1_000_000 -> String.format("%.1fM", amount / 1_000_000)
-    amount >= 1_000 -> String.format("%.0fK", amount / 1_000)
-    else -> String.format("%.0f", amount)
+    amount >= 1_000_000 -> String.format(Locale.getDefault(), "%.1fM", amount / 1_000_000)
+    amount >= 1_000 -> String.format(Locale.getDefault(), "%.0fK", amount / 1_000)
+    else -> String.format(Locale.getDefault(), "%.0f", amount)
 }
 
 @Composable
 private fun DonutChart(
     categories: ImmutableList<StatisticsCategoryDisplayItem>,
-    totalAmount: Double,
+    totalAmount: Long,
     moneyDisplay: MoneyDisplayPresentation,
+    contentDescription: String,
     modifier: Modifier = Modifier,
 ) {
     val colors = MoneyManagerTheme.colors
@@ -479,7 +488,12 @@ private fun DonutChart(
         )
     }
 
-    Box(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .semantics { this.contentDescription = contentDescription },
+        contentAlignment = Alignment.Center,
+    ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val strokeWidth = size.minDimension * 0.18f
             val radius = (size.minDimension - strokeWidth) / 2f
@@ -511,7 +525,7 @@ private fun DonutChart(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = formatCompactAmount(totalAmount),
+                text = formatCompactAmount(totalAmount.toMajorDouble()),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.5).sp,
@@ -549,7 +563,7 @@ private fun VicoBarChartSection(
 
     var chartWidthPx by remember { mutableIntStateOf(0) }
 
-    val amounts = remember(points) { points.map { it.amount ?: 0.0 } }
+    val amounts = remember(points) { points.map { it.amount?.toMajorDouble() ?: 0.0 } }
 
     @OptIn(kotlinx.coroutines.FlowPreview::class)
     LaunchedEffect(scrollState, amounts, chartWidthPx) {
@@ -587,9 +601,9 @@ private fun VicoBarChartSection(
                         val symbol = context.model.extraStore.getOrNull(currencySymbolKey) ?: ""
                         val isPrefix = context.model.extraStore.getOrNull(currencyPrefixKey) ?: true
                         val formatted = when {
-                            value >= 1_000_000 -> String.format("%.1fM", value / 1_000_000)
-                            value >= 1_000 -> String.format("%.0fK", value / 1_000)
-                            else -> String.format("%.0f", value)
+                            value >= 1_000_000 -> String.format(Locale.getDefault(), "%.1fM", value / 1_000_000)
+                            value >= 1_000 -> String.format(Locale.getDefault(), "%.0fK", value / 1_000)
+                            else -> String.format(Locale.getDefault(), "%.0f", value)
                         }
                         if (isPrefix) "$symbol $formatted" else "$formatted $symbol"
                     }
@@ -822,7 +836,7 @@ private fun ChartCardHeader(
 // T007
 @Composable
 private fun ChartScrollIndicator(
-    scrollFraction: Float,
+    scrollFraction: () -> Float,
     isVisible: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -846,12 +860,16 @@ private fun ChartScrollIndicator(
                 .clip(RoundedCornerShape(50))
                 .background(colors.divider),
         ) {
-            val thumbOffset = ((trackWidth - thumbWidth) * scrollFraction.coerceIn(0f, 1f))
             Box(
                 modifier = Modifier
                     .width(thumbWidth)
                     .height(trackHeight)
-                    .offset(x = thumbOffset)
+                    // Read the scroll fraction in the layout phase so scrolling never
+                    // recomposes this composable (or its parent).
+                    .offset {
+                        val maxOffsetPx = (trackWidth - thumbWidth).toPx()
+                        IntOffset((maxOffsetPx * scrollFraction().coerceIn(0f, 1f)).roundToInt(), 0)
+                    }
                     .clip(RoundedCornerShape(50))
                     .background(colors.textSecondary),
             )
@@ -863,7 +881,7 @@ private fun ChartScrollIndicator(
 @Composable
 private fun ChartTotalRow(
     label: String,
-    amount: Double?,
+    amount: Long?,
     moneyDisplay: MoneyDisplayPresentation,
     modifier: Modifier = Modifier,
 ) {
@@ -885,7 +903,7 @@ private fun ChartTotalRow(
         )
         if (amount != null) {
             Text(
-                text = moneyDisplay.formatAmount(amount = amount, formatter = amountFormatter),
+                text = moneyDisplay.formatAmount(amountMinor = amount, formatter = amountFormatter),
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.3).sp,
@@ -897,18 +915,20 @@ private fun ChartTotalRow(
     }
 }
 
-@Composable
-private fun formatDateRangeLabel(dateRange: com.atelbay.money_manager.domain.statistics.model.StatisticsDateRange?): String {
+// Plain (non-composable) formatter — callers wrap it in `remember(dateRange, locale)`.
+private fun formatDateRangeLabel(
+    dateRange: com.atelbay.money_manager.domain.statistics.model.StatisticsDateRange?,
+    strings: com.atelbay.money_manager.core.ui.theme.AppStrings,
+): String {
     if (dateRange == null) return ""
-    val strings = MoneyManagerTheme.strings
     val locale = strings.locale
     val timeZone = TimeZone.getDefault()
     val start = Calendar.getInstance(timeZone).apply { timeInMillis = dateRange.startMillis }
     val end = Calendar.getInstance(timeZone).apply { timeInMillis = dateRange.endMillis }
 
-    val monthDayFormat = remember(locale) { SimpleDateFormat("MMM d", locale) }
-    val fullDateFormat = remember(locale) { SimpleDateFormat("MMM d, yyyy", locale) }
-    val monthFormat = remember(locale) { SimpleDateFormat("MMM", locale) }
+    val monthDayFormat = SimpleDateFormat("MMM d", locale)
+    val fullDateFormat = SimpleDateFormat("MMM d, yyyy", locale)
+    val monthFormat = SimpleDateFormat("MMM", locale)
 
     return when {
         start.get(Calendar.YEAR) != end.get(Calendar.YEAR) -> {
@@ -956,8 +976,6 @@ private fun UnifiedChartCard(
         initialScroll = Scroll.Absolute.End,
     )
 
-    val scrollFraction = scrollState.value / scrollState.maxValue.coerceAtLeast(1f)
-
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
@@ -977,7 +995,9 @@ private fun UnifiedChartCard(
                     StatsPeriod.WEEK, StatsPeriod.MONTH -> strings.statisticsChartByDay(subject)
                 }
             }
-            val dateRangeLabel = formatDateRangeLabel(state.dateRange)
+            val dateRangeLabel = remember(state.dateRange, strings.locale) {
+                formatDateRangeLabel(state.dateRange, strings)
+            }
             ChartCardHeader(
                 title = chartTitle,
                 dateRange = dateRangeLabel,
@@ -1002,7 +1022,13 @@ private fun UnifiedChartCard(
                         )
                     }
                 } else {
-                    Box(modifier = Modifier.height(180.dp)) {
+                    // Screen readers can't interpret the Canvas-drawn bars — expose a text summary.
+                    val chartDescription = strings.statisticsChartContentDescription(chartTitle, dateRangeLabel)
+                    Box(
+                        modifier = Modifier
+                            .height(180.dp)
+                            .semantics { contentDescription = chartDescription },
+                    ) {
                         VicoBarChartSection(
                             chart = state.chart,
                             modelProducer = chartModelProducer,
@@ -1018,7 +1044,8 @@ private fun UnifiedChartCard(
                     }
 
                     ChartScrollIndicator(
-                        scrollFraction = scrollFraction,
+                        // Lambda + layout-phase read keeps scroll updates off the composition path.
+                        scrollFraction = { scrollState.value / scrollState.maxValue.coerceAtLeast(1f) },
                         isVisible = true,
                     )
                 }
@@ -1111,7 +1138,7 @@ private fun CategoryLegend(
 @Composable
 private fun CompactDonutCard(
     categories: ImmutableList<StatisticsCategoryDisplayItem>,
-    totalAmount: Double?,
+    totalAmount: Long?,
     moneyDisplay: MoneyDisplayPresentation,
 ) {
     val strings = MoneyManagerTheme.strings
@@ -1132,6 +1159,7 @@ private fun CompactDonutCard(
                     categories = categories,
                     totalAmount = totalAmount,
                     moneyDisplay = moneyDisplay,
+                    contentDescription = strings.byCategory,
                     modifier = Modifier
                         .size(100.dp)
                         .testTag("statistics:pieChart"),
@@ -1163,11 +1191,11 @@ private fun CompactDonutCard(
 @Composable
 private fun ByCategorySection(
     categories: ImmutableList<StatisticsCategoryDisplayItem>,
-    totalAmount: Double?,
+    totalAmount: Long?,
     moneyDisplay: MoneyDisplayPresentation,
     isUnavailable: Boolean,
     unavailableText: String,
-    onCategoryClick: (CategorySummary) -> Unit,
+    onCategoryClick: (CategoryMetadata) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MoneyManagerTheme.colors
@@ -1256,7 +1284,7 @@ private fun ByCategorySection(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = moneyDisplay.formatAmount(
-                                        amount = summary.displayAmount,
+                                        amountMinor = summary.displayAmount,
                                         formatter = amountFormatter,
                                     ),
                                     style = typography.amount,
@@ -1405,36 +1433,36 @@ private fun StatisticsScreenPreview() {
         StatisticsScreen(
             state = StatisticsState(
                 isLoading = false,
-                displayedTotalExpenses = 85_000.0,
-                displayedTotalIncome = 200_000.0,
+                displayedTotalExpenses = 8_500_000L,
+                displayedTotalIncome = 20_000_000L,
                 displayedExpensesByCategory = persistentListOf(
                     StatisticsCategoryDisplayItem(
-                        category = CategorySummary(1, "Еда", "restaurant", 0xFFFF6B6B, 35_000.0, 41),
-                        displayAmount = 35_000.0,
+                        category = CategoryMetadata(1, "Еда", "restaurant", 0xFFFF6B6B),
+                        displayAmount = 3_500_000L,
                         displayPercentage = 41,
                     ),
                     StatisticsCategoryDisplayItem(
-                        category = CategorySummary(2, "Транспорт", "directions_car", 0xFF4ECDC4, 20_000.0, 24),
-                        displayAmount = 20_000.0,
+                        category = CategoryMetadata(2, "Транспорт", "directions_car", 0xFF4ECDC4),
+                        displayAmount = 2_000_000L,
                         displayPercentage = 24,
                     ),
                     StatisticsCategoryDisplayItem(
-                        category = CategorySummary(3, "Развлечения", "sports_esports", 0xFF45B7D1, 15_000.0, 18),
-                        displayAmount = 15_000.0,
+                        category = CategoryMetadata(3, "Развлечения", "sports_esports", 0xFF45B7D1),
+                        displayAmount = 1_500_000L,
                         displayPercentage = 18,
                     ),
                     StatisticsCategoryDisplayItem(
-                        category = CategorySummary(4, "Покупки", "shopping_bag", 0xFFF7B801, 15_000.0, 17),
-                        displayAmount = 15_000.0,
+                        category = CategoryMetadata(4, "Покупки", "shopping_bag", 0xFFF7B801),
+                        displayAmount = 1_500_000L,
                         displayPercentage = 17,
                     ),
                 ),
                 displayedDailyExpenses = persistentListOf(
-                    StatisticsDisplayDailyTotal(1738800000000, 5000.0),
-                    StatisticsDisplayDailyTotal(1738886400000, 3000.0),
-                    StatisticsDisplayDailyTotal(1738972800000, 8000.0),
-                    StatisticsDisplayDailyTotal(1739059200000, 2000.0),
-                    StatisticsDisplayDailyTotal(1739145600000, 12000.0),
+                    StatisticsDisplayDailyTotal(1738800000000, 500_000L),
+                    StatisticsDisplayDailyTotal(1738886400000, 300_000L),
+                    StatisticsDisplayDailyTotal(1738972800000, 800_000L),
+                    StatisticsDisplayDailyTotal(1739059200000, 200_000L),
+                    StatisticsDisplayDailyTotal(1739145600000, 1_200_000L),
                 ),
                 currencyUiState = StatisticsCurrencyUiState(
                     moneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
@@ -1442,11 +1470,11 @@ private fun StatisticsScreenPreview() {
                 ),
                 chart = StatisticsChartState(
                     points = persistentListOf(
-                        StatisticsChartPoint(1738800000000, "6", 5000.0),
-                        StatisticsChartPoint(1738886400000, "7", 3000.0),
-                        StatisticsChartPoint(1738972800000, "8", 8000.0),
-                        StatisticsChartPoint(1739059200000, "9", 2000.0),
-                        StatisticsChartPoint(1739145600000, "10", 12000.0, isToday = true),
+                        StatisticsChartPoint(1738800000000, "6", 500_000L),
+                        StatisticsChartPoint(1738886400000, "7", 300_000L),
+                        StatisticsChartPoint(1738972800000, "8", 800_000L),
+                        StatisticsChartPoint(1739059200000, "9", 200_000L),
+                        StatisticsChartPoint(1739145600000, "10", 1_200_000L, isToday = true),
                     ),
                     isScrollable = true,
                 ),
@@ -1495,26 +1523,26 @@ private fun StatisticsScreenIncomePreview() {
             state = StatisticsState(
                 isLoading = false,
                 transactionType = TransactionType.INCOME,
-                displayedTotalExpenses = 85_000.0,
-                displayedTotalIncome = 200_000.0,
+                displayedTotalExpenses = 8_500_000L,
+                displayedTotalIncome = 20_000_000L,
                 displayedIncomesByCategory = persistentListOf(
                     StatisticsCategoryDisplayItem(
-                        category = CategorySummary(1, "Зарплата", "payments", 0xFF4ECDC4, 150_000.0, 75),
-                        displayAmount = 150_000.0,
+                        category = CategoryMetadata(1, "Зарплата", "payments", 0xFF4ECDC4),
+                        displayAmount = 15_000_000L,
                         displayPercentage = 75,
                     ),
                     StatisticsCategoryDisplayItem(
-                        category = CategorySummary(2, "Фриланс", "work", 0xFF45B7D1, 50_000.0, 25),
-                        displayAmount = 50_000.0,
+                        category = CategoryMetadata(2, "Фриланс", "work", 0xFF45B7D1),
+                        displayAmount = 5_000_000L,
                         displayPercentage = 25,
                     ),
                 ),
                 displayedDailyIncome = persistentListOf(
-                    StatisticsDisplayDailyTotal(1738800000000, 10000.0),
-                    StatisticsDisplayDailyTotal(1738886400000, 5000.0),
-                    StatisticsDisplayDailyTotal(1738972800000, 15000.0),
-                    StatisticsDisplayDailyTotal(1739059200000, 0.0),
-                    StatisticsDisplayDailyTotal(1739145600000, 20000.0),
+                    StatisticsDisplayDailyTotal(1738800000000, 1_000_000L),
+                    StatisticsDisplayDailyTotal(1738886400000, 500_000L),
+                    StatisticsDisplayDailyTotal(1738972800000, 1_500_000L),
+                    StatisticsDisplayDailyTotal(1739059200000, 0L),
+                    StatisticsDisplayDailyTotal(1739145600000, 2_000_000L),
                 ),
                 currencyUiState = StatisticsCurrencyUiState(
                     moneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
@@ -1522,11 +1550,11 @@ private fun StatisticsScreenIncomePreview() {
                 ),
                 chart = StatisticsChartState(
                     points = persistentListOf(
-                        StatisticsChartPoint(1738800000000, "6", 10000.0),
-                        StatisticsChartPoint(1738886400000, "7", 5000.0),
-                        StatisticsChartPoint(1738972800000, "8", 15000.0),
-                        StatisticsChartPoint(1739059200000, "9", 0.0),
-                        StatisticsChartPoint(1739145600000, "10", 20000.0, isToday = true),
+                        StatisticsChartPoint(1738800000000, "6", 1_000_000L),
+                        StatisticsChartPoint(1738886400000, "7", 500_000L),
+                        StatisticsChartPoint(1738972800000, "8", 1_500_000L),
+                        StatisticsChartPoint(1739059200000, "9", 0L),
+                        StatisticsChartPoint(1739145600000, "10", 2_000_000L, isToday = true),
                     ),
                     isScrollable = true,
                 ),
@@ -1546,43 +1574,43 @@ private fun StatisticsScreenYearPreview() {
             state = StatisticsState(
                 isLoading = false,
                 period = StatsPeriod.YEAR,
-                displayedTotalExpenses = 1_200_000.0,
-                displayedTotalIncome = 2_400_000.0,
+                displayedTotalExpenses = 120_000_000L,
+                displayedTotalIncome = 240_000_000L,
                 displayedExpensesByCategory = persistentListOf(
                     StatisticsCategoryDisplayItem(
-                        category = CategorySummary(1, "Еда", "restaurant", 0xFFFF6B6B, 500_000.0, 42),
-                        displayAmount = 500_000.0,
+                        category = CategoryMetadata(1, "Еда", "restaurant", 0xFFFF6B6B),
+                        displayAmount = 50_000_000L,
                         displayPercentage = 42,
                     ),
                     StatisticsCategoryDisplayItem(
-                        category = CategorySummary(2, "Транспорт", "directions_car", 0xFF4ECDC4, 300_000.0, 25),
-                        displayAmount = 300_000.0,
+                        category = CategoryMetadata(2, "Транспорт", "directions_car", 0xFF4ECDC4),
+                        displayAmount = 30_000_000L,
                         displayPercentage = 25,
                     ),
                     StatisticsCategoryDisplayItem(
-                        category = CategorySummary(3, "Развлечения", "sports_esports", 0xFF45B7D1, 200_000.0, 17),
-                        displayAmount = 200_000.0,
+                        category = CategoryMetadata(3, "Развлечения", "sports_esports", 0xFF45B7D1),
+                        displayAmount = 20_000_000L,
                         displayPercentage = 17,
                     ),
                     StatisticsCategoryDisplayItem(
-                        category = CategorySummary(4, "Покупки", "shopping_bag", 0xFFF7B801, 200_000.0, 16),
-                        displayAmount = 200_000.0,
+                        category = CategoryMetadata(4, "Покупки", "shopping_bag", 0xFFF7B801),
+                        displayAmount = 20_000_000L,
                         displayPercentage = 16,
                     ),
                 ),
                 displayedMonthlyExpenses = persistentListOf(
-                    StatisticsDisplayMonthlyTotal(2025, 1, "Янв", 80_000.0),
-                    StatisticsDisplayMonthlyTotal(2025, 2, "Фев", 95_000.0),
-                    StatisticsDisplayMonthlyTotal(2025, 3, "Мар", 110_000.0),
-                    StatisticsDisplayMonthlyTotal(2025, 4, "Апр", 75_000.0),
-                    StatisticsDisplayMonthlyTotal(2025, 5, "Май", 120_000.0),
-                    StatisticsDisplayMonthlyTotal(2025, 6, "Июн", 90_000.0),
-                    StatisticsDisplayMonthlyTotal(2025, 7, "Июл", 100_000.0),
-                    StatisticsDisplayMonthlyTotal(2025, 8, "Авг", 85_000.0),
-                    StatisticsDisplayMonthlyTotal(2025, 9, "Сен", 105_000.0),
-                    StatisticsDisplayMonthlyTotal(2025, 10, "Окт", 95_000.0),
-                    StatisticsDisplayMonthlyTotal(2025, 11, "Ноя", 115_000.0),
-                    StatisticsDisplayMonthlyTotal(2025, 12, "Дек", 130_000.0),
+                    StatisticsDisplayMonthlyTotal(2025, 1, "Янв", 8_000_000L),
+                    StatisticsDisplayMonthlyTotal(2025, 2, "Фев", 9_500_000L),
+                    StatisticsDisplayMonthlyTotal(2025, 3, "Мар", 11_000_000L),
+                    StatisticsDisplayMonthlyTotal(2025, 4, "Апр", 7_500_000L),
+                    StatisticsDisplayMonthlyTotal(2025, 5, "Май", 12_000_000L),
+                    StatisticsDisplayMonthlyTotal(2025, 6, "Июн", 9_000_000L),
+                    StatisticsDisplayMonthlyTotal(2025, 7, "Июл", 10_000_000L),
+                    StatisticsDisplayMonthlyTotal(2025, 8, "Авг", 8_500_000L),
+                    StatisticsDisplayMonthlyTotal(2025, 9, "Сен", 10_500_000L),
+                    StatisticsDisplayMonthlyTotal(2025, 10, "Окт", 9_500_000L),
+                    StatisticsDisplayMonthlyTotal(2025, 11, "Ноя", 11_500_000L),
+                    StatisticsDisplayMonthlyTotal(2025, 12, "Дек", 13_000_000L),
                 ),
                 currencyUiState = StatisticsCurrencyUiState(
                     moneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
@@ -1590,18 +1618,18 @@ private fun StatisticsScreenYearPreview() {
                 ),
                 chart = StatisticsChartState(
                     points = persistentListOf(
-                        StatisticsChartPoint(1, "Янв", 80_000.0),
-                        StatisticsChartPoint(2, "Фев", 95_000.0),
-                        StatisticsChartPoint(3, "Мар", 110_000.0),
-                        StatisticsChartPoint(4, "Апр", 75_000.0),
-                        StatisticsChartPoint(5, "Май", 120_000.0),
-                        StatisticsChartPoint(6, "Июн", 90_000.0),
-                        StatisticsChartPoint(7, "Июл", 100_000.0),
-                        StatisticsChartPoint(8, "Авг", 85_000.0),
-                        StatisticsChartPoint(9, "Сен", 105_000.0),
-                        StatisticsChartPoint(10, "Окт", 95_000.0),
-                        StatisticsChartPoint(11, "Ноя", 115_000.0),
-                        StatisticsChartPoint(12, "Дек", 130_000.0),
+                        StatisticsChartPoint(1, "Янв", 8_000_000L),
+                        StatisticsChartPoint(2, "Фев", 9_500_000L),
+                        StatisticsChartPoint(3, "Мар", 11_000_000L),
+                        StatisticsChartPoint(4, "Апр", 7_500_000L),
+                        StatisticsChartPoint(5, "Май", 12_000_000L),
+                        StatisticsChartPoint(6, "Июн", 9_000_000L),
+                        StatisticsChartPoint(7, "Июл", 10_000_000L),
+                        StatisticsChartPoint(8, "Авг", 8_500_000L),
+                        StatisticsChartPoint(9, "Сен", 10_500_000L),
+                        StatisticsChartPoint(10, "Окт", 9_500_000L),
+                        StatisticsChartPoint(11, "Ноя", 11_500_000L),
+                        StatisticsChartPoint(12, "Дек", 13_000_000L),
                     ),
                 ),
             ),

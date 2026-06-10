@@ -3,6 +3,7 @@ package com.atelbay.money_manager.data.sync
 import com.atelbay.money_manager.core.auth.AuthManager
 import com.atelbay.money_manager.core.model.SyncStatus
 import com.atelbay.money_manager.core.crypto.FieldCipherHolder
+import com.atelbay.money_manager.core.database.DefaultCategories
 import com.atelbay.money_manager.core.database.dao.AccountDao
 import com.atelbay.money_manager.core.database.dao.BudgetDao
 import com.atelbay.money_manager.core.database.dao.CategoryDao
@@ -44,6 +45,7 @@ class SyncManager @Inject constructor(
     @Volatile
     private var scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    private val transactionMutexes = ConcurrentHashMap<Long, Mutex>()
     private val accountMutexes = ConcurrentHashMap<Long, Mutex>()
     private val categoryMutexes = ConcurrentHashMap<Long, Mutex>()
     private val budgetMutexes = ConcurrentHashMap<Long, Mutex>()
@@ -67,18 +69,23 @@ class SyncManager @Inject constructor(
 
     fun syncTransaction(id: Long) = scope.launch {
         val userId = authManager.currentUser.value?.userId ?: return@launch
-        try {
-            val entity = transactionDao.getById(id) ?: return@launch
-            val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@launch
-            val accountRemoteId = ensureAccountRemoteId(entity.accountId) ?: return@launch
-            val finalEntity = if (entity.remoteId == null) {
-                val remoteId = UUID.randomUUID().toString()
-                transactionDao.update(entity.copy(remoteId = remoteId))
-                entity.copy(remoteId = remoteId)
-            } else entity
-            firestoreDataSource.pushTransaction(userId, finalEntity.toDto(categoryRemoteId, accountRemoteId, fieldCipherHolder))
-        } catch (e: Exception) {
-            Timber.e(e, "syncTransaction($id) failed")
+        val mutex = transactionMutexes.getOrPut(id) { Mutex() }
+        mutex.withLock {
+            try {
+                val entity = transactionDao.getById(id) ?: return@withLock
+                val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@withLock
+                val accountRemoteId = ensureAccountRemoteId(entity.accountId) ?: return@withLock
+                val finalEntity = if (entity.remoteId == null) {
+                    entity.copy(remoteId = UUID.randomUUID().toString())
+                } else entity
+                // Push first, persist the new remoteId only on success — otherwise a failed push
+                // would leave a remoteId locally with no cloud doc, and getPendingSync (remoteId
+                // IS NULL) would never retry it.
+                firestoreDataSource.pushTransaction(userId, finalEntity.toDto(categoryRemoteId, accountRemoteId, fieldCipherHolder))
+                if (entity.remoteId == null) transactionDao.update(finalEntity)
+            } catch (e: Exception) {
+                Timber.e(e, "syncTransaction($id) failed")
+            }
         }
     }
 
@@ -112,15 +119,13 @@ class SyncManager @Inject constructor(
             try {
                 val entity = budgetDao.getById(id)
                     ?: budgetDao.getDeletedWithRemoteId().find { it.id == id }
-                    ?: return@launch
-                val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@launch
+                    ?: return@withLock
+                val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@withLock
                 val finalEntity = if (entity.remoteId == null) {
-                    val remoteId = UUID.randomUUID().toString()
-                    val updated = entity.copy(remoteId = remoteId, updatedAt = System.currentTimeMillis())
-                    budgetDao.update(updated)
-                    updated
+                    entity.copy(remoteId = UUID.randomUUID().toString(), updatedAt = System.currentTimeMillis())
                 } else entity
                 firestoreDataSource.pushBudget(userId, finalEntity.toDto(fieldCipherHolder, categoryRemoteId))
+                if (entity.remoteId == null) budgetDao.update(finalEntity)
             } catch (e: Exception) {
                 Timber.e(e, "syncBudget($id) failed")
             }
@@ -134,16 +139,14 @@ class SyncManager @Inject constructor(
             try {
                 val entity = recurringDao.getById(id)
                     ?: recurringDao.getDeletedWithRemoteId().find { it.id == id }
-                    ?: return@launch
-                val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@launch
-                val accountRemoteId = ensureAccountRemoteId(entity.accountId) ?: return@launch
+                    ?: return@withLock
+                val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@withLock
+                val accountRemoteId = ensureAccountRemoteId(entity.accountId) ?: return@withLock
                 val finalEntity = if (entity.remoteId == null) {
-                    val remoteId = UUID.randomUUID().toString()
-                    val updated = entity.copy(remoteId = remoteId, updatedAt = System.currentTimeMillis())
-                    recurringDao.update(updated)
-                    updated
+                    entity.copy(remoteId = UUID.randomUUID().toString(), updatedAt = System.currentTimeMillis())
                 } else entity
                 firestoreDataSource.pushRecurringTransaction(userId, finalEntity.toDto(categoryRemoteId, accountRemoteId, fieldCipherHolder))
+                if (entity.remoteId == null) recurringDao.update(finalEntity)
             } catch (e: Exception) {
                 Timber.e(e, "syncRecurring($id) failed")
             }
@@ -157,15 +160,13 @@ class SyncManager @Inject constructor(
             try {
                 val entity = debtDao.getById(id)
                     ?: debtDao.getDeletedWithRemoteId().find { it.id == id }
-                    ?: return@launch
-                val accountRemoteId = ensureAccountRemoteId(entity.accountId) ?: return@launch
+                    ?: return@withLock
+                val accountRemoteId = ensureAccountRemoteId(entity.accountId) ?: return@withLock
                 val finalEntity = if (entity.remoteId == null) {
-                    val remoteId = UUID.randomUUID().toString()
-                    val updated = entity.copy(remoteId = remoteId, updatedAt = System.currentTimeMillis())
-                    debtDao.update(updated)
-                    updated
+                    entity.copy(remoteId = UUID.randomUUID().toString(), updatedAt = System.currentTimeMillis())
                 } else entity
                 firestoreDataSource.pushDebt(userId, finalEntity.toDto(fieldCipherHolder, accountRemoteId))
+                if (entity.remoteId == null) debtDao.update(finalEntity)
             } catch (e: Exception) {
                 Timber.e(e, "syncDebt($id) failed")
             }
@@ -179,21 +180,19 @@ class SyncManager @Inject constructor(
             try {
                 val entity = debtPaymentDao.getById(id)
                     ?: debtPaymentDao.getDeletedWithRemoteId().find { it.id == id }
-                    ?: return@launch
+                    ?: return@withLock
                 val debtEntity = debtDao.getById(entity.debtId)
                     ?: debtDao.getDeletedWithRemoteId().find { it.id == entity.debtId }
-                val debtRemoteId = debtEntity?.remoteId ?: return@launch
+                val debtRemoteId = debtEntity?.remoteId ?: return@withLock
                 val txId = entity.transactionId
                 val transactionRemoteId = if (txId != null) {
                     transactionDao.getById(txId)?.remoteId.orEmpty()
                 } else ""
                 val finalEntity = if (entity.remoteId == null) {
-                    val remoteId = UUID.randomUUID().toString()
-                    val updated = entity.copy(remoteId = remoteId, updatedAt = System.currentTimeMillis())
-                    debtPaymentDao.update(updated)
-                    updated
+                    entity.copy(remoteId = UUID.randomUUID().toString(), updatedAt = System.currentTimeMillis())
                 } else entity
                 firestoreDataSource.pushDebtPayment(userId, finalEntity.toDto(fieldCipherHolder, debtRemoteId, transactionRemoteId))
+                if (entity.remoteId == null) debtPaymentDao.update(finalEntity)
             } catch (e: Exception) {
                 Timber.e(e, "syncDebtPayment($id) failed")
             }
@@ -227,26 +226,26 @@ class SyncManager @Inject constructor(
             firestoreDataSource.pushAccount(userId, updated.copy(remoteId = remoteId).toDto(fieldCipherHolder))
         }
         categoryDao.getPendingSync().forEach { entity ->
-            val remoteId = UUID.randomUUID().toString()
-            categoryDao.update(entity.copy(remoteId = remoteId))
-            firestoreDataSource.pushCategory(userId, entity.copy(remoteId = remoteId).toDto(fieldCipherHolder))
+            // Push first, persist remoteId only on success (see syncTransaction for the rationale).
+            val updated = entity.copy(remoteId = UUID.randomUUID().toString())
+            firestoreDataSource.pushCategory(userId, updated.toDto(fieldCipherHolder))
+            categoryDao.update(updated)
         }
         transactionDao.getPendingSync().forEach { entity ->
             val categoryRemoteId = ensureCategoryRemoteId(entity.categoryId) ?: return@forEach
             val accountRemoteId = ensureAccountRemoteId(entity.accountId) ?: return@forEach
-            val remoteId = UUID.randomUUID().toString()
-            transactionDao.update(entity.copy(remoteId = remoteId, updatedAt = System.currentTimeMillis()))
-            firestoreDataSource.pushTransaction(userId, entity.copy(remoteId = remoteId).toDto(categoryRemoteId, accountRemoteId, fieldCipherHolder))
+            val updated = entity.copy(remoteId = UUID.randomUUID().toString())
+            firestoreDataSource.pushTransaction(userId, updated.toDto(categoryRemoteId, accountRemoteId, fieldCipherHolder))
+            transactionDao.update(updated)
         }
         budgetDao.getPendingSync().forEach { entity ->
             budgetMutexes.getOrPut(entity.id) { Mutex() }.withLock {
                 val current = budgetDao.getById(entity.id) ?: return@withLock
                 if (current.remoteId != null) return@withLock // already synced
                 val categoryRemoteId = ensureCategoryRemoteId(current.categoryId) ?: return@withLock
-                val remoteId = UUID.randomUUID().toString()
-                val now = System.currentTimeMillis()
-                budgetDao.update(current.copy(remoteId = remoteId, updatedAt = now))
-                firestoreDataSource.pushBudget(userId, current.copy(remoteId = remoteId, updatedAt = now).toDto(fieldCipherHolder, categoryRemoteId))
+                val updated = current.copy(remoteId = UUID.randomUUID().toString(), updatedAt = System.currentTimeMillis())
+                firestoreDataSource.pushBudget(userId, updated.toDto(fieldCipherHolder, categoryRemoteId))
+                budgetDao.update(updated)
             }
         }
         budgetDao.getDeletedWithRemoteId().forEach { entity ->
@@ -259,10 +258,9 @@ class SyncManager @Inject constructor(
                 if (current.remoteId != null) return@withLock // already synced
                 val categoryRemoteId = ensureCategoryRemoteId(current.categoryId) ?: return@withLock
                 val accountRemoteId = ensureAccountRemoteId(current.accountId) ?: return@withLock
-                val remoteId = UUID.randomUUID().toString()
-                val now = System.currentTimeMillis()
-                recurringDao.update(current.copy(remoteId = remoteId, updatedAt = now))
-                firestoreDataSource.pushRecurringTransaction(userId, current.copy(remoteId = remoteId, updatedAt = now).toDto(categoryRemoteId, accountRemoteId, fieldCipherHolder))
+                val updated = current.copy(remoteId = UUID.randomUUID().toString(), updatedAt = System.currentTimeMillis())
+                firestoreDataSource.pushRecurringTransaction(userId, updated.toDto(categoryRemoteId, accountRemoteId, fieldCipherHolder))
+                recurringDao.update(updated)
             }
         }
         recurringDao.getDeletedWithRemoteId().forEach { entity ->
@@ -275,10 +273,9 @@ class SyncManager @Inject constructor(
                 val current = debtDao.getById(entity.id) ?: return@withLock
                 if (current.remoteId != null) return@withLock
                 val accountRemoteId = ensureAccountRemoteId(current.accountId) ?: return@withLock
-                val remoteId = UUID.randomUUID().toString()
-                val now = System.currentTimeMillis()
-                debtDao.update(current.copy(remoteId = remoteId, updatedAt = now))
-                firestoreDataSource.pushDebt(userId, current.copy(remoteId = remoteId, updatedAt = now).toDto(fieldCipherHolder, accountRemoteId))
+                val updated = current.copy(remoteId = UUID.randomUUID().toString(), updatedAt = System.currentTimeMillis())
+                firestoreDataSource.pushDebt(userId, updated.toDto(fieldCipherHolder, accountRemoteId))
+                debtDao.update(updated)
             }
         }
         debtDao.getDeletedWithRemoteId().forEach { entity ->
@@ -295,10 +292,9 @@ class SyncManager @Inject constructor(
                 val transactionRemoteId = if (curTxId != null) {
                     transactionDao.getById(curTxId)?.remoteId.orEmpty()
                 } else ""
-                val remoteId = UUID.randomUUID().toString()
-                val now = System.currentTimeMillis()
-                debtPaymentDao.update(current.copy(remoteId = remoteId, updatedAt = now))
-                firestoreDataSource.pushDebtPayment(userId, current.copy(remoteId = remoteId, updatedAt = now).toDto(fieldCipherHolder, debtRemoteId, transactionRemoteId))
+                val updated = current.copy(remoteId = UUID.randomUUID().toString(), updatedAt = System.currentTimeMillis())
+                firestoreDataSource.pushDebtPayment(userId, updated.toDto(fieldCipherHolder, debtRemoteId, transactionRemoteId))
+                debtPaymentDao.update(updated)
             }
         }
         debtPaymentDao.getDeletedWithRemoteId().forEach { entity ->
@@ -337,20 +333,33 @@ class SyncManager @Inject constructor(
     }
 
     /**
-     * Clears all remote IDs from local entities on sign-out so that the next user's
-     * sync session cannot accidentally push the previous user's data to their Firestore path.
+     * Cancels any in-flight per-entity sync jobs and arms a fresh scope. Used on plain sign-out:
+     * local data and remoteIds are deliberately KEPT so that the same user signing back in keeps
+     * their existing remote identities (no duplicate Firestore docs). Cross-user isolation is
+     * handled separately by [clearLocalUserData], invoked only when a *different* uid signs in.
      */
-    suspend fun clearSyncMetadata() {
+    suspend fun cancelInFlight() {
         scope.coroutineContext[kotlinx.coroutines.Job]?.cancelAndJoin()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        accountDao.clearRemoteIds()
-        categoryDao.clearRemoteIds()
-        transactionDao.clearRemoteIds()
-        budgetDao.clearRemoteIds()
-        recurringDao.clearRemoteIds()
-        debtDao.clearRemoteIds()
-        debtPaymentDao.clearRemoteIds()
-        Timber.d("SyncManager: sync metadata cleared on sign-out")
+    }
+
+    /**
+     * Wipes all local financial data and re-seeds the default categories. Invoked by
+     * [LoginSyncOrchestrator] when a different user signs in on this device, so the previous
+     * user's data can never be pushed into the new user's Firestore path (and is not visible
+     * to them locally). Deletes children before parents to satisfy foreign keys.
+     */
+    suspend fun clearLocalUserData() {
+        cancelInFlight()
+        debtPaymentDao.deleteAll()
+        debtDao.deleteAll()
+        transactionDao.deleteAll()
+        budgetDao.deleteAll()
+        recurringDao.deleteAll()
+        accountDao.deleteAll()
+        categoryDao.deleteAll()
+        categoryDao.insertAll(DefaultCategories.all())
+        Timber.d("SyncManager: local user data wiped + default categories reseeded on user switch")
     }
 
     companion object {

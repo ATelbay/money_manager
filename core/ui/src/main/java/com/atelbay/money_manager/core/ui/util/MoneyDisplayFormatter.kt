@@ -1,5 +1,6 @@
 package com.atelbay.money_manager.core.ui.util
 
+import com.atelbay.money_manager.core.model.money.toMajorDouble
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -70,7 +71,7 @@ fun MoneyDisplayPresentation.inlineCurrencyLabel(): String =
     }
 
 fun MoneyDisplayPresentation.formatAmount(
-    amount: Double,
+    amountMinor: Long,
     sign: String? = null,
     formatter: NumberFormat = defaultMoneyNumberFormat(),
 ): String {
@@ -80,7 +81,7 @@ fun MoneyDisplayPresentation.formatAmount(
         sign?.takeIf { it.isNotEmpty() }?.let(::append)
         append(inlineCurrencyLabel())
         append(' ')
-        append(formatter.format(amount))
+        append(formatter.format(amountMinor.toMajorDouble()))
     }
 }
 

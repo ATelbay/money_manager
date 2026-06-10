@@ -1,7 +1,9 @@
 package com.atelbay.money_manager.presentation.transactions.ui.list
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.animateColorAsState
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerMotion
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,10 +41,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -187,7 +195,7 @@ fun TransactionListScreen(
             item(key = "balance") {
                 BalanceCard(
                     accountName = state.selectedAccountName ?: s.allAccounts,
-                    balance = state.balance ?: 0.0,
+                    balance = state.balance ?: 0L,
                     moneyDisplay = state.summaryMoneyDisplay,
                     unavailableSupportingText = s.mixedCurrencyUnavailable
                         .takeIf { state.summaryMoneyDisplay.isUnavailable },
@@ -267,8 +275,8 @@ fun TransactionListScreen(
             // 3. Income/Expense summary
             item(key = "summary") {
                 IncomeExpenseCard(
-                    income = state.periodIncome ?: 0.0,
-                    expense = state.periodExpense ?: 0.0,
+                    income = state.periodIncome ?: 0L,
+                    expense = state.periodExpense ?: 0L,
                     moneyDisplay = state.summaryMoneyDisplay,
                     unavailableSupportingText = s.mixedCurrencyUnavailable
                         .takeIf { state.summaryMoneyDisplay.isUnavailable },
@@ -430,31 +438,37 @@ fun TransactionListScreen(
                             }
                         } else Modifier
 
-                        TransactionListItem(
-                            description = transaction.note?.ifBlank { transaction.categoryName }
-                                ?: transaction.categoryName,
-                            category = transaction.categoryName,
-                            categoryIcon = categoryIconFromName(transaction.categoryIcon),
-                            categoryColor = Color(transaction.categoryColor),
-                            amount = row.displayAmount,
-                            date = formatTime(transaction.date, timeFormat),
-                            isIncome = !isExpense,
-                            moneyDisplay = row.displayMoneyDisplay,
-                            secondaryAmount = row.originalAmount.takeIf { isShowingConvertedAmount },
-                            secondaryMoneyDisplay = row.secondaryMoneyDisplay.takeIf { isShowingConvertedAmount },
-                            secondaryAmountLabel = s.originalAmount.takeIf {
-                                isShowingConvertedAmount
-                            },
-                            accountName = null,
-                            onClick = { onTransactionClick(transaction.id) },
-                            modifier = sharedModifier
+                        SwipeToDeleteItem(
+                            onDelete = { onDeleteTransaction(transaction.id) },
+                            modifier = Modifier
                                 .animateItem(
                                     fadeInSpec = MoneyManagerMotion.ItemFadeInSpec,
                                     placementSpec = MoneyManagerMotion.ItemPlacementSpec,
                                     fadeOutSpec = MoneyManagerMotion.ItemFadeOutSpec,
                                 )
-                                .testTag("transactionList:item_${transaction.id}"),
-                        )
+                                .testTag("transactionList:swipeItem_${transaction.id}"),
+                        ) {
+                            TransactionListItem(
+                                description = transaction.note?.ifBlank { transaction.categoryName }
+                                    ?: transaction.categoryName,
+                                category = transaction.categoryName,
+                                categoryIcon = categoryIconFromName(transaction.categoryIcon),
+                                categoryColor = Color(transaction.categoryColor),
+                                amount = row.displayAmount,
+                                date = formatTime(transaction.date, timeFormat),
+                                isIncome = !isExpense,
+                                moneyDisplay = row.displayMoneyDisplay,
+                                secondaryAmount = row.originalAmount.takeIf { isShowingConvertedAmount },
+                                secondaryMoneyDisplay = row.secondaryMoneyDisplay.takeIf { isShowingConvertedAmount },
+                                secondaryAmountLabel = s.originalAmount.takeIf {
+                                    isShowingConvertedAmount
+                                },
+                                accountName = null,
+                                onClick = { onTransactionClick(transaction.id) },
+                                modifier = sharedModifier
+                                    .testTag("transactionList:item_${transaction.id}"),
+                            )
+                        }
                     }
                 }
             }
@@ -560,6 +574,58 @@ private fun AccountPickerBottomSheet(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeToDeleteItem(
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val dismissState = rememberSwipeToDismissBoxState()
+
+    LaunchedEffect(dismissState.currentValue) {
+        if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
+            onDelete()
+        }
+    }
+
+    SwipeToDismissBox(
+        state = dismissState,
+        modifier = modifier,
+        backgroundContent = {
+            val color by animateColorAsState(
+                targetValue = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    Color.Transparent
+                },
+                label = "swipe_bg",
+            )
+            // Only draw the trash icon while swiping — otherwise the opaque icon stays painted at
+            // rest (transparent background) and overlaps the row's amount/time on the right.
+            val isSwiping = dismissState.targetValue != SwipeToDismissBoxValue.Settled
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(color)
+                    .padding(horizontal = 20.dp),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                if (isSwiping) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = MoneyManagerTheme.strings.delete,
+                        tint = MaterialTheme.colorScheme.onError,
+                    )
+                }
+            }
+        },
+        enableDismissFromStartToEnd = false,
+    ) {
+        content()
+    }
+}
+
 @Composable
 private fun EmptyState(
     isSearchActive: Boolean,
@@ -638,18 +704,18 @@ private fun TransactionListScreenPreview() {
     MoneyManagerTheme(dynamicColor = false) {
         TransactionListScreen(
             state = TransactionListState(
-                balance = 1_250_000.50,
+                balance = 125_000_050L,
                 summaryMoneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
                 isLoading = false,
                 selectedAccountName = "Kaspi Gold",
-                periodIncome = 450_000.0,
-                periodExpense = 358_400.0,
+                periodIncome = 45_000_000L,
+                periodExpense = 35_840_000L,
                 selectedPeriod = Period.MONTH,
                 transactionRows = persistentListOf(
                     TransactionRowState(
                         transaction = Transaction(
                             id = 1,
-                            amount = 15_480.0,
+                            amount = 1_548_000L,
                             type = TransactionType.EXPENSE,
                             categoryId = 1,
                             categoryName = "Еда",
@@ -660,14 +726,14 @@ private fun TransactionListScreenPreview() {
                             date = System.currentTimeMillis(),
                             createdAt = System.currentTimeMillis(),
                         ),
-                        originalAmount = 15_480.0,
+                        originalAmount = 1_548_000L,
                         originalCurrency = "KZT",
                         displayMoneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
                     ),
                     TransactionRowState(
                         transaction = Transaction(
                             id = 2,
-                            amount = 2_450.0,
+                            amount = 245_000L,
                             type = TransactionType.EXPENSE,
                             categoryId = 2,
                             categoryName = "Транспорт",
@@ -678,9 +744,9 @@ private fun TransactionListScreenPreview() {
                             date = System.currentTimeMillis(),
                             createdAt = System.currentTimeMillis(),
                         ),
-                        originalAmount = 2_450.0,
+                        originalAmount = 245_000L,
                         originalCurrency = "USD",
-                        convertedAmount = 1_220_875.0,
+                        convertedAmount = 122_087_500L,
                         convertedCurrency = "KZT",
                         conversionStatus = ConversionStatus.AVAILABLE,
                         displayMoneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
@@ -689,7 +755,7 @@ private fun TransactionListScreenPreview() {
                     TransactionRowState(
                         transaction = Transaction(
                             id = 3,
-                            amount = 450_000.0,
+                            amount = 45_000_000L,
                             type = TransactionType.INCOME,
                             categoryId = 11,
                             categoryName = "Зарплата",
@@ -700,14 +766,14 @@ private fun TransactionListScreenPreview() {
                             date = System.currentTimeMillis() - 86_400_000,
                             createdAt = System.currentTimeMillis(),
                         ),
-                        originalAmount = 450_000.0,
+                        originalAmount = 45_000_000L,
                         originalCurrency = "KZT",
                         displayMoneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
                     ),
                 ),
                 dailyNetSums = mapOf(
-                    LocalDate.now().toString() to -17_930.0,
-                    LocalDate.now().minusDays(1).toString() to 450_000.0,
+                    LocalDate.now().toString() to -1_793_000L,
+                    LocalDate.now().minusDays(1).toString() to 45_000_000L,
                 ),
             ),
             onTransactionClick = {},
@@ -733,12 +799,12 @@ private fun TransactionListScreenEmptyPreview() {
     MoneyManagerTheme(themeMode = "dark", dynamicColor = false) {
         TransactionListScreen(
             state = TransactionListState(
-                balance = 0.0,
+                balance = 0L,
                 summaryMoneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
                 isLoading = false,
                 selectedAccountName = "Kaspi Gold",
-                periodIncome = 0.0,
-                periodExpense = 0.0,
+                periodIncome = 0L,
+                periodExpense = 0L,
                 selectedPeriod = Period.MONTH,
             ),
             onTransactionClick = {},

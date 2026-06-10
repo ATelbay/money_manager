@@ -10,10 +10,15 @@ import com.google.firebase.ai.type.Schema
 import com.google.firebase.ai.type.content
 import com.google.firebase.ai.type.generationConfig
 import com.google.firebase.ai.type.thinkingConfig
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -28,6 +33,36 @@ class GeminiServiceImpl @Inject constructor(
 ) : GeminiService {
 
     private val json = Json { ignoreUnknownKeys = true }
+
+    private companion object {
+        /** Hard ceiling on a single Gemini request — the SDK gives no guaranteed network timeout. */
+        const val AI_CALL_TIMEOUT_MS = 60_000L
+        /** Base backoff between transient-failure retries (exponential). */
+        const val RETRY_BASE_DELAY_MS = 500L
+    }
+
+    /**
+     * Runs [block] under a hard timeout, retrying [retries] extra times on transient failures
+     * (network blips, timeouts) with exponential backoff. Parent cancellation is always propagated.
+     */
+    private suspend fun <T> aiCall(retries: Int, block: suspend () -> T): T {
+        var lastError: Exception? = null
+        repeat(retries + 1) { attempt ->
+            try {
+                return withTimeout(AI_CALL_TIMEOUT_MS) { block() }
+            } catch (e: TimeoutCancellationException) {
+                lastError = e
+                Timber.w("Gemini call timed out (attempt %d/%d)", attempt + 1, retries + 1)
+            } catch (e: CancellationException) {
+                throw e // parent scope cancelled — never swallow
+            } catch (e: Exception) {
+                lastError = e
+                Timber.w(e, "Gemini call failed (attempt %d/%d)", attempt + 1, retries + 1)
+            }
+            if (attempt < retries) delay(RETRY_BASE_DELAY_MS * (1L shl attempt))
+        }
+        throw lastError ?: IllegalStateException("Gemini call failed with no captured error")
+    }
 
     private val parserConfigSchema = Schema.obj(
         properties = mapOf(
@@ -137,7 +172,7 @@ class GeminiServiceImpl @Inject constructor(
         }
 
         return try {
-            val response = classificationModel().generateContent(inputContent)
+            val response = aiCall(retries = 1) { classificationModel().generateContent(inputContent) }
             val text = response.text.orEmpty()
             Timber.d("<<< Gemini classifyStatement response: %s", text)
             val jsonObj = json.parseToJsonElement(text).jsonObject
@@ -156,6 +191,8 @@ class GeminiServiceImpl @Inject constructor(
             modelName = configProvider.getGeminiModelName(),
             generationConfig = generationConfig {
                 responseMimeType = "application/json"
+                // Deterministic full-parse output — matches the config-generation models.
+                temperature = 0f
             },
         )
 
@@ -265,8 +302,8 @@ class GeminiServiceImpl @Inject constructor(
         blobs: List<Pair<ByteArray, String>>,
         prompt: String,
     ): String {
+        // Do NOT log prompt/response bodies — they contain raw statement data (amounts, merchants).
         Timber.d(">>> Gemini request: %d blob(s), prompt length=%d", blobs.size, prompt.length)
-        Timber.d(">>> Gemini prompt:\n%s", prompt)
 
         val inputContent = content {
             blobs.forEach { (bytes, mimeType) ->
@@ -276,9 +313,9 @@ class GeminiServiceImpl @Inject constructor(
         }
 
         return try {
-            val response = generativeModel().generateContent(inputContent)
+            val response = aiCall(retries = 1) { generativeModel().generateContent(inputContent) }
             val text = response.text.orEmpty()
-            Timber.d("<<< Gemini response (length=%d):\n%s", text.length, text)
+            Timber.d("<<< Gemini response (length=%d)", text.length)
             text
         } catch (e: Exception) {
             Timber.e(e, "<<< Gemini API call failed")
@@ -295,8 +332,8 @@ class GeminiServiceImpl @Inject constructor(
         categoryNames: CategoryNames,
     ): RegexParserProfile {
         val prompt = buildRegexParserProfilePrompt(headerSnippet, sampleRows, existingConfigs, previousAttempts, hasPdfBlob = pdfBlob != null, categoryNames = categoryNames)
+        // Do NOT log prompt/response bodies — they contain raw statement data.
         Timber.d(">>> Gemini generateRegexParserProfile prompt length=%d", prompt.length)
-        Timber.d(">>> Gemini prompt:\n%s", prompt)
 
         val inputContent = content {
             if (pdfBlob != null) {
@@ -306,9 +343,9 @@ class GeminiServiceImpl @Inject constructor(
         }
 
         return try {
-            val response = parserConfigModel().generateContent(inputContent)
+            val response = aiCall(retries = 0) { parserConfigModel().generateContent(inputContent) }
             val text = response.text.orEmpty()
-            Timber.d("<<< Gemini generateRegexParserProfile response (length=%d):\n%s", text.length, text)
+            Timber.d("<<< Gemini generateRegexParserProfile response (length=%d)", text.length)
             parseRegexParserProfileResponse(text)
         } catch (e: Exception) {
             Timber.e(e, "<<< Gemini generateRegexParserProfile failed")
@@ -324,17 +361,17 @@ class GeminiServiceImpl @Inject constructor(
         categoryNames: CategoryNames,
     ): TableParserProfile {
         val prompt = buildTableParserProfilePrompt(sampleTableRows, previousAttempts, metadataRows, columnHeaderRow, categoryNames)
+        // Do NOT log prompt/response bodies — they contain raw statement data.
         Timber.d(">>> Gemini generateTableParserProfile prompt length=%d", prompt.length)
-        Timber.d(">>> Gemini prompt:\n%s", prompt)
 
         val inputContent = content {
             text(prompt)
         }
 
         return try {
-            val response = tableConfigModel().generateContent(inputContent)
+            val response = aiCall(retries = 0) { tableConfigModel().generateContent(inputContent) }
             val text = response.text.orEmpty()
-            Timber.d("<<< Gemini generateTableParserProfile response (length=%d):\n%s", text.length, text)
+            Timber.d("<<< Gemini generateTableParserProfile response (length=%d)", text.length)
             parseTableParserProfileResponse(text)
         } catch (e: Exception) {
             Timber.e(e, "<<< Gemini generateTableParserProfile failed")
@@ -420,25 +457,8 @@ class GeminiServiceImpl @Inject constructor(
     private fun parseTableParserProfileResponse(responseText: String): TableParserProfile {
         val jsonObj = json.parseToJsonElement(responseText).jsonObject
 
-        val operationTypeMap: Map<String, String> = try {
-            jsonObj["operation_type_map"]?.jsonArray?.associate { entry ->
-                val obj = entry.jsonObject
-                obj["key"]!!.jsonPrimitive.content to obj["value"]!!.jsonPrimitive.content
-            }.orEmpty()
-        } catch (e: Exception) {
-            Timber.w(e, "Failed to parse table operation_type_map, using empty map")
-            emptyMap()
-        }
-
-        val categoryMap: Map<String, String> = try {
-            jsonObj["category_map"]?.jsonArray?.associate { entry ->
-                val obj = entry.jsonObject
-                obj["key"]!!.jsonPrimitive.content to obj["value"]!!.jsonPrimitive.content
-            }.orEmpty()
-        } catch (e: Exception) {
-            Timber.w(e, "Failed to parse table category_map, using empty map")
-            emptyMap()
-        }
+        val operationTypeMap = jsonObj.keyValueMap("operation_type_map")
+        val categoryMap = jsonObj.keyValueMap("category_map")
 
         return TableParserProfile(
             bankId = jsonObj.stringField("bank_id"),
@@ -619,25 +639,8 @@ class GeminiServiceImpl @Inject constructor(
     private fun parseRegexParserProfileResponse(responseText: String): RegexParserProfile {
         val jsonObj = json.parseToJsonElement(responseText).jsonObject
 
-        val operationTypeMap: Map<String, String> = try {
-            jsonObj["operation_type_map"]?.jsonArray?.associate { entry ->
-                val obj = entry.jsonObject
-                obj["key"]!!.jsonPrimitive.content to obj["value"]!!.jsonPrimitive.content
-            }.orEmpty()
-        } catch (e: Exception) {
-            Timber.w(e, "Failed to parse operation_type_map, using empty map")
-            emptyMap()
-        }
-
-        val categoryMap: Map<String, String> = try {
-            jsonObj["category_map"]?.jsonArray?.associate { entry ->
-                val obj = entry.jsonObject
-                obj["key"]!!.jsonPrimitive.content to obj["value"]!!.jsonPrimitive.content
-            }.orEmpty()
-        } catch (e: Exception) {
-            Timber.w(e, "Failed to parse category_map, using empty map")
-            emptyMap()
-        }
+        val operationTypeMap = jsonObj.keyValueMap("operation_type_map")
+        val categoryMap = jsonObj.keyValueMap("category_map")
 
         return RegexParserProfile(
             bankId = jsonObj.stringField("bank_id"),
@@ -669,6 +672,20 @@ class GeminiServiceImpl @Inject constructor(
 
     private fun JsonObject.stringListField(key: String): List<String> =
         this[key]?.jsonArray?.map { it.jsonPrimitive.content }.orEmpty()
+
+    /**
+     * Parses an array of `{"key": ..., "value": ...}` objects into a Map, skipping malformed
+     * entries instead of discarding the whole array (the LLM occasionally omits a field).
+     */
+    private fun JsonObject.keyValueMap(key: String): Map<String, String> {
+        val array = this[key]?.jsonArray ?: return emptyMap()
+        return array.mapNotNull { entry ->
+            val obj = (entry as? JsonObject) ?: return@mapNotNull null
+            val k = obj["key"]?.jsonPrimitive?.contentOrNull
+            val v = obj["value"]?.jsonPrimitive?.contentOrNull
+            if (k != null && v != null) k to v else null
+        }.toMap()
+    }
 
     private fun JsonObject.intField(key: String): Int =
         this[key]?.jsonPrimitive?.intOrNull

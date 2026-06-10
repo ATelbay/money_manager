@@ -8,6 +8,7 @@ android {
 
 dependencies {
     implementation(projects.core.auth)
+    implementation(projects.core.common)
     implementation(projects.core.model)
     implementation(projects.core.datastore)
     implementation(projects.core.ui)

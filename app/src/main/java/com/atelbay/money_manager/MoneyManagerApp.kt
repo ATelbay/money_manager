@@ -33,6 +33,8 @@ class MoneyManagerApp : Application() {
             Timber.plant(CrashlyticsTree())
         }
         loginSyncOrchestrator.start()
+        // Recurring transactions are materialized on app open (by design — no background scheduler).
+        // If the app isn't launched, occurrences are caught up on the next start (lastGeneratedDate).
         appScope.launch {
             try {
                 generatePendingTransactionsUseCase()

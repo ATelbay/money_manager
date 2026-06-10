@@ -35,7 +35,7 @@ class FreedomBankIntegrationTest {
         assertTrue("Need at least 1 transaction", transactions.isNotEmpty())
         val first = transactions.first()
         assertEquals(LocalDate(2026, 2, 25), first.date)
-        assertEquals(9201.44, first.amount, 0.01)
+        assertEquals(920144L, first.amount)
         assertEquals(TransactionType.EXPENSE, first.type)
         assertEquals("Сумма в обработке", first.operationType)
         assertEquals("WOLT.COM ALMATY KZ", first.details)

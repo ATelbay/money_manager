@@ -16,10 +16,11 @@ import com.atelbay.money_manager.domain.exchangerate.repository.ExchangeRateRepo
 import com.atelbay.money_manager.domain.exchangerate.usecase.ObserveExchangeRateUseCase
 import com.atelbay.money_manager.domain.transactions.repository.TransactionRepository
 import com.atelbay.money_manager.domain.transactions.usecase.ExportTransactionsToCsvUseCase
+import com.atelbay.money_manager.core.common.di.IoDispatcher
 import com.atelbay.money_manager.core.ui.theme.AppStrings
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -51,6 +52,7 @@ class SettingsViewModel @Inject constructor(
     private val observeAuthUser: ObserveAuthUserUseCase,
     private val syncRepository: SyncRepository,
     private val exportTransactionsToCsvUseCase: ExportTransactionsToCsvUseCase,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     application: Application,
 ) : ViewModel() {
 
@@ -300,12 +302,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isExporting = true, exportError = null) }
             try {
-                val csvContent = withContext(Dispatchers.IO) {
+                val csvContent = withContext(ioDispatcher) {
                     exportTransactionsToCsvUseCase()
                 }
                 val dateStr = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
                 val fileName = "money_manager_export_$dateStr.csv"
-                val file = withContext(Dispatchers.IO) {
+                val file = withContext(ioDispatcher) {
                     val exportsDir = File(context.cacheDir, "exports").also { it.mkdirs() }
                     File(exportsDir, fileName).also { it.writeText(csvContent) }
                 }

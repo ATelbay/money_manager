@@ -43,16 +43,15 @@ class PdfTableExtractor @Inject constructor(
         val char: String,
     )
 
-    /** Column boundaries resolved from page 0, reused for subsequent pages. */
-    private var resolvedBoundaries: List<Float>? = null
-
     /**
      * Extracts a table from the PDF bytes. Returns an empty list on failure or if no table found.
      */
     fun extractTable(bytes: ByteArray): List<List<String>> {
         return try {
             pdfTextExtractor.ensureInitialized()
-            resolvedBoundaries = null
+            // Local (not an instance field) so concurrent extractions on this @Singleton can't
+            // clobber each other's column boundaries.
+            var resolvedBoundaries: List<Float>? = null
             ByteArrayInputStream(bytes).use { stream ->
                 PDDocument.load(stream).use { document ->
                     val allRows = mutableListOf<List<String>>()

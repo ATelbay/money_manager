@@ -58,6 +58,7 @@ import com.atelbay.money_manager.core.ui.components.MoneyManagerChip
 import com.atelbay.money_manager.core.ui.components.MoneyManagerTextField
 import com.atelbay.money_manager.core.ui.components.categoryIconFromName
 import com.atelbay.money_manager.core.ui.theme.MoneyManagerTheme
+import com.atelbay.money_manager.core.ui.theme.Teal
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -557,7 +558,7 @@ private fun FrequencyChip(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .background(
-                if (selected) Color(0xFF818CF8).copy(alpha = 0.2f) else Color.Transparent,
+                if (selected) Teal.copy(alpha = 0.2f) else Color.Transparent,
             )
             .clickable(onClick = onClick)
             .padding(vertical = 6.dp, horizontal = 4.dp),
@@ -566,7 +567,7 @@ private fun FrequencyChip(
         Text(
             text = label,
             style = typography.caption,
-            color = if (selected) Color(0xFF818CF8) else colors.textSecondary,
+            color = if (selected) Teal else colors.textSecondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -593,7 +594,7 @@ private fun DayOfMonthGrid(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(if (isSelected) Color(0xFF818CF8) else Color.Transparent)
+                    .background(if (isSelected) Teal else Color.Transparent)
                     .clickable { onDaySelected(day) }
                     .testTag("recurringEdit:dayOfMonth_$day"),
                 contentAlignment = Alignment.Center,
@@ -628,7 +629,7 @@ private fun DayOfWeekRow(
                     .weight(1f)
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(if (isSelected) Color(0xFF818CF8) else Color.Transparent)
+                    .background(if (isSelected) Teal else Color.Transparent)
                     .clickable { onDaySelected(dayNum) }
                     .testTag("recurringEdit:dayOfWeek_$dayNum"),
                 contentAlignment = Alignment.Center,

@@ -103,14 +103,13 @@ class StatisticsViewModelMonthTest {
                 exchangeRate = any(),
             )
         } answers {
-            val summary = firstArg<PeriodSummary>()
             StatisticsCurrencyResolution(
                 currencyUiState = StatisticsCurrencyUiState(
                     moneyDisplay = MoneyDisplayFormatter.resolveAndFormat("KZT"),
                     displayMode = AggregateCurrencyDisplayMode.ORIGINAL_SINGLE_CURRENCY,
                 ),
-                displayedTotalExpenses = summary.totalExpenses,
-                displayedTotalIncome = summary.totalIncome,
+                displayedTotalExpenses = 0L,
+                displayedTotalIncome = 0L,
                 displayedExpensesByCategory = emptyList(),
                 displayedIncomesByCategory = emptyList(),
                 displayedDailyExpenses = emptyList(),
@@ -224,13 +223,8 @@ class StatisticsViewModelMonthTest {
 
     private fun emptySummary(dateRange: StatisticsDateRange) = PeriodSummary(
         dateRange = dateRange,
-        totalExpenses = 0.0,
-        totalIncome = 0.0,
-        expensesByCategory = emptyList(),
-        incomesByCategory = emptyList(),
-        dailyExpenses = emptyList(),
-        dailyIncome = emptyList(),
-        monthlyExpenses = emptyList(),
-        monthlyIncome = emptyList(),
+        dayBuckets = emptyList(),
+        monthBuckets = emptyList(),
+        categories = emptyList(),
     )
 }

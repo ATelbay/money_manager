@@ -6,8 +6,8 @@ import com.atelbay.money_manager.core.model.TransactionType
 import com.atelbay.money_manager.core.ui.util.AggregateCurrencyDisplayMode
 import com.atelbay.money_manager.domain.exchangerate.model.ExchangeRate
 import com.atelbay.money_manager.domain.exchangerate.usecase.ConvertAmountUseCase
-import com.atelbay.money_manager.domain.statistics.model.CategorySummary
-import com.atelbay.money_manager.domain.statistics.model.DailyTotal
+import com.atelbay.money_manager.domain.statistics.model.CategoryMetadata
+import com.atelbay.money_manager.domain.statistics.model.MonthBucket
 import com.atelbay.money_manager.domain.statistics.model.PeriodSummary
 import com.atelbay.money_manager.domain.statistics.model.StatisticsDateRange
 import org.junit.Assert.assertEquals
@@ -23,14 +23,11 @@ class StatisticsCurrencyDisplayResolverTest {
         val bucketDate = dayStart(1_700_000_000_000L)
         val resolution = resolver.resolve(
             summary = summary(
-                totalExpenses = 47_500.0,
-                dailyExpenses = listOf(DailyTotal(date = bucketDate, amount = 47_500.0)),
-                expensesByCategory = listOf(
-                    CategorySummary(1L, "Food", "restaurant", 0L, 47_500.0, 100),
-                ),
+                dayBuckets = listOf(bucketDate),
+                categories = listOf(CategoryMetadata(1L, "Food", "restaurant", 0L)),
             ),
             transactions = listOf(
-                transaction(amount = 47_500.0, accountId = 1L, categoryId = 1L, date = bucketDate),
+                transaction(amount = 4_750_000L, accountId = 1L, categoryId = 1L, date = bucketDate),
             ),
             accounts = listOf(account(id = 1L, currency = "KZT")),
             baseCurrency = "USD",
@@ -39,9 +36,9 @@ class StatisticsCurrencyDisplayResolverTest {
 
         assertEquals(AggregateCurrencyDisplayMode.ORIGINAL_SINGLE_CURRENCY, resolution.currencyUiState.displayMode)
         assertEquals("₸", resolution.currencyUiState.moneyDisplay.primaryLabel)
-        assertEquals(47_500.0, resolution.displayedTotalExpenses ?: 0.0, 0.0)
-        assertEquals(47_500.0, resolution.displayedExpensesByCategory.single().displayAmount ?: 0.0, 0.0)
-        assertEquals(47_500.0, resolution.displayedDailyExpenses.single().amount ?: 0.0, 0.0)
+        assertEquals(4_750_000L, resolution.displayedTotalExpenses ?: 0L)
+        assertEquals(4_750_000L, resolution.displayedExpensesByCategory.single().displayAmount ?: 0L)
+        assertEquals(4_750_000L, resolution.displayedDailyExpenses.single().amount ?: 0L)
     }
 
     @Test
@@ -49,15 +46,12 @@ class StatisticsCurrencyDisplayResolverTest {
         val bucketDate = dayStart(1_700_000_000_000L)
         val resolution = resolver.resolve(
             summary = summary(
-                totalExpenses = 5_252.0,
-                dailyExpenses = listOf(DailyTotal(date = bucketDate, amount = 5_252.0)),
-                expensesByCategory = listOf(
-                    CategorySummary(1L, "Food", "restaurant", 0L, 5_252.0, 100),
-                ),
+                dayBuckets = listOf(bucketDate),
+                categories = listOf(CategoryMetadata(1L, "Food", "restaurant", 0L)),
             ),
             transactions = listOf(
-                transaction(amount = 5_200.0, accountId = 1L, categoryId = 1L, date = bucketDate),
-                transaction(id = 2L, amount = 52.0, accountId = 2L, categoryId = 1L, date = bucketDate),
+                transaction(amount = 520_000L, accountId = 1L, categoryId = 1L, date = bucketDate),
+                transaction(id = 2L, amount = 5_200L, accountId = 2L, categoryId = 1L, date = bucketDate),
             ),
             accounts = listOf(
                 account(id = 1L, currency = "KZT"),
@@ -77,9 +71,12 @@ class StatisticsCurrencyDisplayResolverTest {
 
         assertEquals(AggregateCurrencyDisplayMode.CONVERTED, resolution.currencyUiState.displayMode)
         assertEquals("€", resolution.currencyUiState.moneyDisplay.primaryLabel)
-        assertEquals(57.5, resolution.displayedTotalExpenses ?: 0.0, 0.0)
-        assertEquals(57.5, resolution.displayedExpensesByCategory.single().displayAmount ?: 0.0, 0.0)
-        assertEquals(57.5, resolution.displayedDailyExpenses.single().amount ?: 0.0, 0.0)
+        // KZT 5200.00 → EUR: 520000/520 = 1000 minor units (10.00 EUR)
+        // USD 52.00 → KZT 24700.00 → EUR: 5200*475/520 = 4750 minor units (47.50 EUR)
+        // Total: 5750 minor units (57.50 EUR)
+        assertEquals(5750L, resolution.displayedTotalExpenses ?: 0L)
+        assertEquals(5750L, resolution.displayedExpensesByCategory.single().displayAmount ?: 0L)
+        assertEquals(5750L, resolution.displayedDailyExpenses.single().amount ?: 0L)
     }
 
     @Test
@@ -87,15 +84,12 @@ class StatisticsCurrencyDisplayResolverTest {
         val bucketDate = dayStart(1_700_000_000_000L)
         val resolution = resolver.resolve(
             summary = summary(
-                totalExpenses = 47_600.0,
-                dailyExpenses = listOf(DailyTotal(date = bucketDate, amount = 47_600.0)),
-                expensesByCategory = listOf(
-                    CategorySummary(1L, "Food", "restaurant", 0L, 47_600.0, 100),
-                ),
+                dayBuckets = listOf(bucketDate),
+                categories = listOf(CategoryMetadata(1L, "Food", "restaurant", 0L)),
             ),
             transactions = listOf(
-                transaction(amount = 47_500.0, accountId = 1L, categoryId = 1L, date = bucketDate),
-                transaction(id = 2L, amount = 100.0, accountId = 2L, categoryId = 1L, date = bucketDate),
+                transaction(amount = 4_750_000L, accountId = 1L, categoryId = 1L, date = bucketDate),
+                transaction(id = 2L, amount = 10_000L, accountId = 2L, categoryId = 1L, date = bucketDate),
             ),
             accounts = listOf(
                 account(id = 1L, currency = "KZT"),
@@ -118,25 +112,64 @@ class StatisticsCurrencyDisplayResolverTest {
         assertNull(resolution.displayedDailyExpenses.single().amount)
     }
 
+    @Test
+    fun `year monthly buckets aggregate converted amounts per month`() {
+        val janDate = midMonth(2025, java.util.Calendar.JANUARY)
+        val febDate = midMonth(2025, java.util.Calendar.FEBRUARY)
+        val resolution = resolver.resolve(
+            summary = summary(
+                dayBuckets = emptyList(),
+                categories = listOf(CategoryMetadata(1L, "Food", "restaurant", 0L)),
+                monthBuckets = listOf(
+                    MonthBucket(2025, java.util.Calendar.JANUARY, "Jan"),
+                    MonthBucket(2025, java.util.Calendar.FEBRUARY, "Feb"),
+                    MonthBucket(2025, java.util.Calendar.MARCH, "Mar"),
+                ),
+            ),
+            transactions = listOf(
+                transaction(amount = 475_000L, accountId = 1L, categoryId = 1L, date = janDate),
+                transaction(id = 2L, amount = 950_000L, accountId = 1L, categoryId = 1L, date = febDate),
+            ),
+            accounts = listOf(account(id = 1L, currency = "KZT")),
+            baseCurrency = "USD",
+            exchangeRate = ExchangeRate(
+                quotes = mapOf("KZT" to 1.0, "USD" to 475.0),
+                fetchedAt = 1L,
+                source = "NBK",
+            ),
+        )
+
+        assertEquals(AggregateCurrencyDisplayMode.CONVERTED, resolution.currencyUiState.displayMode)
+        assertEquals(3, resolution.displayedMonthlyExpenses.size)
+        // KZT 4750.00 → USD 10.00 = 1000 minor units; KZT 9500.00 → USD 20.00 = 2000 minor units.
+        assertEquals(1000L, resolution.displayedMonthlyExpenses[0].amount ?: -1L)
+        assertEquals(2000L, resolution.displayedMonthlyExpenses[1].amount ?: -1L)
+        // March has no transactions → zero-filled.
+        assertEquals(0L, resolution.displayedMonthlyExpenses[2].amount ?: -1L)
+        assertEquals(3000L, resolution.displayedTotalExpenses ?: -1L)
+    }
+
     private fun summary(
-        totalExpenses: Double,
-        dailyExpenses: List<DailyTotal>,
-        expensesByCategory: List<CategorySummary>,
+        dayBuckets: List<Long>,
+        categories: List<CategoryMetadata>,
+        monthBuckets: List<MonthBucket> = emptyList(),
     ) = PeriodSummary(
         dateRange = StatisticsDateRange(startMillis = 1L, endMillis = 1L),
-        totalExpenses = totalExpenses,
-        totalIncome = 0.0,
-        expensesByCategory = expensesByCategory,
-        incomesByCategory = emptyList(),
-        dailyExpenses = dailyExpenses,
-        dailyIncome = emptyList(),
-        monthlyExpenses = emptyList(),
-        monthlyIncome = emptyList(),
+        dayBuckets = dayBuckets,
+        monthBuckets = monthBuckets,
+        categories = categories,
     )
+
+    private fun midMonth(year: Int, month: Int): Long =
+        java.util.Calendar.getInstance(java.util.TimeZone.getDefault()).run {
+            clear()
+            set(year, month, 15, 12, 0, 0)
+            timeInMillis
+        }
 
     private fun transaction(
         id: Long = 1L,
-        amount: Double,
+        amount: Long,
         accountId: Long,
         categoryId: Long,
         date: Long = 1L,
@@ -171,7 +204,7 @@ class StatisticsCurrencyDisplayResolverTest {
         id = id,
         name = "Cash",
         currency = currency,
-        balance = 0.0,
+        balance = 0L,
         createdAt = 1L,
     )
 }

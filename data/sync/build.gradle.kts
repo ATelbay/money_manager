@@ -11,6 +11,7 @@ dependencies {
     implementation(projects.core.auth)
     implementation(projects.core.crypto)
     implementation(projects.core.database)
+    implementation(projects.core.datastore)
     implementation(projects.core.firestore)
     implementation(projects.core.model)
     implementation(projects.domain.sync)

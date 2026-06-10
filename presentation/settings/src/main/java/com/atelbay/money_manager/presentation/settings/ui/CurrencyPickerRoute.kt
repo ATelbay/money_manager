@@ -25,9 +25,17 @@ fun CurrencyPickerRoute(
         activeSide = activeSide,
         onSideChange = { activeSide = it },
         onSelect = { currency ->
+            // Keep the pair distinct: picking the currency already used on the other side
+            // swaps them instead of producing a meaningless X→X pair.
             if (activeSide == CurrencyPickerSide.FIRST) {
+                if (currency.code == state.targetCurrency.code) {
+                    viewModel.setTargetCurrency(state.baseCurrency)
+                }
                 viewModel.setBaseCurrency(currency)
             } else {
+                if (currency.code == state.baseCurrency.code) {
+                    viewModel.setBaseCurrency(state.targetCurrency)
+                }
                 viewModel.setTargetCurrency(currency)
             }
         },

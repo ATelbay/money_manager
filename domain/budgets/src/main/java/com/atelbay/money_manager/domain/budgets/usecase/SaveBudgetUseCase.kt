@@ -9,7 +9,7 @@ class SaveBudgetUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(
         categoryId: Long,
-        monthlyLimit: Double,
+        monthlyLimit: Long,
         budgetId: Long? = null,
     ): Long {
         val existing = when {
@@ -25,7 +25,7 @@ class SaveBudgetUseCase @Inject constructor(
                 categoryIcon = "",
                 categoryColor = 0L,
                 monthlyLimit = monthlyLimit,
-                spent = 0.0,
+                spent = 0L,
                 remaining = monthlyLimit,
                 percentage = 0f,
             )

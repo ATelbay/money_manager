@@ -56,12 +56,12 @@ class TransactionListViewModelTest {
         val viewModel = createViewModel(
             transactions = listOf(
                 transaction(
-                    amount = 125.0,
+                    amount = 12500L,
                     type = TransactionType.INCOME,
                     categoryName = "Salary",
                 ),
             ),
-            accounts = listOf(account(currency = "USD", balance = 125.0)),
+            accounts = listOf(account(currency = "USD", balance = 12500L)),
             baseCurrency = flowOf("USD"),
         )
 
@@ -76,12 +76,12 @@ class TransactionListViewModelTest {
         val viewModel = createViewModel(
             transactions = listOf(
                 transaction(
-                    amount = 125.0,
+                    amount = 12500L,
                     type = TransactionType.INCOME,
                     categoryName = "Salary",
                 ),
             ),
-            accounts = listOf(account(currency = "USD", balance = 125.0)),
+            accounts = listOf(account(currency = "USD", balance = 12500L)),
             baseCurrency = flowOf("usd"),
         )
 
@@ -89,7 +89,7 @@ class TransactionListViewModelTest {
         advanceUntilIdle()
 
         val row = viewModel.state.value.transactionRows.single()
-        assertEquals(125.0, row.displayAmount, 0.0)
+        assertEquals(12500L, row.displayAmount)
         assertEquals("USD", row.displayCurrency)
         assertEquals(ConversionStatus.UNAVAILABLE, row.conversionStatus)
         assertEquals("$", row.displayMoneyDisplay.primaryLabel)
@@ -97,9 +97,9 @@ class TransactionListViewModelTest {
         assertFalse(row.displayMoneyDisplay.isUnavailable)
         assertNull(row.secondaryMoneyDisplay)
 
-        assertEquals(125.0, viewModel.state.value.balance ?: 0.0, 0.0)
-        assertEquals(125.0, viewModel.state.value.periodIncome ?: 0.0, 0.0)
-        assertEquals(0.0, viewModel.state.value.periodExpense ?: 0.0, 0.0)
+        assertEquals(12500L, viewModel.state.value.balance ?: 0L)
+        assertEquals(12500L, viewModel.state.value.periodIncome ?: 0L)
+        assertEquals(0L, viewModel.state.value.periodExpense ?: 0L)
         assertEquals("$", viewModel.state.value.summaryMoneyDisplay.primaryLabel)
         assertFalse(viewModel.state.value.summaryMoneyDisplay.isUnavailable)
         assertEquals(MoneyDisplayMode.SYMBOL_PLUS_CODE, viewModel.state.value.summaryMoneyDisplay.displayMode)
@@ -111,10 +111,10 @@ class TransactionListViewModelTest {
 
         val viewModel = createViewModel(
             transactions = listOf(
-                transaction(id = 1L, amount = 47_500.0, type = TransactionType.INCOME, categoryName = "Salary"),
-                transaction(id = 2L, amount = 9_500.0, type = TransactionType.EXPENSE, categoryName = "Food"),
+                transaction(id = 1L, amount = 4_750_000L, type = TransactionType.INCOME, categoryName = "Salary"),
+                transaction(id = 2L, amount = 950_000L, type = TransactionType.EXPENSE, categoryName = "Food"),
             ),
-            accounts = listOf(account(currency = "KZT", balance = 57_000.0)),
+            accounts = listOf(account(currency = "KZT", balance = 5_700_000L)),
             baseCurrency = flowOf("USD"),
             exchangeRate = MutableStateFlow(snapshot(mapOf("KZT" to 1.0, "USD" to 475.0))),
         )
@@ -126,7 +126,7 @@ class TransactionListViewModelTest {
         val incomeRow = rows.first { it.transaction.type == TransactionType.INCOME }
         val expenseRow = rows.first { it.transaction.type == TransactionType.EXPENSE }
 
-        assertEquals(100.0, incomeRow.convertedAmount ?: 0.0, 0.0)
+        assertEquals(10000L, incomeRow.convertedAmount ?: 0L)
         assertEquals("USD", incomeRow.convertedCurrency)
         assertEquals(ConversionStatus.AVAILABLE, incomeRow.conversionStatus)
         assertEquals("$", incomeRow.displayMoneyDisplay.primaryLabel)
@@ -136,15 +136,15 @@ class TransactionListViewModelTest {
         assertEquals("₸", incomeRow.secondaryMoneyDisplay?.primaryLabel)
         assertFalse(incomeRow.secondaryMoneyDisplay?.isUnavailable ?: true)
 
-        assertEquals(20.0, expenseRow.convertedAmount ?: 0.0, 0.0)
+        assertEquals(2000L, expenseRow.convertedAmount ?: 0L)
         assertEquals("USD", expenseRow.convertedCurrency)
         assertEquals(ConversionStatus.AVAILABLE, expenseRow.conversionStatus)
         assertFalse(expenseRow.displayMoneyDisplay.isUnavailable)
         assertNotNull(expenseRow.secondaryMoneyDisplay)
 
-        assertEquals(120.0, viewModel.state.value.balance ?: 0.0, 0.0)
-        assertEquals(100.0, viewModel.state.value.periodIncome ?: 0.0, 0.0)
-        assertEquals(20.0, viewModel.state.value.periodExpense ?: 0.0, 0.0)
+        assertEquals(12000L, viewModel.state.value.balance ?: 0L)
+        assertEquals(10000L, viewModel.state.value.periodIncome ?: 0L)
+        assertEquals(2000L, viewModel.state.value.periodExpense ?: 0L)
         assertEquals("$", viewModel.state.value.summaryMoneyDisplay.primaryLabel)
         assertFalse(viewModel.state.value.summaryMoneyDisplay.isUnavailable)
     }
@@ -155,9 +155,9 @@ class TransactionListViewModelTest {
 
         val viewModel = createViewModel(
             transactions = listOf(
-                transaction(amount = 47_500.0, type = TransactionType.EXPENSE, categoryName = "Food"),
+                transaction(amount = 4_750_000L, type = TransactionType.EXPENSE, categoryName = "Food"),
             ),
-            accounts = listOf(account(currency = "KZT", balance = 47_500.0)),
+            accounts = listOf(account(currency = "KZT", balance = 4_750_000L)),
             baseCurrency = flowOf("USD"),
             exchangeRate = MutableStateFlow(null),
         )
@@ -166,16 +166,16 @@ class TransactionListViewModelTest {
         advanceUntilIdle()
 
         val row = viewModel.state.value.transactionRows.single()
-        assertEquals(47_500.0, row.displayAmount, 0.0)
+        assertEquals(4_750_000L, row.displayAmount)
         assertEquals("KZT", row.displayCurrency)
         assertEquals(ConversionStatus.UNAVAILABLE, row.conversionStatus)
         assertEquals("₸", row.displayMoneyDisplay.primaryLabel)
         assertFalse(row.displayMoneyDisplay.isUnavailable)
         assertNull(row.secondaryMoneyDisplay)
 
-        assertEquals(47_500.0, viewModel.state.value.balance ?: 0.0, 0.0)
-        assertEquals(0.0, viewModel.state.value.periodIncome ?: 0.0, 0.0)
-        assertEquals(47_500.0, viewModel.state.value.periodExpense ?: 0.0, 0.0)
+        assertEquals(4_750_000L, viewModel.state.value.balance ?: 0L)
+        assertEquals(0L, viewModel.state.value.periodIncome ?: 0L)
+        assertEquals(4_750_000L, viewModel.state.value.periodExpense ?: 0L)
         assertEquals("₸", viewModel.state.value.summaryMoneyDisplay.primaryLabel)
         assertFalse(viewModel.state.value.summaryMoneyDisplay.isUnavailable)
     }
@@ -186,12 +186,12 @@ class TransactionListViewModelTest {
 
         val viewModel = createViewModel(
             transactions = listOf(
-                transaction(id = 1L, amount = 10_400.0, type = TransactionType.EXPENSE, categoryName = "Food", accountId = 1L),
-                transaction(id = 2L, amount = 52.0, type = TransactionType.INCOME, categoryName = "Salary", accountId = 2L),
+                transaction(id = 1L, amount = 1_040_000L, type = TransactionType.EXPENSE, categoryName = "Food", accountId = 1L),
+                transaction(id = 2L, amount = 5_200L, type = TransactionType.INCOME, categoryName = "Salary", accountId = 2L),
             ),
             accounts = listOf(
-                account(id = 1L, currency = "KZT", balance = 52_000.0),
-                account(id = 2L, currency = "USD", balance = 100.0),
+                account(id = 1L, currency = "KZT", balance = 5_200_000L),
+                account(id = 2L, currency = "USD", balance = 10_000L),
             ),
             baseCurrency = flowOf("EUR"),
             exchangeRate = MutableStateFlow(
@@ -208,9 +208,14 @@ class TransactionListViewModelTest {
         advanceTimeBy(300)
         advanceUntilIdle()
 
-        assertEquals(191.35, viewModel.state.value.balance ?: 0.0, 0.0)
-        assertEquals(47.5, viewModel.state.value.periodIncome ?: 0.0, 0.0)
-        assertEquals(20.0, viewModel.state.value.periodExpense ?: 0.0, 0.0)
+        // KZT 52000 → EUR: 52000/520 = 100 EUR = 10000L minor
+        // USD 100 → EUR: 100*(475/520) = 91.346... → 9135L minor
+        // total balance = 10000 + 9135 = 19135L
+        assertEquals(19135L, viewModel.state.value.balance ?: 0L)
+        // USD 52 → EUR: 52*(475/520) = 47.5 → 4750L minor
+        assertEquals(4750L, viewModel.state.value.periodIncome ?: 0L)
+        // KZT 10400 → EUR: 10400/520 = 20 → 2000L minor
+        assertEquals(2000L, viewModel.state.value.periodExpense ?: 0L)
         assertEquals("€", viewModel.state.value.summaryMoneyDisplay.primaryLabel)
         assertFalse(viewModel.state.value.summaryMoneyDisplay.isUnavailable)
         assertEquals(MoneyDisplayMode.SYMBOL_FIRST, viewModel.state.value.summaryMoneyDisplay.displayMode)
@@ -222,12 +227,12 @@ class TransactionListViewModelTest {
 
         val viewModel = createViewModel(
             transactions = listOf(
-                transaction(id = 1L, amount = 47_500.0, type = TransactionType.INCOME, categoryName = "Salary", accountId = 1L),
-                transaction(id = 2L, amount = 100.0, type = TransactionType.EXPENSE, categoryName = "Shopping", accountId = 2L),
+                transaction(id = 1L, amount = 4_750_000L, type = TransactionType.INCOME, categoryName = "Salary", accountId = 1L),
+                transaction(id = 2L, amount = 10_000L, type = TransactionType.EXPENSE, categoryName = "Shopping", accountId = 2L),
             ),
             accounts = listOf(
-                account(id = 1L, currency = "KZT", balance = 47_500.0),
-                account(id = 2L, currency = "GBP", balance = 100.0),
+                account(id = 1L, currency = "KZT", balance = 4_750_000L),
+                account(id = 2L, currency = "GBP", balance = 10_000L),
             ),
             baseCurrency = flowOf("USD"),
             exchangeRate = MutableStateFlow(snapshot(mapOf("KZT" to 1.0, "USD" to 475.0))),
@@ -322,11 +327,11 @@ class TransactionListViewModelTest {
 
         val viewModel = createViewModel(
             transactions = listOf(
-                transaction(id = 1L, amount = 1000.0, type = TransactionType.INCOME, categoryName = "Salary", date = todayMillis),
-                transaction(id = 2L, amount = 300.0, type = TransactionType.EXPENSE, categoryName = "Food", date = todayMillis),
-                transaction(id = 3L, amount = 500.0, type = TransactionType.INCOME, categoryName = "Gift", date = yesterdayMillis),
+                transaction(id = 1L, amount = 100_000L, type = TransactionType.INCOME, categoryName = "Salary", date = todayMillis),
+                transaction(id = 2L, amount = 30_000L, type = TransactionType.EXPENSE, categoryName = "Food", date = todayMillis),
+                transaction(id = 3L, amount = 50_000L, type = TransactionType.INCOME, categoryName = "Gift", date = yesterdayMillis),
             ),
-            accounts = listOf(account(currency = "KZT", balance = 1200.0)),
+            accounts = listOf(account(currency = "KZT", balance = 120_000L)),
             baseCurrency = flowOf("KZT"),
             exchangeRate = MutableStateFlow(snapshot(mapOf("KZT" to 1.0, "USD" to 475.0))),
         )
@@ -345,10 +350,10 @@ class TransactionListViewModelTest {
             .toLocalDate()
             .toString()
 
-        // today: 1000 income - 300 expense = 700
-        assertEquals(700.0, dailyNetSums[todayKey] ?: 0.0, 0.01)
-        // yesterday: 500 income - 0 expense = 500
-        assertEquals(500.0, dailyNetSums[yesterdayKey] ?: 0.0, 0.01)
+        // today: 100_000 income - 30_000 expense = 70_000
+        assertEquals(70_000L, dailyNetSums[todayKey] ?: 0L)
+        // yesterday: 50_000 income - 0 expense = 50_000
+        assertEquals(50_000L, dailyNetSums[yesterdayKey] ?: 0L)
     }
 
     @Test
@@ -357,12 +362,12 @@ class TransactionListViewModelTest {
 
         val viewModel = createViewModel(
             transactions = listOf(
-                transaction(id = 1L, amount = 1000.0, type = TransactionType.INCOME, categoryName = "Salary", accountId = 1L),
-                transaction(id = 2L, amount = 50.0, type = TransactionType.EXPENSE, categoryName = "Food", accountId = 2L),
+                transaction(id = 1L, amount = 100_000L, type = TransactionType.INCOME, categoryName = "Salary", accountId = 1L),
+                transaction(id = 2L, amount = 5_000L, type = TransactionType.EXPENSE, categoryName = "Food", accountId = 2L),
             ),
             accounts = listOf(
-                account(id = 1L, currency = "KZT", balance = 1000.0),
-                account(id = 2L, currency = "USD", balance = 50.0),
+                account(id = 1L, currency = "KZT", balance = 100_000L),
+                account(id = 2L, currency = "USD", balance = 5_000L),
             ),
             baseCurrency = flowOf("KZT"),
             // Exchange rate missing USD → conversion unavailable
@@ -381,13 +386,13 @@ class TransactionListViewModelTest {
 
         val viewModel = createViewModel(
             transactions = listOf(
-                transaction(id = 1L, amount = 100.0, type = TransactionType.INCOME, categoryName = "Salary", accountId = 1L),
-                transaction(id = 2L, amount = 200.0, type = TransactionType.EXPENSE, categoryName = "Food", accountId = 2L),
-                transaction(id = 3L, amount = 50.0, type = TransactionType.INCOME, categoryName = "Gift", accountId = 1L),
+                transaction(id = 1L, amount = 10_000L, type = TransactionType.INCOME, categoryName = "Salary", accountId = 1L),
+                transaction(id = 2L, amount = 20_000L, type = TransactionType.EXPENSE, categoryName = "Food", accountId = 2L),
+                transaction(id = 3L, amount = 5_000L, type = TransactionType.INCOME, categoryName = "Gift", accountId = 1L),
             ),
             accounts = listOf(
-                account(id = 1L, currency = "KZT", balance = 150.0),
-                account(id = 2L, currency = "KZT", balance = 800.0),
+                account(id = 1L, currency = "KZT", balance = 15_000L),
+                account(id = 2L, currency = "KZT", balance = 80_000L),
             ),
             baseCurrency = flowOf("KZT"),
             selectedAccountId = 1L,
@@ -436,7 +441,7 @@ class TransactionListViewModelTest {
 
     private fun transaction(
         id: Long = 1L,
-        amount: Double,
+        amount: Long,
         type: TransactionType,
         categoryName: String,
         accountId: Long = 1L,
@@ -458,7 +463,7 @@ class TransactionListViewModelTest {
     private fun account(
         id: Long = 1L,
         currency: String,
-        balance: Double,
+        balance: Long,
     ) = Account(
         id = id,
         name = "Cash",
@@ -497,8 +502,8 @@ class TransactionListViewModelTest {
 
         override suspend fun getTopCurrenciesByUsage(): List<String> = emptyList()
 
-        override fun observeExpenseSumByCategory(categoryId: Long, startDate: Long, endDate: Long): Flow<Double> =
-            flowOf(0.0)
+        override fun observeExpenseSumByCategory(categoryId: Long, startDate: Long, endDate: Long): Flow<Long> =
+            flowOf(0L)
     }
 
     private class FakeAccountRepository(

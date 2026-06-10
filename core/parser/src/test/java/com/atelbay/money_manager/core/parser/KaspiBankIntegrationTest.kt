@@ -35,7 +35,7 @@ class KaspiBankIntegrationTest {
         assertTrue("Need at least 1 transaction", transactions.isNotEmpty())
         val first = transactions.first()
         assertEquals(LocalDate(2026, 2, 13), first.date)
-        assertEquals(500.0, first.amount, 0.01)
+        assertEquals(50000L, first.amount)
         assertEquals(TransactionType.EXPENSE, first.type)
         assertEquals("TOO \"KASPI MAGAZIN\"", first.details)
     }

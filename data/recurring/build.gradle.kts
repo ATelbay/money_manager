@@ -12,5 +12,7 @@ dependencies {
     implementation(projects.data.sync)
     implementation(projects.core.database)
     implementation(projects.core.model)
+    implementation(projects.core.common)
     implementation(libs.room.ktx)
+    implementation(libs.kotlinx.datetime)
 }

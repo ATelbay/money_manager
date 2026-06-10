@@ -48,7 +48,7 @@ fun ImportScreen(
     onAccountSelected: (Long) -> Unit,
     onSelectPdf: () -> Unit,
     onTakePhoto: () -> Unit,
-    onAmountChange: (Int, Double) -> Unit,
+    onAmountChange: (Int, Long) -> Unit,
     onTypeChange: (Int, com.atelbay.money_manager.core.model.TransactionType) -> Unit,
     onDetailsChange: (Int, String) -> Unit,
     onDateChange: (Int, kotlinx.datetime.LocalDate) -> Unit,
@@ -56,6 +56,7 @@ fun ImportScreen(
     onImport: () -> Unit,
     onRetry: () -> Unit,
     onReset: () -> Unit,
+    onCancel: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -77,9 +78,7 @@ fun ImportScreen(
         },
     ) { padding ->
         when (state) {
-            is ImportState.Idle,
-            is ImportState.SelectingFile,
-            -> {
+            is ImportState.Idle -> {
                 IdleContent(
                     onSelectPdf = onSelectPdf,
                     onTakePhoto = onTakePhoto,
@@ -108,6 +107,13 @@ fun ImportScreen(
                             text = s.analyzingStatement,
                             style = MaterialTheme.typography.bodyLarge,
                         )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        OutlinedButton(
+                            onClick = onCancel,
+                            modifier = Modifier.testTag("import:cancel"),
+                        ) {
+                            Text(s.cancel)
+                        }
                     }
                 }
             }
@@ -140,12 +146,21 @@ fun ImportScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(
+                            modifier = Modifier.testTag("import:importing"),
+                        )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = s.importingTransactions,
                             style = MaterialTheme.typography.bodyLarge,
                         )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        OutlinedButton(
+                            onClick = onCancel,
+                            modifier = Modifier.testTag("import:cancel"),
+                        ) {
+                            Text(s.cancel)
+                        }
                     }
                 }
             }
@@ -174,7 +189,10 @@ fun ImportScreen(
                             modifier = Modifier.testTag("import:successCount"),
                         )
                         Spacer(modifier = Modifier.height(24.dp))
-                        Button(onClick = onBack) {
+                        Button(
+                            onClick = onBack,
+                            modifier = Modifier.testTag("import:done"),
+                        ) {
                             Text(s.done)
                         }
                     }
@@ -217,7 +235,9 @@ fun ImportScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedButton(
                             onClick = onReset,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("import:reset"),
                         ) {
                             Text(s.chooseImportMethod)
                         }

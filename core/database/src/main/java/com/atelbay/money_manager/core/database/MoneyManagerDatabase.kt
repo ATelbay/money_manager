@@ -30,7 +30,7 @@ import com.atelbay.money_manager.core.database.entity.TransactionEntity
         DebtEntity::class,
         DebtPaymentEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class MoneyManagerDatabase : RoomDatabase() {

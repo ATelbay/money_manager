@@ -18,6 +18,7 @@ import com.atelbay.money_manager.domain.statistics.usecase.GetPeriodSummaryUseCa
 import com.atelbay.money_manager.domain.statistics.usecase.StatisticsPeriodRangeResolver
 import com.atelbay.money_manager.domain.transactions.usecase.GetTransactionsUseCase
 import com.atelbay.money_manager.core.common.startOfDay
+import com.atelbay.money_manager.core.model.money.toMajorDouble
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
 import com.atelbay.money_manager.core.common.di.DefaultDispatcher
@@ -242,7 +243,7 @@ class StatisticsViewModel @Inject constructor(
         val points = currentState.chart.points
         if (points.isEmpty()) return
 
-        val amounts: List<Double> = points.map { it.amount ?: 0.0 }
+        val amounts: List<Double> = points.map { it.amount?.toMajorDouble() ?: 0.0 }
         val allZero = amounts.all { it == 0.0 }
         if (allZero) {
             _state.update { it.copy(chart = it.chart.copy(allAmountsZero = true)) }

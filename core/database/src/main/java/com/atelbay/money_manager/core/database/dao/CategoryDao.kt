@@ -18,7 +18,7 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE isDeleted = 0 AND type = :type ORDER BY name ASC")
     fun observeByType(type: String): Flow<List<CategoryEntity>>
 
-    @Query("SELECT * FROM categories WHERE id = :id")
+    @Query("SELECT * FROM categories WHERE id = :id AND isDeleted = 0")
     fun observeById(id: Long): Flow<CategoryEntity?>
 
     @Query("SELECT * FROM categories WHERE isDeleted = 0")
@@ -39,6 +39,11 @@ interface CategoryDao {
     @Update
     suspend fun update(category: CategoryEntity)
 
+    @Deprecated(
+        "Hard delete cascades to ALL transactions of this category (FK CASCADE) and leaves no " +
+            "sync tombstone. Use softDeleteById instead.",
+        ReplaceWith("softDeleteById(category.id, System.currentTimeMillis())"),
+    )
     @Delete
     suspend fun delete(category: CategoryEntity)
 
@@ -61,4 +66,8 @@ interface CategoryDao {
 
     @Query("UPDATE categories SET remoteId = NULL")
     suspend fun clearRemoteIds()
+
+    /** Wipes all categories (defaults are re-seeded afterwards). Used on a user switch. */
+    @Query("DELETE FROM categories")
+    suspend fun deleteAll()
 }

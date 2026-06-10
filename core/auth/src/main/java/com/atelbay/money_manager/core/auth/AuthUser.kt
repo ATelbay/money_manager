@@ -5,4 +5,6 @@ data class AuthUser(
     val email: String?,
     val displayName: String?,
     val photoUrl: String?,
+    /** True for an anonymous Firebase session (no Google/email account linked). */
+    val isAnonymous: Boolean = false,
 )

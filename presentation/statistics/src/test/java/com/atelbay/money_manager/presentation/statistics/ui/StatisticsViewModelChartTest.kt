@@ -1,12 +1,12 @@
 package com.atelbay.money_manager.presentation.statistics.ui
 
-import com.atelbay.money_manager.domain.statistics.model.DailyTotal
 import com.atelbay.money_manager.domain.statistics.model.PeriodSummary
 import com.atelbay.money_manager.domain.statistics.model.StatisticsDateRange
 import com.atelbay.money_manager.domain.statistics.model.StatsPeriod
 import com.atelbay.money_manager.domain.statistics.model.TransactionType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -91,19 +91,20 @@ class StatisticsViewModelChartTest {
     @Test
     fun `loading week data with 7 points updates chart state and does not crash chartModelProducer`() = runTest(testDispatcher) {
 
-        val weekExpenseTotals = dailyTotals(
+        val weekExpenseTotals = displayDailyTotals(
             startMillis = weekRange.startMillis,
             count = 7,
-            amountAtIndex = { index -> (index + 1) * 100.0 },
+            amountAtIndex = { index -> (index + 1) * 10_000L },
         )
 
         val viewModel = createViewModel(
             flows = mapOf(
-                StatsPeriod.WEEK to flowOf(
-                    summary(dateRange = weekRange, dailyExpenses = weekExpenseTotals),
-                ),
+                StatsPeriod.WEEK to flowOf(skeletonSummary(weekRange)),
                 StatsPeriod.MONTH to emptyFlow(),
                 StatsPeriod.YEAR to emptyFlow(),
+            ),
+            resolutions = mapOf(
+                weekRange to resolutionOf(displayedDailyExpenses = weekExpenseTotals),
             ),
         )
 
@@ -122,19 +123,20 @@ class StatisticsViewModelChartTest {
 
         // The ViewModel sets isToday = (bucketStart == startOfDay(endMillis)), not actual calendar
         // today. For a 30-day range the last point is the only one marked as today.
-        val pastExpenseTotals = dailyTotals(
+        val pastExpenseTotals = displayDailyTotals(
             startMillis = pastMonthRange.startMillis,
             count = 30,
-            amountAtIndex = { index -> (index + 1) * 10.0 },
+            amountAtIndex = { index -> (index + 1) * 1_000L },
         )
 
         val viewModel = createViewModel(
             flows = mapOf(
-                StatsPeriod.MONTH to flowOf(
-                    summary(dateRange = pastMonthRange, dailyExpenses = pastExpenseTotals),
-                ),
+                StatsPeriod.MONTH to flowOf(skeletonSummary(pastMonthRange)),
                 StatsPeriod.WEEK to emptyFlow(),
                 StatsPeriod.YEAR to emptyFlow(),
+            ),
+            resolutions = mapOf(
+                pastMonthRange to resolutionOf(displayedDailyExpenses = pastExpenseTotals),
             ),
             rangeForMonth = pastMonthRange,
         )
@@ -157,28 +159,28 @@ class StatisticsViewModelChartTest {
     @Test
     fun `toggling transaction type updates chart state without crash`() = runTest(testDispatcher) {
 
-        val weekExpenseTotals = dailyTotals(
+        val weekExpenseTotals = displayDailyTotals(
             startMillis = weekRange.startMillis,
             count = 7,
-            amountAtIndex = { index -> (index + 1) * 100.0 },
+            amountAtIndex = { index -> (index + 1) * 10_000L },
         )
-        val weekIncomeTotals = dailyTotals(
+        val weekIncomeTotals = displayDailyTotals(
             startMillis = weekRange.startMillis,
             count = 7,
-            amountAtIndex = { index -> (index + 1) * 50.0 },
+            amountAtIndex = { index -> (index + 1) * 5_000L },
         )
 
         val viewModel = createViewModel(
             flows = mapOf(
-                StatsPeriod.WEEK to flowOf(
-                    summary(
-                        dateRange = weekRange,
-                        dailyExpenses = weekExpenseTotals,
-                        dailyIncome = weekIncomeTotals,
-                    ),
-                ),
+                StatsPeriod.WEEK to flowOf(skeletonSummary(weekRange)),
                 StatsPeriod.MONTH to emptyFlow(),
                 StatsPeriod.YEAR to emptyFlow(),
+            ),
+            resolutions = mapOf(
+                weekRange to resolutionOf(
+                    displayedDailyExpenses = weekExpenseTotals,
+                    displayedDailyIncome = weekIncomeTotals,
+                ),
             ),
         )
 
@@ -206,19 +208,20 @@ class StatisticsViewModelChartTest {
     @Test
     fun `allAmountsZero is true when all daily totals are zero`() = runTest(testDispatcher) {
 
-        val zeroDailyTotals = dailyTotals(
+        val zeroDailyTotals = displayDailyTotals(
             startMillis = weekRange.startMillis,
             count = 7,
-            amountAtIndex = { 0.0 },
+            amountAtIndex = { 0L },
         )
 
         val viewModel = createViewModel(
             flows = mapOf(
-                StatsPeriod.WEEK to flowOf(
-                    summary(dateRange = weekRange, dailyExpenses = zeroDailyTotals),
-                ),
+                StatsPeriod.WEEK to flowOf(skeletonSummary(weekRange)),
                 StatsPeriod.MONTH to emptyFlow(),
                 StatsPeriod.YEAR to emptyFlow(),
+            ),
+            resolutions = mapOf(
+                weekRange to resolutionOf(displayedDailyExpenses = zeroDailyTotals),
             ),
         )
 
@@ -232,26 +235,26 @@ class StatisticsViewModelChartTest {
     @Test
     fun `switching from all-zero period to period with data populates chart points`() = runTest(testDispatcher) {
 
-        val zeroDailyTotals = dailyTotals(
+        val zeroDailyTotals = displayDailyTotals(
             startMillis = weekRange.startMillis,
             count = 7,
-            amountAtIndex = { 0.0 },
+            amountAtIndex = { 0L },
         )
-        val nonZeroDailyTotals = dailyTotals(
+        val nonZeroDailyTotals = displayDailyTotals(
             startMillis = monthRange.startMillis,
             count = 30,
-            amountAtIndex = { index -> (index + 1) * 10.0 },
+            amountAtIndex = { index -> (index + 1) * 1_000L },
         )
 
         val viewModel = createViewModel(
             flows = mapOf(
-                StatsPeriod.WEEK to flowOf(
-                    summary(dateRange = weekRange, dailyExpenses = zeroDailyTotals),
-                ),
-                StatsPeriod.MONTH to flowOf(
-                    summary(dateRange = monthRange, dailyExpenses = nonZeroDailyTotals),
-                ),
+                StatsPeriod.WEEK to flowOf(skeletonSummary(weekRange)),
+                StatsPeriod.MONTH to flowOf(skeletonSummary(monthRange)),
                 StatsPeriod.YEAR to emptyFlow(),
+            ),
+            resolutions = mapOf(
+                weekRange to resolutionOf(displayedDailyExpenses = zeroDailyTotals),
+                monthRange to resolutionOf(displayedDailyExpenses = nonZeroDailyTotals),
             ),
         )
 
@@ -265,7 +268,7 @@ class StatisticsViewModelChartTest {
         val monthState = viewModel.state.value
         assertEquals(30, monthState.chart.points.size)
         assertTrue("Month points should have non-zero amounts",
-            monthState.chart.points.any { (it.amount ?: 0.0) > 0.0 })
+            monthState.chart.points.any { (it.amount ?: 0L) > 0L })
         // Note: allAmountsZero transitions to false only after chartModelProducer.runTransaction
         // completes (async Vico operation), so we verify chart points instead.
     }
@@ -273,30 +276,16 @@ class StatisticsViewModelChartTest {
     // region helpers
 
     private fun createViewModel(
-        flows: Map<StatsPeriod, kotlinx.coroutines.flow.Flow<PeriodSummary>>,
+        flows: Map<StatsPeriod, Flow<PeriodSummary>>,
+        resolutions: Map<StatisticsDateRange, StatisticsCurrencyResolution> = emptyMap(),
         rangeForMonth: StatisticsDateRange = monthRange,
     ): StatisticsViewModel = createViewModel(
         flows = flows,
         weekRange = weekRange,
         monthRange = monthRange,
         yearRange = yearRange,
+        resolutions = resolutions,
         rangeForMonth = rangeForMonth,
-    )
-
-    private fun summary(
-        dateRange: StatisticsDateRange,
-        dailyExpenses: List<DailyTotal> = emptyList(),
-        dailyIncome: List<DailyTotal> = emptyList(),
-    ) = PeriodSummary(
-        dateRange = dateRange,
-        totalExpenses = dailyExpenses.sumOf { it.amount },
-        totalIncome = dailyIncome.sumOf { it.amount },
-        expensesByCategory = emptyList(),
-        incomesByCategory = emptyList(),
-        dailyExpenses = dailyExpenses,
-        dailyIncome = dailyIncome,
-        monthlyExpenses = emptyList(),
-        monthlyIncome = emptyList(),
     )
 
     // endregion

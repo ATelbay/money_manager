@@ -55,7 +55,7 @@ class ForteBankParserTest {
         assertEquals(1, result.size)
         val tx = result[0]
         assertEquals(LocalDate(2026, 2, 19), tx.date)
-        assertEquals(10230.0, tx.amount, 0.01)
+        assertEquals(1023000L, tx.amount)
         assertEquals(TransactionType.EXPENSE, tx.type)
         assertEquals("Покупка", tx.operationType)
         assertEquals("SAHARA LOUNGE BAR ALMATY KZ", tx.details)
@@ -70,7 +70,7 @@ class ForteBankParserTest {
         assertEquals(1, result.size)
         val tx = result[0]
         assertEquals(LocalDate(2026, 3, 3), tx.date)
-        assertEquals(157319.66, tx.amount, 0.01)
+        assertEquals(15731966L, tx.amount)
         assertEquals(TransactionType.INCOME, tx.type)
         assertEquals("Пополнение счета", tx.operationType)
     }
@@ -82,7 +82,7 @@ class ForteBankParserTest {
         val result = parser.parse(text, forteConfig)
 
         assertEquals(1, result.size)
-        assertEquals(55000.0, result[0].amount, 0.01)
+        assertEquals(5500000L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("Получатель: 521700*******7777", result[0].details)
     }
@@ -95,7 +95,7 @@ class ForteBankParserTest {
 
         assertEquals(1, result.size)
         assertEquals(TransactionType.INCOME, result[0].type)
-        assertEquals(100000.0, result[0].amount, 0.01)
+        assertEquals(10000000L, result[0].amount)
     }
 
     @Test
@@ -105,7 +105,7 @@ class ForteBankParserTest {
         val result = parser.parse(text, forteConfig)
 
         assertEquals(1, result.size)
-        assertEquals(50000.0, result[0].amount, 0.01)
+        assertEquals(5000000L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("Списание средств в рамках сервиса быстрых платежей", result[0].operationType)
     }
@@ -117,7 +117,7 @@ class ForteBankParserTest {
         val result = parser.parse(text, forteConfig)
 
         assertEquals(1, result.size)
-        assertEquals(13647.50, result[0].amount, 0.01)
+        assertEquals(1364750L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("AIRALO SINGAPORE SG, Stripe Payments Singapore Pte Ltd", result[0].details)
     }
@@ -141,7 +141,7 @@ class ForteBankParserTest {
 
         assertEquals(1, result.size)
         assertEquals(TransactionType.INCOME, result[0].type)
-        assertEquals(10236.40, result[0].amount, 0.01)
+        assertEquals(1023640L, result[0].amount)
     }
 
     @Test
@@ -154,7 +154,7 @@ class ForteBankParserTest {
         val result = parser.parse(text, forteConfig)
 
         assertEquals(1, result.size)
-        assertEquals(50000.0, result[0].amount, 0.01)
+        assertEquals(5000000L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
     }
 
@@ -206,7 +206,7 @@ class ForteBankParserTest {
         val result = parser.parse(text, forteConfig)
 
         assertEquals(1, result.size)
-        assertEquals(20000.0, result[0].amount, 0.01)
+        assertEquals(2000000L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("Списание", result[0].operationType)
     }
@@ -239,7 +239,7 @@ class ForteBankParserTest {
         """.trimIndent()
         val result = parser.parse(text, forteConfig)
         assertEquals(1, result.size)
-        assertEquals(50000.0, result[0].amount, 0.01)
+        assertEquals(5000000L, result[0].amount)
         assertEquals(TransactionType.EXPENSE, result[0].type)
         assertEquals("Списание средств в рамках сервиса быстрых платежей", result[0].operationType)
         assertEquals("Выплата на карт.счет работника", result[0].details)

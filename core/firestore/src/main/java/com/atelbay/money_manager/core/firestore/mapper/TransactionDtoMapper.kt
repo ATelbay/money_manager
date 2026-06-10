@@ -4,6 +4,9 @@ import com.atelbay.money_manager.core.crypto.FieldCipher.Companion.CURRENT_ENCRY
 import com.atelbay.money_manager.core.crypto.FieldCipherHolder
 import com.atelbay.money_manager.core.database.entity.TransactionEntity
 import com.atelbay.money_manager.core.firestore.dto.TransactionDto
+import com.atelbay.money_manager.core.model.money.majorToMinor
+import com.atelbay.money_manager.core.model.money.toMajorDouble
+import com.atelbay.money_manager.core.model.money.toMajorPlainString
 import timber.log.Timber
 import java.security.GeneralSecurityException
 import java.util.UUID
@@ -16,7 +19,8 @@ fun TransactionEntity.toDto(
     val cipher = fieldCipherHolder.cipher
     return TransactionDto(
         remoteId = remoteId ?: UUID.randomUUID().toString(),
-        amount = if (cipher != null) cipher.encryptDouble(amount) else amount.toString(),
+        amount = if (cipher != null) cipher.encryptDouble(amount.toMajorDouble()) else amount.toMajorPlainString(),
+        amountMinor = if (cipher != null) cipher.encryptLong(amount) else amount.toString(),
         type = type,
         categoryRemoteId = categoryRemoteId,
         accountRemoteId = accountRemoteId,
@@ -46,7 +50,8 @@ fun TransactionDto.toEntity(
             TransactionEntity(
                 id = localId,
                 remoteId = remoteId,
-                amount = cipher.decryptDouble(amount),
+                amount = amountMinor?.takeIf { it.isNotBlank() }?.let { cipher.decryptLong(it) }
+                    ?: majorToMinor(cipher.decryptDouble(amount)),
                 type = type,
                 categoryId = categoryLocalId,
                 accountId = accountLocalId,
@@ -61,7 +66,7 @@ fun TransactionDto.toEntity(
             TransactionEntity(
                 id = localId,
                 remoteId = remoteId,
-                amount = amount.toDouble(),
+                amount = amountMinor?.toLongOrNull() ?: majorToMinor(amount.toDouble()),
                 type = type,
                 categoryId = categoryLocalId,
                 accountId = accountLocalId,

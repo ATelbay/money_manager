@@ -27,7 +27,10 @@ fun SettingsRoute(
 
     LaunchedEffect(viewModel) {
         viewModel.shareIntent.collect { intent ->
-            context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            // Guard against the rare case where no activity can handle the share chooser.
+            runCatching {
+                context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }
         }
     }
 

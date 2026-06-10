@@ -23,7 +23,7 @@ import androidx.room.PrimaryKey
 data class BudgetEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val categoryId: Long,
-    val monthlyLimit: Double,
+    val monthlyLimit: Long,
     val createdAt: Long,
     val remoteId: String? = null,
     val updatedAt: Long = 0,

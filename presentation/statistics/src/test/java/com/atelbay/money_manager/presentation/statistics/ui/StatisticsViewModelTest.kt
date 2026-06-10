@@ -1,7 +1,5 @@
 package com.atelbay.money_manager.presentation.statistics.ui
 
-import com.atelbay.money_manager.domain.statistics.model.DailyTotal
-import com.atelbay.money_manager.domain.statistics.model.MonthlyTotal
 import com.atelbay.money_manager.domain.statistics.model.PeriodSummary
 import com.atelbay.money_manager.domain.statistics.model.StatisticsDateRange
 import com.atelbay.money_manager.domain.statistics.model.StatsPeriod
@@ -90,44 +88,42 @@ class StatisticsViewModelTest {
     @Test
     fun `success path derives daily chart points and today marker for week and month`() = runTest(testDispatcher) {
 
-        val monthExpenseTotals = dailyTotals(
+        val monthExpenseTotals = displayDailyTotals(
             startMillis = monthRange.startMillis,
             count = 30,
-            amountAtIndex = { index -> if (index == 29) 0.0 else (index + 1) * 10.0 },
+            amountAtIndex = { index -> if (index == 29) 0L else (index + 1) * 1000L },
         )
-        val monthIncomeTotals = dailyTotals(
+        val monthIncomeTotals = displayDailyTotals(
             startMillis = monthRange.startMillis,
             count = 30,
-            amountAtIndex = { index -> if (index == 29) 0.0 else (index + 1) * 5.0 },
+            amountAtIndex = { index -> if (index == 29) 0L else (index + 1) * 500L },
         )
-        val weekExpenseTotals = dailyTotals(
+        val weekExpenseTotals = displayDailyTotals(
             startMillis = weekRange.startMillis,
             count = 7,
-            amountAtIndex = { index -> if (index == 6) 0.0 else (index + 1) * 100.0 },
+            amountAtIndex = { index -> if (index == 6) 0L else (index + 1) * 10_000L },
         )
-        val weekIncomeTotals = dailyTotals(
+        val weekIncomeTotals = displayDailyTotals(
             startMillis = weekRange.startMillis,
             count = 7,
-            amountAtIndex = { index -> if (index == 6) 0.0 else (index + 1) * 50.0 },
+            amountAtIndex = { index -> if (index == 6) 0L else (index + 1) * 5_000L },
         )
 
         val viewModel = createViewModel(
             flows = mapOf(
-                StatsPeriod.MONTH to flowOf(
-                    summary(
-                        dateRange = monthRange,
-                        dailyExpenses = monthExpenseTotals,
-                        dailyIncome = monthIncomeTotals,
-                    ),
-                ),
-                StatsPeriod.WEEK to flowOf(
-                    summary(
-                        dateRange = weekRange,
-                        dailyExpenses = weekExpenseTotals,
-                        dailyIncome = weekIncomeTotals,
-                    ),
-                ),
+                StatsPeriod.MONTH to flowOf(skeletonSummary(monthRange)),
+                StatsPeriod.WEEK to flowOf(skeletonSummary(weekRange)),
                 StatsPeriod.YEAR to emptyFlow(),
+            ),
+            resolutions = mapOf(
+                monthRange to resolutionOf(
+                    displayedDailyExpenses = monthExpenseTotals,
+                    displayedDailyIncome = monthIncomeTotals,
+                ),
+                weekRange to resolutionOf(
+                    displayedDailyExpenses = weekExpenseTotals,
+                    displayedDailyIncome = weekIncomeTotals,
+                ),
             ),
         )
 
@@ -136,14 +132,14 @@ class StatisticsViewModelTest {
         val monthState = viewModel.state.value
         assertEquals(30, monthState.chart.points.size)
         assertEquals(1, monthState.chart.points.count { it.isToday })
-        assertEquals(0.0, monthState.chart.points.last().amount ?: -1.0, 0.0)
+        assertEquals(0L, monthState.chart.points.last().amount ?: -1L)
         assertEquals(startOfDayUtc(monthRange.endMillis), monthState.chart.points.last().bucketStartMillis)
         assertTrue(monthState.chart.points.last().isToday)
 
         viewModel.setTransactionType(TransactionType.INCOME)
 
         val incomeState = viewModel.state.value
-        assertEquals(monthIncomeTotals.last().amount, incomeState.chart.points.last().amount ?: -1.0, 0.0)
+        assertEquals(monthIncomeTotals.last().amount, incomeState.chart.points.last().amount ?: -1L)
         assertTrue(incomeState.chart.points.last().isToday)
 
         viewModel.setPeriod(StatsPeriod.WEEK)
@@ -157,7 +153,7 @@ class StatisticsViewModelTest {
             SimpleDateFormat("EEE", Locale.US).format(Date(weekRange.endMillis)),
             weekState.chart.points.last().displayLabel,
         )
-        assertEquals(0.0, weekState.chart.points.last().amount ?: -1.0, 0.0)
+        assertEquals(0L, weekState.chart.points.last().amount ?: -1L)
         assertTrue(weekState.chart.points.last().isToday)
     }
 
@@ -165,30 +161,30 @@ class StatisticsViewModelTest {
     fun `year success path uses monthly title and never marks a point as today`() = runTest(testDispatcher) {
 
         val yearExpenseTotals = listOf(
-            MonthlyTotal(2025, Calendar.APRIL, 10.0, "Apr"),
-            MonthlyTotal(2025, Calendar.MAY, 20.0, "May"),
-            MonthlyTotal(2025, Calendar.JUNE, 30.0, "Jun"),
-            MonthlyTotal(2025, Calendar.JULY, 40.0, "Jul"),
-            MonthlyTotal(2025, Calendar.AUGUST, 50.0, "Aug"),
-            MonthlyTotal(2025, Calendar.SEPTEMBER, 60.0, "Sep"),
-            MonthlyTotal(2025, Calendar.OCTOBER, 70.0, "Oct"),
-            MonthlyTotal(2025, Calendar.NOVEMBER, 80.0, "Nov"),
-            MonthlyTotal(2025, Calendar.DECEMBER, 90.0, "Dec"),
-            MonthlyTotal(2026, Calendar.JANUARY, 100.0, "Jan"),
-            MonthlyTotal(2026, Calendar.FEBRUARY, 110.0, "Feb"),
-            MonthlyTotal(2026, Calendar.MARCH, 120.0, "Mar"),
+            StatisticsDisplayMonthlyTotal(2025, Calendar.APRIL, "Apr", 1_000L),
+            StatisticsDisplayMonthlyTotal(2025, Calendar.MAY, "May", 2_000L),
+            StatisticsDisplayMonthlyTotal(2025, Calendar.JUNE, "Jun", 3_000L),
+            StatisticsDisplayMonthlyTotal(2025, Calendar.JULY, "Jul", 4_000L),
+            StatisticsDisplayMonthlyTotal(2025, Calendar.AUGUST, "Aug", 5_000L),
+            StatisticsDisplayMonthlyTotal(2025, Calendar.SEPTEMBER, "Sep", 6_000L),
+            StatisticsDisplayMonthlyTotal(2025, Calendar.OCTOBER, "Oct", 7_000L),
+            StatisticsDisplayMonthlyTotal(2025, Calendar.NOVEMBER, "Nov", 8_000L),
+            StatisticsDisplayMonthlyTotal(2025, Calendar.DECEMBER, "Dec", 9_000L),
+            StatisticsDisplayMonthlyTotal(2026, Calendar.JANUARY, "Jan", 10_000L),
+            StatisticsDisplayMonthlyTotal(2026, Calendar.FEBRUARY, "Feb", 11_000L),
+            StatisticsDisplayMonthlyTotal(2026, Calendar.MARCH, "Mar", 12_000L),
         )
 
         val viewModel = createViewModel(
             flows = mapOf(
                 StatsPeriod.MONTH to emptyFlow(),
                 StatsPeriod.WEEK to emptyFlow(),
-                StatsPeriod.YEAR to flowOf(
-                    summary(
-                        dateRange = yearRange,
-                        monthlyExpenses = yearExpenseTotals,
-                        monthlyIncome = yearExpenseTotals,
-                    ),
+                StatsPeriod.YEAR to flowOf(skeletonSummary(yearRange)),
+            ),
+            resolutions = mapOf(
+                yearRange to resolutionOf(
+                    displayedMonthlyExpenses = yearExpenseTotals,
+                    displayedMonthlyIncome = yearExpenseTotals,
                 ),
             ),
         )
@@ -224,30 +220,14 @@ class StatisticsViewModelTest {
 
     private fun createViewModel(
         flows: Map<StatsPeriod, Flow<PeriodSummary>>,
+        resolutions: Map<StatisticsDateRange, StatisticsCurrencyResolution> = emptyMap(),
     ): StatisticsViewModel = createViewModel(
         flows = flows,
         weekRange = weekRange,
         monthRange = monthRange,
         yearRange = yearRange,
+        resolutions = resolutions,
         testDispatcher = testDispatcher,
-    )
-
-    private fun summary(
-        dateRange: StatisticsDateRange,
-        dailyExpenses: List<DailyTotal> = emptyList(),
-        dailyIncome: List<DailyTotal> = emptyList(),
-        monthlyExpenses: List<MonthlyTotal> = emptyList(),
-        monthlyIncome: List<MonthlyTotal> = emptyList(),
-    ) = PeriodSummary(
-        dateRange = dateRange,
-        totalExpenses = dailyExpenses.sumOf { it.amount } + monthlyExpenses.sumOf { it.amount },
-        totalIncome = dailyIncome.sumOf { it.amount } + monthlyIncome.sumOf { it.amount },
-        expensesByCategory = emptyList(),
-        incomesByCategory = emptyList(),
-        dailyExpenses = dailyExpenses,
-        dailyIncome = dailyIncome,
-        monthlyExpenses = monthlyExpenses,
-        monthlyIncome = monthlyIncome,
     )
 
     private fun startOfDayUtc(timestamp: Long): Long = Calendar.getInstance(TimeZone.getTimeZone("UTC")).run {
