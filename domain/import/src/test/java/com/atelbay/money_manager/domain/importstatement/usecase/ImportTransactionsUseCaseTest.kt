@@ -73,7 +73,7 @@ class ImportTransactionsUseCaseTest {
         }
         coEvery { categoryDao.getByType(any()) } returns emptyList()
         coEvery { transactionDao.getExistingHashes(any()) } returns emptyList()
-        coEvery { transactionDao.insertOrIgnore(any()) } returns listOf(1L)
+        coEvery { transactionDao.insertOrIgnore(any<List<TransactionEntity>>()) } returns listOf(1L)
 
         useCase = ImportTransactionsUseCase(
             database = database,
@@ -141,7 +141,7 @@ class ImportTransactionsUseCaseTest {
     fun `duplicate hashes are skipped and balance not changed`() = runTest {
         coEvery { categoryDao.getByType("expense") } returns listOf(category(5L, "Другое", "expense"))
         coEvery { transactionDao.getExistingHashes(any()) } returns listOf("dup")
-        coEvery { transactionDao.insertOrIgnore(any()) } returns emptyList()
+        coEvery { transactionDao.insertOrIgnore(any<List<TransactionEntity>>()) } returns emptyList()
 
         val result = useCase(
             transactions = listOf(parsedTx(uniqueHash = "dup", suggestedCategoryName = null)),
